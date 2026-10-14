@@ -25,22 +25,17 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
     _viewModel.loadData();
   }
 
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
   Future<void> _generateReport(
     String title,
     List<dynamic> data,
     Future<void> Function() generateAction,
   ) async {
-    if (data.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('لا توجد بيانات مسجلة حالياً لتوليد تقرير $title'),
-          backgroundColor: Colors.orange.shade800,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isGenerating = true);
     try {
       await generateAction();
@@ -81,13 +76,16 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
           onPressed: () => _viewModel.loadData(),
         ),
       ],
-      child: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: () => _viewModel.loadData(),
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
+      child: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) {
+          return Stack(
+            children: [
+              RefreshIndicator(
+                onRefresh: () => _viewModel.loadData(),
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: [
                 PortalMetricGrid(
                   children: [
                     PortalMetricCard(
@@ -209,7 +207,9 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],
-      ),
-    );
-  }
+      );
+    },
+  ),
+);
+}
 }

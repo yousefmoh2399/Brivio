@@ -69,10 +69,11 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
             children: [
               FadeInSlide(
                 delay: const Duration(milliseconds: 100),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _AnalyticsSummaryCard(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth < 650;
+                    final cards = [
+                      _AnalyticsSummaryCard(
                         title: 'إجمالي الإيرادات',
                         value: '${revenue.toStringAsFixed(0)} ج.م',
                         trend: '+0.0%',
@@ -80,10 +81,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         icon: Icons.monetization_on_rounded,
                         color: Colors.green,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _AnalyticsSummaryCard(
+                      _AnalyticsSummaryCard(
                         title: 'الطلاب المسجلون',
                         value: '$students طالب',
                         trend: '+0.0%',
@@ -91,10 +89,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         icon: Icons.school_rounded,
                         color: Colors.blue,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _AnalyticsSummaryCard(
+                      _AnalyticsSummaryCard(
                         title: 'نسبة الحضور',
                         value: '${attendance.toStringAsFixed(1)}%',
                         trend: '0.0%',
@@ -102,8 +97,30 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         icon: Icons.fact_check_rounded,
                         color: Colors.orange,
                       ),
-                    ),
-                  ],
+                    ];
+
+                    if (isMobile) {
+                      return Column(
+                        children: [
+                          cards[0],
+                          const SizedBox(height: 12),
+                          cards[1],
+                          const SizedBox(height: 12),
+                          cards[2],
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: cards[0]),
+                        const SizedBox(width: 16),
+                        Expanded(child: cards[1]),
+                        const SizedBox(width: 16),
+                        Expanded(child: cards[2]),
+                      ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 24),
@@ -120,8 +137,11 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 12,
                         children: [
                           Text(
                             'معدل نمو الإيرادات',
@@ -182,147 +202,173 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: FadeInSlide(
-                      delay: const Duration(milliseconds: 300),
-                      child: GlassCard(
-                        color: isDark
-                            ? AppColors.darkSurface
-                            : AppColors.lightSurface,
-                        borderColor: isDark
-                            ? AppColors.darkBorder
-                            : AppColors.lightBorder,
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'المواد الأكثر تسجيلاً وحضوراً',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 24),
-                            if (analytics?.subjectPerformances != null && analytics!.subjectPerformances.isNotEmpty)
-                              ...analytics.subjectPerformances.map((perf) {
-                                final colors = [
-                                  Colors.blue,
-                                  Colors.purple,
-                                  Colors.teal,
-                                  Colors.orange,
-                                ];
-                                final colorIndex =
-                                    analytics.subjectPerformances.indexOf(
-                                      perf,
-                                    ) %
-                                    colors.length;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 16.0),
-                                  child: _SubjectPerformanceRow(
-                                    subject: perf.subjectName,
-                                    score: perf.averageScore.toInt(),
-                                    color: colors[colorIndex],
-                                  ),
-                                );
-                              })
-                            else
-                              const Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Center(
-                                  child: Text(
-                                    'لا توجد بيانات أداء مسجلة حتى الآن.',
-                                    style: TextStyle(color: Colors.grey, fontSize: 13),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMobile = constraints.maxWidth < 750;
+
+                  final subjectCard = FadeInSlide(
+                    delay: const Duration(milliseconds: 300),
+                    child: GlassCard(
+                      color: isDark
+                          ? AppColors.darkSurface
+                          : AppColors.lightSurface,
+                      borderColor: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'المواد الأكثر تسجيلاً وحضوراً',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 24),
+                          if (analytics?.subjectPerformances != null &&
+                              analytics!.subjectPerformances.isNotEmpty)
+                            ...analytics.subjectPerformances.map((perf) {
+                              final colors = [
+                                Colors.blue,
+                                Colors.purple,
+                                Colors.teal,
+                                Colors.orange,
+                              ];
+                              final colorIndex =
+                                  analytics.subjectPerformances.indexOf(
+                                    perf,
+                                  ) %
+                                  colors.length;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: _SubjectPerformanceRow(
+                                  subject: perf.subjectName,
+                                  score: perf.averageScore.toInt(),
+                                  color: colors[colorIndex],
+                                ),
+                              );
+                            })
+                          else
+                            const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Center(
+                                child: Text(
+                                  'لا توجد بيانات أداء مسجلة حتى الآن.',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    flex: 1,
-                    child: FadeInSlide(
-                      delay: const Duration(milliseconds: 400),
-                      child: GlassCard(
-                        color: isDark
-                            ? AppColors.darkSurface
-                            : AppColors.lightSurface,
-                        borderColor: isDark
-                            ? AppColors.darkBorder
-                            : AppColors.lightBorder,
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'توزيع الطلاب',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 24),
-                            Center(
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 130,
-                                    height: 130,
-                                    child: CircularProgressIndicator(
-                                      value:
-                                          analytics
-                                              ?.demographics
-                                              .malePercentage ??
-                                          0.5,
-                                      strokeWidth: 10,
-                                      backgroundColor: Colors.pink.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      color: Colors.blue,
-                                    ),
-                                  ),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        '${((analytics?.demographics.malePercentage ?? 0.5) * 100).toInt()}%',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                      const Text(
-                                        'بنين',
-                                        style: TextStyle(color: Colors.grey, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  );
+
+                  final genderCard = FadeInSlide(
+                    delay: const Duration(milliseconds: 400),
+                    child: GlassCard(
+                      color: isDark
+                          ? AppColors.darkSurface
+                          : AppColors.lightSurface,
+                      borderColor: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'توزيع الطلاب',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 24),
+                          Center(
+                            child: Stack(
+                              alignment: Alignment.center,
                               children: [
-                                const _LegendItem(label: 'بنين', color: Colors.blue),
-                                _LegendItem(
-                                  label: 'بنات',
-                                  color: Colors.pink.withValues(alpha: 0.8),
+                                SizedBox(
+                                  width: 130,
+                                  height: 130,
+                                  child: CircularProgressIndicator(
+                                    value:
+                                        analytics
+                                            ?.demographics
+                                            .malePercentage ??
+                                        0.5,
+                                    strokeWidth: 10,
+                                    backgroundColor: Colors.pink.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '${((analytics?.demographics.malePercentage ?? 0.5) * 100).toInt()}%',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    const Text(
+                                      'بنين',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 28),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 16,
+                            runSpacing: 8,
+                            children: [
+                              const _LegendItem(
+                                label: 'بنين',
+                                color: Colors.blue,
+                              ),
+                              _LegendItem(
+                                label: 'بنات',
+                                color: Colors.pink.withValues(alpha: 0.8),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (isMobile) {
+                    return Column(
+                      children: [
+                        subjectCard,
+                        const SizedBox(height: 16),
+                        genderCard,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 2, child: subjectCard),
+                      const SizedBox(width: 24),
+                      Expanded(flex: 1, child: genderCard),
+                    ],
+                  );
+                },
               ),
             ],
           );
@@ -481,38 +527,49 @@ class _AnalyticsSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 20),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isPositive
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                      size: 12,
-                      color: isPositive ? Colors.green : Colors.red,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      trend,
-                      style: TextStyle(
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isPositive
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        size: 12,
                         color: isPositive ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: Text(
+                          trend,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isPositive ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
