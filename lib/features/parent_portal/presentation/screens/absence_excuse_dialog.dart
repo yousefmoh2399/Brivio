@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -7,12 +8,16 @@ class AbsenceExcuseDialog extends StatefulWidget {
   final String? initialStudentName;
   final String? initialStudentId;
   final String? initialGroupName;
+  final String? initialSessionId;
+  final List<Map<String, dynamic>>? availableSessions;
 
   const AbsenceExcuseDialog({
     super.key,
     this.initialStudentName,
     this.initialStudentId,
     this.initialGroupName,
+    this.initialSessionId,
+    this.availableSessions,
   });
 
   static Future<bool?> show(
@@ -20,13 +25,20 @@ class AbsenceExcuseDialog extends StatefulWidget {
     String? initialStudentName,
     String? initialStudentId,
     String? initialGroupName,
+    String? initialSessionId,
+    List<Map<String, dynamic>>? availableSessions,
   }) {
     return showDialog<bool>(
       context: context,
-      builder: (_) => AbsenceExcuseDialog(
-        initialStudentName: initialStudentName,
-        initialStudentId: initialStudentId,
-        initialGroupName: initialGroupName,
+      builder: (_) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AbsenceExcuseDialog(
+          initialStudentName: initialStudentName,
+          initialStudentId: initialStudentId,
+          initialGroupName: initialGroupName,
+          initialSessionId: initialSessionId,
+          availableSessions: availableSessions,
+        ),
       ),
     );
   }
@@ -38,6 +50,7 @@ class AbsenceExcuseDialog extends StatefulWidget {
 class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
   DateTime _absenceDate = DateTime.now().add(const Duration(days: 1));
   String _selectedReason = 'عذر مرضي 🩺';
+  String? _selectedSessionId;
   final _notesController = TextEditingController();
   bool _isSubmitting = false;
 
@@ -48,6 +61,12 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
     'ظرف عائلي خاص 🏠',
     'سبب آخر',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSessionId = widget.initialSessionId;
+  }
 
   @override
   void dispose() {
@@ -69,19 +88,51 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
 
   Future<void> _submitExcuse() async {
     setState(() => _isSubmitting = true);
-    await Future.delayed(const Duration(milliseconds: 600));
 
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+    final formattedDate =
+        '${_absenceDate.year}-${_absenceDate.month.toString().padLeft(2, '0')}-${_absenceDate.day.toString().padLeft(2, '0')}';
+    final extraNotes = _notesController.text.trim();
+    final combinedReason = extraNotes.isNotEmpty
+        ? '$_selectedReason - $extraNotes (لتاريخ $formattedDate)'
+        : '$_selectedReason (لتاريخ $formattedDate)';
 
-    Navigator.pop(context, true);
+    try {
+      final studentId = widget.initialStudentId;
+      if (studentId != null && studentId.isNotEmpty) {
+        await Supabase.instance.client.rpc(
+          'create_parent_child_leave_request',
+          params: {
+            'p_student_id': studentId,
+            'p_class_session_id': _selectedSessionId,
+            'p_reason': combinedReason,
+          },
+        );
+      } else {
+        await Future.delayed(const Duration(milliseconds: 400));
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: AppColors.success,
-        content: Text('تم تسجيل عذر الغياب وإخطار سكرتارية السنتر والمدرس بنجاح ✔️'),
-      ),
-    );
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      Navigator.pop(context, true);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          content: Text('تم تسجيل عذر الغياب وإخطار إدارة السنتر والمدرس بنجاح ✔️'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          content: Text('تعذر إرسال عذر الغياب: $e'),
+        ),
+      );
+    }
   }
 
   @override
@@ -89,12 +140,16 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
 
-    final studentName = widget.initialStudentName ?? 'عمر أحمد محمود';
-    final groupName = widget.initialGroupName ?? 'ثانوية عامة - لغات A';
-    final formattedDate = '${_absenceDate.year}-${_absenceDate.month.toString().padLeft(2, '0')}-${_absenceDate.day.toString().padLeft(2, '0')}';
+    final studentName = widget.initialStudentName ?? 'الطالب';
+    final groupName = widget.initialGroupName ?? 'المجموعة الدراسية';
+    final formattedDate =
+        '${_absenceDate.year}-${_absenceDate.month.toString().padLeft(2, '0')}-${_absenceDate.day.toString().padLeft(2, '0')}';
+    final sessions = widget.availableSessions ?? const [];
 
     return Dialog(
+      backgroundColor: surfaceColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -149,6 +204,36 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
               ),
               const SizedBox(height: 14),
 
+              if (sessions.isNotEmpty) ...[
+                Text('الحصة المستهدفة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedSessionId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('عذر عام (غير مقيد بحصة محددة)'),
+                    ),
+                    ...sessions.map(
+                      (s) => DropdownMenuItem<String?>(
+                        value: s['id']?.toString(),
+                        child: Text(
+                          '${s['date'] ?? ''} - ${s['title'] ?? 'حصة'}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (val) => setState(() => _selectedSessionId = val),
+                ),
+                const SizedBox(height: 14),
+              ],
+
               // Date Picker Field
               Text('تاريخ الحصة المتوقع التغيب عنها:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary)),
               const SizedBox(height: 6),
@@ -177,6 +262,7 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _selectedReason,
+                isExpanded: true,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),

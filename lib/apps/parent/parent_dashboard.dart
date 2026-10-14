@@ -24,6 +24,11 @@ import '../../features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../features/parent_portal/presentation/screens/absence_excuse_dialog.dart';
+import '../../features/parent_portal/presentation/screens/link_child_screen.dart';
+import '../../features/parent_portal/presentation/screens/monthly_report_card_screen.dart';
+import '../../features/parent_portal/presentation/screens/parent_financial_ledger_screen.dart';
+import '../../features/parent_portal/presentation/screens/child_assignments_screen.dart';
+import '../../features/parent_portal/presentation/screens/child_schedule_screen.dart';
 import 'screens/parent_helpdesk_screen.dart';
 
 class ParentDashboard extends StatefulWidget {
@@ -252,6 +257,46 @@ class _ParentDashboardState extends State<ParentDashboard> {
         .toList();
   }
 
+  Future<void> _openLinkChildScreen() async {
+    final linked = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const LinkChildScreen()),
+    );
+    if (linked == true) {
+      await _loadLinkedChildren();
+    }
+  }
+
+  void _exportFinancialLedger() {
+    final child = _selectedChild;
+    if (child == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ParentFinancialLedgerScreen(
+          studentName: child.fullName,
+          studentCode: child.studentCode,
+          parentName: widget.authViewModel.currentUser?.fullName ?? 'ولي الأمر',
+          parentPhone: widget.authViewModel.currentUser?.phoneNumber ?? '',
+          groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
+        ),
+      ),
+    );
+  }
+
+  void _openOfficialReportCard() {
+    final child = _selectedChild;
+    if (child == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MonthlyReportCardScreen(
+          studentName: child.fullName,
+          studentCode: child.studentCode,
+          groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
+          teacherName: _childGroups.isNotEmpty ? 'أ. معلم المادة' : 'إدارة السنتر',
+        ),
+      ),
+    );
+  }
+
   Future<void> _createLeaveRequest() async {
     final child = _selectedChild;
     if (child == null) return;
@@ -261,6 +306,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
       initialStudentName: child.fullName,
       initialStudentId: child.id,
       initialGroupName: _childGroups.isNotEmpty ? _childGroups.first.name : null,
+      availableSessions: _attendance
+          .take(15)
+          .map((a) => {
+                'id': a.classSessionId,
+                'title': a.groupName,
+                'date': _formatDate(a.sessionDate),
+              })
+          .toList(),
     );
 
     if (confirmed == true) {
@@ -319,9 +372,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
           isEmpty: _linkedChildren.isEmpty,
           emptyTitle: 'لا يوجد أبناء مرتبطين بحسابك',
           emptySubtitle:
-              'يرجى مراجعة إدارة السنتر لربط حسابك بملف الطالب الدراسي.',
+              'يرجى إدخال كود الطالب المسلّم لك من إدارة السنتر لربطه بحسابك ومتابعة دراسته لحظياً.',
           emptyIcon: Icons.family_restroom,
-          onRetry: _loadLinkedChildren,
+          onRetry: _openLinkChildScreen,
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -355,29 +408,44 @@ class _ParentDashboardState extends State<ParentDashboard> {
           : '${_selectedChild!.studentCode} • ${_childGroups.length} مجموعات نشطة',
       icon: Icons.family_restroom,
       accentColor: AppColors.parentRole,
-      trailing: SizedBox(
-        width: 260,
-        child: DropdownButtonFormField<Student>(
-          initialValue: _selectedChild,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'اختر الطالب'),
-          items: _linkedChildren
-              .map(
-                (child) => DropdownMenuItem<Student>(
-                  value: child,
-                  child: Text(
-                    '${child.fullName} (${child.studentCode})',
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_linkedChildren.isNotEmpty)
+            SizedBox(
+              width: 210,
+              child: DropdownButtonFormField<Student>(
+                initialValue: _selectedChild,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'اختر الطالب',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
-              )
-              .toList(),
-          onChanged: (child) {
-            if (child == null) return;
-            setState(() => _selectedChild = child);
-            _loadChildDetails(child);
-          },
-        ),
+                items: _linkedChildren
+                    .map(
+                      (child) => DropdownMenuItem<Student>(
+                        value: child,
+                        child: Text(
+                          '${child.fullName} (${child.studentCode})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (child) {
+                  if (child == null) return;
+                  setState(() => _selectedChild = child);
+                  _loadChildDetails(child);
+                },
+              ),
+            ),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(
+            tooltip: 'ربط طالب جديد بكود السنتر',
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+            onPressed: _openLinkChildScreen,
+          ),
+        ],
       ),
     );
   }
@@ -554,8 +622,31 @@ class _ParentDashboardState extends State<ParentDashboard> {
               )
               .toList(),
         ),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'الحصة القادمة وجدول المذاكرة'),
+        Row(
+          children: [
+            const Expanded(
+              child: PortalSectionTitle(
+                title: 'الحصة القادمة وجدول المواعيد',
+                subtitle: 'الحصة الدراسية القادمة ومكان انعقادها بالسنتر.',
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                final child = _selectedChild;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChildScheduleScreen(
+                      studentId: child?.id,
+                      studentName: child?.fullName,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.calendar_month_outlined, size: 18),
+              label: const Text('جدول المواعيد'),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         _buildNextLessonCard(),
       ],
@@ -613,6 +704,31 @@ class _ParentDashboardState extends State<ParentDashboard> {
                 ),
               )
               .toList(),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            const Expanded(
+              child: PortalSectionTitle(
+                title: 'الواجبات والتكليفات المدرسية',
+                subtitle: 'متابعة حل وتسليم الواجبات والتكليفات الدورية.',
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                final child = _selectedChild;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChildAssignmentsScreen(
+                      studentName: child?.fullName,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.assignment_outlined, size: 18),
+              label: const Text('كافة الواجبات'),
+            ),
+          ],
         ),
         const SizedBox(height: 18),
         const PortalSectionTitle(
@@ -789,7 +905,16 @@ class _ParentDashboardState extends State<ParentDashboard> {
           ],
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'فواتير واشتراكات الحصص'),
+        Row(
+          children: [
+            const Expanded(child: PortalSectionTitle(title: 'فواتير واشتراكات الحصص')),
+            FilledButton.tonalIcon(
+              onPressed: _selectedChild == null ? null : _exportFinancialLedger,
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+              label: const Text('كشف حساب PDF معتمد'),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _invoices.isEmpty,
@@ -847,10 +972,21 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PortalSectionTitle(
-          title: 'التقرير الشهري التراكمي',
-          subtitle:
-              'ملخص شهر ${report.monthLabel} للطالب ${child?.fullName ?? "المحدد"}.',
+        Row(
+          children: [
+            Expanded(
+              child: PortalSectionTitle(
+                title: 'التقرير الشهري التراكمي',
+                subtitle:
+                    'ملخص شهر ${report.monthLabel} للطالب ${child?.fullName ?? "المحدد"}.',
+              ),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: _selectedChild == null ? null : _openOfficialReportCard,
+              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+              label: const Text('كارت تقرير معتمد (PDF)'),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         PortalMetricGrid(

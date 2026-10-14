@@ -503,10 +503,21 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
             style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
           ),
           trailing: IconButton(
-            tooltip: 'تحميل الشهادة',
-            icon: const Icon(Icons.download, color: Colors.white),
+            tooltip: 'عرض وتصدير الشهادة PDF معتمد',
+            icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
             onPressed: () {
-              // Placeholder download logic
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MonthlyReportCardScreen(
+                    studentName: _viewModel.childName,
+                    studentCode: (widget.childData['student_code'] ??
+                            widget.childData['id'] ??
+                            'STU-101')
+                        .toString(),
+                  ),
+                ),
+              );
             },
           ),
         ),

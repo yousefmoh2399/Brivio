@@ -37,14 +37,14 @@ class ParentFinanceViewModel extends ChangeNotifier {
   List<Invoice> _invoices = [
     Invoice(
       id: 'INV-2026-08-01',
-      title: 'Fall Term Tuition',
-      amount: 1500.00,
+      title: 'اشتراك شهر أكتوبر (المجموعة الرسمية)',
+      amount: 450.00,
       dueDate: DateTime.now().add(const Duration(days: 15)),
     ),
     Invoice(
       id: 'INV-2026-07-01',
-      title: 'Library Fees',
-      amount: 50.00,
+      title: 'مذكرة المراجعة والتدريبات الشاملة',
+      amount: 150.00,
       dueDate: DateTime.now().subtract(const Duration(days: 10)),
       isPaid: true,
     ),
@@ -54,14 +54,14 @@ class ParentFinanceViewModel extends ChangeNotifier {
   final List<PaymentHistory> _paymentHistory = [
     PaymentHistory(
       id: 'PAY-89234',
-      description: 'Spring Term Tuition',
-      amount: 1500.00,
+      description: 'اشتراك شهر سبتمبر (مسدد بالخزينة)',
+      amount: 450.00,
       date: DateTime.now().subtract(const Duration(days: 90)),
     ),
     PaymentHistory(
       id: 'PAY-89235',
-      description: 'Library Fees',
-      amount: 50.00,
+      description: 'شراء مذكرة بنك الأسئلة',
+      amount: 150.00,
       date: DateTime.now().subtract(const Duration(days: 5)),
     ),
   ];
@@ -73,7 +73,7 @@ class ParentFinanceViewModel extends ChangeNotifier {
         0,
         PaymentHistory(
           id: 'PAY-${DateTime.now().millisecondsSinceEpoch}',
-          description: 'Payment - Online',
+          description: 'سداد نقدي / بخزينة السنتر',
           amount: _outstandingBalance,
           date: DateTime.now(),
         ),

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../../design_system/components/glass_card.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../data/parent_repository.dart';
 
 class LinkChildScreen extends StatefulWidget {
@@ -14,25 +18,27 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
   bool _isLoading = false;
 
   Future<void> _linkChild() async {
-    final studentId = _studentIdController.text.trim();
-    if (studentId.isEmpty) {
-      _showSnackBar('Please enter a valid Student ID', isError: true);
+    final query = _studentIdController.text.trim();
+    if (query.isEmpty) {
+      _showSnackBar('يرجى إدخال كود الطالب أو المعرّف الخاص به', isError: true);
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      await _parentRepository.linkChildWithId(studentId);
+      await _parentRepository.linkChildWithId(query);
       if (mounted) {
-        _showSnackBar('Child successfully linked!', isError: false);
+        _showSnackBar('تم ربط حساب الطالب بنجاح! تم تحديث قائمة الأبناء ✅', isError: false);
         _studentIdController.clear();
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        _showSnackBar('Failed to link child', isError: true);
+        _showSnackBar(
+          'تعذر ربط حساب الطالب. تأكد من كود الطالب أو راجع سكرتارية السنتر.',
+          isError: true,
+        );
       }
     } finally {
       if (mounted) {
@@ -45,7 +51,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+        backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -60,81 +66,120 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Link Child',
-          style: TextStyle(fontWeight: FontWeight.bold),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        appBar: AppBar(
+          title: const Text('ربط حساب طالب جديد'),
+          centerTitle: true,
+          elevation: 0,
         ),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(
-              Icons.family_restroom,
-              size: 80,
-              color: Colors.blueAccent,
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Link a Student',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Enter the student ID provided by the school to link them to your parent account.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 40),
-            TextField(
-              controller: _studentIdController,
-              decoration: InputDecoration(
-                labelText: 'Student ID',
-                hintText: 'e.g. 12345678',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                prefixIcon: const Icon(Icons.badge),
-                filled: true,
-                fillColor: Colors.grey.withValues(alpha: 0.1),
-              ),
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _linkChild(),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _linkChild,
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: AppColors.parentRole.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
-                  elevation: 2,
+                  child: const Icon(
+                    Icons.family_restroom_rounded,
+                    size: 48,
+                    color: AppColors.parentRole,
+                  ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      )
-                    : const Text(
-                        'Link Child',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'ربط ملف الطالب بحساب ولي الأمر',
+                style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'أدخل كود الطالب المسلّم لك من سنتر الدروس أو المعرف الخاص به لمتابعة الحضور، الواجبات، والدرجات لحظياً.',
+                style: AppTypography.bodyMedium(textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              GlassCard(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'كود الطالب بالسنتر:',
+                      style: AppTypography.bodySmall(textSecondary).copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _studentIdController,
+                      decoration: InputDecoration(
+                        hintText: 'مثال: STU-108 أو معرّف الطالب',
+                        prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.parentRole),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                      textDirection: TextDirection.ltr,
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _linkChild(),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 16, color: AppColors.info),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'يمكنك الحصول على كود الطالب من كارنيه السنتر أو من السكرتارية.',
+                            style: AppTypography.caption(textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 32),
+              SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: _isLoading ? null : _linkChild,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.parentRole,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Icon(Icons.link_rounded),
+                  label: Text(
+                    _isLoading ? 'جاري التحقق والربط...' : 'تأكيد وربط حساب الطالب 🔗',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../../design_system/components/glass_card.dart';
+import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../viewmodels/parent_comms_view_model.dart';
 
 class ParentCommsScreen extends StatefulWidget {
@@ -30,122 +34,144 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
   }
 
   void _onViewModelChanged() {
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   String _formatDate(DateTime date) {
-    const monthNames = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
+    const months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
     ];
-    return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   String _formatTime(DateTime time) {
     final hour = time.hour > 12
         ? time.hour - 12
         : (time.hour == 0 ? 12 : time.hour);
-    final period = time.hour >= 12 ? 'PM' : 'AM';
+    final period = time.hour >= 12 ? 'م' : 'ص';
     return '$hour:${time.minute.toString().padLeft(2, '0')} $period';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text(
-          'Communication',
-          style: TextStyle(fontWeight: FontWeight.bold),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        appBar: AppBar(
+          title: const Text(
+            'مركز التواصل والإعلانات 📢',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          elevation: 0,
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: AppColors.parentRole,
+            labelColor: AppColors.parentRole,
+            unselectedLabelColor: textSecondary,
+            tabs: const [
+              Tab(text: 'إعلانات السنتر', icon: Icon(Icons.campaign_outlined)),
+              Tab(text: 'المحادثة والرسائل', icon: Icon(Icons.chat_bubble_outline_rounded)),
+            ],
+          ),
         ),
-        elevation: 0,
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Announcements', icon: Icon(Icons.campaign)),
-            Tab(text: 'Messages', icon: Icon(Icons.message)),
-          ],
-        ),
+        body: _viewModel.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                controller: _tabController,
+                children: [_buildAnnouncementsTab(), _buildMessagesTab()],
+              ),
       ),
-      body: _viewModel.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [_buildAnnouncementsTab(), _buildMessagesTab()],
-            ),
     );
   }
 
   Widget _buildAnnouncementsTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     if (_viewModel.announcements.isEmpty) {
-      return const Center(child: Text('No announcements at this time.'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.campaign_outlined, size: 64, color: textSecondary.withValues(alpha: 0.5)),
+              const SizedBox(height: 16),
+              Text(
+                'لا توجد إعلانات عامة أو تنبيهات منشورة من السنتر حالياً.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSecondary, fontSize: 15),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
-    return ListView.builder(
+    return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _viewModel.announcements.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final announcement = _viewModel.announcements[index];
-        return Card(
-          elevation: 4,
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
+        return GlassCard(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.parentRole.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
                       announcement.author,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blueAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.parentRole,
                       ),
                     ),
-                    Text(
-                      _formatDate(announcement.date),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  announcement.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
                   ),
+                  Text(
+                    _formatDate(announcement.date),
+                    style: TextStyle(color: textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                announcement.title,
+                style: AppTypography.titleMedium(textPrimary).copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  announcement.content,
-                  style: TextStyle(color: Colors.grey[800], height: 1.5),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                announcement.content,
+                style: AppTypography.bodySmall(textSecondary).copyWith(height: 1.5),
+              ),
+            ],
           ),
         );
       },
@@ -153,17 +179,37 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
   }
 
   Widget _buildMessagesTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _viewModel.messages.length,
-            itemBuilder: (context, index) {
-              final message = _viewModel.messages[index];
-              return _buildChatBubble(message);
-            },
-          ),
+          child: _viewModel.messages.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat_outlined, size: 56, color: textSecondary.withValues(alpha: 0.4)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'تواصل مباشرة مع إدارة السنتر وسكرتارية المعلم.',
+                          style: TextStyle(color: textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _viewModel.messages.length,
+                  itemBuilder: (context, index) {
+                    final message = _viewModel.messages[index];
+                    return _buildChatBubble(message);
+                  },
+                ),
         ),
         _buildMessageInput(),
       ],
@@ -172,53 +218,57 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
 
   Widget _buildChatBubble(Message message) {
     final isMe = message.isFromMe;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isMe ? Colors.blueAccent : Colors.white,
+            color: isMe ? AppColors.parentRole : surfaceColor,
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(20),
-              topRight: const Radius.circular(20),
-              bottomLeft: Radius.circular(isMe ? 20 : 0),
-              bottomRight: Radius.circular(isMe ? 0 : 20),
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(isMe ? 0 : 18),
+              bottomRight: Radius.circular(isMe ? 18 : 0),
             ),
+            border: isMe ? null : Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 5,
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Column(
-            crossAxisAlignment: isMe
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            crossAxisAlignment: isMe ? CrossAxisAlignment.start : CrossAxisAlignment.start,
             children: [
               if (!isMe)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4.0),
                   child: Text(
                     message.sender,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.blueAccent.shade700,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
               Text(
                 message.content,
                 style: TextStyle(
-                  color: isMe ? Colors.white : Colors.black87,
-                  fontSize: 15,
+                  color: isMe ? Colors.white : textPrimary,
+                  fontSize: 14,
+                  height: 1.4,
                 ),
               ),
               const SizedBox(height: 4),
@@ -226,7 +276,7 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
                 _formatTime(message.timestamp),
                 style: TextStyle(
                   fontSize: 10,
-                  color: isMe ? Colors.white70 : Colors.grey[500],
+                  color: isMe ? Colors.white70 : Colors.grey,
                 ),
               ),
             ],
@@ -237,17 +287,15 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
   }
 
   Widget _buildMessageInput() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        color: surfaceColor,
+        border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
       ),
       child: SafeArea(
         child: Row(
@@ -256,15 +304,16 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
               child: TextField(
                 controller: _messageController,
                 decoration: InputDecoration(
-                  hintText: 'Type a message...',
+                  hintText: 'اكتب رسالتك للإدارة أو المدرس...',
+                  hintStyle: TextStyle(color: textSecondary),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
                   ),
                   filled: true,
-                  fillColor: Colors.grey[100],
+                  fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.08),
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
+                    horizontal: 18,
                     vertical: 12,
                   ),
                 ),
@@ -275,12 +324,12 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
                 },
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             CircleAvatar(
-              backgroundColor: Colors.blueAccent,
-              radius: 24,
+              backgroundColor: AppColors.parentRole,
+              radius: 22,
               child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.white),
+                icon: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
                 onPressed: () {
                   _viewModel.sendMessage(_messageController.text);
                   _messageController.clear();
