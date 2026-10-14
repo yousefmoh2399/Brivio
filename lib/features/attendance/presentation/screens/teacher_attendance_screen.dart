@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -15,6 +14,49 @@ import 'teacher_session_board_screen.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/components/glass_card.dart';
+
+String _attendanceStatusArabic(AttendanceStatus status) {
+  switch (status) {
+    case AttendanceStatus.present:
+      return 'حاضر';
+    case AttendanceStatus.absent:
+      return 'غائب';
+    case AttendanceStatus.late:
+      return 'متأخر';
+    case AttendanceStatus.excused:
+      return 'غياب بعذر';
+  }
+}
+
+String _attendanceStatusStringArabic(String status) {
+  switch (status.toLowerCase()) {
+    case 'present':
+      return 'حاضر';
+    case 'absent':
+      return 'غائب';
+    case 'late':
+      return 'متأخر';
+    case 'excused':
+      return 'بعذر';
+    case 'pending':
+      return 'قيد الانتظار';
+    default:
+      return status;
+  }
+}
+
+String _sessionStatusArabic(SessionStatus status) {
+  switch (status) {
+    case SessionStatus.scheduled:
+      return 'مجدولة';
+    case SessionStatus.inProgress:
+      return 'جارية الآن';
+    case SessionStatus.completed:
+      return 'مكتملة ومسجلة';
+    case SessionStatus.cancelled:
+      return 'ملغاة';
+  }
+}
 
 class TeacherAttendanceScreen extends StatefulWidget {
   final String teacherId;
@@ -99,8 +141,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     final messenger = ScaffoldMessenger.of(context);
     if (roster.isEmpty) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(context.tr('No enrolled students in this group.')),
+        const SnackBar(
+          content: Text('لا يوجد طلاب مقيدين في هذه المجموعة.'),
         ),
       );
       return;
@@ -133,7 +175,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       builder: (dialogCtx) => StatefulBuilder(
         builder: (stateCtx, setStateDialog) => AlertDialog(
           title: Text(
-            '${context.tr('Roll Call')}: ${session.location ?? context.tr('Session')}',
+            'تسجيل الحضور: ${session.location ?? "الحصة الدراسية"}',
           ),
           content: SizedBox(
             width: 540,
@@ -198,7 +240,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                           .map(
                             (status) => DropdownMenuItem(
                               value: status,
-                              child: Text(status.name),
+                              child: Text(_attendanceStatusArabic(status)),
                             ),
                           )
                           .toList(),
@@ -215,7 +257,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -237,20 +279,20 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   await _loadGroupsAndSessions();
                   if (!mounted) return;
                   messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('Attendance finalized.')),
+                    const SnackBar(
+                      content: Text('تم اعتماد وتأكيد الحضور بنجاح.'),
                     ),
                   );
                 } catch (e) {
                   if (!mounted) return;
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Finalization error')}: $e'),
+                      content: Text('فشل اعتماد الحضور: $e'),
                     ),
                   );
                 }
               },
-              child: Text(context.tr('Finalize')),
+              child: const Text('اعتماد الحضور'),
             ),
           ],
         ),
@@ -276,7 +318,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${context.tr('Failed to load roster')}: $e')),
+        SnackBar(content: Text('فشل تحميل كشف الحضور: $e')),
       );
       return;
     }
@@ -300,7 +342,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           }
 
           return AlertDialog(
-            title: Text(context.tr('Attendance roster')),
+            title: const Text('سجل وكشف الحضور والغياب'),
             content: SizedBox(
               width: 620,
               child: Column(
@@ -311,18 +353,18 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     runSpacing: 8,
                     children: [
                       Chip(
-                        label: Text('${context.tr('Present')}: $presentCount'),
+                        label: Text('حاضر: $presentCount'),
                       ),
                       Chip(
-                        label: Text('${context.tr('Absent')}: $absentCount'),
+                        label: Text('غائب: $absentCount'),
                       ),
                       Chip(
                         label: Text(
-                          '${context.tr('Checked out')}: $checkedOutCount',
+                          'تم تسجيل الخروج: $checkedOutCount',
                         ),
                       ),
                       Chip(
-                        label: Text('${context.tr('Total')}: ${roster.length}'),
+                        label: Text('الإجمالي: ${roster.length}'),
                       ),
                     ],
                   ),
@@ -330,8 +372,8 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 420),
                     child: roster.isEmpty
-                        ? Center(
-                            child: Text(context.tr('No enrolled students.')),
+                        ? const Center(
+                            child: Text('لا يوجد طلاب مقيدين في هذه الحصة.'),
                           )
                         : ListView.separated(
                             shrinkWrap: true,
@@ -381,14 +423,14 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                                             runSpacing: 4,
                                             children: [
                                               Text(entry.studentCode),
-                                              Text(context.tr(statusLabel)),
+                                              Text(_attendanceStatusStringArabic(statusLabel)),
                                               if (entry.checkInAt != null)
                                                 Text(
-                                                  '${context.tr('In')}: ${_formatQrTime(entry.checkInAt!)}',
+                                                  'دخول: ${_formatQrTime(entry.checkInAt!)}',
                                                 ),
                                               if (entry.checkOutAt != null)
                                                 Text(
-                                                  '${context.tr('Out')}: ${_formatQrTime(entry.checkOutAt!)}',
+                                                  'خروج: ${_formatQrTime(entry.checkOutAt!)}',
                                                 ),
                                             ],
                                           ),
@@ -413,15 +455,15 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                                                     messenger.showSnackBar(
                                                       SnackBar(
                                                         content: Text(
-                                                          '${context.tr('Checkout failed')}: $e',
+                                                          'فشل تسجيل خروج الطالب: $e',
                                                         ),
                                                       ),
                                                     );
                                                   }
                                                 },
                                                 icon: const Icon(Icons.logout),
-                                                label: Text(
-                                                  context.tr('Checkout'),
+                                                label: const Text(
+                                                  'تسجيل خروج الطالب',
                                                 ),
                                               ),
                                             ),
@@ -441,12 +483,12 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx),
-                child: Text(context.tr('Close')),
+                child: const Text('إغلاق'),
               ),
               FilledButton.icon(
                 onPressed: refreshRoster,
                 icon: const Icon(Icons.refresh),
-                label: Text(context.tr('Refresh')),
+                label: const Text('تحديث'),
               ),
             ],
           );
@@ -492,7 +534,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
           Center(
             child: Text(
-              context.tr('No assigned groups found.'),
+              'لم يتم العثور على مجموعات دراسية مسندة.',
               style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
             ),
           ),
@@ -506,7 +548,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           SizedBox(height: MediaQuery.of(context).size.height * 0.3),
           Center(
             child: Text(
-              context.tr('No active class sessions for this group.'),
+              'لا توجد حصص دراسية نشطة لهذه المجموعة.',
               style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
             ),
           ),
@@ -525,7 +567,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             child: FilledButton.icon(
               onPressed: _showCreateSessionDialog,
               icon: const Icon(Icons.add),
-              label: Text(context.tr('Create New Session')),
+              label: const Text('إنشاء حصة جديدة'),
             ),
           );
         }
@@ -559,7 +601,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${context.tr('Session')}: ${session.location ?? context.tr('Main Hall')}',
+                          'الحصة: ${session.location ?? "القاعة الرئيسية"}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: AppTypography.titleMedium(
@@ -572,13 +614,13 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                           runSpacing: 4,
                           children: [
                             Text(
-                              '${context.tr('Date')}: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day}',
+                              'التاريخ: ${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day}',
                               style: AppTypography.bodySmall(
                                 AppColors.darkTextSecondary,
                               ),
                             ),
                             Text(
-                              '${context.tr('Status')}: ${context.tr(session.status.name)}',
+                              'الحالة: ${_sessionStatusArabic(session.status)}',
                               style: AppTypography.bodySmall(
                                 AppColors.darkTextSecondary,
                               ),
@@ -603,7 +645,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                                 );
                               },
                               icon: const Icon(Icons.draw, size: 18),
-                              label: Text(context.tr('Whiteboard')),
+                              label: const Text('السبورة الذكية'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.info,
                                 foregroundColor: Colors.white,
@@ -612,20 +654,18 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                             ),
                             if (!isFinalized)
                               IconButton.filledTonal(
-                                tooltip: context.tr(
-                                  'Show rotating attendance QR',
-                                ),
+                                tooltip: 'عرض كود الحضور التفاعلي (QR)',
                                 onPressed: () => _openQrAttendance(session),
                                 icon: const Icon(Icons.qr_code_2),
                               ),
                             IconButton.filledTonal(
-                              tooltip: context.tr('View attendance roster'),
+                              tooltip: 'عرض كشف الحضور',
                               onPressed: () => _openRosterDialog(session),
                               icon: const Icon(Icons.fact_check),
                             ),
                             if (isFinalized)
-                              StatusChip(
-                                label: context.tr('FINALIZED'),
+                              const StatusChip(
+                                label: 'مكتملة ومسجلة',
                                 status: ChipStatus.success,
                               )
                             else
@@ -636,7 +676,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                                   foregroundColor: Colors.white,
                                   visualDensity: VisualDensity.compact,
                                 ),
-                                child: Text(context.tr('Take Attendance')),
+                                child: const Text('تسجيل الحضور'),
                               ),
                           ],
                         ),
@@ -663,20 +703,20 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (stateCtx, setState) {
           return AlertDialog(
-            title: Text(context.tr('Create Session')),
+            title: const Text('إنشاء حصة جديدة'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: locationController,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Location / Room'),
+                  decoration: const InputDecoration(
+                    labelText: 'القاعة أو المكان',
                   ),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(context.tr('Date')),
+                  title: const Text('تاريخ الحصة'),
                   subtitle: Text(
                     '${selectedDate!.year}-${selectedDate!.month}-${selectedDate!.day}',
                   ),
@@ -698,11 +738,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: Text(context.tr('Cancel')),
+                child: const Text('إلغاء'),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text(context.tr('Create')),
+                child: const Text('إنشاء الحصة'),
               ),
             ],
           );
@@ -730,7 +770,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${context.tr('Failed to create session')}: $e'),
+            content: Text('فشل إنشاء الحصة: $e'),
           ),
         );
       }
@@ -818,20 +858,18 @@ class _TeacherAttendanceQrDialogState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(context.tr('Finalize QR attendance?')),
-        content: Text(
-          context.tr(
-            'Students who did not scan the QR will be marked absent and this session will be completed.',
-          ),
+        title: const Text('اعتماد الحضور عبر رمز QR؟'),
+        content: const Text(
+          'سيتم تسجيل الطلاب الذين لم يقوموا بمسح الرمز كغائبين تلقائياً وإنهاء هذه الحصة.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(context.tr('Finalize')),
+            child: const Text('اعتماد'),
           ),
         ],
       ),
@@ -852,8 +890,8 @@ class _TeacherAttendanceQrDialogState
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            '${context.tr('Attendance finalized')}: ${json['present_count'] ?? 0} ${context.tr('present')}, '
-            '${json['late_count'] ?? 0} ${context.tr('late')}, ${json['absent_count'] ?? 0} ${context.tr('absent')}.',
+            'تم اعتماد الحضور: ${json['present_count'] ?? 0} حاضر، '
+            '${json['late_count'] ?? 0} متأخر، ${json['absent_count'] ?? 0} غائب.',
           ),
         ),
       );
@@ -861,7 +899,7 @@ class _TeacherAttendanceQrDialogState
       if (!mounted) return;
       setState(() => _isFinalizing = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('${context.tr('Finalization failed')}: $e')),
+        SnackBar(content: Text('فشل اعتماد الحضور: $e')),
       );
     }
   }
@@ -881,7 +919,7 @@ class _TeacherAttendanceQrDialogState
         .length;
 
     return AlertDialog(
-      title: Text(context.tr('Attendance QR')),
+      title: const Text('رمز الحضور الذكي (QR Code)'),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(
@@ -889,9 +927,7 @@ class _TeacherAttendanceQrDialogState
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                context.tr(
-                  'Students scan this QR to mark themselves present. It rotates every minute.',
-                ),
+                'يمسح الطلاب هذا الرمز لتسجيل الحضور فورياً. يتجدد الرمز أوتوماتيكياً كل دقيقة لضمان الأمان.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
@@ -926,8 +962,8 @@ class _TeacherAttendanceQrDialogState
               const SizedBox(height: 12),
               Text(
                 secondsLeft == null
-                    ? context.tr('Waiting for token')
-                    : '${context.tr('Expires in')} ${secondsLeft}s',
+                    ? 'بانتظار إنشاء الرمز'
+                    : 'ينتهي خلال $secondsLeft ثانية',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
@@ -935,21 +971,21 @@ class _TeacherAttendanceQrDialogState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${context.tr('Present')}: $presentCount',
+                    'حاضر: $presentCount',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: Colors.green,
                     ),
                   ),
                   Text(
-                    '${context.tr('Absent')}: ${_roster.length - presentCount}',
+                    'غائب: ${_roster.length - presentCount}',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: Colors.red,
                     ),
                   ),
                   Text(
-                    '${context.tr('Total')}: ${_roster.length}',
+                    'الإجمالي: ${_roster.length}',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -960,8 +996,8 @@ class _TeacherAttendanceQrDialogState
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 180),
                 child: _roster.isEmpty
-                    ? Center(
-                        child: Text(context.tr('Roster will appear here.')),
+                    ? const Center(
+                        child: Text('ستظهر أسماء الطلاب فور تسجيل حضورهم هنا.'),
                       )
                     : ListView.separated(
                         shrinkWrap: true,
@@ -984,9 +1020,9 @@ class _TeacherAttendanceQrDialogState
                             subtitle: Text(
                               item.checkInAt == null
                                   ? item.studentCode
-                                  : '${item.studentCode} | ${_formatQrTime(item.checkInAt!)} | ${item.markedByQr ? "QR" : context.tr("Manual")}',
+                                  : '${item.studentCode} | ${_formatQrTime(item.checkInAt!)} | ${item.markedByQr ? "QR" : "يدوي"}',
                             ),
-                            trailing: Text(context.tr(item.status)),
+                            trailing: Text(_attendanceStatusStringArabic(item.status)),
                           );
                         },
                       ),
@@ -998,7 +1034,7 @@ class _TeacherAttendanceQrDialogState
       actions: [
         TextButton(
           onPressed: _isFinalizing ? null : () => Navigator.pop(context),
-          child: Text(context.tr('Close')),
+          child: const Text('إغلاق'),
         ),
         OutlinedButton.icon(
           onPressed: _isFinalizing ? null : _finalizeAttendance,
@@ -1009,12 +1045,12 @@ class _TeacherAttendanceQrDialogState
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.done_all),
-          label: Text(context.tr('Finalize Attendance')),
+          label: const Text('اعتماد الحضور النهائي'),
         ),
         FilledButton.icon(
           onPressed: _isFinalizing ? null : _refreshQrWorkspace,
           icon: const Icon(Icons.refresh),
-          label: Text(context.tr('Refresh')),
+          label: const Text('تحديث'),
         ),
       ],
     );
@@ -1045,7 +1081,7 @@ class _QrRosterItem {
     return _QrRosterItem(
       studentId: json['student_id']?.toString() ?? '',
       studentCode: json['student_code']?.toString() ?? '',
-      fullName: json['full_name']?.toString() ?? 'Student',
+      fullName: json['full_name']?.toString() ?? 'طالب',
       status: json['attendance_status']?.toString() ?? 'pending',
       checkInAt: DateTime.tryParse(json['check_in_at']?.toString() ?? ''),
       deviceId: json['device_id']?.toString(),
@@ -1078,9 +1114,9 @@ class _GroupPicker extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: DropdownButtonFormField<GroupEntity>(
         initialValue: selectedGroup,
-        decoration: InputDecoration(
-          labelText: context.tr('Assigned group'),
-          border: const OutlineInputBorder(),
+        decoration: const InputDecoration(
+          labelText: 'المجموعة الدراسية',
+          border: OutlineInputBorder(),
         ),
         items: groups
             .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
@@ -1109,7 +1145,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: onRetry,
-              child: Text(context.tr('Retry')),
+              child: const Text('إعادة المحاولة'),
             ),
           ],
         ),

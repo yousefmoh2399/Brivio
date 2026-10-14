@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/components/glass_card.dart';
@@ -57,9 +56,9 @@ class _ClassesTabState extends State<ClassesTab>
               FadeInSlide(
                 duration: const Duration(milliseconds: 400),
                 child: Text(
-                  context.tr('Classes'),
+                  'المجموعات والحصص الدراسية',
                   style: AppTypography.displaySmall(textPrimary).copyWith(
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                   ),
@@ -110,10 +109,10 @@ class _ClassesTabState extends State<ClassesTab>
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                     ),
-                    tabs: [
-                      Tab(text: context.tr('Groups')),
-                      Tab(text: context.tr('Schedule')),
-                      Tab(text: context.tr('Curriculum')),
+                    tabs: const [
+                      Tab(text: 'المجموعات الدراسية'),
+                      Tab(text: 'جدول المواعيد'),
+                      Tab(text: 'المنهج والدروس'),
                     ],
                   ),
                 ),

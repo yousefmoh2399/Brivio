@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -74,11 +73,24 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     }
   }
 
+  String _questionTypeName(QuestionType type) {
+    switch (type) {
+      case QuestionType.multipleChoice:
+        return 'اختيار من متعدد';
+      case QuestionType.trueFalse:
+        return 'صح وخطأ';
+      case QuestionType.shortAnswer:
+        return 'إجابة قصيرة';
+      case QuestionType.longAnswer:
+        return 'إجابة مقالية';
+    }
+  }
+
   void _showQuestionEditorDialog([Question? existingQuestion]) async {
     if (_selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr('No assigned teaching groups found.')),
+        const SnackBar(
+          content: Text('لم يتم العثور على مجموعات دراسية مسندة.'),
         ),
       );
       return;
@@ -158,8 +170,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                     children: [
                       Text(
                         existingQuestion == null
-                            ? context.tr('Create Question')
-                            : context.tr('Edit Question'),
+                            ? 'إضافة سؤال جديد'
+                            : 'تعديل السؤال',
                         style: AppTypography.displaySmall(textColor),
                       ),
                       const SizedBox(height: 16),
@@ -168,35 +180,35 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         dropdownColor: isDark
                             ? AppColors.darkCard
                             : AppColors.lightCard,
-                        decoration: InputDecoration(
-                          labelText: context.tr('Question Type'),
+                        decoration: const InputDecoration(
+                          labelText: 'نوع السؤال',
                         ),
                         items: [
                           DropdownMenuItem(
                             value: QuestionType.multipleChoice,
                             child: Text(
-                              context.tr('Multiple Choice'),
+                              'اختيار من متعدد (MCQ)',
                               style: TextStyle(color: textColor),
                             ),
                           ),
                           DropdownMenuItem(
                             value: QuestionType.trueFalse,
                             child: Text(
-                              context.tr('True / False'),
+                              'صح أو خطأ',
                               style: TextStyle(color: textColor),
                             ),
                           ),
                           DropdownMenuItem(
                             value: QuestionType.shortAnswer,
                             child: Text(
-                              context.tr('Short Answer'),
+                              'إجابة قصيرة',
                               style: TextStyle(color: textColor),
                             ),
                           ),
                           DropdownMenuItem(
                             value: QuestionType.longAnswer,
                             child: Text(
-                              context.tr('Long Answer'),
+                              'إجابة مقالية (مطولة)',
                               style: TextStyle(color: textColor),
                             ),
                           ),
@@ -206,8 +218,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                             setStateDialog(() {
                               selectedType = v;
                               if (v == QuestionType.trueFalse) {
-                                opt1Ctrl.text = 'True';
-                                opt2Ctrl.text = 'False';
+                                opt1Ctrl.text = 'صواب';
+                                opt2Ctrl.text = 'خطأ';
                                 correctIdx = 0;
                               } else {
                                 opt1Ctrl.clear();
@@ -221,8 +233,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                       TextField(
                         controller: promptCtrl,
                         style: TextStyle(color: textColor),
-                        decoration: InputDecoration(
-                          labelText: context.tr('Question Prompt'),
+                        decoration: const InputDecoration(
+                          labelText: 'نص السؤال أو رأس المسألة',
                         ),
                         maxLines: 2,
                       ),
@@ -232,32 +244,32 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         TextField(
                           controller: opt1Ctrl,
                           style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            labelText: context.tr('Option 1'),
+                          decoration: const InputDecoration(
+                            labelText: 'الخيار الأول (أ)',
                           ),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: opt2Ctrl,
                           style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            labelText: context.tr('Option 2'),
+                          decoration: const InputDecoration(
+                            labelText: 'الخيار الثاني (ب)',
                           ),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: opt3Ctrl,
                           style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            labelText: context.tr('Option 3'),
+                          decoration: const InputDecoration(
+                            labelText: 'الخيار الثالث (ج)',
                           ),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: opt4Ctrl,
                           style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            labelText: context.tr('Option 4'),
+                          decoration: const InputDecoration(
+                            labelText: 'الخيار الرابع (د)',
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -266,35 +278,35 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                           dropdownColor: isDark
                               ? AppColors.darkCard
                               : AppColors.lightCard,
-                          decoration: InputDecoration(
-                            labelText: context.tr('Correct Option'),
+                          decoration: const InputDecoration(
+                            labelText: 'الإجابة الصحيحة',
                           ),
                           items: [
                             DropdownMenuItem(
                               value: 0,
                               child: Text(
-                                context.tr('Option 1 is Correct'),
+                                'الخيار الأول (أ) هو الصحيح',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                             DropdownMenuItem(
                               value: 1,
                               child: Text(
-                                context.tr('Option 2 is Correct'),
+                                'الخيار الثاني (ب) هو الصحيح',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                             DropdownMenuItem(
                               value: 2,
                               child: Text(
-                                context.tr('Option 3 is Correct'),
+                                'الخيار الثالث (ج) هو الصحيح',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                             DropdownMenuItem(
                               value: 3,
                               child: Text(
-                                context.tr('Option 4 is Correct'),
+                                'الخيار الرابع (د) هو الصحيح',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
@@ -310,21 +322,21 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                           dropdownColor: isDark
                               ? AppColors.darkCard
                               : AppColors.lightCard,
-                          decoration: InputDecoration(
-                            labelText: context.tr('Correct Option'),
+                          decoration: const InputDecoration(
+                            labelText: 'الإجابة الصحيحة',
                           ),
                           items: [
                             DropdownMenuItem(
                               value: 0,
                               child: Text(
-                                context.tr('True is Correct'),
+                                'صواب (صح) هي الإجابة الصحيحة',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                             DropdownMenuItem(
                               value: 1,
                               child: Text(
-                                context.tr('False is Correct'),
+                                'خطأ هي الإجابة الصحيحة',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
@@ -337,8 +349,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         TextField(
                           controller: explanationCtrl,
                           style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            labelText: context.tr('Model Answer / Explanation'),
+                          decoration: const InputDecoration(
+                            labelText: 'الإجابة النموذجية / الشرح والتوضيح',
                           ),
                           maxLines: 3,
                         ),
@@ -347,8 +359,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                       TextField(
                         controller: ptsCtrl,
                         style: TextStyle(color: textColor),
-                        decoration: InputDecoration(
-                          labelText: context.tr('Default Points'),
+                        decoration: const InputDecoration(
+                          labelText: 'درجة السؤال (الافتراضية)',
                         ),
                         keyboardType: TextInputType.number,
                       ),
@@ -359,7 +371,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
                             child: Text(
-                              context.tr('Cancel'),
+                              'إلغاء',
                               style: TextStyle(color: textColor),
                             ),
                           ),
@@ -413,14 +425,14 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                     QuestionOption(
                                       id: '',
                                       questionId: '',
-                                      text: 'True',
+                                      text: 'صواب',
                                       isCorrect: correctIdx == 0,
                                       orderNumber: 1,
                                     ),
                                     QuestionOption(
                                       id: '',
                                       questionId: '',
-                                      text: 'False',
+                                      text: 'خطأ',
                                       isCorrect: correctIdx == 1,
                                       orderNumber: 2,
                                     ),
@@ -454,19 +466,15 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                     final doUpdate = await showDialog<bool>(
                                       context: context,
                                       builder: (c) => AlertDialog(
-                                        title: Text(context.tr('Warning')),
-                                        content: Text(
-                                          context.tr(
-                                            'This question is used in active exams. Do you want to update it everywhere, or save this as a new question?',
-                                          ),
+                                        title: const Text('تنبيه'),
+                                        content: const Text(
+                                          'هذا السؤال مستخدم في امتحانات نشطة. هل تريد تحديثه في كافة الامتحانات، أم حفظه كسؤال جديد منفصل؟',
                                         ),
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
                                                 Navigator.pop(c, false),
-                                            child: Text(
-                                              context.tr('Save as New'),
-                                            ),
+                                            child: const Text('حفظ كسؤال جديد'),
                                           ),
                                           FilledButton(
                                             style: FilledButton.styleFrom(
@@ -474,9 +482,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                             ),
                                             onPressed: () =>
                                                 Navigator.pop(c, true),
-                                            child: Text(
-                                              context.tr('Update Everywhere'),
-                                            ),
+                                            child: const Text('تحديث في الكل'),
                                           ),
                                         ],
                                       ),
@@ -504,12 +510,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 _loadQuestions();
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        context.tr(
-                                          'Question saved successfully!',
-                                        ),
-                                      ),
+                                    const SnackBar(
+                                      content: Text('تم حفظ السؤال بنجاح!'),
                                       backgroundColor: Colors.green,
                                     ),
                                   );
@@ -518,9 +520,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(
-                                        '${context.tr('Save failed')}: $e',
-                                      ),
+                                      content: Text('فشل الحفظ: $e'),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -529,8 +529,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                             },
                             child: Text(
                               existingQuestion == null
-                                  ? context.tr('Save Question')
-                                  : context.tr('Update Question'),
+                                  ? 'حفظ السؤال'
+                                  : 'تحديث السؤال',
                             ),
                           ),
                         ],
@@ -550,16 +550,16 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Delete Question')),
-        content: Text(context.tr('Delete this question from the bank?')),
+        title: const Text('حذف السؤال'),
+        content: const Text('هل أنت متأكد من حذف هذا السؤال من بنك الأسئلة؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('Delete')),
+            child: const Text('حذف'),
           ),
         ],
       ),
@@ -572,7 +572,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Delete failed')}: $e')),
+        SnackBar(content: Text('فشل الحذف: $e')),
       );
     }
   }
@@ -643,13 +643,13 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '${context.tr('Error')}: $_errorMessage',
+                            'حدث خطأ: $_errorMessage',
                             style: const TextStyle(color: Colors.red),
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton(
                             onPressed: _loadQuestions,
-                            child: Text(context.tr('Retry')),
+                            child: const Text('إعادة المحاولة'),
                           ),
                         ],
                       ),
@@ -674,8 +674,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                               dropdownColor: isDark
                                   ? AppColors.darkCard
                                   : AppColors.lightCard,
-                              decoration: InputDecoration(
-                                labelText: context.tr('Teaching Group'),
+                              decoration: const InputDecoration(
+                                labelText: 'المجموعة الدراسية',
                                 border: InputBorder.none,
                               ),
                               items: _groups
@@ -704,7 +704,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         hasScrollBody: false,
                         child: Center(
                           child: Text(
-                            context.tr('No assigned teaching groups found.'),
+                            'لم يتم العثور على مجموعات دراسية مسندة.',
                             style: AppTypography.bodyMedium(subtitleColor),
                           ),
                         ),
@@ -714,7 +714,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         hasScrollBody: false,
                         child: Center(
                           child: Text(
-                            context.tr('No questions found in Question Bank.'),
+                            'لا توجد أسئلة مضافة في بنك الأسئلة لهذه المجموعة.',
                             style: AppTypography.bodyMedium(subtitleColor),
                           ),
                         ),
@@ -762,7 +762,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
-                                              '${context.tr('Type')}: ${context.tr(q.questionType.name)} | ${context.tr('Points')}: ${q.defaultPoints}',
+                                              'النوع: ${_questionTypeName(q.questionType)} | الدرجة: ${q.defaultPoints} درجات',
                                               style: AppTypography.caption(
                                                 subtitleColor,
                                               ),
@@ -772,7 +772,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                       ),
                                       const SizedBox(width: 8),
                                       PopupMenuButton<String>(
-                                        tooltip: context.tr('Actions'),
+                                        tooltip: 'خيارات',
                                         icon: const Icon(
                                           Icons.more_vert_rounded,
                                         ),
@@ -784,24 +784,24 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                           }
                                         },
                                         itemBuilder: (context) => [
-                                          PopupMenuItem(
+                                          const PopupMenuItem(
                                             value: 'edit',
                                             child: ListTile(
-                                              leading: const Icon(
+                                              leading: Icon(
                                                 Icons.edit_rounded,
                                               ),
-                                              title: Text(context.tr('Edit')),
+                                              title: Text('تعديل'),
                                               contentPadding: EdgeInsets.zero,
                                             ),
                                           ),
-                                          PopupMenuItem(
+                                          const PopupMenuItem(
                                             value: 'delete',
                                             child: ListTile(
-                                              leading: const Icon(
+                                              leading: Icon(
                                                 Icons.delete_outline,
                                                 color: AppColors.error,
                                               ),
-                                              title: Text(context.tr('Delete')),
+                                              title: Text('حذف'),
                                               contentPadding: EdgeInsets.zero,
                                             ),
                                           ),
@@ -841,7 +841,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: Text(context.tr('Add Question')),
+              label: const Text('إضافة سؤال جديد'),
             ),
           ),
       ],

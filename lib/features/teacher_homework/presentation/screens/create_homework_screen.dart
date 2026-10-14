@@ -18,10 +18,10 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
 
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   final List<String> _availableClasses = [
-    'Class 10A',
-    'Class 10B',
-    'Class 11 Science',
-    'Class 12 Arts',
+    'الصف الأول الثانوي (مجموعة أ)',
+    'الصف الأول الثانوي (مجموعة ب)',
+    'الصف الثاني الثانوي (علمي)',
+    'الصف الثالث الثانوي (مكثف)',
   ];
   final List<String> _selectedClasses = [];
 
@@ -59,7 +59,7 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
     if (_formKey.currentState!.validate()) {
       if (_selectedClasses.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select at least one class.')),
+          const SnackBar(content: Text('برجاء اختيار مجموعة واحدة على الأقل.')),
         );
         return;
       }
@@ -83,7 +83,7 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
-          'Create Assignment',
+          'إنشاء واجب جديد',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
@@ -97,31 +97,31 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle('Assignment Details'),
+              _buildSectionTitle('بيانات وتفاصيل الواجب'),
               _buildCard(
                 child: Column(
                   children: [
                     TextFormField(
                       controller: _titleController,
                       decoration: const InputDecoration(
-                        labelText: 'Title',
+                        labelText: 'عنوان الواجب',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) => value == null || value.isEmpty
-                          ? 'Please enter a title'
+                          ? 'يرجى إدخال عنوان الواجب'
                           : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _descriptionController,
                       decoration: const InputDecoration(
-                        labelText: 'Description',
+                        labelText: 'وصف التكليف والتعليمات',
                         border: OutlineInputBorder(),
                         alignLabelWithHint: true,
                       ),
                       maxLines: 4,
                       validator: (value) => value == null || value.isEmpty
-                          ? 'Please enter a description'
+                          ? 'يرجى كتابة تعليمات الواجب'
                           : null,
                     ),
                     const SizedBox(height: 16),
@@ -131,12 +131,12 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                           child: TextFormField(
                             controller: _pointsController,
                             decoration: const InputDecoration(
-                              labelText: 'Total Points',
+                              labelText: 'الدرجة الكلية',
                               border: OutlineInputBorder(),
                             ),
                             keyboardType: TextInputType.number,
                             validator: (value) => value == null || value.isEmpty
-                                ? 'Required'
+                                ? 'مطلوب'
                                 : null,
                           ),
                         ),
@@ -146,7 +146,7 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                             onTap: () => _selectDate(context),
                             child: InputDecorator(
                               decoration: const InputDecoration(
-                                labelText: 'Due Date',
+                                labelText: 'تاريخ التسليم',
                                 border: OutlineInputBorder(),
                               ),
                               child: Row(
@@ -155,7 +155,7 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                                 children: [
                                   Text(
                                     DateFormat(
-                                      'MMM d, yyyy',
+                                      'yyyy/MM/dd',
                                     ).format(_selectedDate),
                                   ),
                                   const Icon(Icons.calendar_today, size: 16),
@@ -170,7 +170,7 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle('Assign To Classes'),
+              _buildSectionTitle('المجموعات الدراسية المستهدفة'),
               _buildCard(
                 child: Wrap(
                   spacing: 8.0,
@@ -203,12 +203,13 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
                   onPressed: _saveAssignment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
-                    'Publish Assignment',
+                    'نشر الواجب للمجموعات',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/components/glass_card.dart';
@@ -47,7 +46,7 @@ class _CommsTabState extends State<CommsTab> {
       backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
-          context.tr('Messages'),
+          'الرسائل والمحادثات',
           style: AppTypography.titleLarge(
             textPrimary,
           ).copyWith(fontWeight: FontWeight.bold),
@@ -261,7 +260,7 @@ class _CommsTabState extends State<CommsTab> {
                     controller: _messageController,
                     style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
-                      hintText: context.tr('Type a message...'),
+                      hintText: 'اكتب رسالتك هنا...',
                       hintStyle: TextStyle(
                         color: textPrimary.withValues(alpha: 0.5),
                       ),
@@ -367,14 +366,14 @@ class _CommsTabState extends State<CommsTab> {
                     ),
                     const SizedBox(height: 24),
                     _buildProfileRow(
-                      Icons.email_outlined,
-                      '${contact.name.toLowerCase().replaceAll(' ', '.')}@example.com',
+                      Icons.verified_user_outlined,
+                      'حساب موثق في نظام السنتر التعليمي',
                       textPrimary,
                     ),
                     const SizedBox(height: 12),
                     _buildProfileRow(
-                      Icons.phone_outlined,
-                      '+1 234 567 8900',
+                      Icons.chat_bubble_outline,
+                      'قناة اتصال مباشرة وآمنة مع المعلم',
                       textPrimary,
                     ),
                     const SizedBox(height: 24),
@@ -390,7 +389,7 @@ class _CommsTabState extends State<CommsTab> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         onPressed: () => Navigator.pop(context),
-                        child: Text(context.tr('Close')),
+                        child: const Text('إغلاق'),
                       ),
                     ),
                   ],

@@ -4,7 +4,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -85,9 +84,9 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: _groups.isEmpty,
-        emptyTitle: 'No financial data yet',
+        emptyTitle: 'لا توجد بيانات مالية حتى الآن',
         emptySubtitle:
-            'Financial totals appear after students are enrolled in your groups.',
+            'ستظهر الإجماليات والمستحقات المالية فور تسجيل الطلاب في مجموعاتك الدراسية.',
         emptyIcon: Icons.payments_outlined,
         onRetry: _load,
         child: RefreshIndicator(
@@ -99,25 +98,25 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
               PortalMetricGrid(
                 children: [
                   PortalMetricCard(
-                    label: 'Required',
+                    label: 'إجمالي المستحق',
                     value: _money(_totalRequired),
                     icon: Icons.request_quote,
                     accentColor: AppColors.teacherRole,
                   ),
                   PortalMetricCard(
-                    label: 'Paid Cash',
+                    label: 'المحصل الفعلي',
                     value: _money(_totalPaid),
                     icon: Icons.price_check,
                     accentColor: Colors.green,
                   ),
                   PortalMetricCard(
-                    label: 'Remaining',
+                    label: 'المتبقي والآجل',
                     value: _money(_totalRemaining),
                     icon: Icons.pending_actions,
                     accentColor: Colors.orange,
                   ),
                   PortalMetricCard(
-                    label: 'Unpaid Students',
+                    label: 'الطلاب غير المسددين',
                     value: '$_unpaidStudents',
                     icon: Icons.person_off,
                     accentColor: Colors.red,
@@ -125,11 +124,10 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                 ],
               ),
               const SizedBox(height: 18),
-              PortalSectionTitle(
-                title: context.tr('Groups'),
-                subtitle: context.tr(
-                  'Open a group to review students and request discounts.',
-                ),
+              const PortalSectionTitle(
+                title: 'المجموعات الدراسية',
+                subtitle:
+                    'اضغط على أي مجموعة للاطلاع على كشف حساب الطلاب وتسجيل طلبات الخصم أو الإعفاء.',
               ),
               const SizedBox(height: 10),
               ..._groups.asMap().entries.map((entry) {
@@ -160,7 +158,7 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${group.subjectName} - ${group.paidStudents}/${group.totalStudents} ${context.tr('paid')} - ${context.tr('Remaining')} ${_money(group.remainingAmountMinor, group.currency)}',
+                                  '${group.subjectName} • ${group.paidStudents}/${group.totalStudents} مسدد • المتبقي: ${_money(group.remainingAmountMinor, group.currency)}',
                                   style: AppTypography.bodySmall(
                                     AppColors.darkTextSecondary,
                                   ),
@@ -170,8 +168,8 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                           ),
                           StatusChip(
                             label: group.unpaidStudents == 0
-                                ? 'paid'
-                                : '${group.unpaidStudents} ${context.tr('unpaid')}',
+                                ? 'مسدد بالكامل'
+                                : '${group.unpaidStudents} غير مسدد',
                             status: group.unpaidStudents == 0
                                 ? ChipStatus.success
                                 : ChipStatus.warning,
@@ -268,7 +266,7 @@ class _TeacherFinanceRosterSheetState
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Adjustment request sent.'))),
+        const SnackBar(content: Text('تم إرسال طلب التعديل بنجاح')),
       );
       await _load();
       widget.onChanged();
@@ -333,7 +331,7 @@ class _TeacherFinanceRosterSheetState
           children: [
             pw.Center(
               child: pw.Text(
-                'PAYMENT RECEIPT',
+                'إيصال استلام نقدية',
                 style: pw.TextStyle(
                   fontSize: 14,
                   fontWeight: pw.FontWeight.bold,
@@ -341,24 +339,24 @@ class _TeacherFinanceRosterSheetState
               ),
             ),
             pw.SizedBox(height: 4),
-            pw.Center(child: pw.Text('Fawry style cash receipt')),
+            pw.Center(child: pw.Text('نظام إدارة المركز التعليمي')),
             pw.Divider(thickness: 1),
-            _receiptLine('Receipt No', receipt.receiptNumber),
-            _receiptLine('Date', issuedAt),
-            _receiptLine('Student', receipt.studentName),
-            _receiptLine('Code', receipt.studentCode),
-            _receiptLine('Group', receipt.groupName),
-            _receiptLine('Subject', receipt.subjectName),
-            _receiptLine('Invoice', receipt.invoiceNumber),
-            _receiptLine('Method', receipt.paymentMethod),
-            _receiptLine('Provider', receipt.provider),
-            _receiptLine('Reference', receipt.providerTransactionId),
+            _receiptLine('رقم الإيصال', receipt.receiptNumber),
+            _receiptLine('التاريخ', issuedAt),
+            _receiptLine('اسم الطالب', receipt.studentName),
+            _receiptLine('كود الطالب', receipt.studentCode),
+            _receiptLine('المجموعة', receipt.groupName),
+            _receiptLine('المادة', receipt.subjectName),
+            _receiptLine('رقم الفاتورة', receipt.invoiceNumber),
+            _receiptLine('طريقة الدفع', receipt.paymentMethod),
+            _receiptLine('مزود الخدمة', receipt.provider),
+            _receiptLine('الرقم المرجعي', receipt.providerTransactionId),
             pw.Divider(thickness: 1),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'TOTAL',
+                  'الإجمالي',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
                 pw.Text(
@@ -368,7 +366,7 @@ class _TeacherFinanceRosterSheetState
               ],
             ),
             pw.SizedBox(height: 10),
-            pw.Center(child: pw.Text('Thank you')),
+            pw.Center(child: pw.Text('شكراً لكم')),
           ],
         ),
       ),
@@ -400,12 +398,12 @@ class _TeacherFinanceRosterSheetState
                     ),
                   ),
                   IconButton(
-                    tooltip: context.tr('Refresh'),
+                    tooltip: 'تحديث',
                     onPressed: _load,
                     icon: const Icon(Icons.refresh),
                   ),
                   IconButton(
-                    tooltip: context.tr('Close'),
+                    tooltip: 'إغلاق',
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
@@ -417,9 +415,9 @@ class _TeacherFinanceRosterSheetState
                   isLoading: _isLoading,
                   errorMessage: _errorMessage,
                   isEmpty: _students.isEmpty,
-                  emptyTitle: 'No students enrolled',
+                  emptyTitle: 'لا يوجد طلاب مسجلون',
                   emptySubtitle:
-                      'Students appear here after enrollment in this group.',
+                      'يظهر الطلاب هنا بعد تسجيلهم وانضمامهم لهذه المجموعة.',
                   emptyIcon: Icons.group_off,
                   onRetry: _load,
                   child: ListView.separated(
@@ -439,7 +437,7 @@ class _TeacherFinanceRosterSheetState
                             : Colors.orange,
                         title: student.studentName,
                         subtitle:
-                            '${student.studentCode} - ${context.tr('Final')} ${_money(student.finalPriceMinor, student.currency)} - ${context.tr('Paid')} ${_money(student.paidAmountMinor, student.currency)} - ${context.tr('Remaining')} ${_money(student.remainingAmountMinor, student.currency)}',
+                            '${student.studentCode.isNotEmpty ? '${student.studentCode} • ' : ''}الإجمالي: ${_money(student.finalPriceMinor, student.currency)} • المسدد: ${_money(student.paidAmountMinor, student.currency)} • المتبقي: ${_money(student.remainingAmountMinor, student.currency)}',
                         trailing: [
                           PortalStatusChip(
                             status: student.paymentExempt
@@ -447,18 +445,16 @@ class _TeacherFinanceRosterSheetState
                                 : student.paymentStatus,
                           ),
                           if (student.pendingAdjustmentCount > 0)
-                            PortalStatusChip(
-                              status: context.tr('pending request'),
+                            const PortalStatusChip(
+                              status: 'طلب قيد المراجعة',
                             ),
                           IconButton.filledTonal(
-                            tooltip: context.tr('Receipts'),
+                            tooltip: 'الإيصالات',
                             onPressed: () => _openReceipts(student),
                             icon: const Icon(Icons.receipt_long),
                           ),
                           IconButton.filledTonal(
-                            tooltip: context.tr(
-                              'Request discount or exemption',
-                            ),
+                            tooltip: 'طلب خصم أو إعفاء',
                             onPressed: canRequest
                                 ? () => _requestAdjustment(student)
                                 : null,
@@ -523,7 +519,7 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(
-        '${context.tr('Request adjustment for')} ${widget.student.studentName}',
+        'طلب تعديل رسوم: ${widget.student.studentName}',
       ),
       content: Form(
         key: _formKey,
@@ -537,18 +533,18 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
               ),
               decoration: InputDecoration(
                 labelText:
-                    '${context.tr('Discount amount')} (${widget.student.currency})',
+                    'قيمة الخصم (${widget.student.currency == 'EGP' ? 'ج.م' : widget.student.currency})',
                 prefixIcon: const Icon(Icons.percent),
                 helperText:
-                    '${context.tr('Use')} ${_money(widget.student.finalPriceMinor, widget.student.currency)} ${context.tr('for full exemption.')}',
+                    'استخدم ${_money(widget.student.finalPriceMinor, widget.student.currency)} للإعفاء الكامل.',
               ),
               validator: (value) {
                 final amount = double.tryParse(value?.trim() ?? '');
                 if (amount == null || amount < 0) {
-                  return context.tr('Enter a valid amount');
+                  return 'يرجى إدخال مبلغ صحيح';
                 }
                 if ((amount * 100).round() > widget.student.finalPriceMinor) {
-                  return context.tr('Discount cannot exceed final price');
+                  return 'قيمة الخصم لا يمكن أن تتجاوز السعر الإجمالي';
                 }
                 return null;
               },
@@ -557,9 +553,9 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
             TextFormField(
               controller: _reasonController,
               maxLines: 3,
-              decoration: InputDecoration(
-                labelText: context.tr('Reason'),
-                prefixIcon: const Icon(Icons.notes),
+              decoration: const InputDecoration(
+                labelText: 'السبب أو ملاحظات الطلب',
+                prefixIcon: Icon(Icons.notes),
               ),
             ),
           ],
@@ -568,12 +564,12 @@ class _AdjustmentDialogState extends State<_AdjustmentDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(context.tr('Cancel')),
+          child: const Text('إلغاء'),
         ),
         FilledButton.icon(
           onPressed: _submit,
           icon: const Icon(Icons.send),
-          label: Text(context.tr('Send request')),
+          label: const Text('إرسال الطلب'),
         ),
       ],
     );
@@ -611,14 +607,14 @@ class _ReceiptSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${context.tr('Receipts')} - ${student.studentName}',
+                      'إيصالات السداد - ${student.studentName}',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                   IconButton(
-                    tooltip: context.tr('Close'),
+                    tooltip: 'إغلاق',
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
@@ -627,7 +623,7 @@ class _ReceiptSheet extends StatelessWidget {
               const SizedBox(height: 10),
               Expanded(
                 child: receipts.isEmpty
-                    ? Center(child: Text(context.tr('No receipts found.')))
+                    ? const Center(child: Text('لا توجد إيصالات سداد لهذا الطالب.'))
                     : ListView.separated(
                         itemCount: receipts.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 8),
@@ -647,7 +643,7 @@ class _ReceiptSheet extends StatelessWidget {
                                 ),
                               ),
                               IconButton.filledTonal(
-                                tooltip: context.tr('Print'),
+                                tooltip: 'طباعة الإيصال',
                                 onPressed: () => onPrint(receipt),
                                 icon: const Icon(Icons.print),
                               ),
@@ -695,16 +691,16 @@ class _TeacherFinanceGroup {
     final json = Map<String, dynamic>.from(raw);
     return _TeacherFinanceGroup(
       groupId: json['group_id']?.toString() ?? '',
-      groupName: json['group_name']?.toString() ?? 'Group',
+      groupName: json['group_name']?.toString() ?? 'مجموعة',
       groupCode: json['group_code']?.toString() ?? '',
-      subjectName: json['subject_name']?.toString() ?? 'Subject',
+      subjectName: json['subject_name']?.toString() ?? 'المادة',
       totalStudents: _asInt(json['total_students']),
       paidStudents: _asInt(json['paid_students']),
       unpaidStudents: _asInt(json['unpaid_students']),
       totalAmountMinor: _asInt(json['total_amount_minor']),
       paidAmountMinor: _asInt(json['paid_amount_minor']),
       remainingAmountMinor: _asInt(json['remaining_amount_minor']),
-      currency: json['currency']?.toString() ?? 'EGP',
+      currency: json['currency']?.toString() ?? 'ج.م',
     );
   }
 }
@@ -747,12 +743,12 @@ class _TeacherFinanceStudent {
     return _TeacherFinanceStudent(
       enrollmentId: json['enrollment_id']?.toString() ?? '',
       studentId: json['student_id']?.toString() ?? '',
-      studentName: json['student_name']?.toString() ?? 'Student',
+      studentName: json['student_name']?.toString() ?? 'طالب',
       studentCode: json['student_code']?.toString() ?? '',
       finalPriceMinor: _asInt(json['final_price_minor']),
       paidAmountMinor: _asInt(json['paid_amount_minor']),
       remainingAmountMinor: _asInt(json['remaining_amount_minor']),
-      currency: json['currency']?.toString() ?? 'EGP',
+      currency: json['currency']?.toString() ?? 'ج.م',
       paymentStatus: json['payment_status']?.toString() ?? 'paid',
       paymentExempt: json['payment_exempt'] == true,
       pendingAdjustmentCount: _asInt(json['pending_adjustment_count']),
@@ -806,11 +802,11 @@ class _TeacherReceipt {
       providerTransactionId: json['provider_transaction_id']?.toString() ?? '',
       paymentMethod: json['payment_method']?.toString() ?? 'cash',
       amountMinor: _asInt(json['amount_minor']),
-      currency: json['currency']?.toString() ?? 'EGP',
+      currency: json['currency']?.toString() ?? 'ج.م',
       issuedAt:
           DateTime.tryParse(json['issued_at']?.toString() ?? '') ??
           DateTime.now(),
-      studentName: json['student_name']?.toString() ?? 'Student',
+      studentName: json['student_name']?.toString() ?? 'طالب',
       studentCode: json['student_code']?.toString() ?? '',
       groupName: json['group_name']?.toString() ?? '',
       groupCode: json['group_code']?.toString() ?? '',
@@ -825,12 +821,13 @@ int _asInt(Object? value) {
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
 
-String _money(int minor, [String currency = 'EGP']) {
+String _money(int minor, [String currency = 'ج.م']) {
+  final curr = (currency == 'EGP' || currency.isEmpty) ? 'ج.م' : currency;
   final amount = minor / 100;
   final formatted = amount == amount.roundToDouble()
       ? amount.toStringAsFixed(0)
       : amount.toStringAsFixed(2);
-  return '$formatted $currency';
+  return '$formatted $curr';
 }
 
 String _formatDateTime(DateTime value) {

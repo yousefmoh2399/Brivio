@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/components/glass_card.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../viewmodels/classes_viewmodel.dart';
 
 class ClassRosterScreen extends StatelessWidget {
@@ -47,7 +46,7 @@ class ClassRosterScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    context.tr('Class Details'),
+                    'تفاصيل المجموعة والموعد',
                     style: AppTypography.titleMedium(textPrimary),
                   ),
                   const SizedBox(height: 12),
@@ -85,7 +84,7 @@ class ClassRosterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              '${context.tr('Student Roster')} (${teacherClass.students.length})',
+              'قائمة الطلاب المقيدين (${teacherClass.students.length})',
               style: AppTypography.titleLarge(textPrimary),
             ),
             const SizedBox(height: 16),
@@ -102,8 +101,21 @@ class ClassRosterScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundImage: NetworkImage(student.avatarUrl),
+                          backgroundImage: student.avatarUrl.isNotEmpty
+                              ? NetworkImage(student.avatarUrl)
+                              : null,
                           radius: 24,
+                          child: student.avatarUrl.isEmpty
+                              ? Text(
+                                  student.name.isNotEmpty
+                                      ? student.name[0]
+                                      : 'ط',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: textPrimary,
+                                  ),
+                                )
+                              : null,
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -118,7 +130,7 @@ class ClassRosterScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${context.tr('Attendance')}: ${student.attendanceRate}%',
+                                'نسبة الحضور: ${student.attendanceRate.toInt()}%',
                                 style: AppTypography.bodySmall(textSecondary),
                               ),
                             ],
@@ -134,7 +146,7 @@ class ClassRosterScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            '${student.grade}%',
+                            '${student.grade.toInt()}%',
                             style: AppTypography.labelMedium(AppColors.primary),
                           ),
                         ),

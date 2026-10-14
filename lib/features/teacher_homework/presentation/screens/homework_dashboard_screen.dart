@@ -16,10 +16,11 @@ class HomeworkDashboardScreen extends StatelessWidget {
         backgroundColor: const Color(0xFFF3F4F6),
         appBar: AppBar(
           title: const Text(
-            'Homework Assignments',
+            'الواجبات والتكليفات الدراسية',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.black87,
+              fontSize: 18,
             ),
           ),
           backgroundColor: Colors.white,
@@ -31,7 +32,7 @@ class HomeworkDashboardScreen extends StatelessWidget {
             final assignments = viewModel.assignments;
 
             if (assignments.isEmpty) {
-              return const Center(child: Text('No assignments created yet.'));
+              return const Center(child: Text('لا توجد تكليفات أو واجبات منشأة حالياً.'));
             }
 
             return ListView.builder(
@@ -85,7 +86,7 @@ class HomeworkDashboardScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  '${assignment.totalPoints} pts',
+                                  '${assignment.totalPoints} درجة',
                                   style: TextStyle(
                                     color: Colors.blue.shade700,
                                     fontWeight: FontWeight.bold,
@@ -111,7 +112,7 @@ class HomeworkDashboardScreen extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Due: ${DateFormat('MMM d, yyyy').format(assignment.dueDate)}',
+                                'موعد التسليم: ${DateFormat('yyyy/MM/dd').format(assignment.dueDate)}',
                                 style: TextStyle(
                                   color: Colors.red.shade400,
                                   fontWeight: FontWeight.w500,
@@ -125,7 +126,7 @@ class HomeworkDashboardScreen extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${assignment.assignedClasses.length} Classes',
+                                '${assignment.assignedClasses.length} مجموعات',
                                 style: TextStyle(color: Colors.grey.shade600),
                               ),
                             ],
@@ -159,7 +160,7 @@ class HomeworkDashboardScreen extends StatelessWidget {
               },
               backgroundColor: Colors.blue.shade600,
               icon: const Icon(Icons.add),
-              label: const Text('Create Assignment'),
+              label: const Text('إنشاء واجب جديد'),
             );
           },
         ),

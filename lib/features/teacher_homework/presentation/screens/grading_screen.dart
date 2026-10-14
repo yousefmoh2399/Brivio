@@ -15,7 +15,7 @@ class GradingScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text(
-          'Submissions',
+          'تسليمات الطلاب للواجب',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
@@ -29,7 +29,7 @@ class GradingScreen extends StatelessWidget {
           );
 
           if (submissions.isEmpty) {
-            return const Center(child: Text('No submissions yet.'));
+            return const Center(child: Text('لا توجد تسليمات مسجلة لهذا الواجب بعد.'));
           }
 
           return Column(
@@ -50,7 +50,7 @@ class GradingScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Total Points: ${assignment.totalPoints}',
+                      'الدرجة الكلية: ${assignment.totalPoints} درجة',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontWeight: FontWeight.w500,
@@ -79,9 +79,9 @@ class GradingScreen extends StatelessWidget {
                         leading: CircleAvatar(
                           backgroundColor: Colors.blue.shade100,
                           child: Text(
-                            submission.studentName
-                                .substring(0, 1)
-                                .toUpperCase(),
+                            submission.studentName.isNotEmpty
+                                ? submission.studentName[0]
+                                : 'ط',
                             style: TextStyle(
                               color: Colors.blue.shade700,
                               fontWeight: FontWeight.bold,
@@ -93,7 +93,7 @@ class GradingScreen extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          'Submitted: ${DateFormat('MMM d, hh:mm a').format(submission.submittedAt)}',
+                          'تم التسليم: ${DateFormat('yyyy/MM/dd hh:mm a').format(submission.submittedAt)}',
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 12,
@@ -139,7 +139,7 @@ class GradingScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          'Needs Grading',
+          'بانتظار التصحيح',
           style: TextStyle(
             color: Colors.orange.shade700,
             fontWeight: FontWeight.bold,
@@ -165,7 +165,7 @@ class GradingScreen extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Grade ${submission.studentName}'),
+          title: Text('تصحيح واجب الطالب: ${submission.studentName}'),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -180,7 +180,7 @@ class GradingScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Submission File (Mock)',
+                        'ملف إجابة الطالب المرفق',
                         style: TextStyle(
                           color: Colors.blue.shade600,
                           decoration: TextDecoration.underline,
@@ -193,7 +193,7 @@ class GradingScreen extends StatelessWidget {
                 TextField(
                   controller: scoreController,
                   decoration: InputDecoration(
-                    labelText: 'Score (out of ${assignment.totalPoints})',
+                    labelText: 'الدرجة المستحقة (من ${assignment.totalPoints})',
                     border: const OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
@@ -202,7 +202,7 @@ class GradingScreen extends StatelessWidget {
                 TextField(
                   controller: feedbackController,
                   decoration: const InputDecoration(
-                    labelText: 'Feedback (Optional)',
+                    labelText: 'ملاحظات وتعليق المعلم (اختياري)',
                     border: OutlineInputBorder(),
                   ),
                   maxLines: 3,
@@ -213,7 +213,7 @@ class GradingScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -229,8 +229,9 @@ class GradingScreen extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
               ),
-              child: const Text('Save Grade'),
+              child: const Text('حفظ ورصد الدرجة'),
             ),
           ],
         );

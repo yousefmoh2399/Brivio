@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
@@ -62,10 +61,10 @@ class HomeTab extends StatelessWidget {
           surfaceTintColor: Colors.transparent,
           pinned: true,
           title: Text(
-            context.tr('Teacher Portal'),
+            'بوابة المعلم',
             style: AppTypography.displaySmall(
               textPrimary,
-            ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
+            ).copyWith(fontWeight: FontWeight.w800, fontSize: 20),
           ),
           actions: [
             IconButton(
@@ -77,7 +76,7 @@ class HomeTab extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.refresh_rounded),
               onPressed: onRetry,
-              tooltip: context.tr('Refresh'),
+              tooltip: 'تحديث',
             ),
             const SizedBox(width: 8),
           ],
@@ -106,7 +105,7 @@ class HomeTab extends StatelessWidget {
                 FadeInSlide(
                   duration: const Duration(milliseconds: 500),
                   child: Text(
-                    '${context.tr("Welcome")}, ${user?.fullName ?? "Educator"}',
+                    'أهلاً بك، ${user?.fullName ?? "معلمنا الفاضل"}',
                     style: AppTypography.titleLarge(textPrimary).copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.4,
@@ -122,28 +121,28 @@ class HomeTab extends StatelessWidget {
                   child: PortalMetricGrid(
                     children: [
                       PortalMetricCard(
-                        label: context.tr('Assigned Groups'),
+                        label: 'المجموعات المسندة',
                         value: '$assignedGroupsCount',
                         icon: Icons.groups_rounded,
                         accentColor: AppColors.teacherRole,
                         onTap: () => onNavigate(1),
                       ),
                       PortalMetricCard(
-                        label: context.tr('Today Sessions'),
+                        label: 'حصص اليوم',
                         value: '$todaySessionsCount',
                         icon: Icons.today_rounded,
                         accentColor: AppColors.info,
                         onTap: () => onNavigate(1),
                       ),
                       PortalMetricCard(
-                        label: context.tr('Open Homework'),
+                        label: 'الواجبات الحالية',
                         value: '$openHomeworkCount',
                         icon: Icons.assignment_rounded,
                         accentColor: AppColors.warning,
                         onTap: () => onNavigate(2),
                       ),
                       PortalMetricCard(
-                        label: context.tr('To Grade'),
+                        label: 'بانتظار التصحيح',
                         value: '$gradingQueueCount',
                         icon: Icons.grading_rounded,
                         accentColor: AppColors.error,
@@ -197,15 +196,14 @@ class HomeTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  context.tr('Code Playground'),
+                                const Text(
+                                  'المختبر البرمجي التفاعلي',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.titleMedium(
-                                    isDark
-                                        ? AppColors.darkTextPrimary
-                                        : AppColors.lightTextPrimary,
-                                  ).copyWith(fontWeight: FontWeight.w800),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -222,9 +220,9 @@ class HomeTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Tooltip(
-                            message: context.tr('Open code playground'),
-                            child: const Icon(
+                          const Tooltip(
+                            message: 'فتح المختبر البرمجي',
+                            child: Icon(
                               Icons.play_circle_fill_rounded,
                               color: AppColors.teacherRole,
                             ),
@@ -352,7 +350,7 @@ class HomeTab extends StatelessWidget {
                   duration: const Duration(milliseconds: 500),
                   delay: const Duration(milliseconds: 200),
                   child: Text(
-                    context.tr('Group Analytics'),
+                    'إحصائيات المجموعات الدراسية',
                     style: AppTypography.titleLarge(textPrimary).copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.4,
@@ -369,7 +367,7 @@ class HomeTab extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 32),
                         child: Text(
-                          context.tr('No group analytics available yet.'),
+                          'لا توجد إحصائيات للمجموعات مسجلة حتى الآن.',
                           style: AppTypography.bodyMedium(
                             isDark
                                 ? AppColors.darkTextSecondary
@@ -451,7 +449,7 @@ class _TeacherGroupAnalyticsCard extends StatelessWidget {
                     Text(
                       [
                         if (item.groupCode.isNotEmpty) item.groupCode,
-                        '${item.studentCount} ${context.tr("students")}',
+                        '${item.studentCount} طالب',
                       ].join(' | '),
                       style: AppTypography.caption(
                         textSecondary,
@@ -470,35 +468,44 @@ class _TeacherGroupAnalyticsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _AnalyticsMiniMetric(
-                icon: Icons.event_available,
-                label: context.tr('Attendance'),
-                value: '${item.attendanceRate.toStringAsFixed(1)}%',
-                color: AppColors.success,
-              ),
-              _AnalyticsMiniMetric(
-                icon: Icons.cancel,
-                label: context.tr('Absences'),
-                value: item.absentCount.toString(),
-                color: AppColors.error,
-              ),
-              _AnalyticsMiniMetric(
-                icon: Icons.assignment_late,
-                label: context.tr('Pending HW'),
-                value: item.pendingHomeworkCount.toString(),
-                color: AppColors.warning,
-              ),
-              _AnalyticsMiniMetric(
-                icon: Icons.quiz,
-                label: context.tr('Exam Avg'),
-                value: '${item.averageExamScore.toStringAsFixed(1)}%',
-                color: AppColors.info,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final metricWidth = (constraints.maxWidth - 8) / 2;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _AnalyticsMiniMetric(
+                    width: metricWidth,
+                    icon: Icons.event_available,
+                    label: 'نسبة الحضور',
+                    value: '${item.attendanceRate.toStringAsFixed(1)}%',
+                    color: AppColors.success,
+                  ),
+                  _AnalyticsMiniMetric(
+                    width: metricWidth,
+                    icon: Icons.cancel,
+                    label: 'الغياب',
+                    value: item.absentCount.toString(),
+                    color: AppColors.error,
+                  ),
+                  _AnalyticsMiniMetric(
+                    width: metricWidth,
+                    icon: Icons.assignment_late,
+                    label: 'واجبات لم تسلم',
+                    value: item.pendingHomeworkCount.toString(),
+                    color: AppColors.warning,
+                  ),
+                  _AnalyticsMiniMetric(
+                    width: metricWidth,
+                    icon: Icons.quiz,
+                    label: 'متوسط الامتحانات',
+                    value: '${item.averageExamScore.toStringAsFixed(1)}%',
+                    color: AppColors.info,
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -511,18 +518,20 @@ class _AnalyticsMiniMetric extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final double? width;
 
   const _AnalyticsMiniMetric({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    this.width,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: (MediaQuery.sizeOf(context).width - 40 - 32 - 16) / 2,
+      width: width ?? ((MediaQuery.sizeOf(context).width - 40 - 32 - 16) / 2),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .08),

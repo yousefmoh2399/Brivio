@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/components/glass_card.dart';
@@ -66,9 +65,9 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      context.tr('Workspace'),
+                      'مساحة العمل الأكاديمية',
                       style: AppTypography.displaySmall(textPrimary).copyWith(
-                        fontSize: 28,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
                       ),
@@ -158,13 +157,13 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                     ),
-                    tabs: [
-                      Tab(text: context.tr('Questions')),
-                      Tab(text: context.tr('Homework')),
-                      Tab(text: context.tr('Exams')),
-                      Tab(text: context.tr('Attendance')),
-                      Tab(text: context.tr('Grading')),
-                      Tab(text: context.tr('Replay')),
+                    tabs: const [
+                      Tab(text: 'بنك الأسئلة'),
+                      Tab(text: 'الواجبات والتكليفات'),
+                      Tab(text: 'الامتحانات'),
+                      Tab(text: 'سجل الحضور'),
+                      Tab(text: 'التصحيح والرصد'),
+                      Tab(text: 'إعادة الحصص (Replay)'),
                     ],
                   ),
                 ),

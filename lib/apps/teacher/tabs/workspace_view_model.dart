@@ -22,28 +22,28 @@ class WorkspaceViewModel extends ChangeNotifier {
   final List<StudyMaterial> _materials = [
     StudyMaterial(
       id: '1',
-      title: 'Chapter 1: Intro to Physics',
+      title: 'الفصل الأول: مقدمة في الدوائر وقوانين كيرشوف',
       type: StudyMaterialType.pdf,
       size: '2.4 MB',
       uploadedAt: DateTime.now().subtract(const Duration(days: 1)),
     ),
     StudyMaterial(
       id: '2',
-      title: 'Lecture 1 Recording',
+      title: 'تسجيل فيديو: شرح المحاضرة الأولى بالتفصيل',
       type: StudyMaterialType.video,
       size: '245 MB',
       uploadedAt: DateTime.now().subtract(const Duration(days: 2)),
     ),
     StudyMaterial(
       id: '3',
-      title: 'Midterm Summary',
+      title: 'ملخص مراجعة ليلة الامتحان الشامل',
       type: StudyMaterialType.summary,
       size: '1.1 MB',
       uploadedAt: DateTime.now().subtract(const Duration(hours: 5)),
     ),
     StudyMaterial(
       id: '4',
-      title: 'Advanced Mechanics',
+      title: 'مذكرة تدريبات وتمارين الميكانيكا المتقدمة',
       type: StudyMaterialType.pdf,
       size: '4.8 MB',
       uploadedAt: DateTime.now().subtract(const Duration(days: 3)),

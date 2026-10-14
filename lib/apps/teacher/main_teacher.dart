@@ -44,8 +44,8 @@ class _TeacherAppState extends State<TeacherApp> {
           if (state.status == AuthStatus.initial ||
               state.status == AuthStatus.loading) {
             return const AuthLoadingScreen(
-              title: 'Opening teacher portal',
-              subtitle: 'Preparing classes, workspace, and secure access.',
+              title: 'جاري فتح بوابة المعلم',
+              subtitle: 'تحميل المجموعات الدراسية، المهام، والوصول الآمن...',
               icon: Icons.co_present_rounded,
               accentColor: AppColors.teacherRole,
             );
@@ -60,7 +60,7 @@ class _TeacherAppState extends State<TeacherApp> {
             }
             return PortalDeniedScreen(
               currentRole: role,
-              targetPortalName: 'Teacher Educator Portal',
+              targetPortalName: 'بوابة المعلمين والمحاضرين',
               onSignOut: () => _viewModel.signOut(),
             );
           }

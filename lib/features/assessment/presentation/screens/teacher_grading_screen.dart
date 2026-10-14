@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
-
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -93,8 +91,8 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
           SnackBar(
             content: Text(
               approve
-                  ? context.tr('Exam reset approved.')
-                  : context.tr('Reset request rejected.'),
+                  ? 'تم قبول طلب إعادة الامتحان بنجاح.'
+                  : 'تم رفض طلب إعادة الامتحان.',
             ),
             backgroundColor: approve ? Colors.green : Colors.orange,
           ),
@@ -103,7 +101,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('فشل تنفيذ الإجراء: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -144,13 +142,13 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '${context.tr('Error')}: $_errorMessage',
+                        'حدث خطأ: $_errorMessage',
                         style: const TextStyle(color: Colors.red),
                       ),
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: _loadGradingQueue,
-                        child: Text(context.tr('Retry')),
+                        child: const Text('إعادة المحاولة'),
                       ),
                     ],
                   ),
@@ -165,9 +163,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      context.tr(
-                        'No pending submissions requiring manual grading.',
-                      ),
+                      'لا توجد تسليمات معلقة تتطلب تصحيحاً يدوياً حالياً.',
                       style: AppTypography.bodyMedium(subtitleColor),
                     ),
                   ),
@@ -186,7 +182,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                     ),
                     sliver: SliverToBoxAdapter(
                       child: Text(
-                        context.tr('Pending Reset Requests'),
+                        'طلبات إعادة الامتحان المعلقة',
                         style: AppTypography.titleMedium(textColor).copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.error,
@@ -201,8 +197,8 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                         final req = _resetRequests[i];
                         final studentName =
                             req['students']?['profiles']?['full_name'] ??
-                            'Student';
-                        final examTitle = req['exams']?['title'] ?? 'Exam';
+                            'طالب';
+                        final examTitle = req['exams']?['title'] ?? 'امتحان';
                         return Card(
                           color: isDark
                               ? AppColors.darkSurface
@@ -218,20 +214,21 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                               color: AppColors.error,
                             ),
                             title: Text(
-                              '$studentName requested a reset for $examTitle',
+                              'طلب الطالب $studentName إعادة امتحان: $examTitle',
                               style: TextStyle(
                                 color: textColor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             subtitle: Text(
-                              '${context.tr("Reason")}: ${req["reason"]}',
+                              'سبب الطلب: ${req["reason"] ?? "لم يتم تحديد سبب"}',
                               style: TextStyle(color: subtitleColor),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
+                                  tooltip: 'رفض',
                                   icon: const Icon(
                                     Icons.close,
                                     color: Colors.grey,
@@ -240,6 +237,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                                       _handleResetRequest(req, false),
                                 ),
                                 IconButton(
+                                  tooltip: 'قبول',
                                   icon: const Icon(
                                     Icons.check,
                                     color: AppColors.success,
@@ -262,7 +260,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                     ),
                     sliver: SliverToBoxAdapter(
                       child: Text(
-                        context.tr('Submissions'),
+                        'تسليمات الطلاب للتصحيح والرصد',
                         style: AppTypography.titleMedium(
                           textColor,
                         ).copyWith(fontWeight: FontWeight.bold),
@@ -271,11 +269,14 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                   ),
                 ],
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 80.0),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((ctx, i) {
                       final sub = _homeworkSubmissions[i];
                       final isGraded = sub['status'] == 'graded';
+                      final typeLabel = sub['assessment_type'] == 'exam' ? 'امتحان' : 'واجب';
+                      final statusLabel = isGraded ? 'تم التصحيح' : 'بانتظار التقييم';
+                      final scoreLabel = sub['score'] != null ? '${sub['score']} درجة' : 'قيد الرصد';
 
                       return FadeInSlide(
                         duration: Duration(milliseconds: 300 + (i * 50)),
@@ -303,14 +304,14 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${context.tr('Student')}: ${sub['student_full_name'] ?? context.tr("Learner")}',
+                                        'الطالب: ${sub['student_full_name'] ?? "طالب"}',
                                         style: AppTypography.titleMedium(
                                           textColor,
                                         ).copyWith(fontWeight: FontWeight.bold),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '[${(sub['assessment_type'] as String?)?.toUpperCase() ?? 'HOMEWORK'}] ${sub['assessment_title'] ?? context.tr("Assessment")} | ${context.tr('Status')}: ${context.tr((sub['status'] as String? ?? "submitted"))} | ${context.tr('Score')}: ${sub['score'] ?? context.tr("Pending")}',
+                                        '[$typeLabel] ${sub['assessment_title'] ?? "تقييم"} | الحالة: $statusLabel | الدرجة: $scoreLabel',
                                         style: AppTypography.caption(
                                           subtitleColor,
                                         ),
@@ -331,9 +332,9 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                                             12,
                                           ),
                                         ),
-                                        child: Text(
-                                          context.tr('graded'),
-                                          style: const TextStyle(
+                                        child: const Text(
+                                          'تم التصحيح',
+                                          style: TextStyle(
                                             color: Colors.white,
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
@@ -352,7 +353,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                                         ),
                                         onPressed: () =>
                                             _showGradeSubmissionDialog(sub),
-                                        child: Text(context.tr('Grade')),
+                                        child: const Text('تصحيح'),
                                       ),
                               ],
                             ),

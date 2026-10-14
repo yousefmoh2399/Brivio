@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -35,19 +34,45 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  String _attemptStatusLabel(BuildContext context, String? status) {
+  String _attemptStatusLabel(String? status) {
     switch (status) {
       case 'in_progress':
-        return context.tr('In progress');
+        return 'قيد الإجابة';
       case 'submitted':
-        return context.tr('Submitted');
+        return 'تم التسليم';
       case 'graded':
-        return context.tr('Graded');
+        return 'تم التصحيح والتقييم';
       case 'expired':
-        return context.tr('Expired');
+        return 'منتهي الصلاحية';
       default:
         final value = status?.trim();
-        return value == null || value.isEmpty ? context.tr('Unknown') : value;
+        return value == null || value.isEmpty ? 'غير معروف' : value;
+    }
+  }
+
+  String _examStatusArabic(String status) {
+    switch (status) {
+      case 'published':
+        return 'منشور ومتاح';
+      case 'closed':
+        return 'مغلق ومكتمل';
+      case 'draft':
+        return 'مسودة';
+      default:
+        return status;
+    }
+  }
+
+  String _questionTypeArabic(QuestionType type) {
+    switch (type) {
+      case QuestionType.multipleChoice:
+        return 'اختيار من متعدد';
+      case QuestionType.trueFalse:
+        return 'صح وخطأ';
+      case QuestionType.shortAnswer:
+        return 'إجابة قصيرة';
+      case QuestionType.longAnswer:
+        return 'إجابة مقالية';
     }
   }
 
@@ -227,24 +252,26 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${context.tr('Create Exam for')} ${group.name}',
-                      style: AppTypography.displaySmall(textColor),
+                      'إنشاء امتحان لمجموعة ${group.name}',
+                      style: AppTypography.titleLarge(textColor).copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: titleCtrl,
                       style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Exam title'),
+                      decoration: const InputDecoration(
+                        labelText: 'عنوان الامتحان أو الاختبار',
                       ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: durationCtrl,
                       style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Duration minutes'),
+                      decoration: const InputDecoration(
+                        labelText: 'مدة الامتحان (بالدقائق)',
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -252,8 +279,8 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                     TextField(
                       controller: passCtrl,
                       style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Pass score'),
+                      decoration: const InputDecoration(
+                        labelText: 'درجة النجاح المطلوبة',
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -261,11 +288,11 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.play_circle_outline),
-                      title: Text(context.tr('Opens at')),
+                      title: const Text('يبدأ في'),
                       subtitle: Text(
                         availableFrom == null
-                            ? context.tr('Immediately')
-                            : availableFrom!.toLocal().toString(),
+                            ? 'متاح فوراً'
+                            : availableFrom!.toLocal().toString().substring(0, 16),
                       ),
                       trailing: TextButton(
                         onPressed: () async {
@@ -276,14 +303,14 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                             setDialogState(() => availableFrom = picked);
                           }
                         },
-                        child: Text(context.tr('Set')),
+                        child: const Text('تحديد الموعد'),
                       ),
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.lock_clock),
-                      title: Text(context.tr('Closes at')),
-                      subtitle: Text(availableUntil.toLocal().toString()),
+                      title: const Text('ينتهي في'),
+                      subtitle: Text(availableUntil.toLocal().toString().substring(0, 16)),
                       trailing: TextButton(
                         onPressed: () async {
                           final picked = await pickDateTime(availableUntil);
@@ -291,7 +318,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                             setDialogState(() => availableUntil = picked);
                           }
                         },
-                        child: Text(context.tr('Set')),
+                        child: const Text('تحديد الموعد'),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -301,7 +328,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
                           child: Text(
-                            context.tr('Cancel'),
+                            'إلغاء',
                             style: TextStyle(color: textColor),
                           ),
                         ),
@@ -336,8 +363,8 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                               await _loadGroupsAndExams();
                               if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(context.tr('Exam published.')),
+                                const SnackBar(
+                                  content: Text('تم نشر الامتحان بنجاح.'),
                                   backgroundColor: Colors.green,
                                 ),
                               );
@@ -346,14 +373,14 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    '${context.tr('Creation failed')}: $e',
+                                    'فشل إنشاء الامتحان: $e',
                                   ),
                                   backgroundColor: Colors.red,
                                 ),
                               );
                             }
                           },
-                          child: Text(context.tr('Publish')),
+                          child: const Text('نشر الامتحان'),
                         ),
                       ],
                     ),
@@ -407,7 +434,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                   if (snapshot.hasError) {
                     return Center(
                       child: Text(
-                        'Error loading questions: ${snapshot.error}',
+                        'فشل تحميل الأسئلة: ${snapshot.error}',
                         style: const TextStyle(color: Colors.red),
                       ),
                     );
@@ -417,7 +444,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                   if (allQuestions.isEmpty) {
                     return Center(
                       child: Text(
-                        context.tr('No questions found in Question Bank.'),
+                        'لا توجد أسئلة مضافة في بنك الأسئلة.',
                         style: TextStyle(color: textColor),
                       ),
                     );
@@ -428,8 +455,10 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                       Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Text(
-                          '${context.tr('Manage Questions for')} ${exam.title}',
-                          style: AppTypography.displaySmall(textColor),
+                          'إدارة أسئلة امتحان: ${exam.title}',
+                          style: AppTypography.titleLarge(textColor).copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -439,7 +468,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              '${currentSelectedIds.length} ${context.tr('Selected')}',
+                              'تم تحديد ${currentSelectedIds.length} سؤال',
                               style: TextStyle(
                                 color: textColor,
                                 fontWeight: FontWeight.bold,
@@ -460,8 +489,8 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                               },
                               child: Text(
                                 currentSelectedIds.length == allQuestions.length
-                                    ? context.tr('Deselect All')
-                                    : context.tr('Select All'),
+                                    ? 'إلغاء تحديد الكل'
+                                    : 'تحديد الكل',
                               ),
                             ),
                           ],
@@ -480,7 +509,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                 style: TextStyle(color: textColor),
                               ),
                               subtitle: Text(
-                                '${context.tr(q.questionType.name)} | ${q.defaultPoints} ${context.tr('pts')}',
+                                '${_questionTypeArabic(q.questionType)} | ${q.defaultPoints} درجات',
                               ),
                               trailing: Checkbox(
                                 value: isLinked,
@@ -541,7 +570,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                     if (ctx.mounted) {
                                       ScaffoldMessenger.of(ctx).showSnackBar(
                                         SnackBar(
-                                          content: Text('Error: $e'),
+                                          content: Text('فشل حفظ الأسئلة: $e'),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -561,7 +590,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Text(context.tr('Save & Close')),
+                              : const Text('حفظ وإغلاق'),
                         ),
                       ),
                     ],
@@ -587,11 +616,11 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.chat_rounded, color: Colors.green),
-            const SizedBox(width: 8),
-            Text(context.tr('إرسال النتيجة لواتساب ولي الأمر')),
+            Icon(Icons.chat_rounded, color: Colors.green),
+            SizedBox(width: 8),
+            Text('إرسال النتيجة لواتساب ولي الأمر'),
           ],
         ),
         content: Column(
@@ -617,12 +646,12 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: Colors.green),
             icon: const Icon(Icons.send_rounded),
-            label: Text(context.tr('إرسال عبر واتساب')),
+            label: const Text('إرسال عبر واتساب'),
             onPressed: () async {
               final phone = phoneCtrl.text.trim();
               if (phone.isEmpty) return;
@@ -864,7 +893,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
-                        '${context.tr('Failed to load attempts')}: $loadError',
+                        'فشل تحميل محاولات الطلاب: $loadError',
                         style: AppTypography.bodyMedium(AppColors.error),
                         textAlign: TextAlign.center,
                       ),
@@ -873,7 +902,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
-                        context.tr('No attempts yet.'),
+                        'لا توجد محاولات تسليم لهذا الامتحان حتى الآن.',
                         style: AppTypography.bodyMedium(subtitleColor),
                       ),
                     )
@@ -888,10 +917,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                           final studentName =
                               att['student_name']?.toString().trim().isNotEmpty == true
                                   ? att['student_name'].toString()
-                                  : context.tr('Unknown Student');
+                                  : 'طالب غير معروف';
                           final studentCode = att['student_code']?.toString();
                           final statusLabel = _attemptStatusLabel(
-                            context,
                             att['status']?.toString(),
                           );
                           final studentId = att['student_id']?.toString();
@@ -938,7 +966,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        '${studentCode == null || studentCode.isEmpty ? '' : '$studentCode • '}${context.tr('Status')}: $statusLabel',
+                                        '${studentCode == null || studentCode.isEmpty ? '' : '$studentCode • '}الحالة: $statusLabel',
                                         style: TextStyle(fontSize: 11, color: subtitleColor),
                                       ),
                                     ],
@@ -989,7 +1017,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.chat_rounded, color: Colors.green, size: 20),
-                                  tooltip: context.tr('إرسال النتيجة لولي الأمر عبر واتساب'),
+                                  tooltip: 'إرسال النتيجة لولي الأمر عبر واتساب',
                                   onPressed: () {
                                     _showSendWhatsAppDialog(
                                       studentName: studentName,
@@ -1003,26 +1031,26 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.refresh, color: AppColors.error, size: 20),
-                                  tooltip: context.tr('Reset Attempt'),
+                                  tooltip: 'إعادة تعيين المحاولة',
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(
                                       context: ctx,
                                       builder: (c) => AlertDialog(
-                                        title: Text(context.tr('Reset Exam')),
+                                        title: const Text('إعادة تعيين الامتحان'),
                                         content: Text(
-                                          '${context.tr('Are you sure you want to reset the exam for')} $studentName?',
+                                          'هل أنت متأكد من رغبتك في إعادة تعيين الامتحان للطالب $studentName؟ سيتم مسح محاولته الحالية وإتاحة الامتحان له مجدداً.',
                                         ),
                                         actions: [
                                           TextButton(
                                             onPressed: () => Navigator.pop(c, false),
-                                            child: Text(context.tr('Cancel')),
+                                            child: const Text('إلغاء'),
                                           ),
                                           FilledButton(
                                             style: FilledButton.styleFrom(
                                               backgroundColor: AppColors.error,
                                             ),
                                             onPressed: () => Navigator.pop(c, true),
-                                            child: Text(context.tr('Reset')),
+                                            child: const Text('إعادة تعيين'),
                                           ),
                                         ],
                                       ),
@@ -1040,9 +1068,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                         if (context.mounted) {
                                           Navigator.pop(ctx);
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
+                                            const SnackBar(
                                               content: Text(
-                                                context.tr('Exam reset successfully'),
+                                                'تمت إعادة تعيين محاولة الامتحان بنجاح',
                                               ),
                                             ),
                                           );
@@ -1050,7 +1078,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                       } catch (e) {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('Reset failed: $e')),
+                                            SnackBar(content: Text('فشلت إعادة التعيين: $e')),
                                           );
                                         }
                                       }
@@ -1066,7 +1094,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: Text(context.tr('Close')),
+                    child: const Text('إغلاق'),
                   ),
                 ],
               ),
@@ -1104,16 +1132,16 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Delete Exam')),
-        content: Text(context.tr('Delete this exam and its attempts?')),
+        title: const Text('حذف الامتحان'),
+        content: const Text('هل أنت متأكد من حذف هذا الامتحان وكافة المحاولات والدرجات المسجلة به؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('Delete')),
+            child: const Text('حذف'),
           ),
         ],
       ),
@@ -1126,7 +1154,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Delete failed')}: $e')),
+        SnackBar(content: Text('فشل الحذف: $e')),
       );
     }
   }
@@ -1136,18 +1164,18 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Close Exam')),
-        content: Text(
-          context.tr('Students will no longer be able to start this exam.'),
+        title: const Text('إغلاق الامتحان'),
+        content: const Text(
+          'لن يتمكن الطلاب من بدء أو تسليم هذا الامتحان بعد إغلاقه.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('Close')),
+            child: const Text('إغلاق الامتحان'),
           ),
         ],
       ),
@@ -1159,7 +1187,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Close failed')}: $e')),
+        SnackBar(content: Text('فشل إغلاق الامتحان: $e')),
       );
     }
   }
@@ -1189,13 +1217,13 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '${context.tr('Error')}: $_errorMessage',
+                            'حدث خطأ: $_errorMessage',
                             style: const TextStyle(color: Colors.red),
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton(
                             onPressed: _loadGroupsAndExams,
-                            child: Text(context.tr('Retry')),
+                            child: const Text('إعادة المحاولة'),
                           ),
                         ],
                       ),
@@ -1219,8 +1247,8 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                             dropdownColor: isDark
                                 ? AppColors.darkCard
                                 : AppColors.lightCard,
-                            decoration: InputDecoration(
-                              labelText: context.tr('Assigned group'),
+                            decoration: const InputDecoration(
+                              labelText: 'المجموعة الدراسية',
                               border: InputBorder.none,
                             ),
                             items: _groups
@@ -1247,7 +1275,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                             Expanded(
                               child: ElevatedButton.icon(
                                 icon: const Icon(Icons.emoji_events_rounded, color: Colors.amber),
-                                label: Text(context.tr('لوحة شرف الأوائل ونظام التحفيز 🏆')),
+                                label: const Text('لوحة شرف الأوائل ونظام التحفيز 🏆'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.amber.shade50,
                                   foregroundColor: isDark ? Colors.amber : Colors.amber.shade900,
@@ -1278,7 +1306,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         hasScrollBody: false,
                         child: Center(
                           child: Text(
-                            context.tr('No assigned groups found.'),
+                            'لم يتم العثور على مجموعات دراسية مسندة.',
                             style: AppTypography.bodyMedium(subtitleColor),
                           ),
                         ),
@@ -1288,7 +1316,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         hasScrollBody: false,
                         child: Center(
                           child: Text(
-                            context.tr('No exams published yet.'),
+                            'لا توجد امتحانات منشورة لهذه المجموعة حتى الآن.',
                             style: AppTypography.bodyMedium(subtitleColor),
                           ),
                         ),
@@ -1341,7 +1369,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')} | ${context.tr('Pass Score')}: ${exam.passScore} | ${context.tr('Status')}: ${context.tr(exam.status)}',
+                                                  'المدة: ${exam.durationMinutes} دقيقة | درجة النجاح: ${exam.passScore} | الحالة: ${_examStatusArabic(exam.status)}',
                                                   maxLines: 2,
                                                   overflow:
                                                       TextOverflow.ellipsis,
@@ -1351,7 +1379,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Text(
-                                                  '${exam.questions.length} ${context.tr('Questions')}',
+                                                  '${exam.questions.length} سؤال مضاف',
                                                   style: AppTypography.caption(
                                                     AppColors.primary,
                                                   ),
@@ -1360,7 +1388,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                             ),
                                           ),
                                           PopupMenuButton<String>(
-                                            tooltip: context.tr('Actions'),
+                                            tooltip: 'خيارات',
                                             icon: const Icon(
                                               Icons.more_vert_rounded,
                                             ),
@@ -1385,32 +1413,28 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                               }
                                             },
                                             itemBuilder: (context) => [
-                                              PopupMenuItem(
+                                              const PopupMenuItem(
                                                 value: 'print_exam',
                                                 child: ListTile(
-                                                  leading: const Icon(
+                                                  leading: Icon(
                                                     Icons.print_rounded,
                                                     color: Colors.teal,
                                                   ),
                                                   title: Text(
-                                                    context.tr(
-                                                      'طباعة امتحان ورقي (PDF)',
-                                                    ),
+                                                    'طباعة امتحان ورقي (PDF)',
                                                   ),
                                                   contentPadding:
                                                       EdgeInsets.zero,
                                                 ),
                                               ),
-                                              PopupMenuItem(
+                                              const PopupMenuItem(
                                                 value: 'questions',
                                                 child: ListTile(
-                                                  leading: const Icon(
+                                                  leading: Icon(
                                                     Icons.edit_document,
                                                   ),
                                                   title: Text(
-                                                    context.tr(
-                                                      'Manage Questions',
-                                                    ),
+                                                    'إدارة وربط الأسئلة',
                                                   ),
                                                   contentPadding:
                                                       EdgeInsets.zero,
@@ -1420,27 +1444,27 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                 value: 'close',
                                                 enabled:
                                                     exam.status != 'closed',
-                                                child: ListTile(
-                                                  leading: const Icon(
+                                                child: const ListTile(
+                                                  leading: Icon(
                                                     Icons.lock_outline,
                                                     color: AppColors.warning,
                                                   ),
                                                   title: Text(
-                                                    context.tr('Close Exam'),
+                                                    'إغلاق الامتحان',
                                                   ),
                                                   contentPadding:
                                                       EdgeInsets.zero,
                                                 ),
                                               ),
-                                              PopupMenuItem(
+                                              const PopupMenuItem(
                                                 value: 'delete',
                                                 child: ListTile(
-                                                  leading: const Icon(
+                                                  leading: Icon(
                                                     Icons.delete_outline,
                                                     color: AppColors.error,
                                                   ),
                                                   title: Text(
-                                                    context.tr('Delete Exam'),
+                                                    'حذف الامتحان',
                                                   ),
                                                   contentPadding:
                                                       EdgeInsets.zero,
@@ -1471,7 +1495,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.quiz),
-              label: Text(context.tr('Create Exam')),
+              label: const Text('إنشاء امتحان جديد'),
             ),
           ),
       ],

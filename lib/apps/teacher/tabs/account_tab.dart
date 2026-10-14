@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../core/settings/app_settings_screen.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
@@ -70,9 +69,9 @@ class _AccountTabState extends State<AccountTab>
               FadeInSlide(
                 duration: const Duration(milliseconds: 400),
                 child: Text(
-                  context.tr('Account'),
+                  'إدارة الحساب',
                   style: AppTypography.displaySmall(textPrimary).copyWith(
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                   ),
@@ -125,12 +124,12 @@ class _AccountTabState extends State<AccountTab>
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                     ),
-                    tabs: [
-                      Tab(text: context.tr('Profile')),
-                      Tab(text: context.tr('Finance')),
-                      Tab(text: context.tr('Helpdesk')),
-                      Tab(text: context.tr('Notifications')),
-                      Tab(text: context.tr('Settings')),
+                    tabs: const [
+                      Tab(text: 'الملف الشخصي'),
+                      Tab(text: 'الماليات والمستحقات'),
+                      Tab(text: 'الدعم الفني'),
+                      Tab(text: 'الإشعارات'),
+                      Tab(text: 'الإعدادات'),
                     ],
                   ),
                 ),

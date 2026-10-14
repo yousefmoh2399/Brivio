@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/di/injection.dart';
 import '../../core/error/supabase_error_handler.dart';
-import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
@@ -245,22 +244,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       return Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
-          title: Text(context.tr('Teacher Portal')),
+          title: const Text('بوابة المعلم'),
           actions: [
             IconButton(
-              tooltip: context.tr('Sign out'),
+              tooltip: 'تسجيل الخروج',
               icon: const Icon(Icons.logout),
               onPressed: () => widget.authViewModel.signOut(),
             ),
           ],
         ),
-        body: Center(
+        body: const Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Text(
-              context.tr(
-                'This account is not linked to a teacher profile yet. Ask an admin to provision the teacher record before using the teacher portal.',
-              ),
+              'هذا الحساب غير مربوط بملف معلم حتى الآن. برجاء التواصل مع إدارة السنتر لتفعيل صلاحيات التدريس.',
               textAlign: TextAlign.center,
             ),
           ),
@@ -324,27 +321,27 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     color: AppColors.teacherRole,
                   ),
                   destinations: [
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.home_outlined),
-                      selectedIcon: const Icon(Icons.home_rounded),
-                      label: Text(context.tr('Home')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home_rounded),
+                      label: Text('الرئيسية'),
                     ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.groups_2_outlined),
-                      selectedIcon: const Icon(Icons.groups_2_rounded),
-                      label: Text(context.tr('Classes')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.groups_2_outlined),
+                      selectedIcon: Icon(Icons.groups_2_rounded),
+                      label: Text('المجموعات'),
                     ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.dashboard_customize_outlined),
-                      selectedIcon: const Icon(
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.dashboard_customize_outlined),
+                      selectedIcon: Icon(
                         Icons.dashboard_customize_rounded,
                       ),
-                      label: Text(context.tr('Workspace')),
+                      label: Text('مساحة العمل'),
                     ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.insights_outlined),
-                      selectedIcon: const Icon(Icons.insights_rounded),
-                      label: Text(context.tr('Analytics')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.insights_outlined),
+                      selectedIcon: Icon(Icons.insights_rounded),
+                      label: Text('التقارير'),
                     ),
                     NavigationRailDestination(
                       icon: Badge(
@@ -353,12 +350,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         child: const Icon(Icons.notifications_none_rounded),
                       ),
                       selectedIcon: const Icon(Icons.notifications_rounded),
-                      label: Text(context.tr('Notifications')),
+                      label: const Text('الإشعارات'),
                     ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.person_outline_rounded),
-                      selectedIcon: const Icon(Icons.person_rounded),
-                      label: Text(context.tr('Account')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.person_outline_rounded),
+                      selectedIcon: Icon(Icons.person_rounded),
+                      label: Text('حسابي'),
                     ),
                   ],
                 ),
@@ -390,37 +387,37 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     setState(() => _selectedIndex = i),
                 labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
                 destinations: [
-                  NavigationDestination(
-                    icon: const Icon(Icons.home_outlined),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(
                       Icons.home_rounded,
                       color: AppColors.teacherRole,
                     ),
-                    label: context.tr('Home'),
+                    label: 'الرئيسية',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.groups_2_outlined),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.groups_2_outlined),
+                    selectedIcon: Icon(
                       Icons.groups_2_rounded,
                       color: AppColors.teacherRole,
                     ),
-                    label: context.tr('Classes'),
+                    label: 'المجموعات',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.dashboard_customize_outlined),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.dashboard_customize_outlined),
+                    selectedIcon: Icon(
                       Icons.dashboard_customize_rounded,
                       color: AppColors.teacherRole,
                     ),
-                    label: context.tr('Workspace'),
+                    label: 'مساحة العمل',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.insights_outlined),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.insights_outlined),
+                    selectedIcon: Icon(
                       Icons.insights_rounded,
                       color: AppColors.teacherRole,
                     ),
-                    label: context.tr('Analytics'),
+                    label: 'التقارير',
                   ),
                   NavigationDestination(
                     icon: Badge(
@@ -432,15 +429,15 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       Icons.notifications_rounded,
                       color: AppColors.teacherRole,
                     ),
-                    label: context.tr('Notifications'),
+                    label: 'الإشعارات',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.person_outline_rounded),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(
                       Icons.person_rounded,
                       color: AppColors.teacherRole,
                     ),
-                    label: context.tr('Account'),
+                    label: 'حسابي',
                   ),
                 ],
               ),
@@ -476,7 +473,7 @@ class TeacherGroupAnalytics {
   factory TeacherGroupAnalytics.fromJson(Map<dynamic, dynamic> raw) {
     final json = Map<String, dynamic>.from(raw);
     return TeacherGroupAnalytics(
-      groupName: json['group_name']?.toString() ?? 'Group',
+      groupName: json['group_name']?.toString() ?? 'المجموعة الدراسية',
       groupCode: json['group_code']?.toString() ?? '',
       studentCount: (json['student_count'] as num?)?.round() ?? 0,
       completedSessions: (json['completed_sessions'] as num?)?.round() ?? 0,

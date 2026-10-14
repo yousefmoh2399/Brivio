@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/components/cards.dart';
@@ -102,7 +101,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
             Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: 16),
             Text(
-              context.tr('Failed to load analytics'),
+              'تعذر تحميل بيانات الإحصائيات',
               style: AppTypography.titleLarge(textColor),
             ),
             const SizedBox(height: 8),
@@ -113,7 +112,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _loadData,
-              child: Text(context.tr('Retry')),
+              child: const Text('إعادة المحاولة'),
             ),
           ],
         ),
@@ -128,12 +127,12 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
             Icon(Icons.analytics_outlined, size: 64, color: subtitleColor),
             const SizedBox(height: 16),
             Text(
-              context.tr('No Analytics Available'),
+              'لا توجد إحصائيات متاحة حالياً',
               style: AppTypography.titleLarge(textColor),
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr('You have not created any exams yet.'),
+              'لم تقم بإنشاء أي امتحانات أو تقييمات حتى الآن.',
               style: AppTypography.bodyMedium(subtitleColor),
             ),
           ],
@@ -194,7 +193,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  context.tr('Overall Performance'),
+                  'الأداء العام والنتائج',
                   style: AppTypography.titleLarge(textColor),
                 ),
               ],
@@ -204,19 +203,19 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatColumn(
-                  context.tr('Total Exams'),
+                  'إجمالي الامتحانات',
                   _exams.length.toString(),
                   textColor,
                   subtitleColor,
                 ),
                 _buildStatColumn(
-                  context.tr('Attempts'),
+                  'المحاولات',
                   totalAttempts.toString(),
                   textColor,
                   subtitleColor,
                 ),
                 _buildStatColumn(
-                  context.tr('Avg Score'),
+                  'متوسط الدرجات',
                   '${avgScore.toStringAsFixed(1)}%',
                   textColor,
                   subtitleColor,
@@ -255,7 +254,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
     Color subtitleColor,
   ) {
     final examId = exam['id'];
-    final title = exam['title'] ?? 'Untitled Exam';
+    final title = exam['title'] ?? 'امتحان بدون عنوان';
 
     final examAttempts = _attempts
         .where((a) => a['exam_id'] == examId)
@@ -293,7 +292,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr('Attempts'),
+                      'المحاولات',
                       style: AppTypography.caption(subtitleColor),
                     ),
                     const SizedBox(height: 4),
@@ -307,7 +306,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr('Graded'),
+                      'تم التصحيح',
                       style: AppTypography.caption(subtitleColor),
                     ),
                     const SizedBox(height: 4),
@@ -321,7 +320,7 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr('Avg Score'),
+                      'متوسط النتيجة',
                       style: AppTypography.caption(subtitleColor),
                     ),
                     const SizedBox(height: 4),
