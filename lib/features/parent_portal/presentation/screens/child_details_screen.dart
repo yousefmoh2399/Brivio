@@ -25,36 +25,36 @@ class AcademicsViewModel {
       childName: name,
       recentExams: [
         ExamScore(
-          subject: 'Mathematics',
+          subject: 'الرياضيات',
           score: 92,
           maxScore: 100,
-          date: 'Oct 12, 2026',
-          grade: 'A',
+          date: '١٢ أكتوبر ٢٠٢٦',
+          grade: 'ممتاز',
         ),
         ExamScore(
-          subject: 'Physics',
+          subject: 'الفيزياء',
           score: 88,
           maxScore: 100,
-          date: 'Oct 10, 2026',
-          grade: 'B+',
+          date: '١٠ أكتوبر ٢٠٢٦',
+          grade: 'جيد جداً',
         ),
         ExamScore(
-          subject: 'Literature',
+          subject: 'اللغة العربية',
           score: 95,
           maxScore: 100,
-          date: 'Oct 08, 2026',
-          grade: 'A+',
+          date: '٠٨ أكتوبر ٢٠٢٦',
+          grade: 'ممتاز مرتفع',
         ),
       ],
       reportCards: [
-        ReportCard(term: 'Fall 2026 Midterm', gpa: 3.8, status: 'Available'),
-        ReportCard(term: 'Spring 2026 Final', gpa: 3.9, status: 'Available'),
+        ReportCard(term: 'تقرير منتصف الفصل الدراسي الأول', gpa: 3.8, status: 'جاهز للتحميل'),
+        ReportCard(term: 'التقرير التراكمي الشامل', gpa: 3.9, status: 'جاهز للتحميل'),
       ],
       performanceHistory: [
-        ChartData(month: 'Sep', value: 85),
-        ChartData(month: 'Oct', value: 92),
-        ChartData(month: 'Nov', value: 89),
-        ChartData(month: 'Dec', value: 95),
+        ChartData(month: 'سبتمبر', value: 85),
+        ChartData(month: 'أكتوبر', value: 92),
+        ChartData(month: 'نوفمبر', value: 89),
+        ChartData(month: 'ديسمبر', value: 95),
       ],
     );
   }
@@ -112,7 +112,7 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          '${_viewModel.childName} - Academics',
+          'المستوى الأكاديمي - ${_viewModel.childName}',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -277,17 +277,17 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
               ),
               const SizedBox(height: 20),
 
-              _buildSectionTitle('Performance Overview'),
+              _buildSectionTitle('المستوى العام والتطور الدراسي'),
               const SizedBox(height: 12),
               _buildPerformanceChart(),
               const SizedBox(height: 24),
 
-              _buildSectionTitle('Recent Exam Scores'),
+              _buildSectionTitle('نتائج الاختبارات الأخيرة'),
               const SizedBox(height: 12),
               ..._viewModel.recentExams.map((exam) => _buildExamCard(exam)),
               const SizedBox(height: 24),
 
-              _buildSectionTitle('Report Cards'),
+              _buildSectionTitle('التقارير والشهادات الدورية'),
               const SizedBox(height: 12),
               ..._viewModel.reportCards.map(
                 (report) => _buildReportCard(report),
@@ -353,7 +353,7 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
               Text(
-                'Overall Average',
+                'المعدل التراكمي العام',
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
               Text(
@@ -386,7 +386,7 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Tooltip(
-          message: 'Score: ${data.value}%',
+          message: 'النسبة: ${data.value.toInt()}%',
           child: Container(
             width: 40,
             height: (data.value / 100) * 120, // max height approx 120
@@ -416,11 +416,10 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
         child: Row(
           children: [
             Container(
-              width: 50,
-              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
@@ -428,7 +427,7 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -470,7 +469,7 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Score',
+                  'الدرجة',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -500,10 +499,11 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
             ),
           ),
           subtitle: Text(
-            'GPA: ${report.gpa} • ${report.status}',
+            'المعدل: ${report.gpa} • ${report.status}',
             style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
           ),
           trailing: IconButton(
+            tooltip: 'تحميل الشهادة',
             icon: const Icon(Icons.download, color: Colors.white),
             onPressed: () {
               // Placeholder download logic

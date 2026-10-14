@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/di/injection.dart';
 import '../../core/error/supabase_error_handler.dart';
-import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../core/settings/app_settings_screen.dart';
@@ -56,15 +55,15 @@ class _ParentDashboardState extends State<ParentDashboard> {
   StreamSubscription<AppNotification>? _notificationSubscription;
 
   static const _destinations = [
-    PortalDestination(icon: Icons.dashboard_customize, label: 'Overview'),
-    PortalDestination(icon: Icons.school, label: 'Progress'),
-    PortalDestination(icon: Icons.fact_check, label: 'Attendance'),
-    PortalDestination(icon: Icons.receipt_long, label: 'Payments'),
-    PortalDestination(icon: Icons.summarize, label: 'Report'),
-    PortalDestination(icon: Icons.notifications, label: 'Notifications'),
-    PortalDestination(icon: Icons.support_agent, label: 'Helpdesk'),
-    PortalDestination(icon: Icons.account_circle, label: 'Account'),
-    PortalDestination(icon: Icons.settings, label: 'Settings'),
+    PortalDestination(icon: Icons.dashboard_customize, label: 'الرئيسية'),
+    PortalDestination(icon: Icons.school, label: 'التقدم الدراسي'),
+    PortalDestination(icon: Icons.fact_check, label: 'سجل الحضور'),
+    PortalDestination(icon: Icons.receipt_long, label: 'المدفوعات'),
+    PortalDestination(icon: Icons.summarize, label: 'التقرير الشهري'),
+    PortalDestination(icon: Icons.notifications, label: 'الإشعارات'),
+    PortalDestination(icon: Icons.support_agent, label: 'الدعم الفني'),
+    PortalDestination(icon: Icons.account_circle, label: 'حسابي'),
+    PortalDestination(icon: Icons.settings, label: 'الإعدادات'),
   ];
 
   @override
@@ -299,8 +298,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final parentName = widget.authViewModel.currentUser?.fullName ?? 'Parent';
-    final selectedName = _selectedChild?.fullName ?? 'No child selected';
+    final parentName = widget.authViewModel.currentUser?.fullName ?? 'ولي الأمر';
+    final selectedName = _selectedChild?.fullName ?? 'لم يتم تحديد طالب';
 
     return PortalScaffold(
       title: parentName,
@@ -318,10 +317,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
           isLoading: _isLoading,
           errorMessage: null,
           isEmpty: _linkedChildren.isEmpty,
-          emptyTitle: context.tr('No linked children'),
-          emptySubtitle: context.tr(
-            'Ask the academy admin to link your account to a student profile.',
-          ),
+          emptyTitle: 'لا يوجد أبناء مرتبطين بحسابك',
+          emptySubtitle:
+              'يرجى مراجعة إدارة السنتر لربط حسابك بملف الطالب الدراسي.',
           emptyIcon: Icons.family_restroom,
           onRetry: _loadLinkedChildren,
           child: ListView(
@@ -350,11 +348,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   Widget _buildHeader() {
     return PortalHeader(
-      eyebrow: context.tr('Guardian Portal'),
-      title: _selectedChild?.fullName ?? context.tr('Parent overview'),
+      eyebrow: 'بوابة أولياء الأمور',
+      title: _selectedChild?.fullName ?? 'لوحة متابعة ولي الأمر',
       subtitle: _selectedChild == null
-          ? '${_linkedChildren.length} ${context.tr("linked children")}'
-          : '${_selectedChild!.studentCode} • ${_childGroups.length} ${context.tr("active groups")}',
+          ? '${_linkedChildren.length} طلاب مسجلين'
+          : '${_selectedChild!.studentCode} • ${_childGroups.length} مجموعات نشطة',
       icon: Icons.family_restroom,
       accentColor: AppColors.parentRole,
       trailing: SizedBox(
@@ -362,7 +360,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         child: DropdownButtonFormField<Student>(
           initialValue: _selectedChild,
           isExpanded: true,
-          decoration: InputDecoration(labelText: context.tr('Child')),
+          decoration: const InputDecoration(labelText: 'اختر الطالب'),
           items: _linkedChildren
               .map(
                 (child) => DropdownMenuItem<Student>(
@@ -406,16 +404,16 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   Widget _buildAccountPage() {
     final profile = widget.authViewModel.currentUser;
-    final name = profile?.fullName ?? 'Guardian';
+    final name = profile?.fullName ?? 'ولي الأمر';
     final email = profile?.email ?? '';
     final phone = profile?.phoneNumber;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PortalSectionTitle(
-          title: context.tr('Account'),
-          subtitle: context.tr('Manage your guardian profile and app access.'),
+        const PortalSectionTitle(
+          title: 'الملف الشخصي',
+          subtitle: 'إدارة حساب ولي الأمر وصلاحيات الدخول.',
         ),
         const SizedBox(height: 12),
         PortalListCard(
@@ -445,7 +443,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                 }
               },
               icon: const Icon(Icons.edit, size: 18),
-              label: Text(context.tr('Edit')),
+              label: const Text('تعديل'),
             ),
           ],
         ),
@@ -453,14 +451,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalListCard(
           icon: Icons.notifications_active,
           accentColor: AppColors.parentRole,
-          title: context.tr('Notifications'),
+          title: 'الإشعارات والتنبيهات',
           subtitle: _unreadCount == 0
-              ? context.tr('No unread notifications.')
-              : '$_unreadCount ${context.tr("unread notifications.")}',
+              ? 'لا توجد إشعارات غير مقروءة.'
+              : 'لديك $_unreadCount إشعارات جديدة غير مقروءة.',
           trailing: [
             TextButton(
               onPressed: () => setState(() => _selectedIndex = 5),
-              child: Text(context.tr('Open')),
+              child: const Text('عرض'),
             ),
           ],
         ),
@@ -468,14 +466,12 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalListCard(
           icon: Icons.settings,
           accentColor: AppColors.info,
-          title: context.tr('Settings'),
-          subtitle: context.tr(
-            'Language, theme, notifications, privacy, and biometric login.',
-          ),
+          title: 'الإعدادات',
+          subtitle: 'تخصيص المظهر، تفضيلات التنبيهات، واللغة.',
           trailing: [
             TextButton(
-              onPressed: () => setState(() => _selectedIndex = 7),
-              child: Text(context.tr('Open')),
+              onPressed: () => setState(() => _selectedIndex = 8),
+              child: const Text('فتح'),
             ),
           ],
         ),
@@ -483,12 +479,12 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalListCard(
           icon: Icons.logout,
           accentColor: AppColors.error,
-          title: context.tr('Sign out'),
-          subtitle: context.tr('Leave the guardian portal on this device.'),
+          title: 'تسجيل الخروج',
+          subtitle: 'الخروج من حساب ولي الأمر على هذا الجهاز.',
           trailing: [
             TextButton(
               onPressed: widget.authViewModel.signOut,
-              child: Text(context.tr('Sign out')),
+              child: const Text('تسجيل الخروج'),
             ),
           ],
         ),
@@ -584,16 +580,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        PortalSectionTitle(
-          title: context.tr('Exams & grades'),
-          subtitle: context.tr(
-            'Published exams, attempts, scores, and answer review.',
-          ),
+        const PortalSectionTitle(
+          title: 'الاختبارات والتقييمات',
+          subtitle: 'الاختبارات المنجزة، الدرجات المسجلة، ومراجعة الإجابات.',
         ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _examItems.isEmpty,
-          emptyText: context.tr('No exams are visible for this child yet.'),
+          emptyText: 'لا توجد اختبارات مسجلة لهذا الطالب حتى الآن.',
           children: _examItems
               .map(
                 (item) => PortalListCard(
@@ -605,7 +599,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                       : AppColors.info,
                   title: item.title,
                   subtitle:
-                      '${item.groupName} | ${item.durationMinutes} min | ${item.attemptCount}/${item.maxAttempts} attempts',
+                      '${item.groupName} • ${item.durationMinutes} دقيقة • المحاولات: ${item.attemptCount}/${item.maxAttempts}',
                   trailing: [
                     if (item.scoreLabel != null)
                       PortalStatusChip(status: item.scoreLabel!),
@@ -621,18 +615,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        PortalSectionTitle(
-          title: context.tr('Published lessons'),
-          subtitle: context.tr(
-            'Progress is calculated from the student reading history.',
-          ),
+        const PortalSectionTitle(
+          title: 'الدروس والمناهج المنشورة',
+          subtitle: 'يتم احتساب التقدم الدراسي بناءً على إنجاز الطالب.',
         ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: snapshot == null || snapshot.availableLessons.isEmpty,
-          emptyText: context.tr(
-            'No published lessons available for this child yet.',
-          ),
+          emptyText: 'لا توجد دروس أو شروحات منشورة لهذا الطالب حالياً.',
           children: (snapshot?.availableLessons ?? const <StudyLessonSummary>[])
               .map(
                 (lesson) => Card(
@@ -651,7 +641,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                         LinearProgressIndicator(value: lesson.progress),
                         const SizedBox(height: 6),
                         Text(
-                          '${lesson.progressPercentage}% • page ${lesson.lastPage}/${lesson.totalPages} • ${_formatStudyTime(lesson.timeSpentSeconds)}',
+                          '${lesson.progressPercentage}% • صفحة ${lesson.lastPage} من ${lesson.totalPages} • ${_formatStudyTime(lesson.timeSpentSeconds)}',
                         ),
                       ],
                     ),
@@ -671,7 +661,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalMetricGrid(
           children: [
             PortalMetricCard(
-              label: context.tr('Present'),
+              label: 'حضور',
               value: _attendance
                   .where((item) => item.status == 'present')
                   .length
@@ -680,7 +670,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
               accentColor: AppColors.success,
             ),
             PortalMetricCard(
-              label: context.tr('Absent'),
+              label: 'غياب',
               value: _attendance
                   .where((item) => item.status == 'absent')
                   .length
@@ -689,7 +679,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
               accentColor: AppColors.error,
             ),
             PortalMetricCard(
-              label: context.tr('Late'),
+              label: 'تأخير',
               value: _attendance
                   .where((item) => item.status == 'late')
                   .length
@@ -702,23 +692,23 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const SizedBox(height: 18),
         Row(
           children: [
-            Expanded(
+            const Expanded(
               child: PortalSectionTitle(
-                title: context.tr('Leave requests'),
-                subtitle: context.tr('Submit and track absence excuses.'),
+                title: 'أعذار وطلبات الغياب',
+                subtitle: 'تقديم ومتابعة طلبات الاعتذار عن الحضور للسنتر.',
               ),
             ),
             FilledButton.icon(
               onPressed: _selectedChild == null ? null : _createLeaveRequest,
               icon: const Icon(Icons.add),
-              label: Text(context.tr('Request')),
+              label: const Text('تقديم عذر'),
             ),
           ],
         ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _leaveRequests.isEmpty,
-          emptyText: context.tr('No leave requests yet.'),
+          emptyText: 'لا توجد طلبات أعذار غياب مسجلة.',
           children: _leaveRequests
               .map(
                 (item) => PortalListCard(
@@ -733,11 +723,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        PortalSectionTitle(title: context.tr('Attendance history')),
+        const PortalSectionTitle(title: 'سجل الحضور والغياب التفصيلي'),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _attendance.isEmpty,
-          emptyText: context.tr('No attendance records yet.'),
+          emptyText: 'لا توجد حصص مسجلة في سجل الحضور بعد.',
           children: _attendance
               .map(
                 (item) => PortalListCard(
@@ -803,38 +793,38 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _invoices.isEmpty,
-          emptyText: context.tr('No invoices issued for this child.'),
+          emptyText: 'لا توجد فواتير صادرة لهذا الطالب.',
           children: _invoices
               .map(
                 (invoice) => PortalListCard(
                   icon: Icons.receipt_long,
                   accentColor: _statusColor(invoice.status),
                   title: invoice.invoiceNumber.isEmpty
-                      ? 'Invoice'
+                      ? 'فاتورة'
                       : invoice.invoiceNumber,
                   subtitle:
-                      '${_money(invoice.totalMinor, invoice.currency)} • due ${_formatDate(invoice.dueAt)}',
+                      '${_money(invoice.totalMinor, invoice.currency)} • استحقاق ${_formatDate(invoice.dueAt)}',
                   trailing: [PortalStatusChip(status: invoice.status)],
                 ),
               )
               .toList(),
         ),
         const SizedBox(height: 18),
-        PortalSectionTitle(title: context.tr('Receipts')),
+        const PortalSectionTitle(title: 'إيصالات السداد والمعاملات'),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _receipts.isEmpty,
-          emptyText: context.tr('No payment receipts generated yet.'),
+          emptyText: 'لا توجد إيصالات سداد مسجلة حتى الآن.',
           children: _receipts
               .map(
                 (receipt) => PortalListCard(
                   icon: Icons.receipt,
                   accentColor: AppColors.success,
                   title: receipt.receiptNumber.isEmpty
-                      ? '${context.tr('Receipt')} #${_shortId(receipt.id)}'
+                      ? 'إيصال #${_shortId(receipt.id)}'
                       : receipt.receiptNumber,
                   subtitle:
-                      '${context.tr('Amount Paid')}: ${_money(receipt.amountMinor, receipt.currency)} • ${context.tr('Issued')}: ${_formatDate(receipt.issuedAt)}',
+                      'المبلغ المسدد: ${_money(receipt.amountMinor, receipt.currency)} • التاريخ: ${_formatDate(receipt.issuedAt)}',
                   trailing: const [PortalStatusChip(status: 'paid')],
                   onTap: () => _showReceiptDialog(receipt),
                 ),
@@ -908,7 +898,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: report.monthAttendance.isEmpty,
-          emptyText: context.tr('No attendance records in this month yet.'),
+          emptyText: 'لا توجد حصص مسجلة خلال هذا الشهر.',
           children: report.monthAttendance
               .map(
                 (item) => PortalListCard(
@@ -927,7 +917,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        PortalSectionTitle(title: context.tr('Payment follow-up')),
+        const PortalSectionTitle(title: 'متابعة سداد الرسوم والفواتير'),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: report.openInvoices.isEmpty,
@@ -938,10 +928,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   icon: Icons.receipt_long,
                   accentColor: _statusColor(invoice.status),
                   title: invoice.invoiceNumber.isEmpty
-                      ? 'Invoice'
+                      ? 'فاتورة'
                       : invoice.invoiceNumber,
                   subtitle:
-                      '${_money(invoice.totalMinor - invoice.amountPaidMinor, invoice.currency)} remaining | due ${_formatDate(invoice.dueAt)}',
+                      '${_money(invoice.totalMinor - invoice.amountPaidMinor, invoice.currency)} متبقي • استحقاق ${_formatDate(invoice.dueAt)}',
                   trailing: [PortalStatusChip(status: invoice.status)],
                 ),
               )
@@ -959,8 +949,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
           children: [
             const Expanded(
               child: PortalSectionTitle(
-                title: 'Notifications',
-                subtitle: 'Academy alerts sent to your guardian account.',
+                title: 'الإشعارات والتنبيهات',
+                subtitle: 'تنبيهات وتحديثات السنتر المرسلة لولي الأمر.',
               ),
             ),
             OutlinedButton.icon(
@@ -968,14 +958,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   ? null
                   : _markAllNotificationsRead,
               icon: const Icon(Icons.done_all),
-              label: Text(context.tr('Mark read')),
+              label: const Text('تحديد الكل كمقروء'),
             ),
           ],
         ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _notifications.isEmpty,
-          emptyText: 'No notifications yet.',
+          emptyText: 'لا توجد إشعارات مسجلة حالياً.',
           children: _notifications
               .map(
                 (notification) => PortalListCard(
@@ -1052,7 +1042,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       builder: (ctx) => AlertDialog(
         title: Text(
           receipt.receiptNumber.isEmpty
-              ? context.tr('Electronic Receipt')
+              ? 'إيصال دفع إلكتروني'
               : receipt.receiptNumber,
         ),
         content: Column(
@@ -1065,19 +1055,19 @@ class _ParentDashboardState extends State<ParentDashboard> {
             ),
             const SizedBox(height: 12),
             _ReceiptDetailLine(
-              label: context.tr('Amount Paid'),
+              label: 'المبلغ المسدد',
               value: _money(receipt.amountMinor, receipt.currency),
             ),
             _ReceiptDetailLine(
-              label: context.tr('Issued'),
+              label: 'تاريخ السداد',
               value: _formatDate(receipt.issuedAt),
             ),
             _ReceiptDetailLine(
-              label: context.tr('Invoice'),
+              label: 'رقم الفاتورة',
               value: _shortId(receipt.invoiceId),
             ),
             _ReceiptDetailLine(
-              label: context.tr('Reference'),
+              label: 'رقم المعاملة (المرجع)',
               value: _shortId(receipt.transactionId),
             ),
           ],
@@ -1085,7 +1075,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Close')),
+            child: const Text('إغلاق'),
           ),
         ],
       ),
@@ -1113,7 +1103,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load exam review: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر تحميل مراجعة إجابات الاختبار: $e')));
       return;
     }
 
@@ -1159,7 +1149,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Score: ${review['score'] ?? 0} / ${review['max_score'] ?? 0}',
+                        'الدرجة المستحقة: ${review['score'] ?? 0} من ${review['max_score'] ?? 0}',
                         style: const TextStyle(
                           color: AppColors.parentRole,
                           fontSize: 16,
@@ -1170,12 +1160,12 @@ class _ParentDashboardState extends State<ParentDashboard> {
                           .trim()
                           .isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        Text('Teacher feedback: ${review['teacher_feedback']}'),
+                        Text('ملاحظات المعلم: ${review['teacher_feedback']}'),
                       ],
                       const SizedBox(height: 16),
                       Expanded(
                         child: answers.isEmpty
-                            ? const Center(child: Text('No answers found.'))
+                            ? const Center(child: Text('لا توجد إجابات مسجلة.'))
                             : ListView.separated(
                                 itemCount: answers.length,
                                 separatorBuilder: (_, __) =>
@@ -1203,7 +1193,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                                         children: [
                                           Row(
                                             crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                             children: [
                                               Icon(
                                                 isCorrect
@@ -1227,13 +1217,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
                                           ),
                                           const SizedBox(height: 8),
                                           Text(
-                                            'Student answer: ${answer['student_answer'] ?? '-'}',
+                                            'إجابة الطالب: ${answer['student_answer'] ?? '-'}',
                                           ),
                                           Text(
-                                            'Correct answer: ${answer['correct_answer'] ?? '-'}',
+                                            'الإجابة النموذجية: ${answer['correct_answer'] ?? '-'}',
                                           ),
                                           Text(
-                                            'Points: ${answer['points_awarded'] ?? 0} / ${answer['max_points'] ?? 0}',
+                                            'النقاط: ${answer['points_awarded'] ?? 0} / ${answer['max_points'] ?? 0}',
                                           ),
                                           if ((answer['explanation']
                                                       ?.toString() ??
@@ -1241,7 +1231,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                                               .trim()
                                               .isNotEmpty)
                                             Text(
-                                              'Explanation: ${answer['explanation']}',
+                                              'الشرح والتوضيح: ${answer['explanation']}',
                                             ),
                                         ],
                                       ),
@@ -1259,14 +1249,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
                       const SizedBox(height: 12),
                       Text(
                         review['message']?.toString() ??
-                            'Results are not released yet.',
+                            'لم يتم اعتماد وإعلان نتائج هذا الاختبار بعد.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 16),
                       FilledButton(
                         onPressed: () => Navigator.pop(dialogContext),
-                        child: const Text('Close'),
+                        child: const Text('إغلاق'),
                       ),
                     ],
                   ),
@@ -1281,7 +1271,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     if (lesson == null) {
       return const _InfoList(
         isEmpty: true,
-        emptyText: 'No next lesson available.',
+        emptyText: 'لا توجد حصة قادمة مجدولة.',
         children: [],
       );
     }
@@ -1291,7 +1281,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       title: lesson.title,
       subtitle:
           '${lesson.pathName} • ${lesson.unitName} • ${lesson.progressPercentage}% • ${_formatStudyTime(lesson.timeSpentSeconds)}',
-      trailing: [PortalStatusChip(status: lesson.hasPdf ? 'PDF' : 'Lesson')],
+      trailing: [PortalStatusChip(status: lesson.hasPdf ? 'ملف PDF' : 'شرح')],
     );
   }
 
@@ -1314,12 +1304,12 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   String _formatStudyTime(int seconds) {
-    if (seconds < 60) return '${seconds}s';
+    if (seconds < 60) return '$seconds ثانية';
     final minutes = seconds ~/ 60;
-    if (minutes < 60) return '${minutes}m';
+    if (minutes < 60) return '$minutes دقيقة';
     final hours = minutes ~/ 60;
     final rest = minutes % 60;
-    return rest == 0 ? '${hours}h' : '${hours}h ${rest}m';
+    return rest == 0 ? '$hours ساعة' : '$hours ساعة و $rest دقيقة';
   }
 
   List<_ParentInsight> _buildParentInsights() {
@@ -1339,9 +1329,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _ParentInsight(
           icon: Icons.warning_amber,
           color: AppColors.error,
-          title: 'Attendance needs follow-up',
+          title: 'متابعة نسبة الحضور',
           body:
-              'Attendance is ${attendanceRate.round()}% with $absentCount absences.',
+              'نسبة الحضور الحالية ${attendanceRate.round()}% مع تسجيل $absentCount مرات غياب.',
         ),
       );
     }
@@ -1351,8 +1341,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _ParentInsight(
           icon: Icons.menu_book,
           color: AppColors.warning,
-          title: 'Learning progress is low',
-          body: 'Average lesson progress is ${progress.round()}%.',
+          title: 'مستوى التقدم الدراسي بحاجة لمتابعة',
+          body: 'متوسط إنجاز المناهج والدروس ${progress.round()}% فقط.',
         ),
       );
     }
@@ -1361,8 +1351,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _ParentInsight(
           icon: Icons.payments,
           color: overdueInvoices > 0 ? AppColors.error : AppColors.warning,
-          title: overdueInvoices > 0 ? 'Overdue payment' : 'Cash payment due',
-          body: '${_money(balance, _financialSummary?.currency)} remaining.',
+          title: overdueInvoices > 0 ? 'متأخرات مالية مستحقة' : 'رسوم دراسية مستحقة السداد',
+          body: 'المتبقي للسداد: ${_money(balance, _financialSummary?.currency)}.',
         ),
       );
     }
@@ -1371,8 +1361,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _ParentInsight(
           icon: Icons.notifications_active,
           color: AppColors.parentRole,
-          title: 'Unread academy alerts',
-          body: 'There are $_unreadCount unread notifications.',
+          title: 'تنبيهات وإشعارات جديدة',
+          body: 'لديك $_unreadCount إشعارات غير مقروءة من السنتر.',
         ),
       );
     }
@@ -1381,8 +1371,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const _ParentInsight(
           icon: Icons.verified,
           color: AppColors.success,
-          title: 'No urgent follow-up',
-          body: 'Progress, attendance, and payments have no critical alerts.',
+          title: 'المستوى ممتاز ومستقر',
+          body: 'الحضور والتحصيل الدراسي والمدفوعات منتظمة دون أي ملاحظات.',
         ),
       );
     }
@@ -1391,7 +1381,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   static String _money(int minor, String? currency) {
     final amount = minor / 100;
-    return '${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)} ${currency ?? 'EGP'}';
+    final formatted = amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2);
+    final cur = (currency == null || currency == 'EGP') ? 'ج.م' : currency;
+    return '$formatted $cur';
   }
 
   static String _shortId(String value) {
@@ -1400,7 +1392,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   static String _formatDate(DateTime? value) {
-    if (value == null) return 'No date';
+    if (value == null) return 'غير محدد';
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
@@ -1437,7 +1429,7 @@ class _InfoList extends StatelessWidget {
             children: [
               const Icon(Icons.info_outline),
               const SizedBox(width: 10),
-              Expanded(child: Text(context.l10n.t(emptyText))),
+              Expanded(child: Text(emptyText)),
             ],
           ),
         ),
@@ -1508,8 +1500,8 @@ class _ParentInsightPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const PortalSectionTitle(
-              title: 'Guardian Insights',
-              subtitle: 'Important follow-up points from real student data.',
+              title: 'توجيهات وملاحظات ولي الأمر',
+              subtitle: 'نقاط متابعة هامة مستخلصة من أداء الطالب الفعلي.',
             ),
             const SizedBox(height: 12),
             ...insights.map(
@@ -1525,10 +1517,10 @@ class _ParentInsightPanel extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            context.l10n.t(insight.title),
+                            insight.title,
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
-                          Text(context.l10n.t(insight.body)),
+                          Text(insight.body),
                         ],
                       ),
                     ),
@@ -1612,9 +1604,9 @@ class _ParentMonthlyReport {
         _ParentInsight(
           icon: Icons.event_busy,
           color: AppColors.warning,
-          title: 'Improve attendance consistency',
+          title: 'تحسين الانتظام في الحضور',
           body:
-              'This month attendance is ${attendanceRate.round()}%. Follow up before the next session.',
+              'نسبة الحضور لهذا الشهر ${attendanceRate.round()}%. يرجى الحرص على حضور الحصص القادمة.',
         ),
       );
     }
@@ -1623,9 +1615,9 @@ class _ParentMonthlyReport {
         _ParentInsight(
           icon: Icons.schedule,
           color: AppColors.warning,
-          title: 'Add a fixed study block',
+          title: 'تخصيص وقت يومي للمذاكرة',
           body:
-              'Average progress is ${averageProgress.round()}%. A short daily review would help.',
+              'متوسط التقدم في الدروس ${averageProgress.round()}%. نوصي بجدول مراجعة يومي.',
         ),
       );
     }
@@ -1634,8 +1626,8 @@ class _ParentMonthlyReport {
         _ParentInsight(
           icon: Icons.receipt_long,
           color: AppColors.error,
-          title: 'Settle cash balance',
-          body: 'There is an open balance that should be paid at the academy.',
+          title: 'سداد الرسوم الدراسية',
+          body: 'يوجد مستحق مالي متبقي يرجى سداده بخزينة السنتر.',
         ),
       );
     }
@@ -1644,8 +1636,8 @@ class _ParentMonthlyReport {
         const _ParentInsight(
           icon: Icons.verified,
           color: AppColors.success,
-          title: 'Monthly status is stable',
-          body: 'No urgent attendance, progress, or payment action is needed.',
+          title: 'الوضع الشهري ممتاز ومستقر',
+          body: 'لا توجد أي ملاحظات أو متأخرات عاجلة.',
         ),
       );
     }
@@ -1713,10 +1705,10 @@ class _ParentExamItem {
   factory _ParentExamItem.fromJson(Map json) {
     return _ParentExamItem(
       id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'Exam',
+      title: json['title']?.toString() ?? 'اختبار',
       description: json['description']?.toString(),
       groupId: json['group_id']?.toString(),
-      groupName: json['group_name']?.toString() ?? 'Group',
+      groupName: json['group_name']?.toString() ?? 'المجموعة',
       durationMinutes: (json['duration_minutes'] as num? ?? 30).toInt(),
       maxAttempts: (json['max_attempts'] as num? ?? 1).toInt(),
       status: json['status']?.toString() ?? 'published',
@@ -1754,7 +1746,7 @@ class _ParentAttendanceItem {
       status: json['attendance_status']?.toString() ?? 'unknown',
       markedAt: DateTime.tryParse(json['marked_at']?.toString() ?? ''),
       sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
-      groupName: json['group_name']?.toString() ?? 'Group',
+      groupName: json['group_name']?.toString() ?? 'المجموعة',
       groupCode: json['group_code']?.toString() ?? '',
     );
   }
@@ -1780,11 +1772,11 @@ class _ParentLeaveItem {
   factory _ParentLeaveItem.fromJson(Map json) {
     return _ParentLeaveItem(
       id: json['id']?.toString() ?? '',
-      reason: json['reason']?.toString() ?? 'Leave request',
+      reason: json['reason']?.toString() ?? 'طلب إذن غياب',
       status: json['status']?.toString() ?? 'pending',
       submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
       sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
-      groupName: json['group_name']?.toString() ?? 'General',
+      groupName: json['group_name']?.toString() ?? 'عام',
     );
   }
 }

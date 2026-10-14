@@ -44,8 +44,8 @@ class _ParentAppState extends State<ParentApp> {
           if (state.status == AuthStatus.initial ||
               state.status == AuthStatus.loading) {
             return const AuthLoadingScreen(
-              title: 'Opening guardian portal',
-              subtitle: 'Loading linked children, alerts, and secure access.',
+              title: 'جاري فتح بوابة ولي الأمر',
+              subtitle: 'تحميل بيانات الأبناء، التنبيهات، والوصول الآمن...',
               icon: Icons.family_restroom_rounded,
               accentColor: AppColors.parentRole,
             );
@@ -58,7 +58,7 @@ class _ParentAppState extends State<ParentApp> {
             }
             return PortalDeniedScreen(
               currentRole: role,
-              targetPortalName: 'Parent Guardian Application',
+              targetPortalName: 'بوابة أولياء الأمور',
               onSignOut: () => _viewModel.signOut(),
             );
           }

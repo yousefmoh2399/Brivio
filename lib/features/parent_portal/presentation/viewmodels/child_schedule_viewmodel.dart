@@ -15,21 +15,27 @@ class ScheduleEvent {
   });
 
   factory ScheduleEvent.fromScheduleRow(Map<String, dynamic> row) {
-    final groupName = row['group_name']?.toString() ?? 'Group';
-    final subjectName = row['subject_name']?.toString() ?? 'Class';
+    final groupName = row['group_name']?.toString() ?? 'المجموعة الدراسية';
+    final subjectName = row['subject_name']?.toString() ?? 'حصة دراسية';
     final room =
         row['room_name']?.toString() ??
         row['location']?.toString() ??
-        'Room not assigned';
-    final status = row['status']?.toString() ?? 'scheduled';
+        'القاعة غير محددة';
+    final rawStatus = row['status']?.toString() ?? 'scheduled';
+    final statusText = switch (rawStatus.toLowerCase()) {
+      'scheduled' => 'مجدولة',
+      'cancelled' => 'ملغاة',
+      'completed' => 'مكتملة',
+      _ => rawStatus,
+    };
     final start = _formatTime(row['start_time']?.toString());
     final end = _formatTime(row['end_time']?.toString());
 
     return ScheduleEvent(
       title: subjectName,
       time: '$start - $end',
-      description: '$groupName · $room · $status',
-      color: status == 'cancelled' ? Colors.redAccent : Colors.blueAccent,
+      description: '$groupName · $room · $statusText',
+      color: rawStatus == 'cancelled' ? Colors.redAccent : const Color(0xFF1E88E5),
     );
   }
 

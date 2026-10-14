@@ -29,36 +29,36 @@ class ChildAssignmentsViewModel extends ChangeNotifier {
   final List<Assignment> assignments = [
     Assignment(
       id: '1',
-      title: 'Algebra Worksheet 5',
-      subject: 'Math',
-      childName: 'Sarah',
+      title: 'واجب الجبر والهندسة الفراغية - شيت ٥',
+      subject: 'الرياضيات',
+      childName: 'الطالب',
       dueDate: DateTime.now().add(const Duration(days: 2)),
       status: AssignmentStatus.pending,
     ),
     Assignment(
       id: '2',
-      title: 'World War II Essay',
-      subject: 'History',
-      childName: 'John',
+      title: 'مقال تاريخ الحركة الوطنية الحديثة',
+      subject: 'التاريخ',
+      childName: 'الطالب',
       dueDate: DateTime.now().add(const Duration(hours: 10)),
       status: AssignmentStatus.pending,
     ),
     Assignment(
       id: '3',
-      title: 'Science Project: Volcano',
-      subject: 'Science',
-      childName: 'Sarah',
+      title: 'تقرير تجربة الدوائر الكهربية',
+      subject: 'الفيزياء',
+      childName: 'الطالب',
       dueDate: DateTime.now().subtract(const Duration(days: 1)),
       status: AssignmentStatus.missing,
     ),
     Assignment(
       id: '4',
-      title: 'Reading Log - Week 4',
-      subject: 'English',
-      childName: 'John',
+      title: 'شيت تدريبات النحو والبلاغة - الأسبوع ٤',
+      subject: 'اللغة العربية',
+      childName: 'الطالب',
       dueDate: DateTime.now().subtract(const Duration(days: 3)),
       status: AssignmentStatus.submitted,
-      grade: 'A',
+      grade: 'ممتاز (A)',
     ),
   ];
 
@@ -104,7 +104,7 @@ class _ChildAssignmentsScreenState extends State<ChildAssignmentsScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
-          'Homework & Assignments',
+          'الواجبات والتكليفات المدرسية',
           style: TextStyle(
             color: AppColors.darkTextPrimary,
             fontWeight: FontWeight.w700,
@@ -119,9 +119,9 @@ class _ChildAssignmentsScreenState extends State<ChildAssignmentsScreen>
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.darkTextSecondary,
           tabs: const [
-            Tab(text: 'Pending'),
-            Tab(text: 'Missing'),
-            Tab(text: 'Submitted'),
+            Tab(text: 'قيد الحل'),
+            Tab(text: 'متأخر'),
+            Tab(text: 'تم التسليم'),
           ],
         ),
       ),
@@ -141,6 +141,11 @@ class _ChildAssignmentsScreenState extends State<ChildAssignmentsScreen>
 
   Widget _buildAssignmentList(List<Assignment> items, AssignmentStatus status) {
     if (items.isEmpty) {
+      final emptyLabel = switch (status) {
+        AssignmentStatus.pending => 'لا توجد واجبات قيد الانتظار حالياً',
+        AssignmentStatus.missing => 'لا توجد تكليفات متأخرة، عمل رائع!',
+        AssignmentStatus.submitted => 'لا توجد واجبات مسلّمة مسجلة مؤخراً',
+      };
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -152,7 +157,7 @@ class _ChildAssignmentsScreenState extends State<ChildAssignmentsScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'No ${status.name} assignments',
+              emptyLabel,
               style: const TextStyle(
                 color: AppColors.darkTextSecondary,
                 fontSize: 16,
@@ -232,7 +237,7 @@ class _AssignmentCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Due: ${DateFormat('MMM d, yyyy h:mm a').format(assignment.dueDate)}',
+                    'موعد التسليم: ${DateFormat('yyyy/MM/dd hh:mm a').format(assignment.dueDate)}',
                     style: TextStyle(
                       color: _getDueDateColor(),
                       fontSize: 13,
@@ -243,7 +248,7 @@ class _AssignmentCard extends StatelessWidget {
               ),
               if (assignment.grade != null)
                 Text(
-                  'Grade: ${assignment.grade}',
+                  'التقييم: ${assignment.grade}',
                   style: const TextStyle(
                     color: AppColors.success,
                     fontSize: 14,
@@ -261,21 +266,21 @@ class _AssignmentCard extends StatelessWidget {
     switch (assignment.status) {
       case AssignmentStatus.pending:
         return const StatusChip(
-          label: 'Pending',
+          label: 'قيد الحل',
           status: ChipStatus.info,
           icon: Icons.hourglass_empty,
           small: true,
         );
       case AssignmentStatus.submitted:
         return const StatusChip(
-          label: 'Submitted',
+          label: 'تم التسليم',
           status: ChipStatus.success,
           icon: Icons.check_circle_outline,
           small: true,
         );
       case AssignmentStatus.missing:
         return const StatusChip(
-          label: 'Missing',
+          label: 'متأخر',
           status: ChipStatus.error,
           icon: Icons.warning_amber_rounded,
           small: true,
