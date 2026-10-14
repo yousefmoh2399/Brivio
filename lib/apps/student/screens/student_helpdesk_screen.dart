@@ -82,6 +82,7 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return PortalPageShell(
       title: 'الدعم الفني والشكاوى',
       subtitle: 'متابعة تذاكر الدعم والطلبات والاستفسارات الفنية',
@@ -95,44 +96,51 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
         ),
       ],
       child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : _tickets.isEmpty
-          ? _buildEmptyState()
-          : _buildTicketsList(),
+          ? _buildEmptyState(isDark)
+          : _buildTicketsList(isDark),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircleIcon(
-            icon: Icons.local_play,
-            color: AppColors.darkTextSecondary,
+            icon: Icons.support_agent_rounded,
+            color: textSecondary,
             size: 64,
             iconSize: 32,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'لا توجد تذاكر دعم مسجلة حالياً',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppColors.darkTextPrimary,
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'أنشئ تذكرة للتواصل مع الإدارة أو الدعم الفني بشأن دوراتك أو حسابك.',
-            style: TextStyle(color: AppColors.darkTextSecondary),
+            style: TextStyle(color: textSecondary),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTicketsList() {
+  Widget _buildTicketsList(bool isDark) {
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textTertiary = isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
+
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: _tickets.length,
@@ -141,11 +149,13 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
         final ticket = _tickets[index];
         return GlassCard(
           onTap: () => _viewTicket(ticket),
+          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleIcon(
-                icon: Icons.chat_bubble_outline,
+                icon: Icons.chat_bubble_outline_rounded,
                 color: _getStatusColor(ticket.status),
               ),
               const SizedBox(width: 16),
@@ -159,10 +169,10 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
                         Expanded(
                           child: Text(
                             ticket.subject,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.darkTextPrimary,
+                              fontWeight: FontWeight.w700,
+                              color: textPrimary,
                             ),
                           ),
                         ),
@@ -178,17 +188,17 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
                       ticket.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.darkTextSecondary,
+                        color: textSecondary,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'الأولوية: ${_priorityArabic(ticket.priority)} \u2022 ${_formatDate(ticket.createdAt)}',
-                      style: const TextStyle(
+                      'الأولوية: ${_priorityArabic(ticket.priority)} • ${_formatDate(ticket.createdAt)}',
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.darkTextTertiary,
+                        color: textTertiary,
                       ),
                     ),
                   ],
@@ -237,7 +247,7 @@ class _CreateTicketDialog extends StatefulWidget {
 class _CreateTicketDialogState extends State<_CreateTicketDialog> {
   final _subjectCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
-  String _selectedPriority = 'Normal';
+  String _selectedPriority = 'normal';
   String? _selectedGroup;
   bool _isSubmitting = false;
   late final Future<List<HelpdeskGroupOption>> _groupsFuture;
@@ -275,10 +285,15 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: GlassCard(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: SingleChildScrollView(
@@ -295,6 +310,8 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                   controller: _subjectCtrl,
                   label: 'عنوان التذكرة',
                   hint: 'وصف مختصر للمشكلة أو الاستفسار',
+                  isDark: isDark,
+                  textPrimary: textPrimary,
                 ),
                 const SizedBox(height: 12),
                 _buildTextField(
@@ -302,6 +319,8 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                   label: 'تفاصيل المشكلة',
                   hint: 'يرجى كتابة التفاصيل بدقة لمساعدتك بشكل أسرع...',
                   maxLines: 4,
+                  isDark: isDark,
+                  textPrimary: textPrimary,
                 ),
                 const SizedBox(height: 12),
                 FutureBuilder<List<HelpdeskGroupOption>>(
@@ -314,11 +333,12 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                     return DropdownButtonFormField<String>(
                       initialValue: _selectedGroup,
                       isExpanded: true,
-                      dropdownColor: AppColors.darkSurface,
+                      dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                       decoration: _inputDecoration(
                         'المجموعة أو الدورة المرتبطة',
+                        isDark,
                       ),
-                      style: const TextStyle(color: AppColors.darkTextPrimary),
+                      style: TextStyle(color: textPrimary),
                       items: [
                         const DropdownMenuItem(
                           value: null,
@@ -342,14 +362,14 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                 DropdownButtonFormField<String>(
                   initialValue: _selectedPriority,
                   isExpanded: true,
-                  dropdownColor: AppColors.darkSurface,
-                  decoration: _inputDecoration('درجة الأهمية'),
-                  style: const TextStyle(color: AppColors.darkTextPrimary),
+                  dropdownColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                  decoration: _inputDecoration('درجة الأهمية', isDark),
+                  style: TextStyle(color: textPrimary),
                   items: const [
-                    DropdownMenuItem(value: 'Low', child: Text('منخفضة')),
-                    DropdownMenuItem(value: 'Normal', child: Text('عادية')),
-                    DropdownMenuItem(value: 'High', child: Text('عالية')),
-                    DropdownMenuItem(value: 'Urgent', child: Text('عاجلة')),
+                    DropdownMenuItem(value: 'low', child: Text('منخفضة')),
+                    DropdownMenuItem(value: 'normal', child: Text('عادية')),
+                    DropdownMenuItem(value: 'high', child: Text('عالية')),
+                    DropdownMenuItem(value: 'urgent', child: Text('عاجلة')),
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedPriority = val);
@@ -392,30 +412,32 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
     required TextEditingController controller,
     required String label,
     required String hint,
+    required bool isDark,
+    required Color textPrimary,
     int maxLines = 1,
   }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      style: const TextStyle(color: AppColors.darkTextPrimary),
-      decoration: _inputDecoration(label).copyWith(hintText: hint),
+      style: TextStyle(color: textPrimary),
+      decoration: _inputDecoration(label, isDark).copyWith(hintText: hint),
     );
   }
 
-  InputDecoration _inputDecoration(String label) {
+  InputDecoration _inputDecoration(String label, bool isDark) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.darkTextSecondary),
-      hintStyle: const TextStyle(color: AppColors.darkTextTertiary),
+      labelStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+      hintStyle: TextStyle(color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary),
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -481,33 +503,39 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
   @override
   Widget build(BuildContext context) {
     final t = widget.ticket;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: AppColors.darkBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(t),
+          _buildHeader(t, isDark, textPrimary, textSecondary),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildRepliesList(),
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : _buildRepliesList(isDark, textPrimary, textSecondary),
           ),
-          _buildReplyInput(),
+          _buildReplyInput(isDark, surfaceColor, textPrimary),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(SupportTicket t) {
+  Widget _buildHeader(SupportTicket t, bool isDark, Color textPrimary, Color textSecondary) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          bottom: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
         ),
       ),
       child: Column(
@@ -519,7 +547,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
               height: 4,
               margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: isDark ? Colors.white24 : Colors.black26,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -530,10 +558,10 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
               Expanded(
                 child: Text(
                   t.subject,
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.darkTextPrimary,
+                    color: textPrimary,
                   ),
                 ),
               ),
@@ -546,9 +574,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
           const SizedBox(height: 12),
           Text(
             t.description,
-            style: const TextStyle(
-              fontSize: 15,
-              color: AppColors.darkTextSecondary,
+            style: TextStyle(
+              fontSize: 14,
+              color: textSecondary,
               height: 1.4,
             ),
           ),
@@ -557,12 +585,12 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
     );
   }
 
-  Widget _buildRepliesList() {
+  Widget _buildRepliesList(bool isDark, Color textPrimary, Color textSecondary) {
     if (_replies.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'لا توجد ردود مسجلة بعد على هذه التذكرة.',
-          style: TextStyle(color: AppColors.darkTextSecondary),
+          style: TextStyle(color: textSecondary),
         ),
       );
     }
@@ -572,7 +600,11 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
       separatorBuilder: (_, __) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         final reply = _replies[index];
-        final isMine = reply.userId == widget.ticket.userId; // Mock check
+        final isMine = reply.userId == widget.ticket.userId;
+        final bubbleBg = isMine ? AppColors.primary : (isDark ? AppColors.darkSurface : Colors.grey.shade200);
+        final bubbleText = isMine ? Colors.white : (isDark ? Colors.white : Colors.black87);
+        final timeText = isMine ? Colors.white70 : (isDark ? Colors.white60 : Colors.black54);
+
         return Align(
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
@@ -581,7 +613,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
             ),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isMine ? AppColors.primary : AppColors.darkSurface,
+              color: bubbleBg,
               borderRadius: BorderRadius.circular(16).copyWith(
                 bottomRight: isMine ? Radius.zero : const Radius.circular(16),
                 bottomLeft: !isMine ? Radius.zero : const Radius.circular(16),
@@ -592,13 +624,13 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
               children: [
                 Text(
                   reply.message,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  style: TextStyle(color: bubbleText, fontSize: 14),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${reply.createdAt.hour}:${reply.createdAt.minute.toString().padLeft(2, '0')}',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: timeText,
                     fontSize: 11,
                   ),
                 ),
@@ -610,7 +642,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
     );
   }
 
-  Widget _buildReplyInput() {
+  Widget _buildReplyInput(bool isDark, Color surfaceColor, Color textPrimary) {
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -619,9 +651,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       decoration: BoxDecoration(
-        color: AppColors.darkBackground,
+        color: surfaceColor,
         border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          top: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
         ),
       ),
       child: Row(
@@ -629,12 +661,12 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
           Expanded(
             child: TextField(
               controller: _replyCtrl,
-              style: const TextStyle(color: AppColors.darkTextPrimary),
+              style: TextStyle(color: textPrimary),
               decoration: InputDecoration(
                 hintText: 'اكتب ردك هنا...',
-                hintStyle: const TextStyle(color: AppColors.darkTextTertiary),
+                hintStyle: TextStyle(color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.05),
+                fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
@@ -665,7 +697,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.send, color: Colors.white, size: 20),
+                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             ),
           ),
         ],

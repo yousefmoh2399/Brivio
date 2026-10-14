@@ -309,6 +309,203 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     }
   }
 
+  Future<void> _showAssessmentReview({
+    required String rpcName,
+    required Map<String, dynamic> params,
+    required String titleFallback,
+  }) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+
+    dynamic raw;
+    try {
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      raw = await wrapper.withFreshSession((client) => client.rpc(rpcName, params: params));
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لم يتم إعلان تفاصيل النتيجة أو نموذج الإجابة بعد من قِبل المعلم.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    if (raw == null || raw is! Map) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('بيانات المراجعة غير متوفرة حالياً.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final review = Map<String, dynamic>.from(raw);
+    final released = review['released'] == true;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final answers = (review['answers'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: surfaceColor,
+        insetPadding: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640, maxHeight: 760),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: released
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              review['title']?.toString() ?? titleFallback,
+                              style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'الدرجة: ${review['score'] ?? 0} / ${review['max_score'] ?? 0}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if ((review['teacher_feedback']?.toString() ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.comment_rounded, size: 16, color: Colors.amber),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'ملاحظات المعلم: ${review['teacher_feedback']}',
+                                  style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: MediaQuery.sizeOf(context).height * 0.46,
+                        child: answers.isEmpty
+                            ? Center(
+                                child: Text('لا توجد إجابات مسجلة لهذا التقييم.', style: AppTypography.bodyMedium(textSecondary)),
+                              )
+                            : ListView.separated(
+                                itemCount: answers.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                itemBuilder: (_, index) {
+                                  final answer = answers[index];
+                                  final isCorrect = answer['is_correct'] == true;
+                                  final color = isCorrect ? AppColors.success : AppColors.error;
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.08),
+                                      border: Border.all(color: color.withValues(alpha: 0.35)),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded, color: color, size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                answer['prompt']?.toString() ?? '',
+                                                style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w800),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text('إجابتك: ${answer['student_answer'] ?? 'لم تتم الإجابة'}', style: AppTypography.bodySmall(textPrimary)),
+                                        const SizedBox(height: 4),
+                                        Text('الإجابة النموذجية: ${answer['correct_answer'] ?? 'غير متوفرة'}', style: AppTypography.bodySmall(AppColors.success).copyWith(fontWeight: FontWeight.bold)),
+                                        if ((answer['explanation']?.toString() ?? '').trim().isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text('الشرح والتوضيح: ${answer['explanation']}', style: AppTypography.caption(textSecondary)),
+                                        ],
+                                        const SizedBox(height: 6),
+                                        Text('الدرجة: ${answer['points_awarded'] ?? 0} / ${answer['max_points'] ?? 0}', style: AppTypography.caption(textSecondary).copyWith(fontWeight: FontWeight.w700)),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('إغلاق المراجعة'),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_clock_rounded, size: 48, color: Colors.orange),
+                      const SizedBox(height: 12),
+                      Text(
+                        review['message']?.toString() ?? 'لم يتم إعلان تفاصيل النتيجة ونموذج الإجابة بعد من قِبل المعلم.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodyMedium(textPrimary),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('إغلاق'),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHomeworkTab(
     bool isDark,
     Color textPrimary,
@@ -344,57 +541,150 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: _homeworkList.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (context, index) {
         final hw = _homeworkList[index];
+        final isGraded = hw.isGraded;
+        final isSubmitted = hw.isSubmitted;
+        final statusColor = isGraded
+            ? AppColors.success
+            : (isSubmitted
+                ? AppColors.info
+                : (hw.homework.isOpenForSubmission ? AppColors.warning : AppColors.error));
+
+        String statusBadgeText;
+        if (isGraded) {
+          statusBadgeText = 'تم التصحيح · ${hw.submissionScore?.toStringAsFixed(1) ?? '0'} / ${hw.homework.maxScore} درجة';
+        } else if (isSubmitted) {
+          statusBadgeText = 'تم التسليم · بانتظار تصحيح المعلم';
+        } else if (hw.homework.isOpenForSubmission) {
+          statusBadgeText = 'مطلوب التسليم · متاح للحل';
+        } else {
+          statusBadgeText = 'انتهى موعد التسليم';
+        }
+
+        final dueFormatted = '${hw.homework.dueAt.year}/${hw.homework.dueAt.month}/${hw.homework.dueAt.day}';
+
         return GlassCard(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.assignment_rounded,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hw.homework.title,
-                      style: AppTypography.titleMedium(
-                        textPrimary,
-                      ).copyWith(fontWeight: FontWeight.w700),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'الدرجة القصوى: ${hw.homework.maxScore}',
-                      style: AppTypography.caption(
-                        textSecondary,
-                      ).copyWith(fontWeight: FontWeight.w600),
+                    child: Icon(
+                      isGraded
+                          ? Icons.assignment_turned_in_rounded
+                          : Icons.assignment_rounded,
+                      color: statusColor,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                statusBadgeText,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          hw.homework.title,
+                          style: AppTypography.titleMedium(
+                            textPrimary,
+                          ).copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'تاريخ التسليم: $dueFormatted  ·  الدرجة القصوى: ${hw.homework.maxScore}',
+                          style: AppTypography.caption(
+                            textSecondary,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if ((hw.teacherFeedback ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.comment_rounded, size: 16, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'ملاحظة المعلم: ${hw.teacherFeedback}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (isSubmitted || isGraded) ...[
+                    OutlinedButton.icon(
+                      onPressed: () => _showAssessmentReview(
+                        rpcName: 'get_my_homework_review',
+                        params: {'p_homework_id': hw.homework.id},
+                        titleFallback: hw.homework.title,
+                      ),
+                      icon: const Icon(Icons.rate_review_rounded, size: 16),
+                      label: const Text('مراجعة النتيجة والحل'),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (hw.canSubmit || (isSubmitted && hw.homework.isOpenForSubmission)) ...[
+                    PrimaryButton(
+                      text: isSubmitted ? 'تعديل الحل' : 'بدء حل الواجب 🚀',
+                      color: isSubmitted ? AppColors.info : AppColors.primary,
+                      onPressed: () => _submitHomework(hw),
                     ),
                   ],
-                ),
-              ),
-              SizedBox(
-                width: 120,
-                child: PrimaryButton(
-                  text: hw.isSubmitted
-                      ? 'تعديل الحل'
-                      : 'بدء الحل',
-                  color: hw.isSubmitted ? AppColors.info : AppColors.primary,
-                  onPressed: () => _submitHomework(hw),
-                ),
+                ],
               ),
             ],
           ),
@@ -734,112 +1024,35 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: _examList.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (context, index) {
         final exam = _examList[index];
-        final action = SizedBox(
-          width: 140,
-          child: Builder(
-            builder: (context) {
-              if (exam.canStart) {
-                return PrimaryButton(
-                  text: 'بدء الاختبار',
-                  onPressed: () => _startExam(exam),
-                  color: AppColors.primary,
-                );
-              } else if (exam.resetRequestStatus == 'pending') {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'بانتظار موافقة المعلم',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              } else if (exam.resetRequestStatus == 'rejected') {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.red.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'تم رفض طلب الإعادة',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              } else if (exam.resetRequestStatus == 'approved' &&
-                  !exam.canStart) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.grey.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'استنفدت جميع المحاولات',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              } else {
-                return PrimaryButton(
-                  text: 'طلب إعادة محاولة',
-                  onPressed: () => _requestExamReset(exam),
-                  color: AppColors.error,
-                );
-              }
-            },
-          ),
-        );
+        final isPassed = (exam.lastScore != null) && (exam.lastScore! >= exam.exam.passScore);
+        final scoreColor = isPassed ? AppColors.success : AppColors.error;
+
+        String statusBadgeText;
+        Color statusColor;
+        if (exam.lastScore != null) {
+          statusBadgeText = 'درجتك: ${exam.lastScore!.toStringAsFixed(1)} درجة ${isPassed ? "(ناجح ✔️)" : "(غير مجتاز)"}';
+          statusColor = scoreColor;
+        } else if (exam.lastAttemptStatus == 'submitted' || exam.lastAttemptStatus == 'graded') {
+          statusBadgeText = 'تم التسليم · قيد التصحيح';
+          statusColor = AppColors.info;
+        } else if (exam.canStart) {
+          statusBadgeText = 'متاح للاختبار الآن ⏱️';
+          statusColor = AppColors.primary;
+        } else {
+          statusBadgeText = 'مغلق أو مستنفد المحاولات';
+          statusColor = Colors.grey;
+        }
 
         return GlassCard(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final content = Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
@@ -855,20 +1068,40 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                       size: 22,
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                statusBadgeText,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
                         Text(
                           exam.exam.title,
                           style: AppTypography.titleMedium(
                             textPrimary,
-                          ).copyWith(fontWeight: FontWeight.w700),
+                          ).copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'المدة: ${exam.exam.durationMinutes} دقيقة',
+                          'المدة: ${exam.exam.durationMinutes} دقيقة  ·  درجة النجاح: ${exam.exam.passScore}  ·  المحاولات: ${exam.attemptCount} من ${exam.exam.maxAttempts}',
                           style: AppTypography.caption(
                             textSecondary,
                           ).copyWith(fontWeight: FontWeight.w600),
@@ -877,30 +1110,67 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                     ),
                   ),
                 ],
-              );
-
-              if (constraints.maxWidth < 390) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    content,
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: action,
-                    ),
-                  ],
-                );
-              }
-
-              return Row(
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Expanded(child: content),
-                  const SizedBox(width: 12),
-                  action,
+                  if (exam.canReview)
+                    OutlinedButton.icon(
+                      onPressed: () => _showAssessmentReview(
+                        rpcName: 'get_my_exam_review',
+                        params: {'p_exam_id': exam.exam.id},
+                        titleFallback: exam.exam.title,
+                      ),
+                      icon: const Icon(Icons.rate_review_rounded, size: 16),
+                      label: const Text('مراجعة النتيجة والإجابات'),
+                    ),
+                  if (exam.canStart)
+                    PrimaryButton(
+                      text: 'بدء الاختبار الآن 🚀',
+                      onPressed: () => _startExam(exam),
+                      color: AppColors.primary,
+                    )
+                  else if (exam.resetRequestStatus == 'pending')
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                      ),
+                      child: const Text(
+                        'بانتظار موافقة المعلم على الإعادة ⏳',
+                        style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    )
+                  else if (exam.resetRequestStatus == 'rejected')
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                      ),
+                      child: const Text(
+                        'تم رفض طلب الإعادة ❌',
+                        style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    )
+                  else if (exam.attemptCount >= exam.exam.maxAttempts)
+                    PrimaryButton(
+                      text: 'طلب إعادة محاولة ⚠️',
+                      onPressed: () => _requestExamReset(exam),
+                      color: AppColors.error,
+                    ),
                 ],
-              );
-            },
+              ),
+            ],
           ),
         );
       },

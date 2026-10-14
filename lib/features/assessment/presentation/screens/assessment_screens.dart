@@ -1,11 +1,36 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/components/buttons.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../domain/models/assessment_models.dart';
+
+String _formatQuestionType(QuestionType type) {
+  switch (type) {
+    case QuestionType.multipleChoice:
+      return 'اختيار من متعدد';
+    case QuestionType.trueFalse:
+      return 'صواب أو خطأ';
+    case QuestionType.shortAnswer:
+      return 'إجابة قصيرة';
+    case QuestionType.longAnswer:
+      return 'سؤال مقالي';
+  }
+}
+
+String _formatDifficulty(String diff) {
+  switch (diff.toLowerCase()) {
+    case 'easy':
+      return 'سهل';
+    case 'medium':
+      return 'متوسط';
+    case 'hard':
+      return 'متقدم';
+    default:
+      return diff;
+  }
+}
 
 class QuestionBankWidget extends StatelessWidget {
   final List<Question> questions;
@@ -24,10 +49,10 @@ class QuestionBankWidget extends StatelessWidget {
     }
 
     if (questions.isEmpty) {
-      return Center(
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(context.tr('No questions found in Question Bank.')),
+          padding: EdgeInsets.all(32),
+          child: Text('لا توجد أسئلة مضافة في بنك الأسئلة حالياً.'),
         ),
       );
     }
@@ -71,20 +96,16 @@ class QuestionBankWidget extends StatelessWidget {
                         runSpacing: 6,
                         children: [
                           _AssessmentMetaChip(
-                            label:
-                                '${context.tr('Type')}: ${context.tr(q.questionType.name)}',
+                            label: 'النوع: ${_formatQuestionType(q.questionType)}',
                           ),
                           _AssessmentMetaChip(
-                            label:
-                                '${context.tr('Points')}: ${q.defaultPoints}',
+                            label: 'الدرجات: ${q.defaultPoints}',
                           ),
                           _AssessmentMetaChip(
-                            label:
-                                '${context.tr('Difficulty')}: ${context.tr(q.difficulty)}',
+                            label: 'الصعوبة: ${_formatDifficulty(q.difficulty)}',
                           ),
                           _AssessmentMetaChip(
-                            label:
-                                '${q.options.length} ${context.tr('options')}',
+                            label: '${q.options.length} خيارات',
                           ),
                         ],
                       ),
@@ -212,10 +233,10 @@ class HomeworkListWidget extends StatelessWidget {
     }
 
     if (homeworkList.isEmpty) {
-      return Center(
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(context.tr('No assigned homework found.')),
+          padding: EdgeInsets.all(32),
+          child: Text('لا توجد واجبات منزلية مسندة حالياً.'),
         ),
       );
     }
@@ -225,6 +246,7 @@ class HomeworkListWidget extends StatelessWidget {
       itemCount: homeworkList.length,
       itemBuilder: (context, index) {
         final hw = homeworkList[index];
+        final formattedDue = '${hw.dueAt.year}/${hw.dueAt.month}/${hw.dueAt.day}';
         return _ResponsiveAssessmentTile(
           leading: const Icon(Icons.assignment, color: Colors.blue, size: 36),
           title: hw.title,
@@ -233,14 +255,15 @@ class HomeworkListWidget extends StatelessWidget {
             runSpacing: 6,
             children: [
               _AssessmentMetaChip(
-                label:
-                    '${context.tr('Due')}: ${hw.dueAt.toLocal().toString().split(' ')[0]}',
+                label: 'تاريخ التسليم: $formattedDue',
               ),
               _AssessmentMetaChip(
-                label: '${context.tr('Max Score')}: ${hw.maxScore}',
+                label: 'الدرجة العظمى: ${hw.maxScore}',
               ),
               _AssessmentMetaChip(
-                label: context.l10n.t(hw.status).toUpperCase(),
+                label: hw.status == 'published'
+                    ? 'منشور'
+                    : (hw.status == 'closed' ? 'مغلق' : hw.status),
               ),
             ],
           ),
@@ -269,10 +292,10 @@ class ExamListWidget extends StatelessWidget {
     }
 
     if (exams.isEmpty) {
-      return Center(
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(context.tr('No available exams found.')),
+          padding: EdgeInsets.all(32),
+          child: Text('لا توجد اختبارات متاحة حالياً.'),
         ),
       );
     }
@@ -290,17 +313,19 @@ class ExamListWidget extends StatelessWidget {
             runSpacing: 6,
             children: [
               _AssessmentMetaChip(
-                label:
-                    '${context.tr('Duration')}: ${exam.durationMinutes} ${context.tr('min')}',
+                label: 'المدة: ${exam.durationMinutes} دقيقة',
               ),
               _AssessmentMetaChip(
-                label: '${context.tr('Questions')}: ${exam.questions.length}',
+                label: 'عدد الأسئلة: ${exam.questions.length}',
+              ),
+              _AssessmentMetaChip(
+                label: 'درجة النجاح: ${exam.passScore}',
               ),
             ],
           ),
           action: _AssessmentCardAction(
             icon: Icons.play_arrow,
-            label: context.tr('Start'),
+            label: 'بدء الاختبار',
             onPressed: onStartExam != null ? () => onStartExam!(exam) : null,
           ),
         );
@@ -390,17 +415,15 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.timer_off_rounded, color: Colors.red),
-            const SizedBox(width: 8),
-            Text(context.tr('Time is up!')),
+            Icon(Icons.timer_off_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('انتهى الوقت المحدد!'),
           ],
         ),
-        content: Text(
-          context.tr(
-            'The allocated exam time has expired. Your current answers have been automatically submitted to your teacher.',
-          ),
+        content: const Text(
+          'انتهى الوقت المخصص للاختبار. تم اعتماد وتسليم إجاباتك الحالية تلقائياً إلى معلمك.',
         ),
         actions: [
           FilledButton(
@@ -408,7 +431,7 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
               Navigator.pop(ctx);
               if (widget.onSubmit != null) widget.onSubmit!();
             },
-            child: Text(context.tr('Done')),
+            child: const Text('تم التسليم'),
           ),
         ],
       ),
@@ -564,7 +587,7 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: Text(context.tr('Done')),
+                    child: const Text('إغلاق جدول الأسئلة'),
                   ),
                 ],
               ),
@@ -697,7 +720,7 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
         ),
         body: Center(
           child: Text(
-            context.tr('No questions configured for this exam.'),
+            'لا توجد أسئلة مضافة لهذا الاختبار حالياً.',
             style: AppTypography.bodyLarge(textSecondary),
           ),
         ),
@@ -715,21 +738,19 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
         final shouldExit = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: Text(context.tr('Exit Exam?')),
-            content: Text(
-              context.tr(
-                'Are you sure you want to exit? You will not be able to re-enter this exam, and your current answers will be submitted to the teacher.',
-              ),
+            title: const Text('الخروج من الاختبار؟'),
+            content: const Text(
+              'هل أنت متأكد من رغبتك في الخروج؟ لن تتمكن من العودة للاختبار مجدداً، وسيتم اعتماد وتسليم إجاباتك الحالية للمعلم.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: Text(context.tr('Cancel')),
+                child: const Text('متابعة الحل'),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: AppColors.error),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text(context.tr('Exit & Submit')),
+                child: const Text('خروج وتسليم الإجابات'),
               ),
             ],
           ),
@@ -802,7 +823,7 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${context.tr('Question')} ${_currentQuestionIndex + 1} ${context.tr('of')} ${questions.length}',
+                        'السؤال ${_currentQuestionIndex + 1} من ${questions.length}',
                         style: AppTypography.bodyMedium(textSecondary).copyWith(fontWeight: FontWeight.w700),
                       ),
                       Row(
@@ -849,8 +870,8 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          StatusChip(
-                            label: context.tr('Autosaved'),
+                          const StatusChip(
+                            label: 'محفوظ تلقائياً',
                             status: ChipStatus.success,
                             icon: Icons.cloud_done_rounded,
                             small: true,
@@ -885,7 +906,7 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'الصعوبة: ${context.tr(currentQuestion.difficulty)}',
+                        'الصعوبة: ${_formatDifficulty(currentQuestion.difficulty)}',
                         style: TextStyle(fontSize: 11, color: textSecondary),
                       ),
                     ],
@@ -907,7 +928,7 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
                       if (_currentQuestionIndex > 0)
                         Expanded(
                           child: GhostButton(
-                            text: context.tr('Previous'),
+                            text: 'السؤال السابق',
                             icon: Icons.arrow_back_rounded,
                             onPressed: () => setState(() => _currentQuestionIndex--),
                           ),
@@ -920,12 +941,12 @@ class _ExamRunnerScreenState extends State<ExamRunnerScreen> {
                       Expanded(
                         child: _currentQuestionIndex < questions.length - 1
                             ? PrimaryButton(
-                                text: context.tr('Next'),
+                                text: 'السؤال التالي',
                                 icon: Icons.arrow_forward_rounded,
                                 onPressed: () => setState(() => _currentQuestionIndex++),
                               )
                             : PrimaryButton(
-                                text: context.tr('Submit Exam'),
+                                text: 'تسليم الاختبار',
                                 icon: Icons.check_circle_rounded,
                                 color: AppColors.success,
                                 onPressed: () => _confirmAndSubmitExam(questions),
@@ -1298,7 +1319,7 @@ class _HomeworkRunnerScreenState extends State<HomeworkRunnerScreen> {
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Done')),
+                child: const Text('إغلاق جدول الأسئلة'),
               ),
             ],
           ),
@@ -1407,7 +1428,7 @@ class _HomeworkRunnerScreenState extends State<HomeworkRunnerScreen> {
         ),
         body: Center(
           child: Text(
-            context.tr('No questions configured for this homework.'),
+            'لا توجد أسئلة مضافة لهذا الواجب حالياً.',
             style: AppTypography.bodyLarge(textSecondary),
           ),
         ),
@@ -1424,21 +1445,19 @@ class _HomeworkRunnerScreenState extends State<HomeworkRunnerScreen> {
         final shouldExit = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: Text(context.tr('Exit Homework?')),
-            content: Text(
-              context.tr(
-                'Are you sure you want to exit? Your current answers will be submitted to the teacher.',
-              ),
+            title: const Text('الخروج من الواجب؟'),
+            content: const Text(
+              'هل أنت متأكد من رغبتك في الخروج؟ سيتم حفظ إجاباتك الحالية وتسليمها للمعلم.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: Text(context.tr('Cancel')),
+                child: const Text('متابعة الحل'),
               ),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: AppColors.error),
                 onPressed: () => Navigator.pop(ctx, true),
-                child: Text(context.tr('Exit & Submit')),
+                child: const Text('خروج وتسليم الواجب'),
               ),
             ],
           ),
@@ -1497,7 +1516,7 @@ class _HomeworkRunnerScreenState extends State<HomeworkRunnerScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${context.tr('Question')} ${_currentQuestionIndex + 1} ${context.tr('of')} ${questions.length}',
+                        'السؤال ${_currentQuestionIndex + 1} من ${questions.length}',
                         style: AppTypography.bodyMedium(textSecondary).copyWith(fontWeight: FontWeight.w700),
                       ),
                       Row(
@@ -1544,8 +1563,8 @@ class _HomeworkRunnerScreenState extends State<HomeworkRunnerScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          StatusChip(
-                            label: context.tr('Autosaved'),
+                          const StatusChip(
+                            label: 'محفوظ تلقائياً',
                             status: ChipStatus.success,
                             icon: Icons.cloud_done_rounded,
                             small: true,
@@ -1599,7 +1618,7 @@ class _HomeworkRunnerScreenState extends State<HomeworkRunnerScreen> {
                       if (_currentQuestionIndex > 0)
                         Expanded(
                           child: GhostButton(
-                            text: context.tr('Previous'),
+                            text: 'السؤال السابق',
                             icon: Icons.arrow_back_rounded,
                             onPressed: () => setState(() => _currentQuestionIndex--),
                           ),
@@ -1612,12 +1631,12 @@ class _HomeworkRunnerScreenState extends State<HomeworkRunnerScreen> {
                       Expanded(
                         child: _currentQuestionIndex < questions.length - 1
                             ? PrimaryButton(
-                                text: context.tr('Next'),
+                                text: 'السؤال التالي',
                                 icon: Icons.arrow_forward_rounded,
                                 onPressed: () => setState(() => _currentQuestionIndex++),
                               )
                             : PrimaryButton(
-                                text: context.tr('Submit Homework'),
+                                text: 'تسليم الواجب',
                                 icon: Icons.check_circle_rounded,
                                 color: AppColors.success,
                                 onPressed: () => _confirmAndSubmitHomework(questions),
