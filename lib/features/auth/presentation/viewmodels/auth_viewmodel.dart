@@ -57,6 +57,7 @@ class AuthViewModel extends ChangeNotifier {
   final PushNotificationService? pushNotificationService;
   AuthState _state = AuthState.initial();
   bool _isRestoringSession = false;
+  bool _hasFreshlyAuthenticated = false;
 
   AuthViewModel(this._authRepository, {this.pushNotificationService});
 
@@ -66,6 +67,11 @@ class AuthViewModel extends ChangeNotifier {
   UserRole? get userRole => _state.role;
   bool get isAuthenticated => _state.status == AuthStatus.authenticated;
   bool get isRestricted => _state.status == AuthStatus.restricted;
+  bool get hasFreshlyAuthenticated => _hasFreshlyAuthenticated;
+
+  void consumeFreshlyAuthenticated() {
+    _hasFreshlyAuthenticated = false;
+  }
 
   /// Single-flight session restoration preventing race conditions & duplicate requests
   Future<void> restoreSession() async {
@@ -82,12 +88,14 @@ class AuthViewModel extends ChangeNotifier {
       );
       if (user == null) {
         AppLogger.info('No active auth session found.');
+        _hasFreshlyAuthenticated = false;
         _state = AuthState.unauthenticated();
       } else {
         AppLogger.info('Active session found. Fetching user bootstrap...');
         final bootstrap = await _authRepository.fetchUserBootstrap().timeout(
           _sessionRestoreTimeout,
         );
+        _hasFreshlyAuthenticated = false;
         _state = AuthState.authenticated(bootstrap);
         unawaited(pushNotificationService?.syncCurrentToken());
         AppLogger.info('Auth session restored for role ${bootstrap.role}.');
@@ -127,6 +135,7 @@ class AuthViewModel extends ChangeNotifier {
         password: password,
       );
       final bootstrap = await _authRepository.fetchUserBootstrap();
+      _hasFreshlyAuthenticated = true;
       _state = AuthState.authenticated(bootstrap);
       unawaited(pushNotificationService?.syncCurrentToken());
     } on Failure catch (f) {
@@ -150,6 +159,7 @@ class AuthViewModel extends ChangeNotifier {
         token: token,
       );
       final bootstrap = await _authRepository.fetchUserBootstrap();
+      _hasFreshlyAuthenticated = true;
       _state = AuthState.authenticated(bootstrap);
       unawaited(pushNotificationService?.syncCurrentToken());
     } on Failure catch (f) {
@@ -185,6 +195,7 @@ class AuthViewModel extends ChangeNotifier {
         fullName: fullName.trim(),
       );
       final bootstrap = await _authRepository.fetchUserBootstrap();
+      _hasFreshlyAuthenticated = true;
       _state = AuthState.authenticated(bootstrap);
       unawaited(pushNotificationService?.syncCurrentToken());
     } on Failure catch (f) {
@@ -271,6 +282,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       await pushNotificationService?.unregisterCurrentToken();
       await _authRepository.signOut();
+      _hasFreshlyAuthenticated = false;
       _state = AuthState.unauthenticated();
     } on Failure catch (f) {
       _state = AuthState.error(f);

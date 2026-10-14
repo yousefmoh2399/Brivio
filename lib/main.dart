@@ -213,19 +213,33 @@ class _MainAppSelectorState extends State<MainAppSelector> {
             case AuthStatus.authenticated:
               final role = _viewModel.userRole;
               if (role != null) {
+                final isFresh = _viewModel.hasFreshlyAuthenticated;
+                if (isFresh) {
+                  _viewModel.consumeFreshlyAuthenticated();
+                }
                 return BiometricGate(
-                  onSignOut: () => _viewModel.signOut(),
+                  isFreshLogin: isFresh,
+                  onSignOut: () {
+                    BiometricGate.resetSessionLock();
+                    _viewModel.signOut();
+                  },
                   child: _buildRoleDashboard(role),
                 );
               }
               return PortalDeniedScreen(
                 currentRole: role,
                 targetPortalName: 'Academy Platform',
-                onSignOut: () => _viewModel.signOut(),
+                onSignOut: () {
+                  BiometricGate.resetSessionLock();
+                  _viewModel.signOut();
+                },
               );
             case AuthStatus.restricted:
               return AccountRestrictedScreen(
-                onSignOut: () => _viewModel.signOut(),
+                onSignOut: () {
+                  BiometricGate.resetSessionLock();
+                  _viewModel.signOut();
+                },
               );
             case AuthStatus.unauthenticated:
             case AuthStatus.error:
@@ -240,31 +254,52 @@ class _MainAppSelectorState extends State<MainAppSelector> {
 class BiometricGate extends StatefulWidget {
   final Widget child;
   final VoidCallback onSignOut;
+  final bool isFreshLogin;
 
   const BiometricGate({
     super.key,
     required this.child,
     required this.onSignOut,
+    this.isFreshLogin = false,
   });
+
+  static bool _sessionUnlocked = false;
+
+  static void resetSessionLock() {
+    _sessionUnlocked = false;
+  }
 
   @override
   State<BiometricGate> createState() => _BiometricGateState();
 }
 
 class _BiometricGateState extends State<BiometricGate> {
-  bool _unlocked = false;
-  bool _checking = true;
+  late bool _unlocked;
+  late bool _checking;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+    final settings = getIt<SettingsService>();
+    if (widget.isFreshLogin ||
+        BiometricGate._sessionUnlocked ||
+        !settings.biometricLogin ||
+        kIsWeb) {
+      BiometricGate._sessionUnlocked = true;
+      _unlocked = true;
+      _checking = false;
+    } else {
+      _unlocked = false;
+      _checking = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
+    }
   }
 
   Future<void> _unlock() async {
     final settings = getIt<SettingsService>();
     if (!settings.biometricLogin || kIsWeb) {
+      BiometricGate._sessionUnlocked = true;
       if (mounted) {
         setState(() {
           _unlocked = true;
@@ -282,29 +317,51 @@ class _BiometricGateState extends State<BiometricGate> {
         if (!mounted) return;
         setState(() {
           _errorMessage =
-              'Biometric login is enabled, but this device has no available secure unlock method.';
+              'خاصية الدخول بالبصمة مفعلة، ولكن الجهاز لا يحتوي على مستشعر بصمة متاح أو غير مهيأ.';
           _checking = false;
         });
         return;
       }
 
       final didAuthenticate = await auth.authenticate(
-        localizedReason: 'Unlock your academy portal',
+        localizedReason:
+            'يرجى تأكيد الهوية باستخدام البصمة أو قفل الشاشة للدخول للمنظومة',
       );
       if (!mounted) return;
+      if (didAuthenticate) {
+        BiometricGate._sessionUnlocked = true;
+      }
       setState(() {
         _unlocked = didAuthenticate;
         _checking = false;
-        _errorMessage = didAuthenticate ? null : 'Authentication was canceled.';
+        _errorMessage = didAuthenticate ? null : 'تم إلغاء تأكيد الهوية.';
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _checking = false;
         _errorMessage =
-            'Secure unlock is temporarily unavailable. You can try again or sign out.';
+            'تعذر التحقق من البصمة حالياً. يمكنك إعادة المحاولة أو تعطيل القفل البيومتري للدخول.';
       });
     }
+  }
+
+  Future<void> _disableBiometricsAndEnter() async {
+    final settings = getIt<SettingsService>();
+    await settings.updateBiometricLogin(false);
+    BiometricGate._sessionUnlocked = true;
+    if (!mounted) return;
+    setState(() {
+      _unlocked = true;
+      _checking = false;
+      _errorMessage = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم تعطيل القفل بالبصمة بنجاح والدخول للمنصة.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
   }
 
   @override
@@ -313,63 +370,105 @@ class _BiometricGateState extends State<BiometricGate> {
 
     if (_checking) {
       return const AuthLoadingScreen(
-        title: 'Secure unlock',
-        subtitle: 'Checking your fingerprint and preparing the academy portal.',
+        title: 'التحقق الآمن',
+        subtitle: 'جارٍ التحقق من البصمة لفتح المنظومة التعليمية...',
         icon: Icons.fingerprint_rounded,
         accentColor: AppColors.primary,
       );
     }
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
             child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                ),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(28),
+                padding: const EdgeInsets.all(32),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.fingerprint_rounded,
-                      size: 64,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Biometric unlock',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _errorMessage ?? 'Unlock was not completed.',
-                      textAlign: TextAlign.center,
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.fingerprint_rounded,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(height: 20),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        FilledButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _checking = true;
-                              _errorMessage = null;
-                            });
-                            _unlock();
-                          },
-                          icon: const Icon(Icons.fingerprint),
-                          label: const Text('Try again'),
+                    Text(
+                      'قفل التطبيق البيومتري',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _errorMessage ??
+                          'يرجى تأكيد الهوية بالبصمة أو رمز القفل للمتابعة.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey.shade600,
+                            height: 1.5,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                        TextButton(
-                          onPressed: widget.onSignOut,
-                          child: const Text('Sign out'),
+                        onPressed: () {
+                          setState(() {
+                            _checking = true;
+                            _errorMessage = null;
+                          });
+                          _unlock();
+                        },
+                        icon: const Icon(Icons.fingerprint_rounded),
+                        label: const Text('إعادة المحاولة بالبصمة'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                      ],
+                        onPressed: _disableBiometricsAndEnter,
+                        icon: const Icon(Icons.lock_open_rounded),
+                        label: const Text('تعطيل قفل البصمة والدخول'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: widget.onSignOut,
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: const Text('تسجيل الخروج والعودة لشاشة الدخول'),
                     ),
                   ],
                 ),

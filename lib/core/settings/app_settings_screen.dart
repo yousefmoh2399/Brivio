@@ -76,9 +76,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         adminRepo.getSetting('email_digest'),
         adminRepo.getSetting('two_factor_auth'),
         adminRepo.getSetting('data_collection'),
-        adminRepo.getSetting('biometric_login'),
         adminRepo.getSetting('push_notifications'),
-        adminRepo.getSetting('animation_quality'),
         adminRepo.getSetting('time_zone'),
       ]);
 
@@ -87,11 +85,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
           if (results[0] != null) _emailDigest = _parseBool(results[0]?.value);
           if (results[1] != null) _twoFactorAuth = _parseBool(results[1]?.value);
           if (results[2] != null) _dataCollection = _parseBool(results[2]?.value);
-          if (results[3] != null) _biometricLogin = _parseBool(results[3]?.value);
-          if (results[4] != null) _pushNotifications = _parseBool(results[4]?.value);
-          if (results[5] != null) _animationQuality = _parseBool(results[5]?.value);
-          if (results.length > 6 && results[6] != null) {
-            _timeZone = results[6]?.value.toString() ?? 'UTC+03:00';
+          if (results[3] != null) _pushNotifications = _parseBool(results[3]?.value);
+          if (results[4] != null) {
+            _timeZone = results[4]?.value.toString() ?? 'UTC+03:00';
           }
           _isLoading = false;
         });
@@ -118,6 +114,11 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
   }) async {
     setState(() => updateLocalState(value));
     await _persistLocalSetting(key, value);
+
+    // Device-specific hardware preferences should remain strictly local
+    if (key == 'biometric_login' || key == 'animation_quality') {
+      return;
+    }
 
     try {
       if (GetIt.instance.isRegistered<IAdminRepository>()) {
@@ -484,7 +485,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                             if (canAuthenticate) {
                               final didAuthenticate = await localAuth.authenticate(
                                 localizedReason:
-                                    'Please authenticate to enable Biometric Login',
+                                    'يرجى تأكيد الهوية بالبصمة لتفعيل قفل التطبيق البيومتري',
                               );
                               if (didAuthenticate) {
                                 _updateSetting(
@@ -496,20 +497,20 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                             } else {
                               if (mounted) {
                                 _showBiometricUnavailableMessage(
-                                  'Device does not support biometric authentication.',
+                                  'هذا الجهاز لا يدعم مستشعر البصمة أو المصادقة البيومترية.',
                                 );
                               }
                             }
                           } on PlatformException {
                             if (mounted) {
                               _showBiometricUnavailableMessage(
-                                'Biometric plugin is not ready. Do a full app restart, then try again.',
+                                'خدمة البصمة غير جاهزة حالياً. يرجى إعادة تشغيل التطبيق والمحاولة مجدداً.',
                               );
                             }
                           } catch (_) {
                             if (mounted) {
                               _showBiometricUnavailableMessage(
-                                'Biometrics/PIN not set up. Please configure device security first.',
+                                'لم يتم إعداد بصمة أو رمز قفل على هذا الجهاز.',
                               );
                             }
                           }
