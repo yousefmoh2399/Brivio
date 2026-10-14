@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_profile.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_role.dart';
+import 'package:brivio/features/auth/domain/models/user_profile.dart';
+import 'package:brivio/features/auth/domain/models/user_role.dart';
 
 void main() {
   group('UserProfile Model Tests', () {

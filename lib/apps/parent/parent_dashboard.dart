@@ -24,6 +24,9 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
+import '../../features/parent_portal/presentation/screens/absence_excuse_dialog.dart';
+import '../../features/parent_portal/presentation/screens/monthly_report_card_screen.dart';
+import '../../features/parent_portal/presentation/screens/parent_financial_ledger_screen.dart';
 import 'screens/parent_helpdesk_screen.dart';
 
 class ParentDashboard extends StatefulWidget {
@@ -256,95 +259,23 @@ class _ParentDashboardState extends State<ParentDashboard> {
     final child = _selectedChild;
     if (child == null) return;
 
-    final reasonController = TextEditingController();
-    String? selectedSessionId = _attendance.isNotEmpty
-        ? _attendance.first.classSessionId
-        : null;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Leave request for ${child.fullName}'),
-          content: SizedBox(
-            width: 520,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String?>(
-                  initialValue: selectedSessionId,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Class session'),
-                  ),
-                  items: [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text(context.tr('General request')),
-                    ),
-                    ..._attendance.map(
-                      (item) => DropdownMenuItem<String?>(
-                        value: item.classSessionId,
-                        child: Text(
-                          '${item.groupName} - ${_formatDate(item.sessionDate)}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setDialogState(() => selectedSessionId = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reasonController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Reason'),
-                    alignLabelWithHint: true,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(context.tr('Cancel')),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.of(context).pop(true),
-              icon: const Icon(Icons.send),
-              label: Text(context.tr('Submit')),
-            ),
-          ],
-        ),
-      ),
+    final confirmed = await AbsenceExcuseDialog.show(
+      context,
+      initialStudentName: child.fullName,
+      initialStudentId: child.id,
+      initialGroupName: _childGroups.isNotEmpty ? _childGroups.first.name : null,
     );
 
-    if (confirmed != true) return;
-    final reason = reasonController.text.trim();
-    reasonController.dispose();
-    if (reason.isEmpty) return;
-
-    setState(() => _isChildLoading = true);
-    try {
-      await _wrapper.client.rpc(
-        'create_parent_child_leave_request',
-        params: {
-          'p_student_id': child.id,
-          'p_class_session_id': selectedSessionId,
-          'p_reason': reason,
-        },
-      );
+    if (confirmed == true) {
       await _loadChildDetails(child);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = SupabaseErrorHandler.parseError(e);
-        _isChildLoading = false;
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إرسال عذر الغياب إلى إدارة السنتر بنجاح ✅'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -575,28 +506,28 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalMetricGrid(
           children: [
             PortalMetricCard(
-              label: 'Lesson progress',
+              label: 'مستوى التقدم الدراسي',
               value: '${progress.round()}%',
               icon: Icons.trending_up,
               accentColor: AppColors.success,
               onTap: () => setState(() => _selectedIndex = 1),
             ),
             PortalMetricCard(
-              label: 'Attendance rate',
+              label: 'نسبة الحضور والالتزام',
               value: '${attendanceRate.round()}%',
               icon: Icons.fact_check,
               accentColor: AppColors.info,
               onTap: () => setState(() => _selectedIndex = 2),
             ),
             PortalMetricCard(
-              label: 'Balance due',
+              label: 'المستحقات المتبقية',
               value: _money(balance, _financialSummary?.currency ?? 'EGP'),
               icon: Icons.receipt_long,
               accentColor: balance > 0 ? AppColors.warning : AppColors.success,
               onTap: () => setState(() => _selectedIndex = 3),
             ),
             PortalMetricCard(
-              label: 'Unread alerts',
+              label: 'تنبيهات غير مقروءة',
               value: _unreadCount.toString(),
               icon: Icons.notifications_active,
               accentColor: AppColors.parentRole,
@@ -608,13 +539,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _ParentInsightPanel(insights: _buildParentInsights()),
         const SizedBox(height: 18),
         const PortalSectionTitle(
-          title: 'Active groups',
-          subtitle: 'Groups currently assigned to the selected child.',
+          title: 'المجموعات والفصول النشطة',
+          subtitle: 'المجموعات المسجل بها الطالب حالياً بالسنتر والمدرس المشرف.',
         ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _childGroups.isEmpty,
-          emptyText: 'No active groups for this child.',
+          emptyText: 'لا توجد مجموعات نشطة مسجلة لهذا الطالب حالياً.',
           children: _childGroups
               .map(
                 (group) => PortalListCard(
@@ -628,7 +559,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Next learning item'),
+        const PortalSectionTitle(title: 'الحصة القادمة وجدول المذاكرة'),
         const SizedBox(height: 8),
         _buildNextLessonCard(),
       ],
@@ -824,31 +755,95 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   Widget _buildPaymentsPage() {
     final summary = _financialSummary;
+    final child = _selectedChild;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Comprehensive Financial Ledger Card ──
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'كشف الحساب المالي الشفاف (Ledger) 💳',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'تقرير مالي تفصيلي بكل مليم دُفع بالسنتر، أرقام الإيصالات، وتفقيط الجنيه المصري وتصدير PDF معتمد.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ParentFinancialLedgerScreen(
+                        studentName: child?.fullName ?? 'الطالب',
+                        studentCode: child?.studentCode ?? 'STU-101',
+                        groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
+                        parentName: widget.authViewModel.currentUser?.fullName ?? 'ولي الأمر',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                label: const Text('فتح كشف الحساب'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
         PortalMetricGrid(
           children: [
             PortalMetricCard(
-              label: 'Invoices',
+              label: 'عدد الفواتير',
               value: (summary?.invoiceCount ?? _invoices.length).toString(),
               icon: Icons.receipt,
               accentColor: AppColors.info,
             ),
             PortalMetricCard(
-              label: 'Total due',
+              label: 'إجمالي المستحق',
               value: _money(summary?.totalDueMinor ?? 0, summary?.currency),
               icon: Icons.account_balance_wallet,
               accentColor: AppColors.warning,
             ),
             PortalMetricCard(
-              label: 'Paid',
+              label: 'المدفوع كاش',
               value: _money(summary?.totalPaidMinor ?? 0, summary?.currency),
               icon: Icons.verified,
               accentColor: AppColors.success,
             ),
             PortalMetricCard(
-              label: 'Remaining',
+              label: 'المتبقي للسداد',
               value: _money(
                 summary?.remainingBalanceMinor ?? 0,
                 summary?.currency,
@@ -861,7 +856,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
           ],
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Invoices'),
+        const PortalSectionTitle(title: 'فواتير واشتراكات الحصص'),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _invoices.isEmpty,
@@ -914,20 +909,82 @@ class _ParentDashboardState extends State<ParentDashboard> {
       invoices: _invoices,
       summary: _financialSummary,
     );
+    final child = _selectedChild;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Monthly Report Card Official Certificate Banner ──
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.purple.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.purple.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.card_membership_rounded, color: Colors.purple, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'شهادة التقرير الشهري الشامل (Report Card) 📊',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'شهادة معتمدة بنسب حضور الطالب، متوسط الامتحانات والواجبات، وتقييم السلوك وملاحظات المدرس مع تصدير PDF.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MonthlyReportCardScreen(
+                        studentName: child?.fullName ?? 'الطالب',
+                        studentCode: child?.studentCode ?? 'STU-101',
+                        groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: const Text('عرض الشهادة و PDF'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
         PortalSectionTitle(
-          title: 'Monthly Report',
+          title: 'التقرير الشهري التراكمي',
           subtitle:
-              '${report.monthLabel} summary for ${_selectedChild?.fullName ?? "the selected child"}.',
+              'ملخص شهر ${report.monthLabel} للطالب ${child?.fullName ?? "المحدد"}.',
         ),
         const SizedBox(height: 12),
         PortalMetricGrid(
           children: [
             PortalMetricCard(
-              label: 'Attendance',
+              label: 'نسبة الحضور',
               value: '${report.attendanceRate.round()}%',
               icon: Icons.fact_check,
               accentColor: report.attendanceRate >= 85
@@ -935,19 +992,19 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   : AppColors.warning,
             ),
             PortalMetricCard(
-              label: 'Lesson progress',
+              label: 'التقدم الدراسي',
               value: '${report.averageProgress.round()}%',
               icon: Icons.trending_up,
               accentColor: AppColors.studentRole,
             ),
             PortalMetricCard(
-              label: 'Completed lessons',
+              label: 'الحصص المكتملة',
               value: report.completedLessons.toString(),
               icon: Icons.done_all,
               accentColor: AppColors.success,
             ),
             PortalMetricCard(
-              label: 'Cash balance',
+              label: 'المستحقات المتبقية',
               value: _money(
                 report.remainingBalanceMinor,
                 _financialSummary?.currency,
@@ -963,8 +1020,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _ParentInsightPanel(insights: report.recommendations),
         const SizedBox(height: 18),
         const PortalSectionTitle(
-          title: 'Monthly attendance',
-          subtitle: 'Only records inside the current month are counted here.',
+          title: 'سجل حضور وغياب الشهر',
+          subtitle: 'الحصص المنعقدة خلال الشهر الحالي فقط.',
         ),
         const SizedBox(height: 8),
         _InfoList(

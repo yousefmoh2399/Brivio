@@ -12,6 +12,7 @@ import '../../../features/auth/domain/models/user_profile.dart';
 import '../../../features/communication/domain/models/announcement.dart';
 import '../../../features/communication/domain/models/notification.dart';
 import '../../../features/payments/domain/models/payment_models.dart';
+import '../../../features/legal/presentation/screens/privacy_and_terms_screen.dart';
 import '../screens/student_helpdesk_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -71,10 +72,13 @@ class AccountTab extends StatelessWidget {
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
 
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        SliverAppBar(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
           backgroundColor: bgColor,
           surfaceTintColor: Colors.transparent,
           pinned: true,
@@ -262,6 +266,57 @@ class AccountTab extends StatelessWidget {
                         ),
                       ),
                     ),
+                    Divider(
+                      height: 1,
+                      indent: 68,
+                      color: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => PrivacyAndTermsScreen.show(context),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.policy_rounded,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  'سياسة الخصوصية والشروط',
+                                  style: AppTypography.bodyMedium(
+                                    textPrimary,
+                                  ).copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: isDark
+                                    ? AppColors.darkBorder
+                                    : AppColors.lightBorder,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -318,8 +373,10 @@ class AccountTab extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 class _AccountActionRow extends StatelessWidget {

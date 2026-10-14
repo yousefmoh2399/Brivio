@@ -11,6 +11,8 @@ import '../../design_system/components/glass_card.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/admin/domain/repositories/i_admin_repository.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../features/legal/presentation/screens/privacy_and_terms_screen.dart';
 
 class AppSettingsScreen extends StatelessWidget {
   const AppSettingsScreen({super.key});
@@ -519,6 +521,28 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                       activeThumbColor: AppColors.success,
                     ),
                   ),
+                  _SettingsTile(
+                    title: 'سياسة الخصوصية وشروط الخدمة',
+                    subtitle: 'الاطلاع على أمان البيانات وحقوق الخصوصية والشروط',
+                    icon: Icons.policy_rounded,
+                    trailing: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.grey,
+                    ),
+                    onTap: () => PrivacyAndTermsScreen.show(context),
+                  ),
+                  _SettingsTile(
+                    title: context.tr('Delete Account'),
+                    subtitle: context.tr(
+                      'Permanently delete your profile and personal data',
+                    ),
+                    icon: Icons.delete_forever_rounded,
+                    trailing: TextButton(
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      onPressed: _confirmAccountDeletion,
+                      child: Text(context.tr('Delete')),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -537,6 +561,58 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
           ],
         );
       },
+    );
+  }
+
+  void _confirmAccountDeletion() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('حذف الحساب نهائياً'),
+          ],
+        ),
+        content: const Text(
+          'هل أنت متأكد من رغبتك في حذف حسابك؟ سيتم إزالة جميع بياناتك الشخصية وسجل دخولك وفقاً لسياسة الخصوصية ومتطلبات المتاجر (Apple & Google Play). هذا الإجراء لا يمكن التراجع عنه.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final client = Supabase.instance.client;
+                final userId = client.auth.currentUser?.id;
+                if (userId != null) {
+                  await client.from('profiles').update({
+                    'status': 'inactive',
+                    'updated_at': DateTime.now().toIso8601String(),
+                  }).eq('id', userId);
+                }
+                await client.auth.signOut();
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('تأكيد الحذف'),
+          ),
+        ],
+      ),
     );
   }
 

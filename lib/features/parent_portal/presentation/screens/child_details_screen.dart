@@ -1,5 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../../core/services/whatsapp_service.dart';
+import '../../../student/presentation/widgets/student_digital_id_card.dart';
+import 'parent_financial_ledger_screen.dart';
+import 'monthly_report_card_screen.dart';
+import 'absence_excuse_dialog.dart';
 
 class AcademicsViewModel {
   final String childName;
@@ -116,6 +121,38 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            tooltip: 'كارت الطالب الذكي (QR)',
+            icon: const Icon(Icons.badge_rounded),
+            onPressed: () {
+              final studentCode = widget.childData['student_code'] ??
+                  widget.childData['id'] ??
+                  'STU-BRIVIO';
+              StudentDigitalIdCard.show(
+                context,
+                studentName: _viewModel.childName,
+                studentCode: studentCode.toString(),
+                gradeLevel: widget.childData['grade'] as String?,
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'تواصل مع السنتر (واتساب)',
+            icon: const Icon(Icons.chat_rounded),
+            onPressed: () {
+              final phone = widget.childData['center_phone']?.toString() ??
+                  widget.childData['phone']?.toString() ??
+                  '';
+              WhatsAppService.sendCustomMessage(
+                phone: phone,
+                message:
+                    'السلام عليكم سنتر التعليمي، أستفسر بخصوص الطالب ${_viewModel.childName}',
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -129,6 +166,117 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
+              // ── Parent Enterprise Actions Row ──
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ParentFinancialLedgerScreen(
+                              studentName: _viewModel.childName,
+                              studentCode: (widget.childData['student_code'] ?? widget.childData['id'] ?? 'STU-101').toString(),
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.receipt_long_rounded, color: Colors.white, size: 22),
+                            SizedBox(height: 4),
+                            Text(
+                              'كشف الحساب 💳',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MonthlyReportCardScreen(
+                              studentName: _viewModel.childName,
+                              studentCode: (widget.childData['student_code'] ?? widget.childData['id'] ?? 'STU-101').toString(),
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.assessment_rounded, color: Colors.white, size: 22),
+                            SizedBox(height: 4),
+                            Text(
+                              'تقرير الشهر 📄',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        AbsenceExcuseDialog.show(
+                          context,
+                          initialStudentName: _viewModel.childName,
+                          initialStudentId: widget.childData['id']?.toString(),
+                          initialGroupName: widget.childData['grade'] as String?,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.event_busy_rounded, color: Colors.white, size: 22),
+                            SizedBox(height: 4),
+                            Text(
+                              'عذر غياب 🗓️',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
               _buildSectionTitle('Performance Overview'),
               const SizedBox(height: 12),
               _buildPerformanceChart(),

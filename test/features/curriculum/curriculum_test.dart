@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/curriculum/domain/models/curriculum_models.dart';
-import 'package:flutter_application_1/features/curriculum/presentation/screens/curriculum_screens.dart';
+import 'package:brivio/features/curriculum/domain/models/curriculum_models.dart';
+import 'package:brivio/features/curriculum/presentation/screens/curriculum_screens.dart';
 
 void main() {
   group('Curriculum & Content Engine Unit & Widget Tests', () {

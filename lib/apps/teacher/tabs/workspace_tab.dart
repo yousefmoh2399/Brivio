@@ -9,6 +9,9 @@ import '../../../features/assessment/presentation/screens/teacher_homework_scree
 import '../../../features/assessment/presentation/screens/teacher_question_bank_screen.dart';
 import '../../../features/attendance/presentation/screens/teacher_attendance_screen.dart';
 import '../../../features/study_workspace/presentation/screens/study_replay_screen.dart';
+import '../../../features/academy/presentation/screens/teacher_assistants_screen.dart';
+import '../../../features/assessment/presentation/screens/smart_exam_generator_dialog.dart';
+import '../../../features/communication/presentation/screens/class_broadcast_dialog.dart';
 
 class WorkspaceTab extends StatefulWidget {
   final String teacherId;
@@ -46,9 +49,12 @@ class _WorkspaceTabState extends State<WorkspaceTab>
         : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
 
-    return Column(
-      children: [
-        Container(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Column(
+          children: [
+            Container(
           color: bgColor,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Column(
@@ -56,13 +62,54 @@ class _WorkspaceTabState extends State<WorkspaceTab>
             children: [
               FadeInSlide(
                 duration: const Duration(milliseconds: 400),
-                child: Text(
-                  context.tr('Workspace'),
-                  style: AppTypography.displaySmall(textPrimary).copyWith(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      context.tr('Workspace'),
+                      style: AppTypography.displaySmall(textPrimary).copyWith(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: 'طاقم المساعدين (TAs) 👥',
+                          icon: const Icon(Icons.people_outline_rounded, color: AppColors.primary),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const TeacherAssistantsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          tooltip: 'إذاعة تنبيه للمجموعة 📢',
+                          icon: const Icon(Icons.campaign_outlined, color: Colors.amber),
+                          onPressed: () {
+                            ClassBroadcastDialog.show(
+                              context,
+                              groupName: 'ثانوية عامة - لغات A',
+                            );
+                          },
+                        ),
+                        IconButton(
+                          tooltip: 'توليد امتحان ذكي متوازن ⚡',
+                          icon: const Icon(Icons.auto_awesome_rounded, color: Colors.purple),
+                          onPressed: () {
+                            SmartExamGeneratorDialog.show(
+                              context,
+                              subjectName: 'فيزياء',
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -140,6 +187,8 @@ class _WorkspaceTabState extends State<WorkspaceTab>
           ),
         ),
       ],
-    );
+    ),
+  ),
+);
   }
 }

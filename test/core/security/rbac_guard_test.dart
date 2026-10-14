@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/core/security/rbac_guard.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_role.dart';
+import 'package:brivio/core/security/rbac_guard.dart';
+import 'package:brivio/features/auth/domain/models/user_role.dart';
 
 void main() {
   group('RbacGuard UI Navigation Tests', () {

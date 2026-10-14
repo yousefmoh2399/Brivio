@@ -7,6 +7,7 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
+import '../../../../core/services/report_generator_service.dart';
 
 Widget _dropdownText(String value) {
   return Text(value, maxLines: 1, overflow: TextOverflow.ellipsis);
@@ -653,6 +654,57 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     );
   }
 
+  Future<void> _printGroupCards() async {
+    if (_enrolledStudents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد طلاب مسجلون في هذه المجموعة لطباعة الكارنيهات.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final service = ReportGeneratorService();
+      final studentsData = _enrolledStudents
+          .map(
+            (s) => {
+              'name': s.fullName,
+              'code': s.studentCode,
+              'phone': s.phoneNumber ?? '',
+              'grade': s.gradeLevel ?? 'المرحلة التعليمية',
+            },
+          )
+          .toList();
+
+      await service.generateBulkStudentIdCardsPdf(
+        students: studentsData,
+        centerName: 'سنتر الأوائل التعليمي',
+        groupName: widget.group.name,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم توليد شيت كارنيهات طلاب مجموعة (${widget.group.name}) بنجاح (جاهز للطباعة والتغليف)',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل توليد الكارنيهات: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -668,6 +720,11 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             icon: Icons.arrow_back,
             label: 'Back',
             onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          PortalAction(
+            icon: Icons.badge_outlined,
+            label: 'طباعة الكارنيهات (PDF)',
+            onPressed: _printGroupCards,
           ),
           PortalAction(
             icon: Icons.refresh,

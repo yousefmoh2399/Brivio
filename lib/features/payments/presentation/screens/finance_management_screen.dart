@@ -10,6 +10,8 @@ import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_payment_repositories.dart';
 import '../../domain/models/payment_models.dart';
 import '../../../../core/services/report_generator_service.dart';
+import 'daily_cash_register_screen.dart';
+import 'teacher_settlement_screen.dart';
 
 class FinanceManagementScreen extends StatefulWidget {
   const FinanceManagementScreen({super.key});
@@ -479,10 +481,34 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             onPressed: _loadFinanceData,
           ),
           PortalAction(
-            icon: Icons.add,
-            label: 'Add Plan',
-            onPressed: _showCreatePlanDialog,
+            icon: Icons.point_of_sale_rounded,
+            label: 'جرد وتقفيل الخزينة اليومية',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const DailyCashRegisterScreen(),
+                ),
+              );
+            },
             primary: true,
+          ),
+          PortalAction(
+            icon: Icons.calculate_rounded,
+            label: 'تصفية أرباح المدرسين',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const TeacherSettlementScreen(),
+                ),
+              );
+            },
+            primary: false,
+          ),
+          PortalAction(
+            icon: Icons.add,
+            label: 'إضافة خطة اشتراك',
+            onPressed: _showCreatePlanDialog,
+            primary: false,
           ),
           PortalAction(
             icon: Icons.picture_as_pdf,

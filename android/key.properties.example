@@ -1,0 +1,8 @@
+# Android Release Keystore Properties Template for Google Play Console
+# Copy this file to "android/key.properties" and fill in your actual keystore credentials.
+# NEVER commit your production keystore or passwords to git!
+
+keyAlias=upload
+keyPassword=YourKeystorePasswordHere
+storeFile=../upload-keystore.jks
+storePassword=YourKeystorePasswordHere

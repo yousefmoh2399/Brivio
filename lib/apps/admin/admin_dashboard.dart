@@ -35,6 +35,16 @@ import '../../features/study_workspace/presentation/screens/study_replay_screen.
 import '../../features/analytics/presentation/screens/admin_analytics_screen.dart';
 import '../../features/helpdesk/presentation/screens/helpdesk_management_screen.dart';
 import '../../features/reports/presentation/screens/reports_dashboard_screen.dart';
+import '../../features/academy/presentation/widgets/center_switcher_widget.dart';
+import '../../features/academy/presentation/screens/center_partnerships_screen.dart';
+import '../../features/academy/presentation/widgets/join_center_dialog.dart';
+import '../../features/attendance/presentation/screens/reception_qr_gate_screen.dart';
+import '../../features/payments/presentation/screens/teacher_settlement_screen.dart';
+import '../../features/reports/presentation/screens/attendance_reports_screen.dart';
+import '../../features/payments/presentation/screens/daily_cash_register_screen.dart';
+import '../../features/payments/presentation/screens/bookstore_pos_screen.dart';
+import '../../features/academy/presentation/screens/classroom_capacity_screen.dart';
+import '../../features/attendance/presentation/screens/reception_live_tv_kiosk_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -425,10 +435,58 @@ class _AdminOverview extends StatelessWidget {
                   '${authViewModel.userRole?.displayName ?? "Admin"} - ${user?.branchId ?? "Global access"}',
               icon: Icons.admin_panel_settings,
               accentColor: AppColors.adminRole,
-              trailing: IconButton.filledTonal(
-                tooltip: 'Refresh',
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
+              trailing: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  CenterSwitcherWidget(
+                    onCenterChanged: onRetry,
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'بوابة الاستقبال (حضور QR سريع وتنبيه مصاريف)',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ReceptionQrGateScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'تصفية أرباح المدرسين',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TeacherSettlementScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.calculate_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'إدارة السنتر والشراكات',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CenterPartnershipsScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.handshake_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'الانضمام لسنتر بكود',
+                    onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
+                    icon: const Icon(Icons.add_business_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'تحديث البيانات',
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
               ),
             ),
           ),
@@ -446,6 +504,126 @@ class _AdminOverview extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 18),
+          const FadeInSlide(
+            delay: Duration(milliseconds: 60),
+            child: PortalSectionTitle(
+              title: 'عمليات السنتر المصري الذكي',
+              subtitle: 'بوابة الاستقبال، الباركود، تصفية حسابات المدرسين، والتقارير',
+            ),
+          ),
+          const SizedBox(height: 12),
+          FadeInSlide(
+            delay: const Duration(milliseconds: 90),
+            child: PortalMetricGrid(
+              children: [
+                PortalMetricCard(
+                  label: 'بوابة الاستقبال (QR)',
+                  value: 'مسح فوري',
+                  icon: Icons.qr_code_scanner_rounded,
+                  accentColor: AppColors.primary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ReceptionQrGateScreen(),
+                      ),
+                    );
+                  },
+                ),
+                PortalMetricCard(
+                  label: 'تصفية أرباح المدرسين',
+                  value: 'حساب النسب',
+                  icon: Icons.calculate_rounded,
+                  accentColor: AppColors.teacherRole,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TeacherSettlementScreen(),
+                      ),
+                    );
+                  },
+                ),
+                PortalMetricCard(
+                  label: 'شراكات وشبكة السناتر',
+                  value: 'ربط السناتر',
+                  icon: Icons.handshake_rounded,
+                  accentColor: AppColors.secondary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CenterPartnershipsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                PortalMetricCard(
+                  label: 'كشوفات الحضور (PDF)',
+                  value: 'تصدير وطباعة',
+                  icon: Icons.print_rounded,
+                  accentColor: AppColors.staffRole,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AttendanceReportsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                PortalMetricCard(
+                  label: 'تقفيل الخزينة اليومية',
+                  value: 'جرد الوردية',
+                  icon: Icons.point_of_sale_rounded,
+                  accentColor: AppColors.success,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DailyCashRegisterScreen(),
+                      ),
+                    );
+                  },
+                ),
+                PortalMetricCard(
+                  label: 'مبيعات الملازم (POS)',
+                  value: 'طابعة حرارية',
+                  icon: Icons.menu_book_rounded,
+                  accentColor: AppColors.primaryLight,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const BookstorePosScreen(),
+                      ),
+                    );
+                  },
+                ),
+                PortalMetricCard(
+                  label: 'إشغال المقاعد والقاعات',
+                  value: 'خريطة القاعات',
+                  icon: Icons.airline_seat_recline_normal_rounded,
+                  accentColor: AppColors.info,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ClassroomCapacityScreen(),
+                      ),
+                    );
+                  },
+                ),
+                PortalMetricCard(
+                  label: 'شاشة العرض الحية TV',
+                  value: 'جدول الاستقبال',
+                  icon: Icons.tv_rounded,
+                  accentColor: AppColors.warning,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ReceptionLiveTvKioskScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
           const FadeInSlide(
             delay: Duration(milliseconds: 100),
             child: PortalSectionTitle(

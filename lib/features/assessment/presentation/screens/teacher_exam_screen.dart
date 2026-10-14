@@ -7,6 +7,9 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
+import '../../../../core/services/report_generator_service.dart';
+import '../../../../core/services/whatsapp_service.dart';
+import '../widgets/group_leaderboard_widget.dart';
 
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
@@ -98,7 +101,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
       try {
         final profilesRes = await Supabase.instance.client
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, phone_number')
             .inFilter('id', profileIds);
         profilesById.addEntries(
           List<Map<String, dynamic>>.from(
@@ -116,6 +119,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
       return {
         ...attempt,
         'student_code': student?['student_code'],
+        'student_phone': profile?['phone_number'],
         'student_name':
             profile?['full_name'] ??
             student?['student_code'] ??
@@ -571,6 +575,126 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     );
   }
 
+  void _showSendWhatsAppDialog({
+    required String studentName,
+    required String examTitle,
+    required num score,
+    required num maxScore,
+    String? defaultPhone,
+    int? rank,
+  }) {
+    final phoneCtrl = TextEditingController(text: defaultPhone ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.chat_rounded, color: Colors.green),
+            const SizedBox(width: 8),
+            Text(context.tr('إرسال النتيجة لواتساب ولي الأمر')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('الطالب: $studentName', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('الدرجة: $score من $maxScore'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'رقم هاتف ولي الأمر (واتساب)',
+                hintText: 'مثال: 01012345678',
+                prefixIcon: Icon(Icons.phone),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('Cancel')),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.green),
+            icon: const Icon(Icons.send_rounded),
+            label: Text(context.tr('إرسال عبر واتساب')),
+            onPressed: () async {
+              final phone = phoneCtrl.text.trim();
+              if (phone.isEmpty) return;
+              Navigator.pop(ctx);
+              await WhatsAppService.sendExamResultToParent(
+                parentPhone: phone,
+                studentName: studentName,
+                examTitle: examTitle,
+                score: score,
+                maxScore: maxScore,
+                centerName: 'سنتر الأوائل التعليمي',
+                teacherName: 'مدرس المادة',
+                subjectName: _selectedGroup?.name ?? 'المادة الدراسية',
+                rank: rank,
+                groupName: _selectedGroup?.name,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportPrintableExam(Exam exam) async {
+    if (exam.questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('الامتحان لا يحتوي على أسئلة مرتبطة بعد! يرجى ربط أسئلة أولاً عبر إدارة الأسئلة.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final questionsData = exam.questions.map((q) {
+        return {
+          'prompt': q.prompt,
+          'points': q.defaultPoints,
+          'type': q.questionType.toDbValue(),
+          'options': q.options.map((opt) => {'text': opt.text, 'is_correct': opt.isCorrect}).toList(),
+        };
+      }).toList();
+
+      await ReportGeneratorService().generatePrintableExamSheet(
+        centerName: 'سنتر الأوائل التعليمي',
+        examTitle: exam.title,
+        subjectName: _selectedGroup?.name ?? 'المادة الدراسية',
+        teacherName: 'الأستاذ المشرف',
+        durationMinutes: exam.durationMinutes,
+        passScore: exam.passScore,
+        questions: questionsData,
+        groupName: _selectedGroup?.name,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم توليد ورقة امتحان (${exam.title}) مع نموذج الإجابة بنجاح 📄'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل توليد الامتحان المطبوع: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _showExamAttemptsDialog(Exam exam) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark
@@ -601,161 +725,376 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     if (!context.mounted) return;
     Navigator.pop(context);
 
+    final totalAttempts = attempts.length;
+    double totalScores = 0;
+    num topScore = 0;
+    int passCount = 0;
+    for (final a in attempts) {
+      final sc = (a['score'] as num?) ?? 0;
+      totalScores += sc;
+      if (sc > topScore) topScore = sc;
+      if (sc >= exam.passScore) passCount++;
+    }
+    final avgScore = totalAttempts > 0 ? totalScores / totalAttempts : 0.0;
+    final passRate = totalAttempts > 0 ? (passCount / totalAttempts) * 100 : 0.0;
+
+    String searchQuery = '';
+
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: GlassCard(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${context.tr('Student Attempts')} - ${exam.title}',
-                style: AppTypography.titleLarge(textColor),
-                textAlign: TextAlign.center,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final filteredAttempts = attempts.where((att) {
+            if (searchQuery.trim().isEmpty) return true;
+            final q = searchQuery.trim().toLowerCase();
+            final name = (att['student_name']?.toString() ?? '').toLowerCase();
+            final code = (att['student_code']?.toString() ?? '').toLowerCase();
+            return name.contains(q) || code.contains(q);
+          }).toList();
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            child: Container(
+              width: 650,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkSurface
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(20),
               ),
-              const SizedBox(height: 16),
-              if (loadError != null)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    '${context.tr('Failed to load attempts')}: $loadError',
-                    style: AppTypography.bodyMedium(AppColors.error),
-                    textAlign: TextAlign.center,
-                  ),
-                )
-              else if (attempts.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    context.tr('No attempts yet.'),
-                    style: AppTypography.bodyMedium(subtitleColor),
-                  ),
-                )
-              else
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: attempts.length,
-                    separatorBuilder: (_, __) => const Divider(),
-                    itemBuilder: (ctx, i) {
-                      final att = attempts[i];
-                      final studentName =
-                          att['student_name']?.toString().trim().isNotEmpty ==
-                              true
-                          ? att['student_name'].toString()
-                          : context.tr('Unknown Student');
-                      final studentCode = att['student_code']?.toString();
-                      final statusLabel = _attemptStatusLabel(
-                        context,
-                        att['status']?.toString(),
-                      );
-                      final studentId = att['student_id']?.toString();
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          studentName,
-                          style: AppTypography.bodyMedium(textColor),
-                        ),
-                        subtitle: Text(
-                          '${studentCode == null || studentCode.isEmpty ? '' : '$studentCode | '}${context.tr('Score')}: ${att['score'] ?? 0} / ${att['max_score'] ?? 0} | ${context.tr('Status')}: $statusLabel',
-                          style: AppTypography.caption(subtitleColor),
-                        ),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => StudentSubmissionsScreen(
-                                initialSubmission: {
-                                  'id': att['id'],
-                                  'assessment_type': 'exam',
-                                  'assessment_id': exam.id,
-                                  'student_id': att['student_id'],
-                                  'score': att['score'],
-                                  'teacher_feedback': att['teacher_feedback'],
-                                },
-                                onGraded: () {
-                                  _loadGroupsAndExams();
-                                },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.deepPurple.withValues(alpha: 0.15),
+                        child: const Icon(Icons.analytics_rounded, color: Colors.deepPurple),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'كشف نتائج ومحاولات الطلاب 📊',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
                               ),
+                            ),
+                            Text(
+                              '${exam.title} • ${_selectedGroup?.name ?? ''}',
+                              style: TextStyle(fontSize: 12, color: subtitleColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Metrics Row
+                  Row(
+                    children: [
+                      _buildExamMetricBox('إجمالي المحاولات', '$totalAttempts', Colors.blueGrey),
+                      const SizedBox(width: 8),
+                      _buildExamMetricBox('نسبة النجاح', '${passRate.toStringAsFixed(0)}%', Colors.green),
+                      const SizedBox(width: 8),
+                      _buildExamMetricBox('متوسط الدرجات', avgScore.toStringAsFixed(1), Colors.purple),
+                      const SizedBox(width: 8),
+                      _buildExamMetricBox('أعلى درجة', '$topScore', Colors.amber.shade900),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Search and PDF Export Bar
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'ابحث باسم الطالب أو الكود...',
+                            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onChanged: (val) => setDialogState(() => searchQuery = val),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        onPressed: () async {
+                          try {
+                            final examData = attempts.map((a) => {
+                              'title': exam.title,
+                              'duration': exam.durationMinutes.toString(),
+                              'pass_score': exam.passScore.toString(),
+                              'status': a['status']?.toString() ?? 'completed',
+                            }).toList();
+                            await ReportGeneratorService().generateExamReport(
+                              groupName: _selectedGroup?.name ?? 'المجموعة',
+                              examData: examData,
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('خطأ في تصدير التقرير: $e')),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Colors.indigo),
+                        label: const Text('كشف الدرجات PDF', style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20),
+
+                  if (loadError != null)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        '${context.tr('Failed to load attempts')}: $loadError',
+                        style: AppTypography.bodyMedium(AppColors.error),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else if (attempts.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        context.tr('No attempts yet.'),
+                        style: AppTypography.bodyMedium(subtitleColor),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: filteredAttempts.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (ctx, i) {
+                          final att = filteredAttempts[i];
+                          final studentName =
+                              att['student_name']?.toString().trim().isNotEmpty == true
+                                  ? att['student_name'].toString()
+                                  : context.tr('Unknown Student');
+                          final studentCode = att['student_code']?.toString();
+                          final statusLabel = _attemptStatusLabel(
+                            context,
+                            att['status']?.toString(),
+                          );
+                          final studentId = att['student_id']?.toString();
+                          final score = (att['score'] as num?) ?? 0;
+                          final isPassed = score >= exam.passScore;
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? AppColors.darkCard
+                                  : AppColors.lightCard,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isPassed
+                                    ? Colors.green.withValues(alpha: 0.3)
+                                    : Colors.red.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: isPassed
+                                      ? Colors.green.withValues(alpha: 0.15)
+                                      : Colors.red.withValues(alpha: 0.1),
+                                  child: Text(
+                                    '${i + 1}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isPassed ? Colors.green.shade800 : Colors.red.shade800,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        studentName,
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${studentCode == null || studentCode.isEmpty ? '' : '$studentCode • '}${context.tr('Status')}: $statusLabel',
+                                        style: TextStyle(fontSize: 11, color: subtitleColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isPassed
+                                        ? Colors.green.withValues(alpha: 0.12)
+                                        : Colors.red.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '$score / ${att['max_score'] ?? 0}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: isPassed ? Colors.green.shade800 : Colors.red.shade800,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_note_rounded, color: Colors.blue, size: 20),
+                                  tooltip: 'مراجعة وتصحيح الإجابات 📝',
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => StudentSubmissionsScreen(
+                                          initialSubmission: {
+                                            'id': att['id'],
+                                            'assessment_type': 'exam',
+                                            'assessment_id': exam.id,
+                                            'student_id': att['student_id'],
+                                            'score': att['score'],
+                                            'teacher_feedback': att['teacher_feedback'],
+                                          },
+                                          onGraded: () {
+                                            _loadGroupsAndExams();
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chat_rounded, color: Colors.green, size: 20),
+                                  tooltip: context.tr('إرسال النتيجة لولي الأمر عبر واتساب'),
+                                  onPressed: () {
+                                    _showSendWhatsAppDialog(
+                                      studentName: studentName,
+                                      examTitle: exam.title,
+                                      score: att['score'] ?? 0,
+                                      maxScore: att['max_score'] ?? 0,
+                                      defaultPhone: att['student_phone']?.toString(),
+                                      rank: i + 1,
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.refresh, color: AppColors.error, size: 20),
+                                  tooltip: context.tr('Reset Attempt'),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: ctx,
+                                      builder: (c) => AlertDialog(
+                                        title: Text(context.tr('Reset Exam')),
+                                        content: Text(
+                                          '${context.tr('Are you sure you want to reset the exam for')} $studentName?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(c, false),
+                                            child: Text(context.tr('Cancel')),
+                                          ),
+                                          FilledButton(
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: AppColors.error,
+                                            ),
+                                            onPressed: () => Navigator.pop(c, true),
+                                            child: Text(context.tr('Reset')),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true && studentId != null) {
+                                      try {
+                                        await Supabase.instance.client.rpc(
+                                          'reset_student_exam_attempt',
+                                          params: {
+                                            'p_exam_id': exam.id,
+                                            'p_student_id': studentId,
+                                          },
+                                        );
+                                        await _loadGroupsAndExams();
+                                        if (context.mounted) {
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                context.tr('Exam reset successfully'),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Reset failed: $e')),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
                             ),
                           );
                         },
-                        trailing: IconButton(
-                          icon: const Icon(
-                            Icons.refresh,
-                            color: AppColors.error,
-                          ),
-                          tooltip: context.tr('Reset Attempt'),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: ctx,
-                              builder: (c) => AlertDialog(
-                                title: Text(context.tr('Reset Exam')),
-                                content: Text(
-                                  '${context.tr('Are you sure you want to reset the exam for')} $studentName?',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(c, false),
-                                    child: Text(context.tr('Cancel')),
-                                  ),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.error,
-                                    ),
-                                    onPressed: () => Navigator.pop(c, true),
-                                    child: Text(context.tr('Reset')),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirm == true && studentId != null) {
-                              try {
-                                await Supabase.instance.client.rpc(
-                                  'reset_student_exam_attempt',
-                                  params: {
-                                    'p_exam_id': exam.id,
-                                    'p_student_id': studentId,
-                                  },
-                                );
-                                if (context.mounted) {
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        context.tr('Exam reset successfully'),
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Reset failed: $e')),
-                                  );
-                                }
-                              }
-                            }
-                          },
-                        ),
-                      );
-                    },
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(context.tr('Close')),
                   ),
-                ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  context.tr('Close'),
-                  style: TextStyle(color: textColor),
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildExamMetricBox(String title, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Text(title, style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+            ),
+          ],
         ),
       ),
     );
@@ -900,6 +1239,39 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         ),
                       ),
                     ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.emoji_events_rounded, color: Colors.amber),
+                                label: Text(context.tr('لوحة شرف الأوائل ونظام التحفيز 🏆')),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.amber.shade50,
+                                  foregroundColor: isDark ? Colors.amber : Colors.amber.shade900,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(color: Colors.amber.withValues(alpha: 0.3)),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  GroupLeaderboardWidget.show(
+                                    context,
+                                    groupId: _selectedGroup?.id,
+                                    groupName: _selectedGroup?.name,
+                                    availableGroups: _groups,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     if (_selectedGroup == null)
                       SliverFillRemaining(
@@ -994,6 +1366,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                             ),
                                             onSelected: (value) {
                                               switch (value) {
+                                                case 'print_exam':
+                                                  _exportPrintableExam(exam);
+                                                  break;
                                                 case 'questions':
                                                   _showManageQuestionsBottomSheet(
                                                     exam,
@@ -1010,6 +1385,22 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                               }
                                             },
                                             itemBuilder: (context) => [
+                                              PopupMenuItem(
+                                                value: 'print_exam',
+                                                child: ListTile(
+                                                  leading: const Icon(
+                                                    Icons.print_rounded,
+                                                    color: Colors.teal,
+                                                  ),
+                                                  title: Text(
+                                                    context.tr(
+                                                      'طباعة امتحان ورقي (PDF)',
+                                                    ),
+                                                  ),
+                                                  contentPadding:
+                                                      EdgeInsets.zero,
+                                                ),
+                                              ),
                                               PopupMenuItem(
                                                 value: 'questions',
                                                 child: ListTile(

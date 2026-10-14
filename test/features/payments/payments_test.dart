@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/payments/domain/models/payment_models.dart';
-import 'package:flutter_application_1/features/payments/presentation/screens/payment_screens.dart';
+import 'package:brivio/features/payments/domain/models/payment_models.dart';
+import 'package:brivio/features/payments/presentation/screens/payment_screens.dart';
 
 void main() {
   group('Phase 8.5 Security & Payments Engine Tests', () {

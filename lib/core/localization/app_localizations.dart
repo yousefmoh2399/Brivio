@@ -80,12 +80,12 @@ class AppLocalizations {
     'The PDF could not be opened. Please check your connection and try again.':
         'The PDF could not be opened. Please check your connection and try again.',
     'startup_failed': 'Startup failed',
-    'academy_platform': 'Academy Platform',
-    'admin_dashboard': 'Academy - Admin Dashboard',
-    'student_portal': 'Academy - Student Portal',
-    'teacher_portal': 'Academy - Teacher Portal',
-    'parent_portal': 'Academy - Parent Portal',
-    'staff_portal': 'Academy - Staff Portal',
+    'academy_platform': 'Brivio - Tutoring Centers',
+    'admin_dashboard': 'Brivio - Center Management',
+    'student_portal': 'Brivio - Student App',
+    'teacher_portal': 'Brivio - Teacher App',
+    'parent_portal': 'Brivio - Guardian App',
+    'staff_portal': 'Brivio - Reception & Operations',
     'Overview': 'Overview',
     'Home': 'Home',
     'Classes': 'Classes',
@@ -934,9 +934,9 @@ class AppLocalizations {
     'The PDF could not be opened. Please check your connection and try again.':
         'تعذر فتح ملف الدرس. تأكد من الاتصال وحاول مرة أخرى.',
     'startup_failed': 'فشل تشغيل التطبيق',
-    'academy_platform': 'منصة الأكاديمية',
-    'admin_dashboard': 'الأكاديمية - لوحة الإدارة',
-    'student_portal': 'الأكاديمية - تطبيق الطالب',
+    'academy_platform': 'بريفيو - منصة السناتر التعليمية',
+    'admin_dashboard': 'بريفيو - لوحة إدارة السنتر',
+    'student_portal': 'بريفيو - تطبيق الطالب',
     'Appearance': 'المظهر',
     'Theme Mode': 'وضع المظهر',
     'Choose between Light, Dark, or System theme.':
@@ -1015,9 +1015,9 @@ class AppLocalizations {
     'Rejected': 'مرفوض',
     'Session': 'الحصة / الجلسة',
 
-    'teacher_portal': 'الأكاديمية - تطبيق المدرس',
-    'parent_portal': 'الأكاديمية - تطبيق ولي الأمر',
-    'staff_portal': 'الأكاديمية - تطبيق الموظفين',
+    'teacher_portal': 'بريفيو - تطبيق المدرس',
+    'parent_portal': 'بريفيو - تطبيق ولي الأمر',
+    'staff_portal': 'بريفيو - الاستقبال والسكرتارية',
     'Overview': 'نظرة عامة',
     'Home': 'الرئيسية',
     'Classes': 'المجموعات',
@@ -1775,7 +1775,12 @@ class AppLocalizations {
     'Low': 'منخفضة',
     'Normal': 'عادية',
     'High': 'عالية',
-    'Urgent': 'عاجلة',
+    'Due Soon': 'واجبات قريبة الاستحقاق',
+    'See All': 'عرض الكل',
+    'Study Metrics': 'مؤشرات الأداء الدراسي',
+    'Learning progress': 'مستوى التقدم الدراسي',
+    'Pending Homework': 'واجبات قيد التسليم',
+    'Homework & Exams': 'الواجبات والامتحانات',
   };
 }
 

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/core/security/permission.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_role.dart';
-import 'package:flutter_application_1/features/auth/presentation/viewmodels/auth_viewmodel.dart';
-import 'package:flutter_application_1/core/testing/dummy_auth_repository.dart';
+import 'package:brivio/core/security/permission.dart';
+import 'package:brivio/features/auth/domain/models/user_role.dart';
+import 'package:brivio/features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import 'package:brivio/core/testing/dummy_auth_repository.dart';
 
 void main() {
   late DummyAuthRepository mockAuthRepository;

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../../core/security/permission.dart';
+import '../../../academy/domain/models/educational_center.dart';
 import 'user_profile.dart';
 import 'user_role.dart';
 
@@ -31,6 +32,8 @@ class AuthUserBootstrap extends Equatable {
   final String? studentId;
   final String? parentId;
   final String? teacherId;
+  final EducationalCenter? activeCenter;
+  final List<UserCenterMembership> availableCenters;
 
   const AuthUserBootstrap({
     required this.profile,
@@ -41,6 +44,8 @@ class AuthUserBootstrap extends Equatable {
     this.studentId,
     this.parentId,
     this.teacherId,
+    this.activeCenter,
+    this.availableCenters = const [],
   });
 
   bool hasPermission(Permission permission) {
@@ -65,6 +70,22 @@ class AuthUserBootstrap extends Equatable {
 
     final domainId = json['domain_identity'] as Map<String, dynamic>? ?? {};
 
+    EducationalCenter? activeCenter;
+    if (json['active_center'] != null) {
+      activeCenter = EducationalCenter.fromJson(
+        Map<String, dynamic>.from(json['active_center'] as Map),
+      );
+    }
+
+    final rawCenters = json['available_centers'] as List<dynamic>? ?? [];
+    final availableCenters = rawCenters
+        .map(
+          (c) => UserCenterMembership.fromJson(
+            Map<String, dynamic>.from(c as Map),
+          ),
+        )
+        .toList();
+
     return AuthUserBootstrap(
       profile: profile,
       role: role,
@@ -74,6 +95,8 @@ class AuthUserBootstrap extends Equatable {
       studentId: domainId['student_id'] as String?,
       parentId: domainId['parent_id'] as String?,
       teacherId: domainId['teacher_id'] as String?,
+      activeCenter: activeCenter,
+      availableCenters: availableCenters,
     );
   }
 
@@ -87,5 +110,7 @@ class AuthUserBootstrap extends Equatable {
     studentId,
     parentId,
     teacherId,
+    activeCenter,
+    availableCenters,
   ];
 }

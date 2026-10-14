@@ -1009,14 +1009,42 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                             textColor,
                                           ),
                                         ),
-                                        subtitle: Text(
-                                          '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)}',
-                                          style: AppTypography.bodySmall(
-                                            subtitleColor,
-                                          ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)}',
+                                              style: AppTypography.bodySmall(
+                                                subtitleColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            ActionChip(
+                                              avatar: const Icon(
+                                                Icons.draw_rounded,
+                                                size: 16,
+                                                color: AppColors.primary,
+                                              ),
+                                              label: Text(
+                                                context.tr('سبورة شرح الدرس'),
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              onPressed: () => _openLessonBoard(unit, lesson),
+                                            ),
+                                          ],
                                         ),
                                         trailing: _CurriculumActionMenu(
                                           actions: [
+                                            _CurriculumAction(
+                                              icon: Icons.draw_rounded,
+                                              color: AppColors.primary,
+                                              label: context.tr('سبورة شرح الدرس'),
+                                              onPressed: () =>
+                                                  _openLessonBoard(unit, lesson),
+                                            ),
                                             _CurriculumAction(
                                               icon: Icons.edit,
                                               label: context.tr('Edit Lesson'),
@@ -1216,6 +1244,47 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Future<void> _openLessonBoard(Unit unit, Lesson lesson) async {
+    String? pdfUrl;
+    final pdfResource =
+        lesson.resources.where((r) => r.resourceType == 'pdf').firstOrNull;
+    if (pdfResource != null) {
+      try {
+        pdfUrl = await Supabase.instance.client.storage
+            .from(pdfResource.bucket)
+            .createSignedUrl(pdfResource.objectPath, 3600);
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    final summary = StudyLessonSummary(
+      id: lesson.id,
+      title: lesson.title,
+      pathName: 'Curriculum',
+      unitName: unit.name,
+      progressPercentage: 0,
+      estimatedMinutes: 30,
+      lastPage: 1,
+      totalPages: 0,
+      xp: 0,
+      hasPdf: pdfUrl != null,
+      hasCodePlayground: false,
+      pdfUrl: pdfUrl,
+    );
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StudyWorkspaceScreen(
+          lesson: summary,
+          teacherId: widget.teacherId,
+          repository: SupabaseStudyWorkspaceRepository(
+            GetIt.I<SupabaseClientWrapper>(),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -31,6 +31,8 @@ import '../../features/study_workspace/data/repositories/supabase_student_learni
 import '../../features/study_workspace/data/repositories/supabase_study_workspace_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../features/study_workspace/presentation/screens/study_workspace_screen.dart';
+import '../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
+import '../../features/assessment/presentation/widgets/student_homework_submission_dialog.dart';
 
 import 'student_dashboard_models.dart';
 import 'tabs/home_tab.dart';
@@ -265,6 +267,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
+  void _openPersonalBoard() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const StudentPersonalBoardScreen(),
+      ),
+    );
+  }
+
   void _openSessionBoard(PublishedSessionBoard board) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => _SessionBoardScreen(board: board)),
@@ -447,55 +457,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
       return;
     }
 
-    final textCtrl = TextEditingController();
-    final attachCtrl = TextEditingController();
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('${context.tr('Submit')} ${homework.title}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: textCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Answer / notes'),
-                  alignLabelWithHint: true,
-                ),
-                minLines: 4,
-                maxLines: 8,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: attachCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Attachment URL'),
-                  prefixIcon: const Icon(Icons.link),
-                ),
-                keyboardType: TextInputType.url,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.upload_file),
-            label: Text(context.tr('Submit')),
-          ),
-        ],
-      ),
+    final payload = await StudentHomeworkSubmissionDialog.show(
+      context,
+      homework: homework,
     );
-    if (submitted != true) {
-      textCtrl.dispose();
-      attachCtrl.dispose();
-      return;
-    }
+    if (payload == null) return;
+
     try {
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
       await wrapper.withFreshSession(
@@ -503,26 +470,24 @@ class _StudentDashboardState extends State<StudentDashboard> {
           'submit_homework_text',
           params: {
             'p_homework_id': homework.id,
-            'p_submission_text': textCtrl.text.trim(),
-            'p_attachment_url': attachCtrl.text.trim().isEmpty
-                ? null
-                : attachCtrl.text.trim(),
+            'p_submission_text': payload.text,
+            'p_attachment_url': payload.attachmentUrl,
           },
         ),
       );
       await _loadAll();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Homework submitted.'))),
+        const SnackBar(
+          content: Text('تم تسليم الواجب وصور الكشكول بنجاح للأستاذ ✅'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${context.tr('Submission failed')}: $e')),
       );
-    } finally {
-      textCtrl.dispose();
-      attachCtrl.dispose();
     }
   }
 
@@ -726,6 +691,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         onOpenWorkspace: nextLesson == null
             ? null
             : () => _openWorkspace(nextLesson),
+        onOpenPersonalBoard: _openPersonalBoard,
         onNavigate: (i) => setState(() => _selectedIndex = i),
       ),
       LearnTab(

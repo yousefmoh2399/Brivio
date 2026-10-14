@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/communication/domain/models/announcement.dart';
-import 'package:flutter_application_1/features/communication/domain/models/conversation.dart';
-import 'package:flutter_application_1/features/communication/domain/models/message.dart';
-import 'package:flutter_application_1/features/communication/domain/models/notification.dart';
-import 'package:flutter_application_1/features/communication/domain/repositories/i_announcement_repository.dart';
-import 'package:flutter_application_1/features/communication/domain/repositories/i_conversation_repository.dart';
-import 'package:flutter_application_1/features/communication/domain/repositories/i_notification_repository.dart';
-import 'package:flutter_application_1/features/communication/presentation/viewmodels/announcement_viewmodel.dart';
-import 'package:flutter_application_1/features/communication/presentation/viewmodels/conversation_list_viewmodel.dart';
-import 'package:flutter_application_1/features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
-import 'package:flutter_application_1/features/communication/presentation/screens/conversation_list_screen.dart';
-import 'package:flutter_application_1/features/communication/presentation/screens/notification_center_screen.dart';
-import 'package:flutter_application_1/features/communication/presentation/screens/announcement_center_screen.dart';
+import 'package:brivio/features/communication/domain/models/announcement.dart';
+import 'package:brivio/features/communication/domain/models/conversation.dart';
+import 'package:brivio/features/communication/domain/models/message.dart';
+import 'package:brivio/features/communication/domain/models/notification.dart';
+import 'package:brivio/features/communication/domain/repositories/i_announcement_repository.dart';
+import 'package:brivio/features/communication/domain/repositories/i_conversation_repository.dart';
+import 'package:brivio/features/communication/domain/repositories/i_notification_repository.dart';
+import 'package:brivio/features/communication/presentation/viewmodels/announcement_viewmodel.dart';
+import 'package:brivio/features/communication/presentation/viewmodels/conversation_list_viewmodel.dart';
+import 'package:brivio/features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
+import 'package:brivio/features/communication/presentation/screens/conversation_list_screen.dart';
+import 'package:brivio/features/communication/presentation/screens/notification_center_screen.dart';
+import 'package:brivio/features/communication/presentation/screens/announcement_center_screen.dart';
 
 class MockConversationRepository implements IConversationRepository {
   List<Conversation> mockConversations = [

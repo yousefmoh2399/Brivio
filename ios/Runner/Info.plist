@@ -27,11 +27,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Use Face ID to unlock your academy account on this device.</string>
+	<string>Use Face ID / Touch ID to securely unlock your educational center portal.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Use the camera to scan academy login QR codes.</string>
+	<string>Brivio requires camera access to scan student attendance QR cards, session passes, and quick login tokens.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Brivio requires access to your photo library to attach educational resources, homework submissions, and profile pictures.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Use your location only when required for attendance or academy operations.</string>
+	<string>Location is used only to verify session attendance check-ins within center premises.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

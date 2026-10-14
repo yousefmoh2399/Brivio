@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/core/errors/failures.dart';
-import 'package:flutter_application_1/features/auth/domain/models/auth_user_bootstrap.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_profile.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_role.dart';
-import 'package:flutter_application_1/features/auth/domain/repositories/i_auth_repository.dart';
-import 'package:flutter_application_1/features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import 'package:brivio/core/errors/failures.dart';
+import 'package:brivio/features/auth/domain/models/auth_user_bootstrap.dart';
+import 'package:brivio/features/auth/domain/models/user_profile.dart';
+import 'package:brivio/features/auth/domain/models/user_role.dart';
+import 'package:brivio/features/auth/domain/repositories/i_auth_repository.dart';
+import 'package:brivio/features/auth/presentation/viewmodels/auth_viewmodel.dart';
 
 class MockFailingAuthRepository implements IAuthRepository {
   final Failure failureToThrow;

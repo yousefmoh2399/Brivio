@@ -11,6 +11,7 @@ import '../../domain/models/assessment_models.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
+import '../../../../core/services/report_generator_service.dart';
 
 class TeacherQuestionBankScreen extends StatefulWidget {
   final String teacherId;
@@ -576,6 +577,47 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     }
   }
 
+  Future<void> _exportBankQuestionsAsPrintablePdf() async {
+    if (_questions.isEmpty || _selectedGroup == null) return;
+
+    try {
+      final questionsData = _questions.map((q) {
+        return {
+          'prompt': q.prompt,
+          'points': q.defaultPoints,
+          'type': q.questionType.toDbValue(),
+          'options': q.options.map((opt) => {'text': opt.text, 'is_correct': opt.isCorrect}).toList(),
+        };
+      }).toList();
+
+      await ReportGeneratorService().generatePrintableExamSheet(
+        centerName: 'سنتر الأوائل التعليمي',
+        examTitle: 'كويز تدريبي - ${_selectedGroup!.name}',
+        subjectName: _selectedGroup!.name,
+        teacherName: 'الأستاذ المشرف',
+        durationMinutes: 30,
+        passScore: 10,
+        questions: questionsData,
+        groupName: _selectedGroup!.name,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تصدير بنك الأسئلة كشيت كويز ورقي للطباعة 📄'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تصدير الكويز: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -776,11 +818,25 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                   ],
                 ),
         ),
+        if (_selectedGroup != null && _questions.isNotEmpty)
+          Positioned(
+            bottom: 16,
+            left: 16,
+            child: FloatingActionButton.extended(
+              heroTag: 'print_bank_quiz_fab',
+              onPressed: _exportBankQuestionsAsPrintablePdf,
+              backgroundColor: Colors.teal.shade700,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.print_rounded),
+              label: const Text('طباعة كويز ورقي (PDF)'),
+            ),
+          ),
         if (_selectedGroup != null)
           Positioned(
             bottom: 16,
             right: 16,
             child: FloatingActionButton.extended(
+              heroTag: 'add_bank_question_fab',
               onPressed: () => _showQuestionEditorDialog(),
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,

@@ -4,6 +4,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:ui' as ui;
+import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -72,7 +77,17 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
   bool _showBoard = false;
   bool _showCode = false;
   bool _showNotebook = false;
+  bool _showTeacherLayer = true;
+  bool _showStudentLayer = true;
   late final TransformationController _boardTransformationController;
+
+  List<_BoardStroke> get _visibleBoardStrokes {
+    return _boardStrokes.where((s) {
+      if (s.isTeacher && !_showTeacherLayer) return false;
+      if (!s.isTeacher && !_showStudentLayer) return false;
+      return true;
+    }).toList();
+  }
 
   void _startStroke(DragStartDetails details) {
     final local = details.localPosition;
@@ -681,6 +696,212 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
     unawaited(_recordPageVisit(_viewModel.currentPage));
   }
 
+  Future<Uint8List?> _renderBoardToPng() async {
+    final strokes = _visibleBoardStrokes;
+    if (strokes.isEmpty) return null;
+
+    double minX = double.infinity, minY = double.infinity;
+    double maxX = 0, maxY = 0;
+    for (final s in strokes) {
+      for (final p in s.points) {
+        if (p.dx < minX) minX = p.dx;
+        if (p.dy < minY) minY = p.dy;
+        if (p.dx > maxX) maxX = p.dx;
+        if (p.dy > maxY) maxY = p.dy;
+      }
+    }
+    if (minX == double.infinity) {
+      minX = 0;
+      minY = 0;
+      maxX = 1200;
+      maxY = 800;
+    }
+    const margin = 50.0;
+    minX = (minX - margin).clamp(0.0, 4000.0);
+    minY = (minY - margin).clamp(0.0, 4000.0);
+    maxX = (maxX + margin).clamp(minX + 400.0, 4000.0);
+    maxY = (maxY + margin).clamp(minY + 300.0, 4000.0);
+
+    final width = maxX - minX;
+    final height = maxY - minY;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
+    canvas.translate(-minX, -minY);
+
+    final painter = _NotebookSketchPainter(strokes, isTransparent: false);
+    painter.paint(canvas, Size(maxX, maxY));
+
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(
+      width.toInt().clamp(100, 4000),
+      height.toInt().clamp(100, 4000),
+    );
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    return byteData?.buffer.asUint8List();
+  }
+
+  Future<void> _exportLessonBoardAsPdf() async {
+    final pngBytes = await _renderBoardToPng();
+    if (pngBytes == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('السبورة لا تحتوي على أي شروحات أو رسومات للتصدير.'),
+          ),
+        );
+      }
+      return;
+    }
+    final doc = pw.Document();
+    final image = pw.MemoryImage(pngBytes);
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4.landscape,
+        build: (ctx) => pw.Column(
+          children: [
+            pw.Header(
+              level: 1,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Brivio Education - ${widget.lesson.title}',
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  pw.Text(
+                    DateTime.now().toString().substring(0, 16),
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Expanded(
+              child: pw.Center(
+                child: pw.Image(image, fit: pw.BoxFit.contain),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await Printing.layoutPdf(
+      name: 'lesson_board_${widget.lesson.id}.pdf',
+      onLayout: (format) async => doc.save(),
+    );
+  }
+
+  Future<void> _shareLessonBoardAsImage() async {
+    final pngBytes = await _renderBoardToPng();
+    if (pngBytes == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('السبورة لا تحتوي على أي شروحات أو رسومات للتصدير.'),
+          ),
+        );
+      }
+      return;
+    }
+    await Printing.sharePdf(
+      bytes: pngBytes,
+      filename: 'lesson_board_${widget.lesson.id}.png',
+    );
+  }
+
+  void _showExportBoardDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'حفظ وتصدير سبورة الدرس',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'تصدير شروحات الأستاذ وملاحظاتك للدرس: ${widget.lesson.title}',
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Colors.red,
+                  ),
+                ),
+                title: const Text(
+                  'تصدير كملف PDF للطباعة والحفظ',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text('ملف PDF منسق بحجم A4 جاهز للطباعة أو المذاكرة'),
+                trailing: const Icon(Icons.chevron_left_rounded),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportLessonBoardAsPdf();
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.image_rounded,
+                    color: Colors.blue,
+                  ),
+                ),
+                title: const Text(
+                  'مشاركة كصورة عالية الدقة (PNG)',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text('مشاركة فورية عبر واتساب أو حفظ في ألبوم الصور'),
+                trailing: const Icon(Icons.chevron_left_rounded),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareLessonBoardAsImage();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -805,8 +1026,8 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                 Positioned.fill(
                   child: _DrawingBoard(
                     strokes: _activeStroke == null
-                        ? _boardStrokes
-                        : [..._boardStrokes, _activeStroke!],
+                        ? _visibleBoardStrokes
+                        : [..._visibleBoardStrokes, _activeStroke!],
                     onPanStart: _startStroke,
                     onPanUpdate: _appendStroke,
                     onPanEnd: _endStroke,
@@ -919,6 +1140,96 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (widget.teacherId == null)
+                        PopupMenuButton<String>(
+                          tooltip: 'طبقات السبورة (شرح المدرس / ملاحظاتي)',
+                          icon: const Icon(
+                            Icons.layers_rounded,
+                            size: 22,
+                            color: AppColors.primary,
+                          ),
+                          onSelected: (val) {
+                            setState(() {
+                              if (val == 'teacher') {
+                                _showTeacherLayer = !_showTeacherLayer;
+                              }
+                              if (val == 'student') {
+                                _showStudentLayer = !_showStudentLayer;
+                              }
+                            });
+                          },
+                          itemBuilder: (ctx) => [
+                            PopupMenuItem(
+                              value: 'teacher',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _showTeacherLayer
+                                        ? Icons.check_box_rounded
+                                        : Icons.check_box_outline_blank_rounded,
+                                    color: Colors.blue,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('شرح الأستاذ 👨‍🏫 (للقراءة)'),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'student',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _showStudentLayer
+                                        ? Icons.check_box_rounded
+                                        : Icons.check_box_outline_blank_rounded,
+                                    color: Colors.green,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text('ملاحظاتي ومذاكرتي 🔒 (سرية تماماً)'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.cast_for_education_rounded,
+                                size: 14,
+                                color: Colors.amber,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'سبورة المعلم',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.share_rounded, size: 20),
+                        tooltip: 'حفظ وتصدير سبورة الدرس كصورة أو PDF',
+                        color: AppColors.primary,
+                        onPressed: _showExportBoardDialog,
                       ),
                     ],
                   ),

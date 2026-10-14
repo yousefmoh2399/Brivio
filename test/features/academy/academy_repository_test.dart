@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/academy/domain/models/academy_models.dart';
-import 'package:flutter_application_1/features/academy/domain/repositories/academy_repositories.dart';
-import 'package:flutter_application_1/features/academy/presentation/viewmodels/academy_viewmodels.dart';
+import 'package:brivio/features/academy/domain/models/academy_models.dart';
+import 'package:brivio/features/academy/domain/repositories/academy_repositories.dart';
+import 'package:brivio/features/academy/presentation/viewmodels/academy_viewmodels.dart';
 
 class FakeBranchRepository implements IBranchRepository {
   List<Branch> branches = [

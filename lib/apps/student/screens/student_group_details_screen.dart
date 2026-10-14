@@ -17,6 +17,7 @@ import '../../../features/study_workspace/data/repositories/supabase_study_works
 import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../../features/study_workspace/presentation/screens/study_workspace_screen.dart';
 import '../../../features/curriculum/domain/models/curriculum_models.dart';
+import '../../../features/assessment/presentation/widgets/student_homework_submission_dialog.dart';
 import '../student_dashboard_models.dart';
 
 class StudentGroupDetailsScreen extends StatefulWidget {
@@ -275,55 +276,12 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       return;
     }
 
-    final textCtrl = TextEditingController();
-    final attachCtrl = TextEditingController();
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('${context.tr('Submit')} ${homework.title}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: textCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Answer / notes'),
-                  alignLabelWithHint: true,
-                ),
-                minLines: 4,
-                maxLines: 8,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: attachCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Attachment URL'),
-                  prefixIcon: const Icon(Icons.link),
-                ),
-                keyboardType: TextInputType.url,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.upload_file),
-            label: Text(context.tr('Submit')),
-          ),
-        ],
-      ),
+    final payload = await StudentHomeworkSubmissionDialog.show(
+      context,
+      homework: homework,
     );
-    if (submitted != true) {
-      textCtrl.dispose();
-      attachCtrl.dispose();
-      return;
-    }
+    if (payload == null) return;
+
     try {
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
       await wrapper.withFreshSession(
@@ -331,26 +289,24 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
           'submit_homework_text',
           params: {
             'p_homework_id': homework.id,
-            'p_submission_text': textCtrl.text.trim(),
-            'p_attachment_url': attachCtrl.text.trim().isEmpty
-                ? null
-                : attachCtrl.text.trim(),
+            'p_submission_text': payload.text,
+            'p_attachment_url': payload.attachmentUrl,
           },
         ),
       );
       await _loadData();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Homework submitted.'))),
+        const SnackBar(
+          content: Text('تم تسليم الواجب وصور الكشكول بنجاح للأستاذ ✅'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
-    } finally {
-      textCtrl.dispose();
-      attachCtrl.dispose();
     }
   }
 
@@ -522,6 +478,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   textSecondary: textSecondary,
                   isDark: isDark,
                   onOpenResource: _openResource,
+                  onOpenLessonBoard: _openLessonBoard,
                 ),
             ],
           ),
@@ -575,6 +532,57 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+    }
+  }
+
+  Future<void> _openLessonBoard({
+    required Semester semester,
+    required Unit unit,
+    required Lesson lesson,
+  }) async {
+    try {
+      final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+      String? pdfUrl;
+      final pdfResource =
+          lesson.resources.where((r) => r.resourceType == 'pdf').firstOrNull;
+      if (pdfResource != null) {
+        try {
+          final resourceRepo = SupabaseLessonResourceRepository(wrapper);
+          pdfUrl = await resourceRepo.getAuthorizedAssetUrl(pdfResource.id);
+        } catch (_) {}
+      }
+
+      final summary = StudyLessonSummary(
+        id: lesson.id,
+        title: lesson.title,
+        pathName: semester.name,
+        unitName: unit.name,
+        progressPercentage: 0,
+        estimatedMinutes: lesson.estimatedDurationMinutes ?? 30,
+        lastPage: 1,
+        totalPages: 0,
+        xp: 0,
+        hasPdf: pdfUrl != null,
+        hasCodePlayground: false,
+        pdfUrl: pdfUrl,
+        groupId: widget.group.id,
+      );
+
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => StudyWorkspaceScreen(
+            lesson: summary,
+            studentId: _studentId,
+            repository: SupabaseStudyWorkspaceRepository(wrapper),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open board: $e')));
     }
   }
 
@@ -1019,6 +1027,13 @@ typedef _OpenLessonResource =
       required LessonResource resource,
     });
 
+typedef _OpenLessonBoard =
+    Future<void> Function({
+      required Semester semester,
+      required Unit unit,
+      required Lesson lesson,
+    });
+
 class _StudentUnitSection extends StatelessWidget {
   final Semester semester;
   final Unit unit;
@@ -1026,6 +1041,7 @@ class _StudentUnitSection extends StatelessWidget {
   final Color textSecondary;
   final bool isDark;
   final _OpenLessonResource onOpenResource;
+  final _OpenLessonBoard onOpenLessonBoard;
 
   const _StudentUnitSection({
     required this.semester,
@@ -1034,6 +1050,7 @@ class _StudentUnitSection extends StatelessWidget {
     required this.textSecondary,
     required this.isDark,
     required this.onOpenResource,
+    required this.onOpenLessonBoard,
   });
 
   @override
@@ -1072,6 +1089,7 @@ class _StudentUnitSection extends StatelessWidget {
               textPrimary: textPrimary,
               textSecondary: textSecondary,
               onOpenResource: onOpenResource,
+              onOpenLessonBoard: onOpenLessonBoard,
             ),
         ],
       ),
@@ -1086,6 +1104,7 @@ class _StudentLessonRow extends StatelessWidget {
   final Color textPrimary;
   final Color textSecondary;
   final _OpenLessonResource onOpenResource;
+  final _OpenLessonBoard onOpenLessonBoard;
 
   const _StudentLessonRow({
     required this.semester,
@@ -1094,6 +1113,7 @@ class _StudentLessonRow extends StatelessWidget {
     required this.textPrimary,
     required this.textSecondary,
     required this.onOpenResource,
+    required this.onOpenLessonBoard,
   });
 
   @override
@@ -1144,31 +1164,46 @@ class _StudentLessonRow extends StatelessWidget {
                   ].join(' · '),
                   style: AppTypography.caption(textSecondary),
                 ),
-                if (resources.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final resource in resources)
-                        ActionChip(
-                          avatar: Icon(
-                            resource.resourceType == 'pdf'
-                                ? Icons.picture_as_pdf_rounded
-                                : Icons.insert_drive_file_rounded,
-                            size: 16,
-                          ),
-                          label: Text(resource.title),
-                          onPressed: () => onOpenResource(
-                            semester: semester,
-                            unit: unit,
-                            lesson: lesson,
-                            resource: resource,
-                          ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ActionChip(
+                      avatar: const Icon(
+                        Icons.draw_rounded,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      label: Text(
+                        context.tr('سبورة شرح المدرس ومذاكرتي'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      onPressed: () => onOpenLessonBoard(
+                        semester: semester,
+                        unit: unit,
+                        lesson: lesson,
+                      ),
+                    ),
+                    for (final resource in resources)
+                      ActionChip(
+                        avatar: Icon(
+                          resource.resourceType == 'pdf'
+                              ? Icons.picture_as_pdf_rounded
+                              : Icons.insert_drive_file_rounded,
+                          size: 16,
                         ),
-                    ],
-                  ),
-                ],
+                        label: Text(resource.title),
+                        onPressed: () => onOpenResource(
+                          semester: semester,
+                          unit: unit,
+                          lesson: lesson,
+                          resource: resource,
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

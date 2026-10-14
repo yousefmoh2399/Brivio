@@ -110,6 +110,24 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
       for (final student in roster) student.id: AttendanceStatus.present,
     };
 
+    final Map<String, double> studentArrears = {};
+    try {
+      final studentIds = roster.map((s) => s.id).toList();
+      final invoices = await Supabase.instance.client
+          .from('invoices')
+          .select('student_id, total_amount, paid_amount, status')
+          .inFilter('student_id', studentIds);
+      for (final inv in (invoices as List)) {
+        final sid = inv['student_id']?.toString() ?? '';
+        final total = (inv['total_amount'] as num?)?.toDouble() ?? 0.0;
+        final paid = (inv['paid_amount'] as num?)?.toDouble() ?? 0.0;
+        final remaining = total - paid;
+        if (remaining > 0) {
+          studentArrears[sid] = (studentArrears[sid] ?? 0.0) + remaining;
+        }
+      }
+    } catch (_) {}
+
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
@@ -118,27 +136,78 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
             '${context.tr('Roll Call')}: ${session.location ?? context.tr('Session')}',
           ),
           content: SizedBox(
-            width: 520,
-            child: ListView.builder(
+            width: 540,
+            child: ListView.separated(
               shrinkWrap: true,
               itemCount: roster.length,
+              separatorBuilder: (_, __) => const Divider(height: 16),
               itemBuilder: (listCtx, index) {
                 final student = roster[index];
-                return DropdownButtonFormField<AttendanceStatus>(
-                  initialValue: statuses[student.id],
-                  decoration: InputDecoration(labelText: student.fullName),
-                  items: AttendanceStatus.values
-                      .map(
-                        (status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status.name),
+                final arrears = studentArrears[student.id] ?? 0.0;
+                final isPaid = arrears <= 0;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            student.fullName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setStateDialog(() => statuses[student.id] = value);
-                  },
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isPaid
+                                ? Colors.green.withValues(alpha: 0.12)
+                                : Colors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isPaid
+                                  ? Colors.green.withValues(alpha: 0.3)
+                                  : Colors.red.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            isPaid
+                                ? '🟢 مسدد بالكامل'
+                                : '🔴 متأخرات: ${arrears.toStringAsFixed(0)} ج.م',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isPaid ? Colors.green.shade800 : Colors.red.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<AttendanceStatus>(
+                      initialValue: statuses[student.id],
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: AttendanceStatus.values
+                          .map(
+                            (status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(status.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setStateDialog(() => statuses[student.id] = value);
+                      },
+                    ),
+                  ],
                 );
               },
             ),

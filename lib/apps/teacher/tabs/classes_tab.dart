@@ -43,9 +43,12 @@ class _ClassesTabState extends State<ClassesTab>
         : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
 
-    return Column(
-      children: [
-        Container(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Column(
+          children: [
+            Container(
           color: bgColor,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Column(
@@ -130,6 +133,8 @@ class _ClassesTabState extends State<ClassesTab>
           ),
         ),
       ],
-    );
-  }
+    ),
+  ),
+);
+}
 }

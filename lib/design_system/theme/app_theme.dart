@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../tokens/colors.dart';
 import '../tokens/typography.dart';
 
@@ -20,6 +21,10 @@ class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.darkBackground,
+      textTheme: GoogleFonts.cairoTextTheme(base.textTheme).apply(
+        bodyColor: AppColors.darkTextPrimary,
+        displayColor: AppColors.darkTextPrimary,
+      ),
 
       colorScheme: const ColorScheme.dark(
         brightness: Brightness.dark,
@@ -342,10 +347,13 @@ class AppTheme {
   //  LIGHT THEME
   // ───────────────────────────────────────────────────────────────────────────
   static ThemeData lightTheme() {
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
+    final base = ThemeData(useMaterial3: true, brightness: Brightness.light);
+    return base.copyWith(
       scaffoldBackgroundColor: AppColors.lightBackground,
+      textTheme: GoogleFonts.cairoTextTheme(base.textTheme).apply(
+        bodyColor: AppColors.lightTextPrimary,
+        displayColor: AppColors.lightTextPrimary,
+      ),
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,

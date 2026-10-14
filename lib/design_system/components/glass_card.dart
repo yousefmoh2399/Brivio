@@ -37,24 +37,31 @@ class GlassCard extends StatelessWidget {
     final glassColor = color ?? AppColors.glassMedium;
     final border = borderColor ?? AppColors.glassBorder;
 
-    Widget content = ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: glassColor,
-            borderRadius: radius,
-            border: Border.all(color: border, width: 0.6),
-            boxShadow: boxShadow,
-          ),
-          padding: padding ?? const EdgeInsets.all(20),
-          child: Material(type: MaterialType.transparency, child: child),
-        ),
+    final cardBody = Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: glassColor,
+        borderRadius: radius,
+        border: Border.all(color: border, width: 0.6),
+        boxShadow: boxShadow,
       ),
+      padding: padding ?? const EdgeInsets.all(20),
+      child: Material(type: MaterialType.transparency, child: child),
     );
+
+    Widget content = blur > 0
+        ? ClipRRect(
+            borderRadius: radius,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: cardBody,
+            ),
+          )
+        : ClipRRect(
+            borderRadius: radius,
+            child: cardBody,
+          );
 
     if (onTap != null) {
       content = GestureDetector(onTap: onTap, child: content);

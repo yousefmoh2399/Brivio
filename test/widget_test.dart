@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_1/core/di/injection.dart';
-import 'package:flutter_application_1/core/network/supabase_client_wrapper.dart';
-import 'package:flutter_application_1/core/testing/dummy_auth_repository.dart';
-import 'package:flutter_application_1/main.dart';
+import 'package:brivio/core/di/injection.dart';
+import 'package:brivio/core/network/supabase_client_wrapper.dart';
+import 'package:brivio/core/testing/dummy_auth_repository.dart';
+import 'package:brivio/main.dart';
 
 class FakeSupabaseClientWrapper extends Fake implements SupabaseClientWrapper {}
 

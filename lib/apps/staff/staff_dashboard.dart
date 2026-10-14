@@ -18,9 +18,18 @@ import '../../features/communication/domain/repositories/i_notification_reposito
 import '../../features/communication/presentation/screens/notification_center_screen.dart';
 import '../../features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
 import '../../features/attendance/presentation/screens/attendance_operations_screen.dart';
+import '../../features/attendance/presentation/screens/reception_qr_gate_screen.dart';
 import '../../features/helpdesk/presentation/screens/helpdesk_management_screen.dart';
 import '../../features/payments/presentation/screens/finance_management_screen.dart';
+import '../../features/payments/presentation/screens/teacher_settlement_screen.dart';
 import '../../features/reports/presentation/screens/reports_dashboard_screen.dart';
+import '../../features/reports/presentation/screens/attendance_reports_screen.dart';
+import '../../features/payments/presentation/screens/bookstore_pos_screen.dart';
+import '../../features/payments/presentation/screens/daily_cash_register_screen.dart';
+import '../../features/academy/presentation/screens/classroom_capacity_screen.dart';
+import '../../features/attendance/presentation/screens/reception_live_tv_kiosk_screen.dart';
+import '../../features/academy/presentation/widgets/center_switcher_widget.dart';
+import '../../features/academy/presentation/widgets/join_center_dialog.dart';
 
 class StaffDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -596,6 +605,93 @@ class _StaffDashboardState extends State<StaffDashboard> {
               subtitle: 'Students, groups, attendance, leave, and payments',
               icon: Icons.badge,
               accentColor: AppColors.primary,
+              trailing: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  CenterSwitcherWidget(
+                    onCenterChanged: _loadStaffData,
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'بوابة الاستقبال والباركود',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ReceptionQrGateScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'تصفية أرباح المدرسين',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TeacherSettlementScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.calculate_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'كشوفات الحضور للطباعة (PDF)',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AttendanceReportsScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.print_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'جرد وتقفيل الخزينة والوردية (Shift Closing)',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const DailyCashRegisterScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.point_of_sale_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'بيع الملازم والمخزن (POS)',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const BookstorePosScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.shopping_bag_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'سعة القاعات والمقاعد',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ClassroomCapacityScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.meeting_room_rounded),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'شاشة العرض التلفزيونية للاستقبال (TV)',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ReceptionLiveTvKioskScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.tv_rounded),
+                  ),
+                ],
+              ),
             ),
             if (_dataWarnings.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -649,6 +745,82 @@ class _StaffDashboardState extends State<StaffDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const PortalSectionTitle(
+          title: 'العمليات السريعة للاستقبال',
+          subtitle: 'مسح الباركود، تحصيل فوري، وتصفية مستحقات المدرسين',
+        ),
+        const SizedBox(height: 12),
+        PortalMetricGrid(
+          children: [
+            PortalMetricCard(
+              label: 'بوابة الاستقبال (QR)',
+              value: 'مسح فوري',
+              icon: Icons.qr_code_scanner_rounded,
+              accentColor: AppColors.primary,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ReceptionQrGateScreen(),
+                  ),
+                );
+              },
+            ),
+            PortalMetricCard(
+              label: 'تصفية أرباح المدرسين',
+              value: 'حساب النسب',
+              icon: Icons.calculate_rounded,
+              accentColor: AppColors.teacherRole,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const TeacherSettlementScreen(),
+                  ),
+                );
+              },
+            ),
+            PortalMetricCard(
+              label: 'كشوفات الحضور (PDF)',
+              value: 'تصدير وطباعة',
+              icon: Icons.print_rounded,
+              accentColor: AppColors.staffRole,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AttendanceReportsScreen(),
+                  ),
+                );
+              },
+            ),
+            PortalMetricCard(
+              label: 'تقفيل الخزينة اليومية',
+              value: 'جرد الوردية',
+              icon: Icons.point_of_sale_rounded,
+              accentColor: AppColors.success,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DailyCashRegisterScreen(),
+                  ),
+                );
+              },
+            ),
+            PortalMetricCard(
+              label: 'انضمام لسنتر بكود',
+              value: 'ربط الفروع',
+              icon: Icons.add_business_rounded,
+              accentColor: AppColors.warning,
+              onTap: () {
+                JoinCenterDialog.show(context, onJoined: _loadStaffData);
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const PortalSectionTitle(
+          title: 'ملخص العمليات والمهام',
+          subtitle: 'متابعة الطلبات المعلقة والطلاب والمجموعات',
+        ),
+        const SizedBox(height: 12),
         PortalMetricGrid(
           children: [
             PortalMetricCard(

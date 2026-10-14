@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/assessment/domain/models/assessment_models.dart';
-import 'package:flutter_application_1/features/assessment/presentation/screens/assessment_screens.dart';
+import 'package:brivio/features/assessment/domain/models/assessment_models.dart';
+import 'package:brivio/features/assessment/presentation/screens/assessment_screens.dart';
 
 void main() {
   group('Assessment Engine Models & Widget Tests', () {

@@ -13,6 +13,8 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../domain/models/user_role.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../../../academy/presentation/screens/register_center_screen.dart';
+import '../../../legal/presentation/screens/privacy_and_terms_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final UserRole? targetRole;
@@ -59,6 +61,14 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(LoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.targetRole != widget.targetRole) {
+      _roleCircle = null;
+    }
   }
 
   Color get _roleColor {
@@ -183,24 +193,34 @@ class _LoginScreenState extends State<LoginScreen>
               : AppColors.lightBackground,
           body: Stack(
             children: [
-              // Animated ambient background
+              // High-performance animated ambient background with zero-cost RadialGradient glows
               if (isDark) ...[
                 Builder(
                   builder: (context) {
                     _roleCircle ??= Container(
-                      width: 400,
-                      height: 400,
+                      width: 440,
+                      height: 440,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _roleColor.withValues(alpha: 0.15),
+                        gradient: RadialGradient(
+                          colors: [
+                            _roleColor.withValues(alpha: 0.24),
+                            _roleColor.withValues(alpha: 0.0),
+                          ],
+                        ),
                       ),
                     );
                     _purpleCircle ??= Container(
-                      width: 500,
-                      height: 500,
+                      width: 520,
+                      height: 520,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.purple.withValues(alpha: 0.12),
+                        gradient: RadialGradient(
+                          colors: [
+                            AppColors.purple.withValues(alpha: 0.18),
+                            AppColors.purple.withValues(alpha: 0.0),
+                          ],
+                        ),
                       ),
                     );
                     return const SizedBox();
@@ -234,14 +254,6 @@ class _LoginScreenState extends State<LoginScreen>
                   },
                 ),
               ],
-              // Extreme blur for ambient effect
-              if (isDark)
-                Positioned.fill(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
-                    child: const SizedBox(),
-                  ),
-                ),
 
               SafeArea(
                 child: Center(
@@ -269,12 +281,12 @@ class _LoginScreenState extends State<LoginScreen>
                             child: GlassCard(
                               padding: const EdgeInsets.all(28),
                               color: isDark
-                                  ? AppColors.darkSurface.withValues(alpha: 0.6)
-                                  : Colors.white.withValues(alpha: 0.8),
+                                  ? AppColors.darkSurface.withValues(alpha: 0.75)
+                                  : Colors.white.withValues(alpha: 0.90),
                               borderColor: isDark
                                   ? AppColors.glassBorder
                                   : AppColors.lightGlassBorder,
-                              blur: 30,
+                              blur: 0,
                               child: Form(
                                 key: _formKey,
                                 child: Column(
@@ -406,8 +418,63 @@ class _LoginScreenState extends State<LoginScreen>
                                             : _openQrLoginScanner,
                                         color: textPrimary,
                                       ),
+                                      const SizedBox(height: 12),
+                                      OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          minimumSize: const Size(double.infinity, 48),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(14),
+                                          ),
+                                          side: BorderSide(
+                                            color: AppColors.primary.withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        icon: const Icon(Icons.add_business_rounded, color: AppColors.primary),
+                                        label: const Text(
+                                          'صاحب سنتر؟ سجّل سنترك الآن مجاناً',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        onPressed: state.status == AuthStatus.loading
+                                            ? null
+                                            : () async {
+                                                final res = await Navigator.of(context).push<bool>(
+                                                  MaterialPageRoute(
+                                                    builder: (_) => const RegisterCenterScreen(),
+                                                  ),
+                                                );
+                                                if (res == true) {
+                                                  widget.viewModel.restoreSession();
+                                                }
+                                              },
+                                      ),
                                     ],
                                   ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          FadeInSlide(
+                            duration: const Duration(milliseconds: 600),
+                            delay: const Duration(milliseconds: 250),
+                            child: TextButton.icon(
+                              onPressed: () => PrivacyAndTermsScreen.show(context),
+                              icon: Icon(
+                                Icons.shield_outlined,
+                                size: 14,
+                                color: textSecondary.withValues(alpha: 0.7),
+                              ),
+                              label: Text(
+                                'شروط الخدمة وسياسة الخصوصية وأمان البيانات',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: textSecondary.withValues(alpha: 0.8),
+                                  decoration: TextDecoration.underline,
                                 ),
                               ),
                             ),

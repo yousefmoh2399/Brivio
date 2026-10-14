@@ -6,6 +6,7 @@ import '../../../design_system/tokens/typography.dart';
 import '../../../features/academy/domain/models/academy_models.dart';
 import '../../../features/academy/presentation/screens/academy_screens.dart';
 import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
+import '../../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
 
 class LearnTab extends StatelessWidget {
   final bool isLoading;
@@ -35,10 +36,13 @@ class LearnTab extends StatelessWidget {
       lessonsByPath.putIfAbsent(lesson.pathName, () => []).add(lesson);
     }
 
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        SliverAppBar(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1050),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
           backgroundColor: isDark
               ? AppColors.darkBackground
               : AppColors.lightBackground,
@@ -50,6 +54,24 @@ class LearnTab extends StatelessWidget {
               textPrimary,
             ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
           ),
+          actions: [
+            IconButton(
+              tooltip: 'سبورتي ومسودتي الشخصية',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StudentPersonalBoardScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.draw_rounded,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         if (isLoading)
           const SliverFillRemaining(
@@ -155,8 +177,10 @@ class LearnTab extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 class _LearningPathSection extends StatelessWidget {

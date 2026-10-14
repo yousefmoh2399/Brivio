@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:flutter_application_1/features/study_workspace/domain/models/study_workspace_models.dart';
-import 'package:flutter_application_1/features/study_workspace/presentation/screens/study_workspace_screen.dart';
+import 'package:brivio/features/study_workspace/domain/models/study_workspace_models.dart';
+import 'package:brivio/features/study_workspace/presentation/screens/study_workspace_screen.dart';
 
 void main() {
   const lesson = StudyLessonSummary(

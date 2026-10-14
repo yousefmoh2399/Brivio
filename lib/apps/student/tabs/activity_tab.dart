@@ -122,9 +122,12 @@ class _ActivityTabState extends State<ActivityTab>
         : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
 
-    return Column(
-      children: [
-        // ── Header ──
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1050),
+        child: Column(
+          children: [
+            // ── Header ──
         Container(
           color: bgColor,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -192,8 +195,7 @@ class _ActivityTabState extends State<ActivityTab>
                     ),
                     tabs: [
                       Tab(
-                        text:
-                            '${context.tr('Homework')} & ${context.tr('Exams')}',
+                        text: context.tr('Homework & Exams'),
                       ),
                       Tab(text: context.tr('Attendance')),
                       Tab(text: context.tr('Boards')),
@@ -234,8 +236,10 @@ class _ActivityTabState extends State<ActivityTab>
           ),
         ),
       ],
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 class _SectionLabel extends StatelessWidget {
@@ -321,21 +325,42 @@ Future<void> _showAssessmentReviewDialog(
     builder: (_) => const Center(child: CircularProgressIndicator()),
   );
 
-  late final dynamic raw;
+  dynamic raw;
   try {
     raw = await Supabase.instance.client.rpc(rpcName, params: params);
-  } catch (_) {
+  } catch (e) {
     if (context.mounted && loaderVisible) {
       Navigator.of(context).pop();
+      loaderVisible = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'لم يتم إعلان تفاصيل النتيجة أو نموذج الإجابة بعد من قِبل المدرس.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
-    rethrow;
+    return;
   }
 
   if (!context.mounted) return;
-  Navigator.of(context).pop();
-  loaderVisible = false;
+  if (loaderVisible) {
+    Navigator.of(context).pop();
+    loaderVisible = false;
+  }
 
-  final review = Map<String, dynamic>.from(raw as Map);
+  if (raw == null || raw is! Map) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('بيانات المراجعة غير متوفرة حالياً.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+
+  final review = Map<String, dynamic>.from(raw);
   final released = review['released'] == true;
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final textPrimary = isDark

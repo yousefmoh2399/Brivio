@@ -63,11 +63,22 @@ class AcademyMaterialApp extends StatelessWidget {
             final backgroundColor = isDarkBackground
                 ? AppColors.darkBackground
                 : AppColors.lightBackground;
-            return Directionality(
-              textDirection: textDirection,
-              child: ColoredBox(
-                color: backgroundColor,
-                child: child ?? const SizedBox.shrink(),
+            final mediaQuery = MediaQuery.of(context);
+            final clampedMediaQuery = mediaQuery.copyWith(
+              textScaler: mediaQuery.textScaler.clamp(
+                minScaleFactor: 0.85,
+                maxScaleFactor: 1.05,
+              ),
+            );
+
+            return MediaQuery(
+              data: clampedMediaQuery,
+              child: Directionality(
+                textDirection: textDirection,
+                child: ColoredBox(
+                  color: backgroundColor,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             );
           },

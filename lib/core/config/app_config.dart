@@ -1,17 +1,18 @@
 import 'package:flutter/foundation.dart';
+
 import '../logging/app_logger.dart';
 
 /// Centralized application environment and Supabase configuration.
 class AppConfig {
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://jprscnyqjkzlofzfaarw.supabase.co',
+    defaultValue: 'https://yuwkjrukshwkgiahebtq.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwcnNjbnlxamt6bG9memZhYXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMzUyMjksImV4cCI6MjEwMTgxMTIyOX0.BH2ZkP2jjP1nWpiNvPPpk11VmWYMK54xymNxvt15_zc',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1d2tqcnVrc2h3a2dpYWhlYnRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzgxMDEsImV4cCI6MjEwNzQ1NDEwMX0.0rrr0dj75s0rECuBwkZDDTZjgt7gsFA9yImdPFMNXlk',
   );
 
   static const String codeSandboxUrl = String.fromEnvironment(

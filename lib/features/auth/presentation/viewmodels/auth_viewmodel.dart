@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_application_1/core/errors/failures.dart';
-import 'package:flutter_application_1/core/logging/app_logger.dart';
-import 'package:flutter_application_1/core/notifications/push_notification_service.dart';
-import 'package:flutter_application_1/core/security/permission.dart';
-import 'package:flutter_application_1/features/auth/domain/models/auth_user_bootstrap.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_profile.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_role.dart';
-import 'package:flutter_application_1/features/auth/domain/repositories/i_auth_repository.dart';
+import 'package:brivio/core/errors/failures.dart';
+import 'package:brivio/core/logging/app_logger.dart';
+import 'package:brivio/core/notifications/push_notification_service.dart';
+import 'package:brivio/core/security/permission.dart';
+import 'package:brivio/features/auth/domain/models/auth_user_bootstrap.dart';
+import 'package:brivio/features/auth/domain/models/user_profile.dart';
+import 'package:brivio/features/auth/domain/models/user_role.dart';
+import 'package:brivio/features/auth/domain/repositories/i_auth_repository.dart';
 
 enum AuthStatus {
   initial,
@@ -241,6 +241,8 @@ class AuthViewModel extends ChangeNotifier {
           studentId: bootstrap.studentId,
           parentId: bootstrap.parentId,
           teacherId: bootstrap.teacherId,
+          activeCenter: bootstrap.activeCenter,
+          availableCenters: bootstrap.availableCenters,
         ),
       );
     } on Failure catch (f) {
@@ -249,6 +251,17 @@ class AuthViewModel extends ChangeNotifier {
       _state = AuthState.error(UnexpectedFailure(message: e.toString()));
     }
     notifyListeners();
+  }
+
+  /// Reload user bootstrap after center registration, linking, or switching
+  Future<void> reloadBootstrap() async {
+    try {
+      final bootstrap = await _authRepository.fetchUserBootstrap();
+      _state = AuthState.authenticated(bootstrap);
+      notifyListeners();
+    } catch (e) {
+      AppLogger.warning('Failed to reload bootstrap: $e');
+    }
   }
 
   Future<void> signOut() async {

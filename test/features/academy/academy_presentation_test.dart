@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/academy/domain/models/academy_models.dart';
-import 'package:flutter_application_1/features/academy/presentation/screens/academy_screens.dart';
+import 'package:brivio/features/academy/domain/models/academy_models.dart';
+import 'package:brivio/features/academy/presentation/screens/academy_screens.dart';
 
 void main() {
   group('Academy Core Presentation Widget Tests', () {

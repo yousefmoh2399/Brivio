@@ -15,7 +15,7 @@ class SettingsService extends ChangeNotifier {
   static const _timeZoneKey = 'time_zone';
 
   ThemeMode _themeMode = ThemeMode.system;
-  AppLanguage _language = AppLanguage.english;
+  AppLanguage _language = AppLanguage.arabic;
   bool _animationQuality = true;
   bool _pushNotifications = true;
   bool _emailDigest = false;
@@ -50,10 +50,12 @@ class SettingsService extends ChangeNotifier {
       _themeMode = ThemeMode.values[themeIndex];
     }
 
-    // Load Language
+    // Load Language (Defaults to Arabic for Egyptian Educational Centers)
     final langCode = _prefs.getString(_langKey);
     if (langCode != null) {
       _language = AppLanguage.fromCode(langCode);
+    } else {
+      _language = AppLanguage.arabic;
     }
 
     _animationQuality = _prefs.getBool(_animationQualityKey) ?? true;

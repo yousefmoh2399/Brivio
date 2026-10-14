@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/features/attendance/domain/models/attendance_models.dart';
-import 'package:flutter_application_1/features/attendance/presentation/screens/attendance_screens.dart';
+import 'package:brivio/features/attendance/domain/models/attendance_models.dart';
+import 'package:brivio/features/attendance/presentation/screens/attendance_screens.dart';
 
 void main() {
   group('Attendance Engine Models & Widget Tests', () {

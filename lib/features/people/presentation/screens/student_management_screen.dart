@@ -385,6 +385,49 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }
   }
 
+  Future<void> _printBulkIdCards() async {
+    if (_students.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يوجد طلاب مسجلون لطباعة الكارنيهات.')),
+      );
+      return;
+    }
+
+    try {
+      final service = ReportGeneratorService();
+      final studentsData = _students
+          .map(
+            (s) => {
+              'name': s.fullName,
+              'code': s.studentCode,
+              'phone': s.phoneNumber ?? '',
+              'grade': s.gradeLevel ?? 'المرحلة التعليمية',
+            },
+          )
+          .toList();
+
+      await service.generateBulkStudentIdCardsPdf(
+        students: studentsData,
+        centerName: 'سنتر الأوائل التعليمي',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم توليد شيت كارنيهات الطلاب بنجاح (جاهز للطباعة والتغليف)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل توليد الكارنيهات: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _students.where((s) {
@@ -405,6 +448,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           icon: Icons.refresh,
           label: 'Refresh',
           onPressed: _loadStudents,
+        ),
+        PortalAction(
+          icon: Icons.badge_outlined,
+          label: 'طباعة الكارنيهات (PDF)',
+          onPressed: _printBulkIdCards,
+          primary: false,
         ),
         PortalAction(
           icon: Icons.person_add,

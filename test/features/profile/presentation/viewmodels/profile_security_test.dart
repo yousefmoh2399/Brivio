@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_profile.dart';
-import 'package:flutter_application_1/features/auth/domain/models/user_role.dart';
-import 'package:flutter_application_1/features/auth/domain/repositories/i_auth_repository.dart';
-import 'package:flutter_application_1/features/profile/presentation/viewmodels/profile_viewmodel.dart';
+import 'package:brivio/features/auth/domain/models/user_profile.dart';
+import 'package:brivio/features/auth/domain/models/user_role.dart';
+import 'package:brivio/features/auth/domain/repositories/i_auth_repository.dart';
+import 'package:brivio/features/profile/presentation/viewmodels/profile_viewmodel.dart';
 
 class MockAuthRepository extends Mock implements IAuthRepository {}
 

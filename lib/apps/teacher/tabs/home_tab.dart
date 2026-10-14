@@ -7,6 +7,11 @@ import '../../../design_system/widgets/portal_components.dart';
 import '../../../features/auth/domain/models/user_profile.dart';
 import '../teacher_dashboard.dart';
 import '../../../features/code_playground/presentation/screens/code_playground_screen.dart';
+import '../../../features/academy/presentation/widgets/center_switcher_widget.dart';
+import '../../../features/attendance/presentation/screens/reception_qr_gate_screen.dart';
+import '../../../features/payments/presentation/screens/teacher_settlement_screen.dart';
+import '../../../features/reports/presentation/screens/attendance_reports_screen.dart';
+import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 
 class HomeTab extends StatelessWidget {
   final UserProfile? user;
@@ -45,12 +50,15 @@ class HomeTab extends StatelessWidget {
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
 
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          backgroundColor: isDark
-              ? AppColors.darkBackground
-              : AppColors.lightBackground,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              backgroundColor: isDark
+                  ? AppColors.darkBackground
+                  : AppColors.lightBackground,
           surfaceTintColor: Colors.transparent,
           pinned: true,
           title: Text(
@@ -60,6 +68,12 @@ class HomeTab extends StatelessWidget {
             ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.add_business_rounded),
+              tooltip: 'الانضمام لسنتر جديد بكود',
+              onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
+            ),
+            CenterSwitcherWidget(onCenterChanged: onRetry),
             IconButton(
               icon: const Icon(Icons.refresh_rounded),
               onPressed: onRetry,
@@ -221,6 +235,117 @@ class HomeTab extends StatelessWidget {
                   ),
                 ),
 
+                const SizedBox(height: 24),
+
+                // Egyptian Center Quick Operations
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 500),
+                  delay: const Duration(milliseconds: 180),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'إدارة السنتر والحصة السريعة',
+                        style: AppTypography.titleLarge(textPrimary).copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth >= 720;
+                          final card1 = _TeacherQuickActionCard(
+                            title: 'بوابة الحضور السريع',
+                            subtitle: 'مسح QR وتحصيل المصاريف',
+                            icon: Icons.qr_code_scanner_rounded,
+                            color: AppColors.primary,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ReceptionQrGateScreen(),
+                                ),
+                              );
+                            },
+                          );
+                          final card2 = _TeacherQuickActionCard(
+                            title: 'تصفية أرباح الحصة',
+                            subtitle: 'حساب نسبة المدرس والمصاريف',
+                            icon: Icons.calculate_rounded,
+                            color: AppColors.teacherRole,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const TeacherSettlementScreen(),
+                                ),
+                              );
+                            },
+                          );
+                          final card3 = _TeacherQuickActionCard(
+                            title: 'كشف الحضور (PDF)',
+                            subtitle: 'تصدير وطباعة كشوفات الغياب',
+                            icon: Icons.print_rounded,
+                            color: AppColors.staffRole,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AttendanceReportsScreen(),
+                                ),
+                              );
+                            },
+                          );
+                          final card4 = _TeacherQuickActionCard(
+                            title: 'انضمام لسنتر بكود',
+                            subtitle: 'الربط مع سنتر آخر بسهولة',
+                            icon: Icons.add_business_rounded,
+                            color: AppColors.warning,
+                            onTap: () {
+                              JoinCenterDialog.show(context, onJoined: onRetry);
+                            },
+                          );
+
+                          if (isWide) {
+                            return Row(
+                              children: [
+                                Expanded(child: card1),
+                                const SizedBox(width: 12),
+                                Expanded(child: card2),
+                                const SizedBox(width: 12),
+                                Expanded(child: card3),
+                                const SizedBox(width: 12),
+                                Expanded(child: card4),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: card1),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: card2),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(child: card3),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: card4),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
                 const SizedBox(height: 32),
 
                 FadeInSlide(
@@ -269,8 +394,10 @@ class HomeTab extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 class _TeacherGroupAnalyticsCard extends StatelessWidget {
@@ -426,6 +553,104 @@ class _AnalyticsMiniMetric extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TeacherQuickActionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _TeacherQuickActionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              width: 0.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.25)
+                    : color.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.titleSmall(
+                        isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption(
+                        isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 12,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextTertiary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

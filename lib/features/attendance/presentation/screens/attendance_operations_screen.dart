@@ -9,6 +9,7 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_attendance_repositories.dart';
 import '../../domain/models/attendance_models.dart';
+import 'reception_qr_gate_screen.dart';
 
 class AttendanceOperationsScreen extends StatefulWidget {
   const AttendanceOperationsScreen({super.key});
@@ -314,8 +315,19 @@ class _AttendanceOperationsScreenState
         accentColor: AppColors.adminRole,
         actions: [
           PortalAction(
+            icon: Icons.qr_code_scanner_rounded,
+            label: 'بوابة الاستقبال QR',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ReceptionQrGateScreen(),
+                ),
+              );
+            },
+          ),
+          PortalAction(
             icon: Icons.refresh,
-            label: 'Refresh',
+            label: 'تحديث',
             onPressed: _loadData,
           ),
         ],
