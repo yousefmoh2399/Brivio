@@ -560,6 +560,160 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
   }
 
+  Widget _buildLiveChildPresenceCard() {
+    final child = _selectedChild;
+    if (child == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    _ParentAttendanceItem? todayItem;
+    for (final item in _attendance) {
+      final date = item.sessionDate ?? item.markedAt;
+      if (date != null &&
+          date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
+        todayItem = item;
+        break;
+      }
+    }
+
+    final isPresent = todayItem != null &&
+        (todayItem.status == 'present' || todayItem.status == 'late') &&
+        todayItem.checkOutAt == null;
+    final isCheckedOut = todayItem != null && todayItem.checkOutAt != null;
+    final isAbsent = todayItem != null && todayItem.status == 'absent';
+
+    Color cardColor;
+    Color accentColor;
+    IconData icon;
+    String statusTitle;
+    String statusSubtitle;
+    String badgeText;
+
+    if (isPresent) {
+      cardColor = const Color(0xFF064E3B).withValues(alpha: 0.15);
+      accentColor = const Color(0xFF10B981);
+      icon = Icons.verified_user_rounded;
+      statusTitle = 'متواجد حالياً داخل السنتر 🏫';
+      final timeStr = todayItem.markedAt != null
+          ? '${todayItem.markedAt!.hour.toString().padLeft(2, '0')}:${todayItem.markedAt!.minute.toString().padLeft(2, '0')}'
+          : '';
+      statusSubtitle = 'سجل الحضور الساعة $timeStr • ${todayItem.groupName}';
+      badgeText = 'في القاعة الآن 🟢';
+    } else if (isCheckedOut) {
+      cardColor = const Color(0xFF1E3A8A).withValues(alpha: 0.15);
+      accentColor = const Color(0xFF3B82F6);
+      icon = Icons.directions_walk_rounded;
+      statusTitle = 'غادر السنتر بأمان 👋';
+      final outTime = todayItem.checkOutAt != null
+          ? '${todayItem.checkOutAt!.hour.toString().padLeft(2, '0')}:${todayItem.checkOutAt!.minute.toString().padLeft(2, '0')}'
+          : '';
+      statusSubtitle = 'تم تسجيل الانصراف الساعة $outTime • ${todayItem.groupName}';
+      badgeText = 'انصرف بنجاح ✔️';
+    } else if (isAbsent) {
+      cardColor = const Color(0xFF7F1D1D).withValues(alpha: 0.15);
+      accentColor = const Color(0xFFEF4444);
+      icon = Icons.warning_amber_rounded;
+      statusTitle = 'غائب عن حصة اليوم ⚠️';
+      statusSubtitle = 'تم تسجيل غياب الطالب في حصة ${todayItem.groupName}';
+      badgeText = 'غياب غير مسجل بعذر';
+    } else {
+      cardColor = AppColors.primary.withValues(alpha: 0.08);
+      accentColor = AppColors.primary;
+      icon = Icons.school_rounded;
+      statusTitle = 'حالة الحضور والتواجد بالسنتر';
+      final next = _learningSnapshot?.nextLesson;
+      statusSubtitle = next != null
+          ? 'الدرس القادم: ${next.title} (${next.pathName})'
+          : 'لا توجد حصص مسجلة لليوم.';
+      badgeText = 'مجدول ⏳';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: accentColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      statusTitle,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      statusSubtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (isAbsent) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _createLeaveRequest,
+                icon: const Icon(Icons.note_add_rounded, size: 16),
+                label: const Text('تقديم عذر غياب رسمي للسنتر'),
+                style: TextButton.styleFrom(
+                  foregroundColor: accentColor,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildOverviewPage() {
     final progress = _averageProgress();
     final attendanceRate = _attendanceRate();
@@ -567,6 +721,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildLiveChildPresenceCard(),
         PortalMetricGrid(
           children: [
             PortalMetricCard(
@@ -1864,6 +2019,7 @@ class _ParentAttendanceItem {
   final DateTime? sessionDate;
   final String groupName;
   final String groupCode;
+  final DateTime? checkOutAt;
 
   const _ParentAttendanceItem({
     required this.id,
@@ -1873,6 +2029,7 @@ class _ParentAttendanceItem {
     required this.sessionDate,
     required this.groupName,
     required this.groupCode,
+    this.checkOutAt,
   });
 
   factory _ParentAttendanceItem.fromJson(Map json) {
@@ -1880,10 +2037,11 @@ class _ParentAttendanceItem {
       id: json['id']?.toString() ?? '',
       classSessionId: json['class_session_id']?.toString() ?? '',
       status: json['attendance_status']?.toString() ?? 'unknown',
-      markedAt: DateTime.tryParse(json['marked_at']?.toString() ?? ''),
+      markedAt: DateTime.tryParse(json['marked_at']?.toString() ?? json['check_in_at']?.toString() ?? ''),
       sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
       groupName: json['group_name']?.toString() ?? 'المجموعة',
       groupCode: json['group_code']?.toString() ?? '',
+      checkOutAt: DateTime.tryParse(json['check_out_at']?.toString() ?? ''),
     );
   }
 }
