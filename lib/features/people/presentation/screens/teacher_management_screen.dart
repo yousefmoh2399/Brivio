@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -84,28 +83,30 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Edit Teacher')),
+          title: const Text('تعديل بيانات المعلم'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Full Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم الكامل للمعلم',
                   ),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: specCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Specialization'),
+                  decoration: const InputDecoration(
+                    labelText: 'المادة والتخصص الأكاديمي',
                   ),
                 ),
+                const SizedBox(height: 10),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedBranchId,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Branch Assignment'),
+                    decoration: const InputDecoration(
+                      labelText: 'الفرع التابع له',
                     ),
                     items:
                         _branches
@@ -120,7 +121,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                             0,
                             const DropdownMenuItem(
                               value: null,
-                              child: Text('No Branch Assigned'),
+                              child: Text('بدون فرع محدد'),
                             ),
                           ),
                     onChanged: (v) =>
@@ -132,7 +133,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -148,9 +149,10 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                   await Supabase.instance.client
                       .from('teachers')
                       .update({
-                        'specialization': specCtrl.text.trim(),
-                        if (selectedBranchId != null)
-                          'primary_branch_id': selectedBranchId,
+                        'specialization': specCtrl.text.trim().isEmpty
+                            ? null
+                            : specCtrl.text.trim(),
+                        'primary_branch_id': selectedBranchId,
                       })
                       .eq('id', teacher.id);
 
@@ -159,7 +161,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Teacher updated successfully!'),
+                        content: Text('تم تحديث بيانات المعلم بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -168,14 +170,14 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Update error: $e'),
+                        content: Text('فشل التحديث: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Save Changes')),
+              child: const Text('حفظ التعديلات'),
             ),
           ],
         ),
@@ -186,41 +188,48 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   void _showProvisionTeacherDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
+    final specCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
-    String? selectedBranchId = _branches.isNotEmpty ? _branches.first.id : null;
     bool obscurePassword = true;
+    String? selectedBranchId;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Provision New Teacher Account')),
+          title: const Text('تسجيل وقيد معلم جديد'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Full Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم الكامل للمعلم',
                   ),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: emailCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Email Address'),
+                  decoration: const InputDecoration(
+                    labelText: 'البريد الإلكتروني',
                   ),
                   keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: specCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'المادة والتخصص (مثال: فيزياء ثانوية عامة)',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: passwordCtrl,
                   obscureText: obscurePassword,
                   decoration: InputDecoration(
-                    labelText: context.tr('Password (optional)'),
-                    helperText: context.tr(
-                      'Leave empty if the teacher will set it after QR login.',
-                    ),
+                    labelText: 'كلمة المرور (اختياري)',
+                    helperText: 'اتركها فارغة إذا كان المعلم سيسجل دخول برمز QR.',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () => setStateDialog(
@@ -234,11 +243,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedBranchId,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Branch Assignment'),
+                    decoration: const InputDecoration(
+                      labelText: 'الفرع التابع له',
                     ),
                     items: _branches
                         .map(
@@ -257,7 +267,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -269,7 +279,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     passwordCtrl.text.length < 6) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Password must be at least 6 characters.'),
+                      content: Text('كلمة المرور لا تقل عن 6 أحرف.'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -286,6 +296,9 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                           'fullName': nameCtrl.text.trim(),
                           'role': 'teacher',
                           'branchId': selectedBranchId,
+                          'specialization': specCtrl.text.trim().isEmpty
+                              ? null
+                              : specCtrl.text.trim(),
                           if (passwordCtrl.text.isNotEmpty)
                             'password': passwordCtrl.text,
                         },
@@ -296,11 +309,11 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     final message = data is Map
                         ? data['error']?.toString()
                         : null;
-                    throw Exception(message ?? 'Provisioning failed.');
+                    throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
                   }
                   final data = Map<String, dynamic>.from(response.data as Map);
                   if (data['success'] != true) {
-                    throw Exception('Provisioning failed.');
+                    throw Exception('فشلت عملية إنشاء الحساب.');
                   }
 
                   nav.pop();
@@ -308,9 +321,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Teacher provisioned with invite email sent!',
-                        ),
+                        content: Text('تم إنشاء وقيد حساب المعلم بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -319,14 +330,14 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Provisioning error: $e'),
+                        content: Text('خطأ في القيد: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Provision Teacher')),
+              child: const Text('تأكيد القيد'),
             ),
           ],
         ),
@@ -364,7 +375,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
             (t) => {
               'name': t.fullName,
               'email': t.email,
-              'specialization': t.specialization ?? 'N/A',
+              'specialization': t.specialization ?? 'عام',
               'status': t.status,
             },
           )
@@ -374,13 +385,13 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Teacher report generated.')),
+          const SnackBar(content: Text('تم تصدير كشف المعلمين بنجاح 📄')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate report: $e')),
+          SnackBar(content: Text('فشل تصدير التقرير: $e')),
         );
       }
     }
@@ -391,29 +402,30 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     final filtered = _teachers.where((t) {
       final q = _searchController.text.toLowerCase();
       return t.fullName.toLowerCase().contains(q) ||
-          t.email.toLowerCase().contains(q);
+          t.email.toLowerCase().contains(q) ||
+          (t.specialization?.toLowerCase().contains(q) ?? false);
     }).toList();
 
     return PortalPageShell(
-      title: 'Teacher Management',
-      subtitle: 'Provision teachers and monitor their subject assignments.',
+      title: 'إدارة شؤون المعلمين',
+      subtitle: 'قيد وتسجيل المعلمين، متابعة التخصصات والمواد، وإدارة الحسابات.',
       icon: Icons.person,
       accentColor: AppColors.teacherRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadTeachers,
         ),
         PortalAction(
           icon: Icons.person_add,
-          label: 'Provision Teacher',
+          label: 'تسجيل معلم جديد',
           onPressed: _showProvisionTeacherDialog,
           primary: true,
         ),
         PortalAction(
           icon: Icons.picture_as_pdf,
-          label: 'Export Report',
+          label: 'تصدير كشف (PDF)',
           onPressed: _exportTeacherData,
           primary: false,
         ),
@@ -422,7 +434,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         children: [
           PortalSearchField(
             controller: _searchController,
-            label: 'Search teachers',
+            label: 'بحث بالاسم، التخصص، أو البريد الإلكتروني...',
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -431,8 +443,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: filtered.isEmpty,
-              emptyTitle: 'No teachers found',
-              emptySubtitle: 'Provision teacher accounts after branches exist.',
+              emptyTitle: 'لا يوجد معلمون مسجلون',
+              emptySubtitle: 'يمكنك قيد وإضافة معلمين جدد عبر زر (تسجيل معلم جديد) بالأعلى.',
               emptyIcon: Icons.person,
               onRetry: _loadTeachers,
               child: ListView.separated(
@@ -446,21 +458,21 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     accentColor: AppColors.teacherRole,
                     title: t.fullName,
                     subtitle:
-                        '${context.tr('Email')}: ${t.email} | ${context.tr('Specialization')}: ${t.specialization ?? context.tr("N/A")}',
+                        'البريد: ${t.email} | التخصص: ${t.specialization ?? "عام"}',
                     trailing: [
                       IconButton(
-                        tooltip: context.tr('Login QR'),
+                        tooltip: 'رمز الاستجابة السريعة (QR)',
                         onPressed: () => _showLoginQr(t),
                         icon: const Icon(Icons.qr_code_2),
                       ),
                       IconButton(
-                        tooltip: context.tr('Set Password'),
+                        tooltip: 'تعيين كلمة المرور',
                         onPressed: () => _showPasswordDialog(t),
                         icon: const Icon(Icons.password),
                       ),
                       if (t.status == 'suspended')
                         IconButton(
-                          tooltip: context.tr('Activate User'),
+                          tooltip: 'تنشيط الحساب',
                           onPressed: () async {
                             try {
                               await Supabase.instance.client.rpc(
@@ -470,7 +482,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Teacher activated'),
+                                    content: Text('تم تنشيط حساب المعلم'),
                                   ),
                                 );
                                 _loadTeachers();
@@ -478,7 +490,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
+                                  SnackBar(content: Text('خطأ: $e')),
                                 );
                               }
                             }
@@ -490,24 +502,24 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                         )
                       else
                         IconButton(
-                          tooltip: context.tr('Suspend User'),
+                          tooltip: 'إيقاف الحساب مؤقتاً',
                           onPressed: () async {
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (ctx) => AlertDialog(
-                                title: const Text('Suspend Teacher'),
+                                title: const Text('إيقاف حساب المعلم'),
                                 content: const Text(
-                                  'Are you sure you want to suspend this teacher?',
+                                  'هل أنت متأكد من رغبتك في إيقاف حساب هذا المعلم مؤقتاً؟',
                                 ),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Cancel'),
+                                    child: const Text('إلغاء'),
                                   ),
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx, true),
                                     child: const Text(
-                                      'Suspend',
+                                      'إيقاف مؤقت',
                                       style: TextStyle(color: Colors.red),
                                     ),
                                   ),
@@ -523,7 +535,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Teacher suspended'),
+                                      content: Text('تم إيقاف حساب المعلم'),
                                     ),
                                   );
                                   _loadTeachers();
@@ -531,7 +543,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                               } catch (e) {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error: $e')),
+                                    SnackBar(content: Text('خطأ: $e')),
                                   );
                                 }
                               }
@@ -540,29 +552,29 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
                       IconButton(
-                        tooltip: context.tr('Edit Teacher'),
+                        tooltip: 'تعديل البيانات',
                         onPressed: () => _showEditTeacherDialog(t),
                         icon: const Icon(Icons.edit, color: Colors.blue),
                       ),
                       IconButton(
-                        tooltip: context.tr('Delete Teacher'),
+                        tooltip: 'حذف المعلم',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Teacher'),
+                              title: const Text('حذف المعلم نهائياً'),
                               content: const Text(
-                                'Are you sure you want to permanently delete this teacher?',
+                                'هل أنت متأكد من رغبتك في حذف حساب هذا المعلم نهائياً؟',
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
+                                  child: const Text('إلغاء'),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, true),
                                   child: const Text(
-                                    'Delete',
+                                    'حذف نهائي',
                                     style: TextStyle(color: Colors.red),
                                   ),
                                 ),
@@ -579,7 +591,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
+                                  SnackBar(content: Text('خطأ: $e')),
                                 );
                               }
                             }
@@ -590,6 +602,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                           color: Colors.red,
                         ),
                       ),
+                      PortalStatusChip(status: t.status ?? 'active'),
                     ],
                   );
                 },

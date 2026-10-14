@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:xml/xml.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
@@ -141,7 +140,7 @@ class _DataImportScreenState extends State<DataImportScreen> {
     Clipboard.setData(ClipboardData(text: template));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${context.tr('Template copied')}:\n$template'),
+        content: Text('تم نسخ القالب النموذجي إلى الحافظة:\n$template'),
         duration: const Duration(seconds: 5),
       ),
     );
@@ -162,20 +161,20 @@ class _DataImportScreenState extends State<DataImportScreen> {
         .length;
 
     return PortalPageShell(
-      title: 'Spreadsheet Import Wizard',
+      title: 'معالج استيراد البيانات (Excel / CSV)',
       subtitle:
-          'Bulk provision students, parents, and teachers from CSV or Excel.',
+          'إضافة الطلاب والمعلمين وأولياء الأمور دفعة واحدة من ملف إكسيل أو CSV.',
       icon: Icons.upload_file,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.table_chart,
-          label: 'Template',
+          label: 'نسخ القالب',
           onPressed: _downloadTemplate,
         ),
         PortalAction(
           icon: Icons.folder_open,
-          label: 'Choose File',
+          label: 'اختيار ملف',
           onPressed: _isReading || _isImporting ? () {} : _pickImportFile,
           primary: true,
         ),
@@ -192,15 +191,15 @@ class _DataImportScreenState extends State<DataImportScreen> {
                 width: 260,
                 child: DropdownButtonFormField<_ImportEntity>(
                   initialValue: _entity,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Import type'),
-                    border: const OutlineInputBorder(),
+                  decoration: const InputDecoration(
+                    labelText: 'نوع البيانات',
+                    border: OutlineInputBorder(),
                   ),
                   items: _ImportEntity.values
                       .map(
                         (entity) => DropdownMenuItem(
                           value: entity,
-                          child: Text(context.tr(entity.label)),
+                          child: Text(entity.label),
                         ),
                       )
                       .toList(),
@@ -219,19 +218,19 @@ class _DataImportScreenState extends State<DataImportScreen> {
               ),
               _ImportPill(
                 icon: Icons.insert_drive_file,
-                text: _fileName ?? context.tr('No file selected'),
+                text: _fileName ?? 'لم يتم اختيار ملف',
               ),
               _ImportPill(
                 icon: Icons.check_circle,
-                text: '$validCount ${context.tr('valid')}',
+                text: '$validCount صف صالح',
               ),
               _ImportPill(
                 icon: Icons.done_all,
-                text: '$successCount ${context.tr('done')}',
+                text: '$successCount تم استيراده',
               ),
               _ImportPill(
                 icon: Icons.error_outline,
-                text: '$failedCount ${context.tr('issues')}',
+                text: '$failedCount بحاجة لتصحيح',
               ),
               FilledButton.icon(
                 onPressed: _isImporting || validCount == 0 ? null : _runImport,
@@ -243,7 +242,7 @@ class _DataImportScreenState extends State<DataImportScreen> {
                       )
                     : const Icon(Icons.cloud_upload),
                 label: Text(
-                  context.tr(_isImporting ? 'Importing' : 'Import valid rows'),
+                  _isImporting ? 'جارٍ الاستيراد...' : 'بدء استيراد الصفوف الصالحة',
                 ),
               ),
             ],
@@ -302,19 +301,15 @@ class _ImportEmptyState extends StatelessWidget {
                 const Icon(Icons.upload_file, size: 48),
                 const SizedBox(height: 12),
                 Text(
-                  context.tr(
-                    'Choose a CSV or Excel file to preview before importing.',
-                  ),
+                  'اختر ملف CSV أو Excel لمعاينة البيانات والتحقق من صحتها قبل الاستيراد.',
                   style: Theme.of(context).textTheme.titleMedium,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 SelectableText(entity.template, textAlign: TextAlign.center),
                 const SizedBox(height: 8),
-                Text(
-                  context.tr(
-                    'The first worksheet is imported. Keep the first row as headers matching the template.',
-                  ),
+                const Text(
+                  'تأكد من مطابقة أسماء الأعمدة في السطر الأول لنموذج القالب أعلاه.',
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -338,13 +333,13 @@ class _ImportPreviewTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: SingleChildScrollView(
           child: DataTable(
-            columns: [
-              DataColumn(label: Text(context.tr('Row'))),
-              DataColumn(label: Text(context.tr('Name'))),
-              DataColumn(label: Text(context.tr('Email'))),
-              DataColumn(label: Text(context.tr('Branch ID'))),
-              DataColumn(label: Text(context.tr('Status'))),
-              DataColumn(label: Text(context.tr('Message'))),
+            columns: const [
+              DataColumn(label: Text('رقم الصف')),
+              DataColumn(label: Text('الاسم بالكامل')),
+              DataColumn(label: Text('البريد الإلكتروني')),
+              DataColumn(label: Text('معرف الفرع')),
+              DataColumn(label: Text('الحالة')),
+              DataColumn(label: Text('التفاصيل / النتيجة')),
             ],
             rows: rows
                 .map(
@@ -365,7 +360,7 @@ class _ImportPreviewTable extends StatelessWidget {
                               color: row.status.color,
                             ),
                             const SizedBox(width: 6),
-                            Text(context.tr(row.status.label)),
+                            Text(row.status.label),
                           ],
                         ),
                       ),
@@ -373,7 +368,7 @@ class _ImportPreviewTable extends StatelessWidget {
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 360),
                           child: Text(
-                            context.tr(row.resultMessage),
+                            row.resultMessage,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -390,9 +385,9 @@ class _ImportPreviewTable extends StatelessWidget {
 }
 
 enum _ImportEntity {
-  students('Students', 'student'),
-  parents('Parents', 'parent'),
-  teachers('Teachers', 'teacher');
+  students('الطلاب', 'student'),
+  parents('أولياء الأمور', 'parent'),
+  teachers('المعلمون', 'teacher');
 
   final String label;
   final String role;
@@ -402,20 +397,20 @@ enum _ImportEntity {
   String get template {
     switch (this) {
       case _ImportEntity.students:
-        return 'full_name,email,branch_id\nAhmed Ali,student@example.com,<optional-branch-uuid>';
+        return 'full_name,email,branch_id\nأحمد محمد,student@example.com,<معرف-الفرع>';
       case _ImportEntity.parents:
-        return 'full_name,email\nParent Name,parent@example.com';
+        return 'full_name,email\nولي الأمر,parent@example.com';
       case _ImportEntity.teachers:
-        return 'full_name,email,branch_id\nTeacher Name,teacher@example.com,<optional-branch-uuid>';
+        return 'full_name,email,branch_id\nأستاذ أحمد,teacher@example.com,<معرف-الفرع>';
     }
   }
 }
 
 enum _ImportStatus {
-  ready('Ready', Icons.check_circle_outline, AppColors.success),
-  invalid('Invalid', Icons.error_outline, AppColors.error),
-  success('Imported', Icons.done_all, AppColors.success),
-  failed('Failed', Icons.warning_amber, AppColors.warning);
+  ready('جاهز', Icons.check_circle_outline, AppColors.success),
+  invalid('غير صالح', Icons.error_outline, AppColors.error),
+  success('تم الاستيراد', Icons.done_all, AppColors.success),
+  failed('فشل', Icons.warning_amber, AppColors.warning);
 
   final String label;
   final IconData icon;
@@ -436,18 +431,19 @@ class _ImportRow {
     required this.rowNumber,
     required this.data,
     this.status = _ImportStatus.ready,
-    this.resultMessage = 'Ready',
+    this.resultMessage = 'جاهز',
   });
 
   String get fullName =>
       data['full_name'] ??
       data['name'] ??
+      data['الاسم'] ??
       data['full name'] ??
       data['fullname'] ??
       '';
-  String get email => data['email'] ?? data['email_address'] ?? '';
+  String get email => data['email'] ?? data['البريد'] ?? data['email_address'] ?? '';
   String? get branchId {
-    final value = data['branch_id'] ?? data['branchid'];
+    final value = data['branch_id'] ?? data['branchid'] ?? data['الفرع'];
     if (value == null || value.trim().isEmpty) return null;
     return value.trim();
   }
@@ -456,21 +452,21 @@ class _ImportRow {
 
   _ImportRow validate(_ImportEntity entity) {
     final errors = <String>[];
-    if (fullName.trim().isEmpty) errors.add('Missing full_name');
+    if (fullName.trim().isEmpty) errors.add('الاسم مطلوب');
     if (email.trim().isEmpty || !email.contains('@')) {
-      errors.add('Invalid email');
+      errors.add('بريد إلكتروني غير صالح');
     }
     if (entity != _ImportEntity.parents && branchId != null) {
       final uuidLike = RegExp(
         r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
       );
       if (!uuidLike.hasMatch(branchId!)) {
-        errors.add('branch_id must be a UUID');
+        errors.add('معرف الفرع غير صالح');
       }
     }
     return copyWith(
       status: errors.isEmpty ? _ImportStatus.ready : _ImportStatus.invalid,
-      resultMessage: errors.isEmpty ? 'Ready' : errors.join(', '),
+      resultMessage: errors.isEmpty ? 'جاهز للاستيراد' : errors.join('، '),
     );
   }
 

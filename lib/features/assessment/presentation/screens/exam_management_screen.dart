@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -74,39 +73,41 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     final selectedGroup = _selectedGroup;
     if (selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Create an active group first.'))),
+        const SnackBar(content: Text('يرجى إنشاء مجموعة دراسية نشطة أولاً.')),
       );
       return;
     }
     final titleCtrl = TextEditingController();
-    final durationCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
+    final durationCtrl = TextEditingController(text: '45');
+    final passCtrl = TextEditingController(text: '50');
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Create New Exam')),
+        title: const Text('إضافة اختبار جديد للمجموعة'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Exam Title'),
+                decoration: const InputDecoration(
+                  labelText: 'عنوان الاختبار (مثال: اختبار شهر نوفمبر فيزياء)',
                 ),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: durationCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Duration (Minutes)'),
+                decoration: const InputDecoration(
+                  labelText: 'المدة بالدقائق',
                 ),
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: passCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Passing Score'),
+                decoration: const InputDecoration(
+                  labelText: 'درجة النجاح (%)',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -116,7 +117,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -147,8 +148,8 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 _loadExams();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('Exam published successfully!')),
+                    const SnackBar(
+                      content: Text('تم إنشاء ونشر الاختبار بنجاح!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -157,14 +158,14 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Creation failed')}: $e'),
+                      content: Text('فشل إنشاء الاختبار: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Publish Exam')),
+            child: const Text('نشر الاختبار'),
           ),
         ],
       ),
@@ -181,28 +182,30 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Edit Exam')),
+        title: const Text('تعديل بيانات الاختبار'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Exam Title'),
+                decoration: const InputDecoration(
+                  labelText: 'عنوان الاختبار',
                 ),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: durationCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Duration (Minutes)'),
+                decoration: const InputDecoration(
+                  labelText: 'المدة بالدقائق',
                 ),
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: passCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Passing Score'),
+                decoration: const InputDecoration(
+                  labelText: 'درجة النجاح (%)',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -212,7 +215,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -240,8 +243,8 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 _loadExams();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('Exam updated successfully!')),
+                    const SnackBar(
+                      content: Text('تم تحديث الاختبار بنجاح!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -250,14 +253,14 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Update failed')}: $err'),
+                      content: Text('فشل التحديث: $err'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Save Changes')),
+            child: const Text('حفظ التعديلات'),
           ),
         ],
       ),
@@ -278,7 +281,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
           )
           .toList();
 
-      final groupName = _selectedGroup?.name ?? 'Unknown Group';
+      final groupName = _selectedGroup?.name ?? 'مجموعة';
       await service.generateExamReport(
         groupName: groupName,
         examData: examDataList,
@@ -286,14 +289,14 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Exam report generated.'))),
+          const SnackBar(content: Text('تم تصدير تقرير الاختبارات بنجاح 📄')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${context.tr('Failed to generate report')}: $e'),
+            content: Text('فشل تصدير التقرير: $e'),
           ),
         );
       }
@@ -303,29 +306,27 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: context.tr('Exam & Quiz Management'),
-      subtitle: context.tr(
-        'Publish group exams with explicit duration and scoring.',
-      ),
+      title: 'إدارة الاختبارات والتقييمات',
+      subtitle: 'نشر وجدولة اختبارات المجموعات وتحديد زمن الإجابة والتصحيح الآلي.',
       icon: Icons.quiz,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: context.tr('Refresh'),
+          label: 'تحديث',
           onPressed: _loadExams,
         ),
         if (_selectedGroup != null)
           PortalAction(
             icon: Icons.quiz,
-            label: context.tr('Add Exam'),
+            label: 'إضافة اختبار',
             onPressed: _showCreateExamDialog,
             primary: true,
           ),
         if (_selectedGroup != null)
           PortalAction(
             icon: Icons.picture_as_pdf,
-            label: context.tr('Export Report'),
+            label: 'تصدير تقرير (PDF)',
             onPressed: _exportExamData,
             primary: false,
           ),
@@ -334,8 +335,8 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: false,
-        emptyTitle: context.tr('No exam data'),
-        emptySubtitle: context.tr('Create an active group first.'),
+        emptyTitle: 'لا توجد بيانات اختبارات',
+        emptySubtitle: 'قم باختيار أو إنشاء مجموعة دراسية أولاً.',
         emptyIcon: Icons.quiz,
         onRetry: _loadExams,
         child: Column(
@@ -345,7 +346,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<GroupEntity>(
                   initialValue: _selectedGroup,
-                  decoration: InputDecoration(labelText: context.tr('Group')),
+                  decoration: const InputDecoration(labelText: 'اختر المجموعة الدراسية'),
                   items: _groups
                       .map(
                         (g) => DropdownMenuItem(
@@ -363,9 +364,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             Expanded(
               child: _selectedGroup == null
-                  ? Center(child: Text(context.tr('No active groups found.')))
+                  ? const Center(child: Text('لا توجد مجموعات دراسية نشطة حالياً.', style: TextStyle(color: Colors.grey)))
                   : _exams.isEmpty
-                  ? Center(child: Text(context.tr('No exams found.')))
+                  ? const Center(child: Text('لا توجد اختبارات مسجلة لهذه المجموعة.', style: TextStyle(color: Colors.grey)))
                   : ListView.separated(
                       padding: EdgeInsets.zero,
                       itemCount: _exams.length,
@@ -377,11 +378,11 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                           accentColor: AppColors.adminRole,
                           title: e.title,
                           subtitle:
-                              'Duration: ${e.durationMinutes} min | Pass Score: ${e.passScore} | Status: ${e.status.toUpperCase()}',
+                              'المدة: ${e.durationMinutes} دقيقة | درجة النجاح: ${e.passScore}% | الحالة: ${_statusInArabic(e.status)}',
                           trailing: [
                             PortalStatusChip(status: e.status),
                             PopupMenuButton<String>(
-                              tooltip: context.tr('Actions'),
+                              tooltip: 'خيارات',
                               icon: const Icon(Icons.more_vert_rounded),
                               onSelected: (value) async {
                                 switch (value) {
@@ -415,9 +416,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                           context,
                                         ).showSnackBar(
                                           SnackBar(
-                                            content: Text(
-                                              '${context.tr('Failed to close')}: $err',
-                                            ),
+                                            content: Text('فشل إغلاق الاختبار: $err'),
                                           ),
                                         );
                                       }
@@ -427,22 +426,20 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
-                                        title: Text(context.tr('Delete Exam')),
-                                        content: Text(
-                                          context.tr(
-                                            'Are you sure you want to delete this exam?',
-                                          ),
+                                        title: const Text('حذف الاختبار'),
+                                        content: const Text(
+                                          'هل أنت متأكد من رغبتك في حذف هذا الاختبار نهائياً؟',
                                         ),
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
                                                 Navigator.pop(ctx, false),
-                                            child: Text(context.tr('Cancel')),
+                                            child: const Text('إلغاء'),
                                           ),
                                           ElevatedButton(
                                             onPressed: () =>
                                                 Navigator.pop(ctx, true),
-                                            child: Text(context.tr('Delete')),
+                                            child: const Text('حذف'),
                                           ),
                                         ],
                                       ),
@@ -460,9 +457,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text(
-                                                '${context.tr('Failed to delete')}: $err',
-                                              ),
+                                              content: Text('فشل الحذف: $err'),
                                             ),
                                           );
                                         }
@@ -471,37 +466,36 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                     break;
                                 }
                               },
-                              itemBuilder: (context) => [
+                              itemBuilder: (context) => const [
                                 PopupMenuItem(
                                   value: 'submissions',
                                   child: ListTile(
-                                    leading: const Icon(Icons.people),
-                                    title: Text(context.tr('View Submissions')),
+                                    leading: Icon(Icons.people),
+                                    title: Text('عرض الإجابات والتصحيح'),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                                 PopupMenuItem(
                                   value: 'edit',
                                   child: ListTile(
-                                    leading: const Icon(Icons.edit),
-                                    title: Text(context.tr('Edit Exam')),
+                                    leading: Icon(Icons.edit),
+                                    title: Text('تعديل الاختبار'),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                                 PopupMenuItem(
                                   value: 'close',
-                                  enabled: e.status != 'closed',
                                   child: ListTile(
-                                    leading: const Icon(Icons.lock_outline),
-                                    title: Text(context.tr('Close Exam')),
+                                    leading: Icon(Icons.lock_outline),
+                                    title: Text('إغلاق الاختبار'),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                                 PopupMenuItem(
                                   value: 'delete',
                                   child: ListTile(
-                                    leading: const Icon(Icons.delete_outline),
-                                    title: Text(context.tr('Delete Exam')),
+                                    leading: Icon(Icons.delete_outline, color: Colors.red),
+                                    title: Text('حذف الاختبار', style: TextStyle(color: Colors.red)),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
@@ -516,5 +510,18 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         ),
       ),
     );
+  }
+
+  static String _statusInArabic(String status) {
+    switch (status.toLowerCase()) {
+      case 'published':
+        return 'منشور';
+      case 'draft':
+        return 'مسودة';
+      case 'closed':
+        return 'مغلق';
+      default:
+        return status;
+    }
   }
 }

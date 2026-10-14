@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -68,16 +67,20 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       final rec = selected == null
           ? <Receipt>[]
           : await _receiptRepo.fetchReceiptsForStudent(selected.id);
-      final adjustmentsResponse = await Supabase.instance.client.rpc(
-        'get_payment_adjustment_requests',
-        params: {'p_status': null},
-      );
-      final adjustments = adjustmentsResponse is List
-          ? adjustmentsResponse
-                .whereType<Map>()
-                .map((row) => _PaymentAdjustmentRequest.fromJson(row))
-                .toList()
-          : <_PaymentAdjustmentRequest>[];
+
+      List<_PaymentAdjustmentRequest> adjustments = [];
+      try {
+        final adjustmentsResponse = await Supabase.instance.client.rpc(
+          'get_payment_adjustment_requests',
+          params: {'p_status': null},
+        );
+        if (adjustmentsResponse is List) {
+          adjustments = adjustmentsResponse
+              .whereType<Map>()
+              .map((row) => _PaymentAdjustmentRequest.fromJson(row))
+              .toList();
+        }
+      } catch (_) {}
 
       final sysSummary = await _paymentRepo.fetchSystemFinancialSummary();
 
@@ -114,48 +117,49 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(context.tr('Create Subscription Plan')),
+            title: const Text('إنشاء خطة اشتراك جديدة'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr(
-                        'Plan Name (e.g. Full Semester CS 101)',
-                      ),
+                    decoration: const InputDecoration(
+                      labelText: 'اسم الخطة (مثال: الترم الأول رياضيات)',
                     ),
                   ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: descCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Description'),
+                    decoration: const InputDecoration(
+                      labelText: 'الوصف أو الملاحظات',
                     ),
                   ),
+                  const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     initialValue: billingType,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Billing Type'),
+                    decoration: const InputDecoration(
+                      labelText: 'طريقة المحاسبة',
                     ),
-                    items: [
+                    items: const [
                       DropdownMenuItem(
                         value: 'installment',
-                        child: Text(context.tr('Installments')),
+                        child: Text('أقساط مجدولة'),
                       ),
                       DropdownMenuItem(
                         value: 'one_time',
-                        child: Text(context.tr('One-Time Payment')),
+                        child: Text('دفعة واحدة كاملة'),
                       ),
                     ],
                     onChanged: (v) {
                       if (v != null) setStateDialog(() => billingType = v);
                     },
                   ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: amountCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Total Amount (EGP)'),
+                    decoration: const InputDecoration(
+                      labelText: 'المبلغ الإجمالي (ج.م)',
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -165,7 +169,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Cancel')),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -192,10 +196,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     _loadFinanceData();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            context.tr('Subscription plan created!'),
-                          ),
+                        const SnackBar(
+                          content: Text('تم إنشاء خطة الاشتراك بنجاح!'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -204,14 +206,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('${context.tr('Creation failed')}: $e'),
+                          content: Text('فشل إنشاء الخطة: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: Text(context.tr('Create Plan')),
+                child: const Text('حفظ الخطة'),
               ),
             ],
           );
@@ -224,7 +226,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     final selectedStudent = _selectedStudent;
     if (selectedStudent == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Create an active student first.'))),
+        const SnackBar(content: Text('يرجى اختيار طالب نشط أولاً.')),
       );
       return;
     }
@@ -235,15 +237,15 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(context.tr('Assign Subscription to Student')),
+            title: const Text('تسكين اشتراك لطالب'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_plans.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedPlanId,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Select Plan'),
+                    decoration: const InputDecoration(
+                      labelText: 'اختر خطة الاشتراك',
                     ),
                     items: _plans
                         .map(
@@ -260,7 +262,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Cancel')),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -280,7 +282,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'Subscription assigned and invoice generated!',
+                            'تم تسكين الاشتراك وتوليد الفاتورة بنجاح!',
                           ),
                           backgroundColor: Colors.green,
                         ),
@@ -290,16 +292,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            '${context.tr('Assignment failed')}: $e',
-                          ),
+                          content: Text('فشل تسكين الاشتراك: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: Text(context.tr('Assign Subscription')),
+                child: const Text('تأكيد التسكين'),
               ),
             ],
           );
@@ -318,22 +318,23 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          '${context.tr('Record Manual Cash Payment')} (${inv.invoiceNumber})',
+          'تسجيل سداد نقدي يدوي (${inv.invoiceNumber})',
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: amountCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Payment Amount (EGP)'),
+              decoration: const InputDecoration(
+                labelText: 'مبلغ التحصيل (ج.م)',
               ),
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 10),
             TextField(
               controller: notesCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Notes / Reference'),
+              decoration: const InputDecoration(
+                labelText: 'ملاحظات أو رقم مرجعي',
               ),
             ),
           ],
@@ -341,7 +342,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -359,10 +360,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 _loadFinanceData();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        context.tr('Manual cash payment recorded & settled!'),
-                      ),
+                    const SnackBar(
+                      content: Text('تم تسجيل السداد النقدي وإصدار الإيصال بنجاح!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -371,14 +370,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Payment failed')}: $e'),
+                      content: Text('فشل تسجيل السداد: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Record Cash Payment')),
+            child: const Text('تأكيد التحصيل'),
           ),
         ],
       ),
@@ -396,8 +395,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           'p_request_id': request.id,
           'p_approve': approve,
           'p_decision_note': approve
-              ? 'Approved from finance management.'
-              : 'Rejected from finance management.',
+              ? 'تمت الموافقة من الإدارة المالية.'
+              : 'تم الرفض من الإدارة المالية.',
         },
       );
       await _loadFinanceData();
@@ -406,8 +405,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           SnackBar(
             content: Text(
               approve
-                  ? context.tr('Adjustment applied.')
-                  : context.tr('Request rejected.'),
+                  ? 'تم اعتماد الخصم / الإعفاء بنجاح.'
+                  : 'تم رفض طلب الخصم / الإعفاء.',
             ),
             backgroundColor: approve ? Colors.green : Colors.orange,
           ),
@@ -417,7 +416,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${context.tr('Adjustment decision failed')}: $e'),
+            content: Text('فشل اتخاذ القرار بشأن الطلب: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -432,8 +431,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       for (var inv in _invoices) {
         financialData.add({
           'date': inv.dueAt.toIso8601String().substring(0, 10),
-          'description': 'Invoice #${inv.invoiceNumber}',
-          'type': 'Invoice',
+          'description': 'فاتورة #${inv.invoiceNumber}',
+          'type': 'فاتورة مستحقة',
           'amount': (inv.totalMinor / 100).toStringAsFixed(2),
           'notes': inv.status,
         });
@@ -444,22 +443,22 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
             : rec.receiptNumber;
         financialData.add({
           'date': rec.issuedAt.toIso8601String().substring(0, 10),
-          'description': 'Receipt $receiptLabel',
-          'type': 'Inflow',
+          'description': 'إيصال سداد $receiptLabel',
+          'type': 'تحصيل نقدي',
           'amount': (rec.amountMinor / 100).toStringAsFixed(2),
-          'notes': 'Transaction: ${rec.transactionId}',
+          'notes': 'المعاملة: ${rec.transactionId}',
         });
       }
       await service.generateFinancialReport(financialData: financialData);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Financial report generated.')),
+          const SnackBar(content: Text('تم تصدير التقرير المالي بنجاح 📄')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate report: $e')),
+          SnackBar(content: Text('فشل تصدير التقرير المالي: $e')),
         );
       }
     }
@@ -470,14 +469,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     return DefaultTabController(
       length: 6,
       child: PortalPageShell(
-        title: 'Finance & Billing',
-        subtitle: 'Plans, subscriptions, invoices, payments, and receipts.',
+        title: 'الإدارة المالية والاشتراكات',
+        subtitle: 'إدارة خطط الاشتراكات، الفواتير، التحصيلات، وإيصالات السداد.',
         icon: Icons.monetization_on,
         accentColor: AppColors.adminRole,
         actions: [
           PortalAction(
             icon: Icons.refresh,
-            label: 'Refresh',
+            label: 'تحديث',
             onPressed: _loadFinanceData,
           ),
           PortalAction(
@@ -512,39 +511,39 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           ),
           PortalAction(
             icon: Icons.picture_as_pdf,
-            label: 'Export Report',
+            label: 'تصدير تقرير (PDF)',
             onPressed: _exportFinancialData,
             primary: false,
           ),
         ],
         child: Column(
           children: [
-            TabBar(
+            const TabBar(
               isScrollable: true,
               tabs: [
                 Tab(
-                  icon: const Icon(Icons.analytics),
-                  text: context.tr('Reports'),
+                  icon: Icon(Icons.analytics_rounded),
+                  text: 'الملخص المالي',
                 ),
                 Tab(
-                  icon: const Icon(Icons.card_membership),
-                  text: context.tr('Plans'),
+                  icon: Icon(Icons.card_membership_rounded),
+                  text: 'خطط الاشتراكات',
                 ),
                 Tab(
-                  icon: const Icon(Icons.assignment_ind),
-                  text: context.tr('Assign'),
+                  icon: Icon(Icons.assignment_ind_rounded),
+                  text: 'تسكين الاشتراكات',
                 ),
                 Tab(
-                  icon: const Icon(Icons.receipt_long),
-                  text: context.tr('Invoices'),
+                  icon: Icon(Icons.receipt_long_rounded),
+                  text: 'الفواتير',
                 ),
                 Tab(
-                  icon: const Icon(Icons.receipt),
-                  text: context.tr('Receipts'),
+                  icon: Icon(Icons.receipt_rounded),
+                  text: 'إيصالات السداد',
                 ),
                 Tab(
-                  icon: const Icon(Icons.percent),
-                  text: context.tr('Adjustments'),
+                  icon: Icon(Icons.percent_rounded),
+                  text: 'طلبات الخصم',
                 ),
               ],
             ),
@@ -554,8 +553,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
                 isEmpty: false,
-                emptyTitle: 'No finance data',
-                emptySubtitle: 'Create plans and students before billing.',
+                emptyTitle: 'لا توجد بيانات مالية',
+                emptySubtitle: 'قم بإنشاء خطط اشتراك وتسجيل طلاب للبدء في المعاملات المالية.',
                 emptyIcon: Icons.monetization_on,
                 onRetry: _loadFinanceData,
                 child: TabBarView(
@@ -567,44 +566,45 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                             child: PortalMetricGrid(
                               children: [
                                 PortalMetricCard(
-                                  label: context.tr('Total Outstanding'),
+                                  label: 'المبالغ المستحقة (غير مسددة)',
                                   value: _money(
                                     _systemSummary!.totalOutstandingMinor,
                                   ),
-                                  icon: Icons.money_off,
+                                  icon: Icons.money_off_rounded,
                                   accentColor: Colors.red,
                                 ),
                                 PortalMetricCard(
-                                  label: context.tr('Total Collected'),
+                                  label: 'إجمالي المحصل الفعلي',
                                   value: _money(
                                     _systemSummary!.totalCollectedMinor,
                                   ),
-                                  icon: Icons.account_balance_wallet,
+                                  icon: Icons.account_balance_wallet_rounded,
                                   accentColor: Colors.green,
                                 ),
                                 PortalMetricCard(
-                                  label: context.tr('Expected Monthly Rev'),
+                                  label: 'الإيراد الشهري المتوقع',
                                   value: _money(
                                     _systemSummary!.expectedMonthlyRevenueMinor,
                                   ),
-                                  icon: Icons.trending_up,
+                                  icon: Icons.trending_up_rounded,
                                   accentColor: Colors.blue,
                                 ),
                                 PortalMetricCard(
-                                  label: context.tr('Total Adjustments'),
+                                  label: 'إجمالي الخصومات والتسويات',
                                   value: _money(
                                     _systemSummary!.totalAdjustmentsMinor,
                                   ),
-                                  icon: Icons.percent,
+                                  icon: Icons.percent_rounded,
                                   accentColor: Colors.orange,
                                 ),
                               ],
                             ),
                           ),
                     _plans.isEmpty
-                        ? Center(
+                        ? const Center(
                             child: Text(
-                              context.tr('No subscription plans found.'),
+                              'لا توجد خطط اشتراك مسجلة حالياً.',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                             ),
                           )
                         : ListView.separated(
@@ -614,12 +614,13 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                 const SizedBox(height: 8),
                             itemBuilder: (ctx, i) {
                               final p = _plans[i];
+                              final billingTypeLabel = p.billingType == 'installment' ? 'أقساط مجدولة' : 'دفعة واحدة';
                               return PortalListCard(
-                                icon: Icons.card_membership,
+                                icon: Icons.card_membership_rounded,
                                 accentColor: AppColors.adminRole,
                                 title: p.name,
                                 subtitle:
-                                    '${p.description ?? ""}\n${context.tr('Billing')}: ${context.tr(p.billingType)} | ${context.tr('Total')}: ${(p.totalAmountMinor / 100).toStringAsFixed(0)} EGP',
+                                    '${p.description ?? ""}\nطريقة المحاسبة: $billingTypeLabel | الإجمالي: ${(p.totalAmountMinor / 100).toStringAsFixed(0)} ج.م',
                                 trailing: [PortalStatusChip(status: p.status)],
                               );
                             },
@@ -636,9 +637,9 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               ),
                               child: DropdownButtonFormField<Student>(
                                 initialValue: _selectedStudent,
-                                decoration: InputDecoration(
-                                  labelText: context.tr('Student'),
-                                  border: const OutlineInputBorder(),
+                                decoration: const InputDecoration(
+                                  labelText: 'اختر الطالب',
+                                  border: OutlineInputBorder(),
                                 ),
                                 items: _students
                                     .map(
@@ -658,17 +659,15 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               ),
                             ),
                           const Icon(
-                            Icons.assignment_ind,
-                            size: 64,
+                            Icons.assignment_ind_rounded,
+                            size: 54,
                             color: Colors.blue,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            context.tr(
-                              'Assign Tuition & Subscription Plans to Students',
-                            ),
-                            style: const TextStyle(
-                              fontSize: 16,
+                          const SizedBox(height: 14),
+                          const Text(
+                            'تسكين خطط الاشتراكات والمصروفات للطلاب',
+                            style: TextStyle(
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -679,16 +678,19 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                 ? null
                                 : _showAssignSubscriptionDialog,
                             icon: const Icon(Icons.add),
-                            label: Text(
-                              context.tr('Assign Subscription to Student'),
-                            ),
+                            label: const Text('تسكين اشتراك للطالب المحدد'),
                           ),
                         ],
                       ),
                     ),
                     // Tab 3: Invoices
                     _invoices.isEmpty
-                        ? Center(child: Text(context.tr('No invoices found.')))
+                        ? const Center(
+                            child: Text(
+                              'لا توجد فواتير مسجلة لهذا الطالب.',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                            ),
+                          )
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
                             itemCount: _invoices.length,
@@ -699,19 +701,19 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               final isUnpaid = inv.status != 'paid';
 
                               return PortalListCard(
-                                icon: Icons.receipt_long,
+                                icon: Icons.receipt_long_rounded,
                                 accentColor: isUnpaid
                                     ? Colors.orange
                                     : Colors.green,
-                                title: inv.invoiceNumber,
+                                title: 'فاتورة #${inv.invoiceNumber}',
                                 subtitle:
-                                    '${context.tr('Total')}: ${(inv.totalMinor / 100).toStringAsFixed(0)} EGP | ${context.tr('Paid')}: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} EGP\n${context.tr('Status')}: ${context.tr(inv.status)}',
+                                    'الإجمالي: ${(inv.totalMinor / 100).toStringAsFixed(0)} ج.م | المسدد: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} ج.م\nالحالة: ${_statusInArabic(inv.status)}',
                                 trailing: [
                                   if (isUnpaid)
                                     ElevatedButton(
                                       onPressed: () =>
                                           _showRecordPaymentDialog(inv),
-                                      child: Text(context.tr('Record Payment')),
+                                      child: const Text('تسجيل سداد'),
                                     )
                                   else
                                     PortalStatusChip(status: 'settled'),
@@ -721,9 +723,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                           ),
                     // Tab 4: Receipts
                     _receipts.isEmpty
-                        ? Center(
+                        ? const Center(
                             child: Text(
-                              context.tr('No payment receipts generated yet.'),
+                              'لم يتم إصدار إيصالات دفع حتى الآن.',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                             ),
                           )
                         : ListView.separated(
@@ -737,18 +740,19 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                   ? '#${_shortId(rec.id)}'
                                   : rec.receiptNumber;
                               return PortalListCard(
-                                icon: Icons.receipt,
+                                icon: Icons.receipt_rounded,
                                 accentColor: AppColors.adminRole,
-                                title: '${context.tr('Receipt')} $receiptLabel',
+                                title: 'إيصال تحصيل $receiptLabel',
                                 subtitle:
-                                    '${context.tr('Amount Paid')}: ${(rec.amountMinor / 100).toStringAsFixed(0)} ${rec.currency}\n${context.tr('Issued')}: ${rec.issuedAt.year}-${rec.issuedAt.month}-${rec.issuedAt.day}',
+                                    'المبلغ المسدد: ${(rec.amountMinor / 100).toStringAsFixed(0)} ج.م\nتاريخ السداد: ${rec.issuedAt.year}/${rec.issuedAt.month}/${rec.issuedAt.day}',
                               );
                             },
                           ),
                     _adjustmentRequests.isEmpty
-                        ? Center(
+                        ? const Center(
                             child: Text(
-                              context.tr('No discount or exemption requests.'),
+                              'لا توجد طلبات خصم أو إعفاء معلقة.',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                             ),
                           )
                         : ListView.separated(
@@ -761,19 +765,19 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               final isPending = req.status == 'pending';
                               return PortalListCard(
                                 icon: req.adjustmentType == 'exemption'
-                                    ? Icons.volunteer_activism
-                                    : Icons.percent,
+                                    ? Icons.volunteer_activism_rounded
+                                    : Icons.percent_rounded,
                                 accentColor: isPending
                                     ? Colors.orange
                                     : AppColors.adminRole,
                                 title: '${req.studentName} - ${req.groupName}',
                                 subtitle:
-                                    '${context.tr('Teacher')}: ${req.teacherName}\n${context.tr('Original')} ${_money(req.originalPriceMinor, req.currency)} | ${context.tr('Discount')} ${_money(req.requestedDiscountMinor, req.currency)} | ${context.tr('Final')} ${_money(req.requestedFinalPriceMinor, req.currency)}${req.reason.isEmpty ? '' : '\n${context.tr('Reason')}: ${req.reason}'}',
+                                    'المعلم: ${req.teacherName}\nالسعر الأصلي: ${_money(req.originalPriceMinor)} | الخصم: ${_money(req.requestedDiscountMinor)} | النهائي: ${_money(req.requestedFinalPriceMinor)}${req.reason.isEmpty ? '' : '\nالسبب: ${req.reason}'}',
                                 trailing: [
                                   PortalStatusChip(status: req.status),
                                   if (isPending)
                                     IconButton.filledTonal(
-                                      tooltip: context.tr('Reject'),
+                                      tooltip: 'رفض',
                                       onPressed: () =>
                                           _decideAdjustment(req, false),
                                       icon: const Icon(Icons.close),
@@ -783,7 +787,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                       onPressed: () =>
                                           _decideAdjustment(req, true),
                                       icon: const Icon(Icons.check),
-                                      label: Text(context.tr('Approve')),
+                                      label: const Text('موافقة'),
                                     ),
                                 ],
                               );
@@ -802,6 +806,21 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   String _shortId(String value) {
     if (value.length <= 8) return value;
     return value.substring(0, 8);
+  }
+
+  static String _statusInArabic(String status) {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return 'خالص المسدد';
+      case 'partially_paid':
+        return 'مدفوع جزئياً';
+      case 'overdue':
+        return 'متأخر';
+      case 'pending':
+        return 'مستحق';
+      default:
+        return status;
+    }
   }
 }
 
@@ -836,9 +855,9 @@ class _PaymentAdjustmentRequest {
     final json = Map<String, dynamic>.from(raw);
     return _PaymentAdjustmentRequest(
       id: json['request_id']?.toString() ?? '',
-      studentName: json['student_name']?.toString() ?? 'Student',
-      groupName: json['group_name']?.toString() ?? 'Group',
-      teacherName: json['teacher_name']?.toString() ?? 'Teacher',
+      studentName: json['student_name']?.toString() ?? 'الطالب',
+      groupName: json['group_name']?.toString() ?? 'المجموعة',
+      teacherName: json['teacher_name']?.toString() ?? 'المعلم',
       adjustmentType: json['adjustment_type']?.toString() ?? 'discount',
       originalPriceMinor: _asInt(json['original_price_minor']),
       requestedDiscountMinor: _asInt(json['requested_discount_minor']),
@@ -856,7 +875,7 @@ int _asInt(Object? value) {
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
 
-String _money(int minor, [String currency = 'EGP']) {
+String _money(int minor, [String currency = 'ج.م']) {
   final amount = minor / 100;
   final formatted = amount == amount.roundToDouble()
       ? amount.toStringAsFixed(0)

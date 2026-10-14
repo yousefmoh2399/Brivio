@@ -18,10 +18,6 @@ import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 import '../../../features/student/presentation/widgets/student_digital_id_card.dart';
 import '../../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
 import '../../../features/assessment/presentation/widgets/group_leaderboard_widget.dart';
-import '../widgets/student_timetable_widget.dart';
-import '../../../features/assessment/presentation/screens/ai_study_companion_screen.dart';
-import '../../../features/curriculum/presentation/screens/student_materials_screen.dart';
-import '../../../features/helpdesk/presentation/screens/helpdesk_support_screen.dart';
 import '../student_dashboard_models.dart';
 
 String _formatMoney(int amountMinor, String currency) {
@@ -252,7 +248,7 @@ class HomeTab extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Code Playground',
+                                  context.tr('Code Playground'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.titleMedium(
@@ -261,7 +257,9 @@ class HomeTab extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Run code and watch step-by-step visual explanations',
+                                  context.tr(
+                                    'Run code and watch step-by-step visual explanations',
+                                  ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.caption(textSecondary),
@@ -270,96 +268,12 @@ class HomeTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Tooltip(
-                            message: 'Open code playground',
-                            child: Icon(
+                          Tooltip(
+                            message: context.tr('Open code playground'),
+                            child: const Icon(
                               Icons.play_circle_fill_rounded,
                               color: AppColors.primary,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // ── Leaderboard & Hall of Fame Shortcut ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 175),
-                  child: GestureDetector(
-                    onTap: () {
-                      GroupLeaderboardWidget.show(
-                        context,
-                        groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
-                        groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
-                        availableGroups: enrolledGroups,
-                      );
-                    },
-                    child: GlassCard(
-                      padding: const EdgeInsets.all(20),
-                      color: isDark
-                          ? const Color(0xFF1E293B)
-                          : Colors.amber.shade50.withValues(alpha: 0.6),
-                      borderColor: Colors.amber.withValues(alpha: 0.35),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.emoji_events_rounded,
-                              color: Colors.amber,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'لوحة شرف الأوائل • Hall of Fame',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.titleMedium(
-                                        textPrimary,
-                                      ).copyWith(fontWeight: FontWeight.w800),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        'الأوائل 👑',
-                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.amber),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'شاهد فرسان المجموعة وأعلى درجات الامتحانات ونسبة الحضور 100%',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.caption(textSecondary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.chevron_left_rounded,
-                            color: Colors.amber,
                           ),
                         ],
                       ),
@@ -469,123 +383,6 @@ class HomeTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // ── Student Smart Services Hub ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 195),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AiStudyCompanionScreen(studentName: userName),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-                            ),
-                            child: const Column(
-                              children: [
-                                Icon(Icons.psychology_rounded, color: AppColors.primary, size: 24),
-                                SizedBox(height: 6),
-                                Text(
-                                  'المساعد الذكي 🤖',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => StudentMaterialsScreen(studentName: userName),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
-                            ),
-                            child: const Column(
-                              children: [
-                                Icon(Icons.menu_book_rounded, color: Colors.green, size: 24),
-                                SizedBox(height: 6),
-                                Text(
-                                  'مكتبة الملازم 📚',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const HelpdeskSupportScreen(),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
-                            ),
-                            child: const Column(
-                              children: [
-                                Icon(Icons.support_agent_rounded, color: Colors.amber, size: 24),
-                                SizedBox(height: 6),
-                                Text(
-                                  'الدعم والشكاوى 🎧',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Student Interactive Timetable Widget ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 200),
-                  child: const StudentTimetableWidget(),
-                ),
-                const SizedBox(height: 24),
 
                 // ── Quick Stats ──
                 FadeInSlide(

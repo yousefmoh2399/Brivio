@@ -67,58 +67,62 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
 
   void _showCreateScheduleDialog() {
     String? selectedGroupId = _groups.isNotEmpty ? _groups.first.id : null;
-    int selectedDay = 1; // Monday
-    TimeOfDay startTime = const TimeOfDay(hour: 10, minute: 0);
-    TimeOfDay endTime = const TimeOfDay(hour: 12, minute: 0);
-    final roomCtrl = TextEditingController();
+    int selectedDay = 6; // Saturday by default for Egyptian centers
+    TimeOfDay startTime = const TimeOfDay(hour: 16, minute: 0);
+    TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
+    final roomCtrl = TextEditingController(text: 'قاعة 1');
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Create Class Schedule'),
+            title: const Text('إضافة موعد حصة جديد'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (_groups.isNotEmpty)
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: selectedGroupId,
                       decoration: const InputDecoration(
-                        labelText: 'Select Group',
+                        labelText: 'اختر المجموعة الدراسية',
                       ),
                       items: _groups
                           .map(
                             (g) => DropdownMenuItem(
                               value: g.id,
-                              child: Text(g.name),
+                              child: Text(g.name, overflow: TextOverflow.ellipsis),
                             ),
                           )
                           .toList(),
                       onChanged: (v) =>
                           setStateDialog(() => selectedGroupId = v),
                     ),
+                  const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
+                    isExpanded: true,
                     initialValue: selectedDay,
-                    decoration: const InputDecoration(labelText: 'Day of Week'),
+                    decoration: const InputDecoration(labelText: 'يوم الحصة'),
                     items: const [
-                      DropdownMenuItem(value: 1, child: Text('Monday')),
-                      DropdownMenuItem(value: 2, child: Text('Tuesday')),
-                      DropdownMenuItem(value: 3, child: Text('Wednesday')),
-                      DropdownMenuItem(value: 4, child: Text('Thursday')),
-                      DropdownMenuItem(value: 5, child: Text('Friday')),
-                      DropdownMenuItem(value: 6, child: Text('Saturday')),
-                      DropdownMenuItem(value: 7, child: Text('Sunday')),
+                      DropdownMenuItem(value: 6, child: Text('السبت')),
+                      DropdownMenuItem(value: 7, child: Text('الأحد')),
+                      DropdownMenuItem(value: 1, child: Text('الإثنين')),
+                      DropdownMenuItem(value: 2, child: Text('الثلاثاء')),
+                      DropdownMenuItem(value: 3, child: Text('الأربعاء')),
+                      DropdownMenuItem(value: 4, child: Text('الخميس')),
+                      DropdownMenuItem(value: 5, child: Text('الجمعة')),
                     ],
                     onChanged: (v) {
                       if (v != null) setStateDialog(() => selectedDay = v);
                     },
                   ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: roomCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Room / Location',
+                      labelText: 'اسم / رقم القاعة الدراسية',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -126,8 +130,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.schedule),
-                          label: Text('Start ${startTime.format(context)}'),
+                          icon: const Icon(Icons.access_time_rounded, size: 16),
+                          label: Text('البداية ${startTime.format(context)}', style: const TextStyle(fontSize: 11)),
                           onPressed: () async {
                             final picked = await showTimePicker(
                               context: context,
@@ -142,8 +146,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.schedule),
-                          label: Text('End ${endTime.format(context)}'),
+                          icon: const Icon(Icons.access_time_rounded, size: 16),
+                          label: Text('النهاية ${endTime.format(context)}', style: const TextStyle(fontSize: 11)),
                           onPressed: () async {
                             final picked = await showTimePicker(
                               context: context,
@@ -163,7 +167,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -190,7 +194,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Class schedule created!'),
+                          content: Text('تمت إضافة موعد الحصة بنجاح!'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -199,14 +203,14 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Schedule conflict: $e'),
+                          content: Text('تعارض أو خطأ في الجدول: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Create Schedule'),
+                child: const Text('حفظ الموعد'),
               ),
             ],
           );
@@ -215,51 +219,17 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     );
   }
 
-  void _deleteSchedule(ScheduleEntity s) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Schedule'),
-        content: const Text('Are you sure you want to delete this schedule?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      try {
-        await _scheduleRepo.deleteSchedule(s.id);
-        _loadSchedules();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
-  }
-
   void _showEditScheduleDialog(ScheduleEntity s) {
     int selectedDay = s.dayOfWeek;
+    final startParts = s.startTime.split(':');
+    final endParts = s.endTime.split(':');
     TimeOfDay startTime = TimeOfDay(
-      hour: int.parse(s.startTime.split(':')[0]),
-      minute: int.parse(s.startTime.split(':')[1]),
+      hour: int.tryParse(startParts[0]) ?? 16,
+      minute: int.tryParse(startParts.length > 1 ? startParts[1] : '0') ?? 0,
     );
     TimeOfDay endTime = TimeOfDay(
-      hour: int.parse(s.endTime.split(':')[0]),
-      minute: int.parse(s.endTime.split(':')[1]),
+      hour: int.tryParse(endParts[0]) ?? 18,
+      minute: int.tryParse(endParts.length > 1 ? endParts[1] : '0') ?? 0,
     );
     final roomCtrl = TextEditingController(text: s.roomLocation ?? '');
 
@@ -268,31 +238,33 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('Edit Class Schedule'),
+            title: const Text('تعديل موعد الحصة'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<int>(
+                    isExpanded: true,
                     initialValue: selectedDay,
-                    decoration: const InputDecoration(labelText: 'Day of Week'),
+                    decoration: const InputDecoration(labelText: 'يوم الحصة'),
                     items: const [
-                      DropdownMenuItem(value: 1, child: Text('Monday')),
-                      DropdownMenuItem(value: 2, child: Text('Tuesday')),
-                      DropdownMenuItem(value: 3, child: Text('Wednesday')),
-                      DropdownMenuItem(value: 4, child: Text('Thursday')),
-                      DropdownMenuItem(value: 5, child: Text('Friday')),
-                      DropdownMenuItem(value: 6, child: Text('Saturday')),
-                      DropdownMenuItem(value: 7, child: Text('Sunday')),
+                      DropdownMenuItem(value: 6, child: Text('السبت')),
+                      DropdownMenuItem(value: 7, child: Text('الأحد')),
+                      DropdownMenuItem(value: 1, child: Text('الإثنين')),
+                      DropdownMenuItem(value: 2, child: Text('الثلاثاء')),
+                      DropdownMenuItem(value: 3, child: Text('الأربعاء')),
+                      DropdownMenuItem(value: 4, child: Text('الخميس')),
+                      DropdownMenuItem(value: 5, child: Text('الجمعة')),
                     ],
                     onChanged: (v) {
                       if (v != null) setStateDialog(() => selectedDay = v);
                     },
                   ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: roomCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Room / Location',
+                      labelText: 'اسم / رقم القاعة الدراسية',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -300,8 +272,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.schedule),
-                          label: Text('Start ${startTime.format(context)}'),
+                          icon: const Icon(Icons.access_time_rounded, size: 16),
+                          label: Text('البداية ${startTime.format(context)}', style: const TextStyle(fontSize: 11)),
                           onPressed: () async {
                             final picked = await showTimePicker(
                               context: context,
@@ -316,8 +288,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.schedule),
-                          label: Text('End ${endTime.format(context)}'),
+                          icon: const Icon(Icons.access_time_rounded, size: 16),
+                          label: Text('النهاية ${endTime.format(context)}', style: const TextStyle(fontSize: 11)),
                           onPressed: () async {
                             final picked = await showTimePicker(
                               context: context,
@@ -337,7 +309,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -362,7 +334,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Class schedule updated!'),
+                          content: Text('تم تحديث موعد الحصة بنجاح!'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -371,14 +343,14 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Schedule conflict: $e'),
+                          content: Text('تعارض في الجدول: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: const Text('Save Changes'),
+                child: const Text('حفظ التعديلات'),
               ),
             ],
           );
@@ -387,22 +359,53 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     );
   }
 
+  Future<void> _deleteSchedule(ScheduleEntity s) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف موعد الحصة'),
+        content: const Text('هل أنت متأكد من رغبتك في حذف هذا الموعد من الجدول؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await _scheduleRepo.deleteSchedule(s.id);
+        _loadSchedules();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم حذف الموعد من الجدول')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('فشل الحذف: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: 'Schedule Management',
-      subtitle: 'Create validated class schedules and detect conflicts.',
+      title: 'إدارة الجداول والمواعيد',
+      subtitle: 'تنظيم مواعيد الحصص الأسبوعية، توزيع القاعات، ومنع تعارض المواعيد.',
       icon: Icons.schedule,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadSchedules,
         ),
         PortalAction(
           icon: Icons.add,
-          label: 'Add Schedule',
+          label: 'إضافة موعد جديد',
           onPressed: _showCreateScheduleDialog,
           primary: true,
         ),
@@ -411,8 +414,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: _schedules.isEmpty,
-        emptyTitle: 'No schedules found',
-        emptySubtitle: 'Create a group first, then add validated time slots.',
+        emptyTitle: 'لا توجد مواعيد مسجلة',
+        emptySubtitle: 'قم بإنشاء مجموعة دراسية أولاً ثم أضف مواعيد الحصص والقاعات.',
         emptyIcon: Icons.schedule,
         onRetry: _loadSchedules,
         child: ListView.separated(
@@ -432,19 +435,19 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
               icon: Icons.schedule,
               accentColor: AppColors.adminRole,
               title:
-                  '${groupName ?? "Group"} · Day ${s.dayOfWeek}: ${s.startTime} - ${s.endTime}',
-              subtitle: 'Room: ${s.roomLocation ?? "Not assigned"}',
+                  '${groupName ?? "مجموعة"} • ${_dayNameArabic(s.dayOfWeek)}: ${_formatTime(s.startTime)} - ${_formatTime(s.endTime)}',
+              subtitle: 'القاعة الدراسية: ${s.roomLocation ?? "غير محددة"}',
               trailing: [
                 PortalStatusChip(status: s.status),
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.blue),
                   onPressed: () => _showEditScheduleDialog(s),
-                  tooltip: 'Edit Schedule',
+                  tooltip: 'تعديل الموعد',
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: () => _deleteSchedule(s),
-                  tooltip: 'Delete Schedule',
+                  tooltip: 'حذف الموعد',
                 ),
               ],
             );
@@ -452,5 +455,38 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
         ),
       ),
     );
+  }
+
+  static String _dayNameArabic(int day) {
+    switch (day) {
+      case 6:
+        return 'السبت';
+      case 7:
+        return 'الأحد';
+      case 1:
+        return 'الإثنين';
+      case 2:
+        return 'الثلاثاء';
+      case 3:
+        return 'الأربعاء';
+      case 4:
+        return 'الخميس';
+      case 5:
+        return 'الجمعة';
+      default:
+        return 'يوم $day';
+    }
+  }
+
+  static String _formatTime(String timeStr) {
+    final parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = parts[1];
+      final period = h >= 12 ? 'م' : 'ص';
+      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      return '$h12:$m $period';
+    }
+    return timeStr;
   }
 }

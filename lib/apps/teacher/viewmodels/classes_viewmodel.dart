@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Student {
   final String id;
@@ -39,89 +40,100 @@ class ClassesViewModel extends ChangeNotifier {
   List<TeacherClass> _classes = [];
   List<TeacherClass> get classes => _classes;
 
-  void loadClasses() {
+  Future<void> loadClasses() async {
     _isLoading = true;
     notifyListeners();
 
-    // Mock delay
-    Future.delayed(const Duration(seconds: 1), () {
-      _classes = [
-        TeacherClass(
-          id: 'c1',
-          name: 'Advanced Mathematics',
-          time: 'Mon, Wed 10:00 AM',
-          room: 'Room 302',
-          students: [
-            Student(
-              id: 's1',
-              name: 'Alice Smith',
-              avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026024d',
-              attendanceRate: 95.0,
-              grade: 92.5,
-            ),
-            Student(
-              id: 's2',
-              name: 'Bob Johnson',
-              avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-              attendanceRate: 88.0,
-              grade: 85.0,
-            ),
-            Student(
-              id: 's3',
-              name: 'Charlie Brown',
-              avatarUrl: 'https://i.pravatar.cc/150?u=a04258114e29026702d',
-              attendanceRate: 100.0,
-              grade: 98.0,
-            ),
-          ],
-        ),
-        TeacherClass(
-          id: 'c2',
-          name: 'Physics 101',
-          time: 'Tue, Thu 01:00 PM',
-          room: 'Lab 4',
-          students: [
-            Student(
-              id: 's4',
-              name: 'David Lee',
-              avatarUrl: 'https://i.pravatar.cc/150?u=a048581f4e29026701d',
-              attendanceRate: 75.0,
-              grade: 72.0,
-            ),
-            Student(
-              id: 's5',
-              name: 'Eve Davis',
-              avatarUrl: 'https://i.pravatar.cc/150?u=a04258a2462d826712d',
-              attendanceRate: 92.0,
-              grade: 89.5,
-            ),
-          ],
-        ),
-        TeacherClass(
-          id: 'c3',
-          name: 'Computer Science',
-          time: 'Fri 09:00 AM',
-          room: 'Lab 1',
-          students: [
-            Student(
-              id: 's6',
-              name: 'Frank White',
-              avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026024e',
-              attendanceRate: 85.0,
-              grade: 80.0,
-            ),
-            Student(
-              id: 's7',
-              name: 'Grace Hopper',
-              avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704e',
-              attendanceRate: 100.0,
-              grade: 100.0,
-            ),
-          ],
-        ),
-      ];
+    try {
+      final client = Supabase.instance.client;
+      final currentUserId = client.auth.currentUser?.id;
+
+      String? teacherId;
+      if (currentUserId != null) {
+        final teacherRes = await client
+            .from('teachers')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .maybeSingle();
+        teacherId = teacherRes?['id'] as String?;
+      }
+
+      var query = client
+          .from('groups')
+          .select('id, name, schedules(day_of_week, start_time, end_time, rooms(name))');
+
+      if (teacherId != null) {
+        query = query.eq('teacher_id', teacherId);
+      }
+
+      final res = await query.order('name');
+      final List<TeacherClass> loadedClasses = [];
+
+      for (final item in (res as List)) {
+        final classId = item['id'] as String;
+        final className = item['name'] as String? ?? 'مجموعة دراسية';
+        final schedules = item['schedules'] as List<dynamic>? ?? [];
+
+        String timeStr = 'غير محدد الموعد';
+        String roomStr = 'قاعة عامة';
+
+        if (schedules.isNotEmpty) {
+          final s0 = schedules.first as Map<String, dynamic>;
+          final day = s0['day_of_week'] ?? '';
+          final start = s0['start_time'] ?? '';
+          final end = s0['end_time'] ?? '';
+          if (day.toString().isNotEmpty) {
+            timeStr = '$day ($start - $end)';
+          }
+          final room = s0['rooms'] as Map<String, dynamic>?;
+          if (room != null && room['name'] != null) {
+            roomStr = room['name'] as String;
+          }
+        }
+
+        // Fetch students for this group
+        final List<Student> loadedStudents = [];
+        try {
+          final enrollments = await client
+              .from('group_enrollments')
+              .select('students(id, profiles(full_name, avatar_url))')
+              .eq('group_id', classId)
+              .eq('status', 'active');
+
+          for (final en in (enrollments as List)) {
+            final stu = en['students'] as Map<String, dynamic>?;
+            final prof = stu?['profiles'] as Map<String, dynamic>?;
+            if (stu != null) {
+              loadedStudents.add(
+                Student(
+                  id: stu['id'] as String,
+                  name: prof?['full_name'] as String? ?? 'طالب',
+                  avatarUrl: prof?['avatar_url'] as String? ?? '',
+                  attendanceRate: 100.0,
+                  grade: 100.0,
+                ),
+              );
+            }
+          }
+        } catch (_) {}
+
+        loadedClasses.add(
+          TeacherClass(
+            id: classId,
+            name: className,
+            time: timeStr,
+            room: roomStr,
+            students: loadedStudents,
+          ),
+        );
+      }
+
+      _classes = loadedClasses;
+    } catch (_) {
+      _classes = [];
+    } finally {
       _isLoading = false;
       notifyListeners();
-    });
+    }
   }
 }

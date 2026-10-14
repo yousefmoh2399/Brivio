@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
@@ -71,14 +70,14 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     }.toList()..sort();
 
     return PortalPageShell(
-      title: 'Audit Logs',
-      subtitle: 'Database write trail for production operations.',
+      title: 'سجل تدقيق العمليات',
+      subtitle: 'تتبع كافة التعديلات وعمليات الإضافة والحذف على النظام.',
       icon: Icons.manage_search,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadAuditLogs,
         ),
       ],
@@ -91,11 +90,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _tableFilter,
                   isExpanded: true,
-                  decoration: InputDecoration(labelText: context.tr('Table')),
+                  decoration: const InputDecoration(labelText: 'تصفية حسب الجدول'),
                   items: tables
                       .map(
-                        (table) =>
-                            DropdownMenuItem(value: table, child: Text(table)),
+                        (table) => DropdownMenuItem(
+                          value: table,
+                          child: Text(table == 'all' ? 'جميع الجداول' : table),
+                        ),
                       )
                       .toList(),
                   onChanged: (value) {
@@ -113,9 +114,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: _items.isEmpty,
-              emptyTitle: 'No audit logs',
+              emptyTitle: 'لا توجد سجلات عمليات',
               emptySubtitle:
-                  'Logs will appear after the audit migration is executed and data changes happen.',
+                  'ستظهر السجلات هنا فور حدوث أي عمليات إضافة أو تعديل في قاعدة البيانات.',
               emptyIcon: Icons.manage_search,
               onRetry: _loadAuditLogs,
               child: ListView.separated(
@@ -126,13 +127,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                   return PortalListCard(
                     icon: item.icon,
                     accentColor: item.color,
-                    title: '${item.action} ${item.tableName}',
+                    title: '${item.actionLabel} • ${item.tableName}',
                     subtitle:
-                        '${item.recordId ?? "No record id"} | ${item.createdLabel}',
+                        'المعرف: ${item.recordId ?? "غير محدد"} | ${item.createdLabel}',
                     trailing: [
-                      PortalStatusChip(status: item.action),
+                      PortalStatusChip(status: item.actionLabel),
                       IconButton(
-                        tooltip: context.tr('View details'),
+                        tooltip: 'عرض التفاصيل',
                         onPressed: () => _showAuditDetails(item),
                         icon: const Icon(Icons.open_in_new),
                       ),
@@ -151,23 +152,23 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${item.action} ${item.tableName}'),
+        title: Text('${item.actionLabel} - ${item.tableName}'),
         content: SizedBox(
           width: 680,
           child: SingleChildScrollView(
             child: SelectableText(
-              '${context.tr('Actor')}: ${item.actorUserId ?? context.tr("system")}\n'
-              '${context.tr('Record')}: ${item.recordId ?? context.tr("unknown")}\n'
-              '${context.tr('Time')}: ${item.createdLabel}\n\n'
-              '${context.tr('Old')}:\n${item.oldData ?? "{}"}\n\n'
-              '${context.tr('New')}:\n${item.newData ?? "{}"}',
+              'المنفّذ (المستخدم): ${item.actorUserId ?? "النظام التلقائي"}\n'
+              'المعرف المرجعي: ${item.recordId ?? "غير محدد"}\n'
+              'التاريخ والوقت: ${item.createdLabel}\n\n'
+              'البيانات السابقة:\n${item.oldData ?? "{}"}\n\n'
+              'البيانات الجديدة:\n${item.newData ?? "{}"}',
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(context.tr('Close')),
+            child: const Text('إغلاق'),
           ),
         ],
       ),
@@ -209,6 +210,15 @@ class _AuditLogItem {
           DateTime.tryParse(row['created_at']?.toString() ?? '') ??
           DateTime.now(),
     );
+  }
+
+  String get actionLabel {
+    return switch (action.toLowerCase()) {
+      'insert' => 'إضافة',
+      'delete' => 'حذف',
+      'update' => 'تعديل',
+      _ => action,
+    };
   }
 
   IconData get icon {

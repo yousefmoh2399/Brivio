@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'child_details_screen.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
@@ -13,33 +14,67 @@ class ParentDashboardScreen extends StatefulWidget {
 }
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
-  final List<Map<String, dynamic>> _allChildren = [
-    {
-      'id': '1',
-      'parentId': 'p1',
-      'name': 'Alice Smith',
-      'grade': '10th Grade',
-      'avatar': 'A',
-      'gpa': '3.8',
-      'attendance': '98%',
-    },
-    {
-      'id': '2',
-      'parentId': 'p1',
-      'name': 'Bob Smith',
-      'grade': '8th Grade',
-      'avatar': 'B',
-      'gpa': '3.5',
-      'attendance': '95%',
-    },
-  ];
+  List<Map<String, dynamic>> _children = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchChildren();
+  }
+
+  Future<void> _fetchChildren() async {
+    setState(() => _isLoading = true);
+    try {
+      final client = Supabase.instance.client;
+      final currentUserId = client.auth.currentUser?.id;
+
+      if (currentUserId != null) {
+        final parentRes = await client
+            .from('parents')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .maybeSingle();
+        final pId = parentRes?['id'] as String?;
+
+        if (pId != null) {
+          final res = await client
+              .from('parent_students')
+              .select('students(id, student_code, profiles(full_name, avatar_url))')
+              .eq('parent_id', pId);
+
+          final List<Map<String, dynamic>> list = [];
+          for (final item in (res as List)) {
+            final stu = item['students'] as Map<String, dynamic>?;
+            final prof = stu?['profiles'] as Map<String, dynamic>?;
+            if (stu != null) {
+              final name = prof?['full_name'] as String? ?? 'طالب';
+              list.add({
+                'id': stu['id'] as String,
+                'name': name,
+                'grade': 'المرحلة الدراسية',
+                'avatar': name.isNotEmpty ? name[0] : 'ط',
+                'gpa': 'متميز',
+                'attendance': '100%',
+              });
+            }
+          }
+          if (mounted) setState(() => _children = list);
+        } else {
+          if (mounted) setState(() => _children = []);
+        }
+      } else {
+        if (mounted) setState(() => _children = []);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _children = []);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final children = _allChildren
-        .where((c) => c['parentId'] == widget.parentId)
-        .toList();
-
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       body: Stack(
@@ -99,94 +134,129 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       const FadeInSlide(
                         delay: Duration(milliseconds: 100),
                         child: SectionHeader(
-                          title: 'Your Children',
-                          actionLabel: 'View All',
+                          title: 'الأبناء المسجلون',
+                          actionLabel: '',
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ...children.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        var child = entry.value;
-                        return FadeInSlide(
-                          delay: Duration(milliseconds: 150 + (index * 100)),
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: GlassCard(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        ChildDetailsScreen(childData: child),
-                                  ),
-                                );
-                              },
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor: AppColors.primarySubtle,
-                                    child: Text(
-                                      child['avatar'],
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w600,
+                      if (_isLoading)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_children.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: const Column(
+                            children: [
+                              Icon(Icons.family_restroom_outlined, size: 48, color: AppColors.darkTextSecondary),
+                              SizedBox(height: 12),
+                              Text(
+                                'لا يوجد أبناء مرتبطون بهذا الحساب حالياً',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkTextPrimary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'يمكنك ربط حسابك بكود الطالب من خلال إدارة السنتر لمتابعة الحضور والدرجات.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.darkTextSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        ..._children.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          var child = entry.value;
+                          return FadeInSlide(
+                            delay: Duration(milliseconds: 150 + (index * 100)),
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: GlassCard(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          ChildDetailsScreen(childData: child),
+                                    ),
+                                  );
+                                },
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 26,
+                                      backgroundColor: AppColors.primarySubtle,
+                                      child: Text(
+                                        child['avatar'],
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          child['name'],
-                                          style: const TextStyle(
-                                            color: AppColors.darkTextPrimary,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            child['name'],
+                                            style: const TextStyle(
+                                              color: AppColors.darkTextPrimary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            child['grade'],
+                                            style: const TextStyle(
+                                              color: AppColors.darkTextSecondary,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        StatusChip(
+                                          label: '${child['gpa']}',
+                                          status: ChipStatus.success,
+                                          small: true,
                                         ),
                                         const SizedBox(height: 4),
-                                        Text(
-                                          child['grade'],
-                                          style: const TextStyle(
-                                            color: AppColors.darkTextSecondary,
-                                            fontSize: 14,
-                                          ),
+                                        StatusChip(
+                                          label: '${child['attendance']}',
+                                          status: ChipStatus.info,
+                                          small: true,
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      StatusChip(
-                                        label: 'GPA ${child['gpa']}',
-                                        status: ChipStatus.success,
-                                        small: true,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      StatusChip(
-                                        label: '${child['attendance']}',
-                                        status: ChipStatus.info,
-                                        small: true,
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }),
+                          );
+                        }),
 
                       const SizedBox(height: 24),
                       const FadeInSlide(
                         delay: Duration(milliseconds: 300),
-                        child: SectionHeader(title: 'Quick Actions'),
+                        child: SectionHeader(title: 'إجراءات سريعة'),
                       ),
                       const SizedBox(height: 12),
                       FadeInSlide(
@@ -196,22 +266,22 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           children: [
                             _buildQuickAction(
                               Icons.grade_outlined,
-                              'Grades',
+                              'الدرجات',
                               AppColors.purple,
                             ),
                             _buildQuickAction(
                               Icons.calendar_month_outlined,
-                              'Attendance',
+                              'الحضور',
                               AppColors.primary,
                             ),
                             _buildQuickAction(
                               Icons.account_balance_wallet_outlined,
-                              'Finances',
+                              'المصروفات',
                               AppColors.success,
                             ),
                             _buildQuickAction(
                               Icons.event_outlined,
-                              'Events',
+                              'الأنشطة',
                               AppColors.warning,
                             ),
                           ],
@@ -221,7 +291,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       const SizedBox(height: 32),
                       const FadeInSlide(
                         delay: Duration(milliseconds: 500),
-                        child: SectionHeader(title: 'Upcoming Events'),
+                        child: SectionHeader(title: 'أحدث التنبيهات والفعاليات'),
                       ),
                       const SizedBox(height: 12),
                       FadeInSlide(
@@ -231,8 +301,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           child: Column(
                             children: [
                               _buildEventItem(
-                                'Parent-Teacher Meeting',
-                                'Tomorrow, 4:00 PM',
+                                'اللقاء الدوري لأولياء الأمور والمعلمين',
+                                'الأسبوع القادم، 04:00 م',
                                 AppColors.primary,
                               ),
                               const Padding(
@@ -243,8 +313,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                                 ),
                               ),
                               _buildEventItem(
-                                'Science Fair',
-                                'Friday, 9:00 AM',
+                                'إعلان نتائج وتقييمات الشهر الأكاديمي',
+                                'يوم الجمعة، 09:00 ص',
                                 AppColors.purple,
                               ),
                             ],
@@ -269,15 +339,16 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       elevation: 0,
       expandedHeight: 80,
       pinned: true,
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        title: const FadeInSlide(
+      flexibleSpace: const FlexibleSpaceBar(
+        titlePadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        title: FadeInSlide(
           delay: Duration(milliseconds: 0),
           child: Text(
-            'Parent Portal',
+            'بوابة أولياء الأمور 👨‍👧‍👦',
             style: TextStyle(
               color: AppColors.darkTextPrimary,
               fontWeight: FontWeight.bold,
+              fontSize: 18,
             ),
           ),
         ),
@@ -333,7 +404,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             borderRadius: BorderRadius.circular(2),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,16 +413,16 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 title,
                 style: const TextStyle(
                   color: AppColors.darkTextPrimary,
-                  fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  fontSize: 13.5,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 time,
                 style: const TextStyle(
                   color: AppColors.darkTextSecondary,
-                  fontSize: 13,
+                  fontSize: 11.5,
                 ),
               ),
             ],

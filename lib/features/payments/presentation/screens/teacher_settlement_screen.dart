@@ -25,15 +25,16 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
   List<GroupEntity> _groups = [];
   GroupEntity? _selectedGroup;
 
-  final _studentCountCtrl = TextEditingController(text: '30');
-  final _sessionPriceCtrl = TextEditingController(text: '60');
+  final _studentCountCtrl = TextEditingController(text: '0');
+  final _sessionPriceCtrl = TextEditingController(text: '0');
   final _teacherPercentCtrl = TextEditingController(text: '70');
   final _centerPercentCtrl = TextEditingController(text: '30');
-  final _deductionsCtrl = TextEditingController(text: '50'); // e.g. photocopies
-  final _deductionReasonCtrl = TextEditingController(text: 'ملازم وتصوير ورق');
+  final _deductionsCtrl = TextEditingController(text: '0');
+  final _deductionReasonCtrl = TextEditingController();
 
   bool _isLoading = true;
   bool _isSettling = false;
+  String _centerName = 'المركز التعليمي';
 
   @override
   void initState() {
@@ -74,8 +75,18 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
       final teachers = teachersResult.data;
       final groups = await _groupRepo.fetchGroups(status: 'active');
 
+      String resolvedCenterName = _centerName;
+      try {
+        final client = Supabase.instance.client;
+        final cRes = await client.from('educational_centers').select('name').limit(1).maybeSingle();
+        if (cRes != null && cRes['name'] != null && (cRes['name'] as String).isNotEmpty) {
+          resolvedCenterName = cRes['name'] as String;
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
+          _centerName = resolvedCenterName;
           _teachers = teachers;
           _selectedTeacher = teachers.isNotEmpty ? teachers.first : null;
           _groups = groups;
@@ -153,7 +164,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
     DigitalCashReceiptDialog.show(
       context: context,
       receiptType: ReceiptType.teacherSettlement,
-      centerName: 'السنتر التعليمي',
+      centerName: _centerName,
       receiptNumber: receiptNum,
       dateStr:
           '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
@@ -175,7 +186,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
   void _shareReceipt() {
     final text = '''
 🧾 *إيصال تصفية حساب حصة مدرس*
-🏫 *سنتر تعليمي*
+🏫 *$_centerName*
 ━━━━━━━━━━━━━━━━━━
 👤 المدرس: *${_selectedTeacher?.fullName ?? ''}*
 📚 المجموعة: *${_selectedGroup?.name ?? ''}*
@@ -515,7 +526,14 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('إجمالي إيراد الحصة:', style: TextStyle(color: Colors.grey, fontSize: 14)),
+              const Expanded(
+                child: Text(
+                  'إجمالي إيراد الحصة:',
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
                 '${_totalRevenue.toStringAsFixed(1)} ج.م',
                 style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),

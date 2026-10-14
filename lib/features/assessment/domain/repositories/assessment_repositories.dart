@@ -13,6 +13,7 @@ abstract class IQuestionBankRepository {
 abstract class IHomeworkRepository {
   Future<List<Homework>> fetchHomeworkForGroup(String groupId);
   Future<Homework> createHomework(Homework homework);
+  Future<void> updateHomework(Homework homework);
   Future<void> linkQuestion(
     String homeworkId,
     String questionId,

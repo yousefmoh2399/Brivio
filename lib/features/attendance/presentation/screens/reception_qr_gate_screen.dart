@@ -44,6 +44,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
   // Attendees in current gate session
   final List<_AttendeeItem> _attendees = [];
   int _totalGroupStudents = 0;
+  String _centerName = 'المركز التعليمي';
 
   @override
   void initState() {
@@ -149,6 +150,15 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
         } catch (_) {}
       }
 
+      String resolvedCenterName = _centerName;
+      try {
+        final client = Supabase.instance.client;
+        final cRes = await client.from('educational_centers').select('name').limit(1).maybeSingle();
+        if (cRes != null && cRes['name'] != null && (cRes['name'] as String).isNotEmpty) {
+          resolvedCenterName = cRes['name'] as String;
+        }
+      } catch (_) {}
+
       // Snapshot groups and sessions for cold-boot offline startup
       if (groups.isNotEmpty) {
         await offlineService.cacheGroupsAndSessions(
@@ -166,6 +176,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
 
       if (mounted) {
         setState(() {
+          _centerName = resolvedCenterName;
           _groups = groups;
           _selectedGroup = initialGroup;
           _selectedSession = initialSession;
@@ -517,7 +528,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
         DigitalCashReceiptDialog.show(
           context: context,
           receiptType: ReceiptType.studentPayment,
-          centerName: 'السنتر التعليمي',
+          centerName: _centerName,
           receiptNumber: receiptNumber,
           dateStr:
               '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
@@ -582,7 +593,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
 
       await ReportGeneratorService().generateBulkStudentIdCardsPdf(
         students: studentsData,
-        centerName: 'سنتر الأوائل التعليمي',
+        centerName: _centerName,
         groupName: _selectedGroup!.name,
       );
 

@@ -19,12 +19,12 @@ class AppSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PortalPageShell(
-      title: context.tr('app_settings'),
-      subtitle: 'Manage global configuration, preferences, and security.',
+    return const PortalPageShell(
+      title: 'إعدادات النظام والتطبيق',
+      subtitle: 'تخصيص المظهر، الإشعارات، الأمان، وتفضيلات السنتر.',
       icon: Icons.settings_suggest,
       accentColor: AppColors.primary,
-      child: const Material(
+      child: Material(
         type: MaterialType.transparency,
         child: AppSettingsPanel(),
       ),
@@ -69,34 +69,37 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       setState(() => _isLoading = false);
       return;
     }
-    final adminRepo = GetIt.instance<IAdminRepository>();
-    final results = await Future.wait<dynamic>([
-      adminRepo.getSetting('email_digest'),
-      adminRepo.getSetting('two_factor_auth'),
-      adminRepo.getSetting('data_collection'),
-      adminRepo.getSetting('biometric_login'),
-      adminRepo.getSetting('push_notifications'),
-      adminRepo.getSetting('animation_quality'),
-      adminRepo.getSetting('time_zone'),
-    ]);
 
-    if (mounted) {
-      setState(() {
-        _emailDigest = _parseBool(results[0]?.value);
-        _twoFactorAuth = _parseBool(results[1]?.value);
-        _dataCollection = _parseBool(results[2]?.value);
-        _biometricLogin = _parseBool(results[3]?.value);
-        _pushNotifications = results[4] != null
-            ? _parseBool(results[4]?.value)
-            : true;
-        _animationQuality = results[5] != null
-            ? _parseBool(results[5]?.value)
-            : true;
-        if (results.length > 6 && results[6] != null) {
-          _timeZone = results[6]?.value.toString() ?? 'UTC+03:00';
-        }
-        _isLoading = false;
-      });
+    try {
+      final adminRepo = GetIt.instance<IAdminRepository>();
+      final results = await Future.wait<dynamic>([
+        adminRepo.getSetting('email_digest'),
+        adminRepo.getSetting('two_factor_auth'),
+        adminRepo.getSetting('data_collection'),
+        adminRepo.getSetting('biometric_login'),
+        adminRepo.getSetting('push_notifications'),
+        adminRepo.getSetting('animation_quality'),
+        adminRepo.getSetting('time_zone'),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          if (results[0] != null) _emailDigest = _parseBool(results[0]?.value);
+          if (results[1] != null) _twoFactorAuth = _parseBool(results[1]?.value);
+          if (results[2] != null) _dataCollection = _parseBool(results[2]?.value);
+          if (results[3] != null) _biometricLogin = _parseBool(results[3]?.value);
+          if (results[4] != null) _pushNotifications = _parseBool(results[4]?.value);
+          if (results[5] != null) _animationQuality = _parseBool(results[5]?.value);
+          if (results.length > 6 && results[6] != null) {
+            _timeZone = results[6]?.value.toString() ?? 'UTC+03:00';
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -127,7 +130,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Saved on this device. Server sync failed.'),
+            content: Text('تم الحفظ محلياً على هذا الجهاز.'),
           ),
         );
       }

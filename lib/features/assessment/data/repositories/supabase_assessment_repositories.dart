@@ -201,6 +201,23 @@ class SupabaseHomeworkRepository implements IHomeworkRepository {
   }
 
   @override
+  Future<void> updateHomework(Homework homework) async {
+    try {
+      await _wrapper.client.from('homework').update({
+        'title': homework.title,
+        'description': homework.description,
+        'due_at': homework.dueAt.toIso8601String(),
+        'max_score': homework.maxScore,
+        'status': homework.status,
+      }).eq('id', homework.id);
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to update homework: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
   Future<void> linkQuestion(
     String homeworkId,
     String questionId,

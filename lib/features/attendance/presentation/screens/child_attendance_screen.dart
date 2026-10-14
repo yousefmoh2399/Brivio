@@ -12,9 +12,9 @@ class ChildAttendanceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ChildAttendanceViewModel(),
-      child: Scaffold(
+      child: const Scaffold(
         backgroundColor: AppColors.darkBackground,
-        body: const _ChildAttendanceBody(),
+        body: _ChildAttendanceBody(),
       ),
     );
   }
@@ -24,21 +24,21 @@ class _ChildAttendanceBody extends StatelessWidget {
   const _ChildAttendanceBody();
 
   String _formatDate(DateTime date) {
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+    const months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
     ];
-    return '${months[date.month - 1]} ${date.day}';
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   @override
@@ -51,10 +51,11 @@ class _ChildAttendanceBody extends StatelessWidget {
           backgroundColor: AppColors.darkBackground,
           pinned: true,
           title: const Text(
-            'Attendance & Behavior',
+            'سجل الحضور والغياب والسلوك',
             style: TextStyle(
               color: AppColors.darkTextPrimary,
               fontWeight: FontWeight.bold,
+              fontSize: 18,
             ),
           ),
           iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
@@ -71,11 +72,27 @@ class _ChildAttendanceBody extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _buildStatsCards(viewModel),
-                const SizedBox(height: 32),
-                const SectionHeader(title: 'Recent Attendance Issues'),
+                const SizedBox(height: 28),
+                const Text(
+                  'سجل الغياب والتأخير الأخير',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkTextPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _buildAttendanceList(viewModel.attendanceRecords),
-                const SizedBox(height: 32),
-                const SectionHeader(title: 'Behavior Records'),
+                const SizedBox(height: 28),
+                const Text(
+                  'الملاحظات والسلوكيات',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.darkTextPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _buildBehaviorList(viewModel.behaviorRecords),
                 const SizedBox(height: 40),
               ]),
@@ -89,75 +106,67 @@ class _ChildAttendanceBody extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: GlowContainer(
-            glowColor: AppColors.error,
-            glowOpacity: 0.15,
-            padding: EdgeInsets.zero,
-            child: GlassCard(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.event_busy,
-                    color: AppColors.error,
-                    size: 32,
+          child: GlassCard(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            borderColor: AppColors.error.withValues(alpha: 0.3),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.event_busy_rounded,
+                  color: AppColors.error,
+                  size: 32,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '${viewModel.totalAbsences}',
+                  style: const TextStyle(
+                    color: AppColors.darkTextPrimary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${viewModel.totalAbsences}',
-                    style: const TextStyle(
-                      color: AppColors.darkTextPrimary,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'مرات الغياب',
+                  style: TextStyle(
+                    color: AppColors.darkTextSecondary,
+                    fontSize: 13,
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Absences',
-                    style: TextStyle(
-                      color: AppColors.darkTextSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: GlowContainer(
-            glowColor: AppColors.warning,
-            glowOpacity: 0.15,
-            padding: EdgeInsets.zero,
-            child: GlassCard(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.watch_later_outlined,
-                    color: AppColors.warning,
-                    size: 32,
+          child: GlassCard(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            borderColor: AppColors.warning.withValues(alpha: 0.3),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.watch_later_outlined,
+                  color: AppColors.warning,
+                  size: 32,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '${viewModel.totalTardiness}',
+                  style: const TextStyle(
+                    color: AppColors.darkTextPrimary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${viewModel.totalTardiness}',
-                    style: const TextStyle(
-                      color: AppColors.darkTextPrimary,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'مرات التأخير',
+                  style: TextStyle(
+                    color: AppColors.darkTextSecondary,
+                    fontSize: 13,
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Tardiness',
-                    style: TextStyle(
-                      color: AppColors.darkTextSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -167,11 +176,17 @@ class _ChildAttendanceBody extends StatelessWidget {
 
   Widget _buildAttendanceList(List<AttendanceRecord> records) {
     if (records.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text(
-          'No attendance issues recorded.',
-          style: TextStyle(color: AppColors.darkTextSecondary),
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Text(
+            'لا توجد غيابات أو تأخيرات مسجلة، الحضور منتظم تماماً 👏',
+            style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+          ),
         ),
       );
     }
@@ -180,49 +195,57 @@ class _ChildAttendanceBody extends StatelessWidget {
         final isAbsent = r.status == 'absent';
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: FadeInSlide(
-            child: GlassCard(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleIcon(
-                    icon: isAbsent ? Icons.cancel_outlined : Icons.schedule,
-                    color: isAbsent ? AppColors.error : AppColors.warning,
+          child: GlassCard(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: (isAbsent ? AppColors.error : AppColors.warning).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                  child: Icon(
+                    isAbsent ? Icons.cancel_outlined : Icons.schedule_rounded,
+                    color: isAbsent ? AppColors.error : AppColors.warning,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isAbsent ? 'غياب' : 'تأخير عن الحصة',
+                        style: const TextStyle(
+                          color: AppColors.darkTextPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (r.note != null && r.note!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
                         Text(
-                          isAbsent ? 'Absent' : 'Late',
+                          r.note!,
                           style: const TextStyle(
-                            color: AppColors.darkTextPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
+                            color: AppColors.darkTextSecondary,
+                            fontSize: 12,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        if (r.note != null)
-                          Text(
-                            r.note!,
-                            style: const TextStyle(
-                              color: AppColors.darkTextSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
                       ],
-                    ),
+                    ],
                   ),
-                  Text(
-                    _formatDate(r.date),
-                    style: const TextStyle(
-                      color: AppColors.darkTextTertiary,
-                      fontSize: 14,
-                    ),
+                ),
+                Text(
+                  _formatDate(r.date),
+                  style: const TextStyle(
+                    color: AppColors.darkTextTertiary,
+                    fontSize: 12,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -232,91 +255,74 @@ class _ChildAttendanceBody extends StatelessWidget {
 
   Widget _buildBehaviorList(List<BehaviorRecord> records) {
     if (records.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text(
-          'No behavior records.',
-          style: TextStyle(color: AppColors.darkTextSecondary),
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Text(
+            'لا توجد ملاحظات سلوكية مسجلة، سجل الطالب ممتاز 🌟',
+            style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+          ),
         ),
       );
     }
     return Column(
-      children: records.map((r) {
-        final isPositive = r.type == 'positive';
+      children: records.map((b) {
+        final isPositive = b.type == 'positive';
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: FadeInSlide(
-            child: AppCard(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    isPositive
-                        ? Icons.thumb_up_alt_outlined
-                        : Icons.warning_amber_rounded,
-                    color: isPositive ? AppColors.success : AppColors.warning,
-                    size: 24,
+          child: GlassCard(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: (isPositive ? AppColors.success : AppColors.error).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              isPositive ? 'Positive Behavior' : 'Incident',
-                              style: TextStyle(
-                                color: isPositive
-                                    ? AppColors.success
-                                    : AppColors.warning,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              _formatDate(r.date),
-                              style: const TextStyle(
-                                color: AppColors.darkTextTertiary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          r.description,
-                          style: const TextStyle(
-                            color: AppColors.darkTextPrimary,
-                            fontSize: 15,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person_outline,
-                              size: 14,
-                              color: AppColors.darkTextTertiary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Reported by ${r.teacher}',
-                              style: const TextStyle(
-                                color: AppColors.darkTextTertiary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                  child: Icon(
+                    isPositive ? Icons.thumb_up_alt_outlined : Icons.warning_amber_rounded,
+                    color: isPositive ? AppColors.success : AppColors.error,
+                    size: 20,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        b.description,
+                        style: const TextStyle(
+                          color: AppColors.darkTextPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'المعلم: ${b.teacher}',
+                        style: const TextStyle(
+                          color: AppColors.darkTextSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  _formatDate(b.date),
+                  style: const TextStyle(
+                    color: AppColors.darkTextTertiary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
         );

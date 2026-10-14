@@ -874,6 +874,49 @@ class AppLocalizations {
     'Normal': 'Normal',
     'High': 'High',
     'Urgent': 'Urgent',
+    'Assigned Groups': 'Assigned Groups',
+    'Today Sessions': 'Today Sessions',
+    'Open Homework': 'Open Homework',
+    'To Grade': 'To Grade',
+    'Saved Boards': 'Saved Boards',
+    'Learn': 'Learn',
+    'Schedule': 'Schedule',
+    'Profile': 'Profile',
+    'Exams & grades': 'Exams & grades',
+    'Attendance history': 'Attendance history',
+    'No child selected': 'No child selected',
+    'Manage your guardian profile and app access.':
+        'Manage your guardian profile and app access.',
+    'Language, theme, notifications, privacy, and biometric login.':
+        'Language, theme, notifications, privacy, and biometric login.',
+    'Leave the guardian portal on this device.':
+        'Leave the guardian portal on this device.',
+    'No unread notifications.': 'No unread notifications.',
+    'unread notifications.': 'unread notifications.',
+    'No leave requests yet.': 'No leave requests yet.',
+    'No attendance records yet.': 'No attendance records yet.',
+    'No exams are visible for this child yet.':
+        'No exams are visible for this child yet.',
+    'Published exams, attempts, scores, and answer review.':
+        'Published exams, attempts, scores, and answer review.',
+    'Academy Operations': 'Academy Operations',
+    'Live counts from the production database.':
+        'Live counts from the production database.',
+    'Welcome, Administrator': 'Welcome, Administrator',
+    'Admin Portal': 'Admin Portal',
+    'Attendance alerts': 'Attendance alerts',
+    'Grading queue': 'Grading queue',
+    'Open invoices': 'Open invoices',
+    'Whiteboards': 'Whiteboards',
+    'Recent Activity': 'Recent Activity',
+    'Latest operational events across the center.':
+        'Latest operational events across the center.',
+    'Code Playground': 'Code Playground',
+    'Run code and watch step-by-step visual explanations':
+        'Run code and watch step-by-step visual explanations',
+    'Open code playground': 'Open code playground',
+    'Administrator': 'Administrator',
+    'Global access': 'Global access',
   };
 
   static const Map<String, String> _ar = {
@@ -1781,6 +1824,49 @@ class AppLocalizations {
     'Learning progress': 'مستوى التقدم الدراسي',
     'Pending Homework': 'واجبات قيد التسليم',
     'Homework & Exams': 'الواجبات والامتحانات',
+    'Assigned Groups': 'المجموعات المسندة',
+    'Today Sessions': 'حصص اليوم',
+    'Open Homework': 'واجبات نشطة',
+    'To Grade': 'بانتظار التصحيح',
+    'Saved Boards': 'السبورات المحفوظة',
+    'Learn': 'الدروس',
+    'Schedule': 'الجدول الدراسي',
+    'Profile': 'الملف الشخصي',
+    'Exams & grades': 'الامتحانات والنتائج',
+    'Attendance history': 'سجل الحضور والغياب',
+    'No child selected': 'لم يتم اختيار طالب',
+    'Manage your guardian profile and app access.':
+        'إدارة ملف ولي الأمر وصلاحيات الدخول على هذا الجهاز.',
+    'Language, theme, notifications, privacy, and biometric login.':
+        'اللغة، المظهر، الإشعارات، الخصوصية والدخول ببصمة الإصبع.',
+    'Leave the guardian portal on this device.':
+        'تسجيل الخروج من بوابة ولي الأمر على هذا الجهاز.',
+    'No unread notifications.': 'لا توجد إشعارات غير مقروءة.',
+    'unread notifications.': 'إشعارات غير مقروءة.',
+    'No leave requests yet.': 'لا توجد طلبات إجازة مسجلة حتى الآن.',
+    'No attendance records yet.': 'لا توجد سجلات حضور حتى الآن.',
+    'No exams are visible for this child yet.':
+        'لا توجد امتحانات متاحة لهذا الطالب حالياً.',
+    'Published exams, attempts, scores, and answer review.':
+        'الامتحانات المنشورة، المحاولات، الدرجات ومراجعة الإجابات.',
+    'Academy Operations': 'عمليات وإحصائيات السنتر',
+    'Live counts from the production database.':
+        'إحصائيات مباشرة وفورية من قاعدة البيانات الحية.',
+    'Welcome, Administrator': 'مرحباً، مسؤول السنتر',
+    'Admin Portal': 'لوحة تحكم الإدارة',
+    'Attendance alerts': 'تنبيهات الغياب والتأخير',
+    'Grading queue': 'قائمة انتظار التصحيح',
+    'Open invoices': 'فواتير غير مسددة',
+    'Whiteboards': 'السبورات المنشورة',
+    'Recent Activity': 'سجل العمليات والأنشطة الأخيرة',
+    'Latest operational events across the center.':
+        'أحدث العمليات المسجلة بالسنتر (حضور، فواتير، اشتراكات).',
+    'Code Playground': 'مختبر البرمجة',
+    'Run code and watch step-by-step visual explanations':
+        'تجربة الأكواد البرمجية ومتابعة الشرح التفاعلي خطوة بخطوة',
+    'Open code playground': 'فتح مختبر البرمجة',
+    'Administrator': 'مسؤول السنتر',
+    'Global access': 'صلاحية كاملة على كل الفروع',
   };
 }
 

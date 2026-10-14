@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -96,31 +95,39 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(context.tr('Create New Group')),
+            title: const Text('إضافة مجموعة دراسية جديدة'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr(
-                        'Group Name (e.g. Programming Level 1)',
-                      ),
+                    decoration: const InputDecoration(
+                      labelText: 'اسم المجموعة (مثال: مجموعة الفيزياء - الأحد)',
                     ),
                   ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: codeCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Group Code (e.g. GRP-PROG1)'),
+                    decoration: const InputDecoration(
+                      labelText: 'كود المجموعة (مثال: PHY-G1)',
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: capacityCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'السعة القصوى للطلاب',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 10),
                   if (_subjects.isNotEmpty)
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: selectedSubjectId,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Subject'),
+                      decoration: const InputDecoration(
+                        labelText: 'المادة الدراسية',
                       ),
                       items: _subjects
                           .map(
@@ -133,12 +140,13 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                       onChanged: (v) =>
                           setStateDialog(() => selectedSubjectId = v),
                     ),
+                  const SizedBox(height: 10),
                   if (_branches.isNotEmpty)
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: selectedBranchId,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Branch'),
+                      decoration: const InputDecoration(
+                        labelText: 'الفرع التابع له',
                       ),
                       items: _branches
                           .map(
@@ -151,20 +159,13 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                       onChanged: (v) =>
                           setStateDialog(() => selectedBranchId = v),
                     ),
-                  TextField(
-                    controller: capacityCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Max Capacity'),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
                 ],
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Cancel')),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -177,33 +178,40 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
 
                   final nav = Navigator.of(ctx);
                   try {
+                    final cap = int.tryParse(capacityCtrl.text.trim());
                     final g = GroupEntity(
                       id: '',
                       code: codeCtrl.text.trim(),
                       name: nameCtrl.text.trim(),
                       subjectId: selectedSubjectId!,
                       branchId: selectedBranchId!,
-                      maxCapacity: int.tryParse(capacityCtrl.text) ?? 20,
+                      maxCapacity: cap,
                       status: 'active',
                     );
 
                     await _groupRepo.createGroup(g);
                     nav.pop();
                     _loadData();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('تم إنشاء المجموعة بنجاح!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            '${context.tr('Failed to create group')}: $e',
-                          ),
+                          content: Text('فشل إنشاء المجموعة: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: Text(context.tr('Create Group')),
+                child: const Text('حفظ المجموعة'),
               ),
             ],
           );
@@ -212,18 +220,17 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     );
   }
 
-  void _openGroupDetails(GroupEntity g) {
-    Navigator.push(
-      context,
+  void _openGroupDetails(GroupEntity group) {
+    Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => GroupDetailsScreen(
-          group: g,
+        builder: (_) => GroupDetailsScreen(
+          group: group,
           studentRepo: _studentRepo,
           teacherRepo: _teacherRepo,
           enrollmentRepo: _enrollmentRepo,
         ),
       ),
-    ).then((_) => _loadData());
+    );
   }
 
   @override
@@ -235,19 +242,19 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     }).toList();
 
     return PortalPageShell(
-      title: 'Group Management',
-      subtitle: 'Create groups, open rosters, and manage capacity.',
+      title: 'إدارة المجموعات والحصص',
+      subtitle: 'إدارة المجموعات الدراسية، قيد وتسكين الطلاب، وتعيين المعلمين.',
       icon: Icons.group_work,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadData,
         ),
         PortalAction(
           icon: Icons.add,
-          label: 'Add Group',
+          label: 'إضافة مجموعة جديدة',
           onPressed: _showCreateGroupDialog,
           primary: true,
         ),
@@ -256,7 +263,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
         children: [
           PortalSearchField(
             controller: _searchController,
-            label: 'Search groups',
+            label: 'بحث باسم المجموعة أو الكود...',
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -265,8 +272,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: filtered.isEmpty,
-              emptyTitle: 'No groups found',
-              emptySubtitle: 'Create a subject and branch, then add a group.',
+              emptyTitle: 'لا توجد مجموعات دراسية مسجلة',
+              emptySubtitle: 'قم بإنشاء مادة وفرع، ثم أضف المجموعة الأولى عبر زر (إضافة مجموعة جديدة) بالأعلى.',
               emptyIcon: Icons.group_work,
               onRetry: _loadData,
               child: ListView.separated(
@@ -280,27 +287,27 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                     accentColor: AppColors.adminRole,
                     title: g.name,
                     subtitle:
-                        'Code: ${g.code} | Capacity: ${g.maxCapacity ?? "Unlimited"}',
+                        'الكود: ${g.code} | السعة: ${g.maxCapacity ?? "غير محدودة"}',
                     trailing: [
                       PortalStatusChip(status: g.status),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Group'),
+                              title: const Text('حذف المجموعة الدراسية'),
                               content: const Text(
-                                'Are you sure you want to delete this group?',
+                                'هل أنت متأكد من رغبتك في حذف هذه المجموعة نهائياً؟',
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
+                                  child: const Text('إلغاء'),
                                 ),
                                 ElevatedButton(
                                   onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Delete'),
+                                  child: const Text('حذف'),
                                 ),
                               ],
                             ),
@@ -313,16 +320,16 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Failed to delete: $e'),
+                                    content: Text('فشل الحذف: $e'),
                                   ),
                                 );
                               }
                             }
                           }
                         },
-                        tooltip: 'Delete Group',
+                        tooltip: 'حذف المجموعة',
                       ),
-                      const Icon(Icons.chevron_right),
+                      const Icon(Icons.chevron_left_rounded),
                     ],
                     onTap: () => _openGroupDetails(g),
                   );
@@ -361,11 +368,37 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   List<Teacher> _assignedTeachers = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String _centerName = 'المركز التعليمي';
 
   @override
   void initState() {
     super.initState();
+    _loadCenterInfo();
     _loadTabResources();
+  }
+
+  Future<void> _loadCenterInfo() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', user.id)
+            .maybeSingle();
+        final centerId = profile?['center_id'];
+        if (centerId != null) {
+          final center = await Supabase.instance.client
+              .from('educational_centers')
+              .select('name')
+              .eq('id', centerId)
+              .maybeSingle();
+          if (center != null && center['name'] != null) {
+            setState(() => _centerName = center['name']);
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadTabResources() async {
@@ -419,7 +452,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(context.tr('Enroll Student in Group')),
+            title: const Text('تسكين وقيد طالب في المجموعة'),
             content: SizedBox(
               width: 420,
               child: Column(
@@ -429,8 +462,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       initialValue: selectedStudentId,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Select Student'),
+                      decoration: const InputDecoration(
+                        labelText: 'اختر الطالب من القائمة',
                       ),
                       items: _allStudents
                           .map(
@@ -448,32 +481,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: priceCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    decoration: const InputDecoration(
+                      labelText: 'السعر النهائي / الحصة (ج.م)',
                     ),
-                    decoration: InputDecoration(
-                      labelText: context.tr('Group price (EGP)'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.payments),
-                    ),
+                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: discountCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    decoration: const InputDecoration(
+                      labelText: 'قيمة الخصم إن وُجد (ج.م)',
                     ),
-                    decoration: InputDecoration(
-                      labelText: context.tr('Discount / exemption (EGP)'),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.discount),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.tr(
-                      'Content stays locked until the cash invoice is fully paid. If final price is 0, access is activated as an exemption.',
-                    ),
+                    keyboardType: TextInputType.number,
                   ),
                 ],
               ),
@@ -481,37 +500,27 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Cancel')),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () async {
                   if (selectedStudentId == null) return;
-                  final totalMinor = _moneyToMinor(priceCtrl.text);
-                  final discountMinor = _moneyToMinor(discountCtrl.text);
-                  if (totalMinor < 0 || discountMinor < 0) return;
                   final nav = Navigator.of(ctx);
                   try {
+                    final price = int.tryParse(priceCtrl.text) ?? 0;
+                    final discount = int.tryParse(discountCtrl.text) ?? 0;
                     await widget.enrollmentRepo.enrollStudentInGroup(
                       studentId: selectedStudentId!,
                       groupId: widget.group.id,
-                      totalMinor: totalMinor,
-                      discountMinor: discountMinor,
-                      currency: 'EGP',
+                      totalMinor: price * 100,
+                      discountMinor: discount * 100,
                     );
                     nav.pop();
                     _loadTabResources();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            totalMinor > discountMinor
-                                ? context.tr(
-                                    'Student enrolled. Content is pending cash payment.',
-                                  )
-                                : context.tr(
-                                    'Student enrolled with payment exemption.',
-                                  ),
-                          ),
+                        const SnackBar(
+                          content: Text('تم قيد وتسكين الطالب بنجاح!'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -520,30 +529,20 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            '${context.tr('Enrollment failed')}: $e',
-                          ),
+                          content: Text('فشل قيد الطالب: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: Text(context.tr('Enroll')),
+                child: const Text('تأكيد القيد'),
               ),
             ],
           );
         },
       ),
     );
-  }
-
-  int _moneyToMinor(String value) {
-    final normalized = value.trim().replaceAll(',', '.');
-    if (normalized.isEmpty) return 0;
-    final parsed = double.tryParse(normalized);
-    if (parsed == null || parsed < 0) return -1;
-    return (parsed * 100).round();
   }
 
   void _showAssignTeacherDialog() {
@@ -557,102 +556,96 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(context.tr('Assign Teacher to Group')),
-            content: SizedBox(
-              width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_allTeachers.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: selectedTeacherId,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Select Teacher'),
-                      ),
-                      items: _allTeachers
-                          .map(
-                            (t) => DropdownMenuItem(
-                              value: t.id,
-                              child: _dropdownText(t.fullName),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) =>
-                          setStateDialog(() => selectedTeacherId = v),
-                    ),
+            title: const Text('تعيين معلم للمجموعة'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_allTeachers.isNotEmpty)
                   DropdownButtonFormField<String>(
                     isExpanded: true,
-                    initialValue: role,
-                    decoration: InputDecoration(labelText: context.tr('Role')),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'primary',
-                        child: Text(context.tr('Primary Teacher')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'co_teacher',
-                        child: Text(context.tr('Co-Teacher')),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setStateDialog(() => role = v);
-                    },
+                    initialValue: selectedTeacherId,
+                    decoration: const InputDecoration(
+                      labelText: 'اختر المعلم من القائمة',
+                    ),
+                    items: _allTeachers
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t.id,
+                            child: _dropdownText(t.fullName),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) =>
+                        setStateDialog(() => selectedTeacherId = v),
                   ),
-                ],
-              ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: role,
+                  decoration: const InputDecoration(labelText: 'الدور في المجموعة'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'primary',
+                      child: Text('معلم أساسي (Primary)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'assistant',
+                      child: Text('معلم مساعد (Assistant)'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setStateDialog(() => role = v);
+                  },
+                ),
+              ],
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Cancel')),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (selectedTeacherId == null) return;
-                  final nav = Navigator.of(ctx);
-                  try {
-                    await Supabase.instance.client.rpc(
-                      'assign_teacher_to_group',
-                      params: {
-                        'p_teacher_id': selectedTeacherId,
-                        'p_group_id': widget.group.id,
-                        'p_role': role,
-                      },
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (selectedTeacherId == null) return;
+                final nav = Navigator.of(ctx);
+                try {
+                  await Supabase.instance.client.rpc(
+                    'assign_teacher_to_group',
+                    params: {
+                      'p_teacher_id': selectedTeacherId,
+                      'p_group_id': widget.group.id,
+                      'p_role': role,
+                    },
+                  );
+                  nav.pop();
+                  _loadTabResources();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم تعيين المعلم للمجموعة بنجاح!'),
+                        backgroundColor: Colors.green,
+                      ),
                     );
-                    nav.pop();
-                    _loadTabResources();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            context.tr('Teacher assigned successfully!'),
-                          ),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${context.tr('Teacher assignment failed')}: $e',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
                   }
-                },
-                child: Text(context.tr('Assign Teacher')),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('فشل تعيين المعلم: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('تأكيد التعيين'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
 
   Future<void> _printGroupCards() async {
     if (_enrolledStudents.isEmpty) {
@@ -679,7 +672,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
 
       await service.generateBulkStudentIdCardsPdf(
         students: studentsData,
-        centerName: 'سنتر الأوائل التعليمي',
+        centerName: _centerName,
         groupName: widget.group.name,
       );
 
@@ -687,7 +680,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'تم توليد شيت كارنيهات طلاب مجموعة (${widget.group.name}) بنجاح (جاهز للطباعة والتغليف)',
+              'تم توليد شيت كارنيهات طلاب مجموعة (${widget.group.name}) بنجاح (جاهز للطباعة والتغليف) 🪪',
             ),
             backgroundColor: Colors.green,
           ),
@@ -712,13 +705,13 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       child: PortalPageShell(
         title: widget.group.name,
         subtitle:
-            '${context.tr('Code')}: ${widget.group.code} | ${context.tr('Capacity')}: ${widget.group.maxCapacity ?? context.tr("Unlimited")}',
+            'الكود: ${widget.group.code} | السعة: ${widget.group.maxCapacity ?? "غير محدودة"}',
         icon: Icons.group_work,
         accentColor: AppColors.adminRole,
         actions: [
           PortalAction(
             icon: Icons.arrow_back,
-            label: 'Back',
+            label: 'رجوع',
             onPressed: () => Navigator.of(context).maybePop(),
           ),
           PortalAction(
@@ -728,24 +721,24 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
           ),
           PortalAction(
             icon: Icons.refresh,
-            label: 'Refresh',
+            label: 'تحديث',
             onPressed: _loadTabResources,
           ),
         ],
         child: Column(
           children: [
-            TabBar(
+            const TabBar(
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               tabs: [
-                Tab(icon: const Icon(Icons.info), text: context.tr('Overview')),
+                Tab(icon: Icon(Icons.info_outline_rounded), text: 'نظرة عامة'),
                 Tab(
-                  icon: const Icon(Icons.people),
-                  text: context.tr('Students'),
+                  icon: Icon(Icons.people_outline_rounded),
+                  text: 'الطلاب المقيدون',
                 ),
                 Tab(
-                  icon: const Icon(Icons.person),
-                  text: context.tr('Teachers'),
+                  icon: Icon(Icons.person_outline_rounded),
+                  text: 'المعلمون المسندون',
                 ),
               ],
             ),
@@ -755,8 +748,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
                 isEmpty: false,
-                emptyTitle: 'No group data',
-                emptySubtitle: 'Refresh group resources and try again.',
+                emptyTitle: 'لا توجد بيانات للمجموعة',
+                emptySubtitle: 'قم بتحديث الصفحة وحاول مرة أخرى.',
                 emptyIcon: Icons.group_work,
                 onRetry: _loadTabResources,
                 child: TabBarView(
@@ -767,28 +760,28 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                         PortalMetricGrid(
                           children: [
                             PortalMetricCard(
-                              label: 'Enrolled Students',
+                              label: 'الطلاب المقيدون',
                               value: _enrolledStudents.length.toString(),
-                              icon: Icons.school,
+                              icon: Icons.school_rounded,
                               accentColor: AppColors.studentRole,
                             ),
                             PortalMetricCard(
-                              label: 'Assigned Teachers',
+                              label: 'المعلمون المسندون',
                               value: _assignedTeachers.length.toString(),
-                              icon: Icons.person,
+                              icon: Icons.person_rounded,
                               accentColor: AppColors.teacherRole,
                             ),
                             PortalMetricCard(
-                              label: 'Capacity',
+                              label: 'السعة الاستيعابية',
                               value:
-                                  widget.group.maxCapacity?.toString() ?? '-',
-                              icon: Icons.event_seat,
+                                  widget.group.maxCapacity?.toString() ?? 'مفتوحة',
+                              icon: Icons.event_seat_rounded,
                               accentColor: AppColors.info,
                             ),
                             PortalMetricCard(
-                              label: 'Status',
-                              value: widget.group.status.toUpperCase(),
-                              icon: Icons.verified,
+                              label: 'الحالة التشغيلية',
+                              value: widget.group.status == 'active' ? 'نشطة' : widget.group.status,
+                              icon: Icons.verified_rounded,
                               accentColor: AppColors.success,
                             ),
                           ],
@@ -798,9 +791,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     Stack(
                       children: [
                         _enrolledStudents.isEmpty
-                            ? Center(
+                            ? const Center(
                                 child: Text(
-                                  context.tr('No enrolled students.'),
+                                  'لا يوجد طلاب مقيدون في هذه المجموعة حالياً.',
+                                  style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                                 ),
                               )
                             : ListView.separated(
@@ -815,7 +809,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     accentColor: AppColors.studentRole,
                                     title: s.fullName,
                                     subtitle:
-                                        '${context.tr('Code')}: ${s.studentCode} | ${context.tr('Email')}: ${s.email}',
+                                        'الكود: ${s.studentCode} | البريد: ${s.email}',
                                     trailing: [
                                       PortalStatusChip(status: s.status),
                                     ],
@@ -823,12 +817,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                 },
                               ),
                         Positioned(
-                          right: 0,
+                          left: 0,
                           bottom: 0,
                           child: FilledButton.icon(
                             onPressed: _showEnrollStudentDialog,
                             icon: const Icon(Icons.person_add),
-                            label: Text(context.tr('Enroll')),
+                            label: const Text('تسكين طالب بالمجموعة'),
                           ),
                         ),
                       ],
@@ -836,9 +830,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                     Stack(
                       children: [
                         _assignedTeachers.isEmpty
-                            ? Center(
+                            ? const Center(
                                 child: Text(
-                                  context.tr('No assigned teachers.'),
+                                  'لا يوجد معلمون مسندون لهذه المجموعة حالياً.',
+                                  style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                                 ),
                               )
                             : ListView.separated(
@@ -853,17 +848,17 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     accentColor: AppColors.teacherRole,
                                     title: t.fullName,
                                     subtitle:
-                                        '${context.tr('Email')}: ${t.email} | ${context.tr('Specialization')}: ${t.specialization ?? context.tr("N/A")}',
+                                        'البريد: ${t.email} | التخصص: ${t.specialization ?? "عام"}',
                                   );
                                 },
                               ),
                         Positioned(
-                          right: 0,
+                          left: 0,
                           bottom: 0,
                           child: FilledButton.icon(
                             onPressed: _showAssignTeacherDialog,
                             icon: const Icon(Icons.person_add),
-                            label: Text(context.tr('Assign')),
+                            label: const Text('تعيين معلم للمجموعة'),
                           ),
                         ),
                       ],

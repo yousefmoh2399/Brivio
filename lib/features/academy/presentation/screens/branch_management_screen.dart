@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -70,31 +69,34 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Create New Branch')),
+        title: const Text('إضافة مقر / فرع جديد للسنتر'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Branch Name (e.g. Nasr City)'),
+                decoration: const InputDecoration(
+                  labelText: 'اسم الفرع (مثال: فرع مدينة نصر)',
                 ),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: codeCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Branch Code (e.g. NASR-01)'),
+                decoration: const InputDecoration(
+                  labelText: 'كود الفرع (مثال: NASR-01)',
                 ),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: addrCtrl,
-                decoration: InputDecoration(labelText: context.tr('Address')),
+                decoration: const InputDecoration(labelText: 'العنوان بالتفصيل'),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: phoneCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Phone Number'),
+                decoration: const InputDecoration(
+                  labelText: 'رقم الهاتف للتواصل',
                 ),
               ),
             ],
@@ -103,7 +105,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -130,20 +132,26 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                 await _branchRepo.createBranch(b);
                 nav.pop();
                 _loadBranches();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم إنشاء الفرع بنجاح!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        '${context.tr('Failed to create branch')}: $e',
-                      ),
+                      content: Text('فشل إنشاء الفرع: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Create Branch')),
+            child: const Text('حفظ الفرع'),
           ),
         ],
       ),
@@ -161,45 +169,37 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text('${context.tr('Edit Branch')} (${branch.code})'),
+          title: const Text('تعديل بيانات الفرع'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Branch Name'),
-                  ),
+                  decoration: const InputDecoration(labelText: 'اسم الفرع'),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: codeCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Branch Code'),
-                  ),
+                  decoration: const InputDecoration(labelText: 'كود الفرع'),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: addrCtrl,
-                  decoration: InputDecoration(labelText: context.tr('Address')),
+                  decoration: const InputDecoration(labelText: 'العنوان'),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: phoneCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Phone Number'),
-                  ),
+                  decoration: const InputDecoration(labelText: 'رقم الهاتف'),
                 ),
+                const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: status,
-                  decoration: InputDecoration(labelText: context.tr('Status')),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'active',
-                      child: Text(context.tr('active')),
-                    ),
-                    DropdownMenuItem(
-                      value: 'archived',
-                      child: Text(context.tr('archived')),
-                    ),
+                  decoration: const InputDecoration(labelText: 'الحالة التشغيلية'),
+                  items: const [
+                    DropdownMenuItem(value: 'active', child: Text('نشط (Active)')),
+                    DropdownMenuItem(value: 'archived', child: Text('مؤرشف (Archived)')),
                   ],
                   onChanged: (v) {
                     if (v != null) setStateDialog(() => status = v);
@@ -211,7 +211,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -240,10 +240,8 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                   _loadBranches();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.tr('Branch updated successfully!'),
-                        ),
+                      const SnackBar(
+                        content: Text('تم تحديث بيانات الفرع بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -252,16 +250,14 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          '${context.tr('Failed to update branch')}: $e',
-                        ),
+                        content: Text('فشل التحديث: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Save Changes')),
+              child: const Text('حفظ التعديلات'),
             ),
           ],
         ),
@@ -278,19 +274,19 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     }).toList();
 
     return PortalPageShell(
-      title: 'Branch Management',
-      subtitle: 'Create, edit, search, and archive academy branches.',
+      title: 'إدارة الفروع والمقرات',
+      subtitle: 'إنشاء وتعديل فروع السنتر، وإدارة العناوين وأرقام التواصل.',
       icon: Icons.domain,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadBranches,
         ),
         PortalAction(
           icon: Icons.add,
-          label: 'Add Branch',
+          label: 'إضافة فرع جديد',
           onPressed: _showCreateBranchDialog,
           primary: true,
         ),
@@ -299,7 +295,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
         children: [
           PortalSearchField(
             controller: _searchController,
-            label: 'Search branches',
+            label: 'بحث باسم الفرع أو الكود...',
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -308,8 +304,8 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: filtered.isEmpty,
-              emptyTitle: 'No branches found',
-              emptySubtitle: 'Add the first branch or change your search.',
+              emptyTitle: 'لا توجد فروع مسجلة',
+              emptySubtitle: 'قم بإضافة المقر أو الفرع الأول للسنتر عبر زر (إضافة فرع جديد) بالأعلى.',
               emptyIcon: Icons.domain,
               onRetry: _loadBranches,
               child: ListView.separated(
@@ -323,53 +319,14 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                     accentColor: AppColors.adminRole,
                     title: b.name,
                     subtitle:
-                        'Code: ${b.code} | Address: ${b.address ?? "N/A"}',
+                        'الكود: ${b.code} | الهاتف: ${b.phoneNumber ?? "غير محدد"}\nالعنوان: ${b.address ?? "غير محدد"}',
                     trailing: [
-                      PortalStatusChip(status: b.status),
                       IconButton(
-                        icon: const Icon(Icons.edit),
+                        tooltip: 'تعديل الفرع',
                         onPressed: () => _showEditBranchDialog(b),
-                        tooltip: 'Edit Branch',
+                        icon: const Icon(Icons.edit, color: Colors.blue),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Branch'),
-                              content: const Text(
-                                'Are you sure you want to delete this branch?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await _branchRepo.deleteBranch(b.id);
-                              _loadBranches();
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Failed to delete: $e'),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        tooltip: 'Delete Branch',
-                      ),
+                      PortalStatusChip(status: b.status),
                     ],
                   );
                 },

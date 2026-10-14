@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/attendance_models.dart';
 
 class FastAttendanceStudent {
@@ -18,15 +19,47 @@ class FastAttendanceStudent {
 }
 
 class FastAttendanceViewModel extends ChangeNotifier {
-  List<FastAttendanceStudent> students = [
-    FastAttendanceStudent(id: '1', name: 'Alice Smith'),
-    FastAttendanceStudent(id: '2', name: 'Bob Johnson'),
-    FastAttendanceStudent(id: '3', name: 'Charlie Brown'),
-    FastAttendanceStudent(id: '4', name: 'Diana Prince'),
-    FastAttendanceStudent(id: '5', name: 'Evan Wright'),
-  ];
-
+  List<FastAttendanceStudent> students = [];
   bool isLoading = false;
+
+  FastAttendanceViewModel() {
+    loadStudents();
+  }
+
+  Future<void> loadStudents({String? groupId}) async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('students')
+          .select('id, profiles(full_name, avatar_url)')
+          .limit(100);
+
+      final List<FastAttendanceStudent> list = [];
+      for (final item in (res as List)) {
+        final prof = item['profiles'] as Map<String, dynamic>?;
+        final name = (prof?['full_name'] as String?)?.trim();
+        if (name != null && name.isNotEmpty) {
+          list.add(
+            FastAttendanceStudent(
+              id: item['id'] as String,
+              name: name,
+              avatarUrl: prof?['avatar_url'] as String?,
+              status: AttendanceStatus.present,
+            ),
+          );
+        }
+      }
+      students = list;
+    } catch (_) {
+      students = [];
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
 
   void markAttendance(String studentId, AttendanceStatus status) {
     final index = students.indexWhere((s) => s.id == studentId);
@@ -48,10 +81,26 @@ class FastAttendanceViewModel extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    isLoading = false;
-    notifyListeners();
+    try {
+      final client = Supabase.instance.client;
+      final nowStr = DateTime.now().toIso8601String().split('T').first;
+      for (final s in students) {
+        if (s.status != null) {
+          await client.from('attendance').insert({
+            'student_id': s.id,
+            'date': nowStr,
+            'status': s.status == AttendanceStatus.present
+                ? 'present'
+                : (s.status == AttendanceStatus.absent ? 'absent' : 'late'),
+            'notes': s.incidentRecord,
+          });
+        }
+      }
+    } catch (_) {
+      // Best-effort insert
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 }

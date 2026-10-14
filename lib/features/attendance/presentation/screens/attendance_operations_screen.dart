@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -92,7 +91,7 @@ class _AttendanceOperationsScreenState
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
           title: Text(
-            '${context.tr('Session Roster')} (${session.sessionDate.year}-${session.sessionDate.month}-${session.sessionDate.day})',
+            'كشف حضور الحصة (${session.sessionDate.year}-${session.sessionDate.month.toString().padLeft(2, '0')}-${session.sessionDate.day.toString().padLeft(2, '0')})',
           ),
           content: SizedBox(
             width: 420,
@@ -106,55 +105,53 @@ class _AttendanceOperationsScreenState
                   );
                 }
                 if (snapshot.hasError) {
-                  return Text(
-                    '${context.tr('Failed to load roster')}: ${snapshot.error}',
-                  );
+                  return Text('فشل تحميل قائمة الطلاب: ${snapshot.error}');
                 }
                 final students = snapshot.data ?? [];
                 if (students.isEmpty) {
-                  return Text(
-                    context.tr('No enrolled students in this group.'),
-                  );
+                  return const Text('لا يوجد طلاب مسجلون في هذه المجموعة.');
                 }
                 for (final student in students) {
                   statuses.putIfAbsent(student.id, () => 'present');
                 }
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: students
-                      .map(
-                        (student) => DropdownButtonFormField<String>(
-                          initialValue: statuses[student.id],
-                          decoration: InputDecoration(
-                            labelText: student.fullName.isEmpty
-                                ? student.studentCode
-                                : student.fullName,
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: students
+                        .map(
+                          (student) => DropdownButtonFormField<String>(
+                            initialValue: statuses[student.id],
+                            decoration: InputDecoration(
+                              labelText: student.fullName.isEmpty
+                                  ? student.studentCode
+                                  : student.fullName,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'present',
+                                child: Text('حاضر'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'late',
+                                child: Text('متأخر'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'absent',
+                                child: Text('غائب'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'excused',
+                                child: Text('غياب بعذر'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setStateDialog(() => statuses[student.id] = value);
+                            },
                           ),
-                          items: [
-                            DropdownMenuItem(
-                              value: 'present',
-                              child: Text(context.tr('present')),
-                            ),
-                            DropdownMenuItem(
-                              value: 'late',
-                              child: Text(context.tr('late')),
-                            ),
-                            DropdownMenuItem(
-                              value: 'absent',
-                              child: Text(context.tr('absent')),
-                            ),
-                            DropdownMenuItem(
-                              value: 'excused',
-                              child: Text(context.tr('excused')),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setStateDialog(() => statuses[student.id] = value);
-                          },
-                        ),
-                      )
-                      .toList(),
+                        )
+                        .toList(),
+                  ),
                 );
               },
             ),
@@ -162,7 +159,7 @@ class _AttendanceOperationsScreenState
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Close')),
+              child: const Text('إغلاق'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -183,10 +180,8 @@ class _AttendanceOperationsScreenState
                   nav.pop();
                   if (mounted) {
                     messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.tr('Attendance recorded & finalized!'),
-                        ),
+                      const SnackBar(
+                        content: Text('تم رصد واعتماد كشف الحضور بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -195,14 +190,14 @@ class _AttendanceOperationsScreenState
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text('${context.tr('Recording failed')}: $e'),
+                        content: Text('فشل رصد الحضور: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Save Attendance')),
+              child: const Text('حفظ كشف الحضور'),
             ),
           ],
         ),
@@ -217,16 +212,17 @@ class _AttendanceOperationsScreenState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Review Leave Request')),
+        title: const Text('مراجعة طلب الإجازة / الاستئذان'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${context.tr('Reason')}: ${leave.reason}'),
+            Text('السبب: ${leave.reason}'),
             const SizedBox(height: 12),
             TextField(
               controller: noteCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Reviewer Note'),
+              decoration: const InputDecoration(
+                labelText: 'ملاحظة الإدارة والمراجع',
               ),
             ),
           ],
@@ -245,8 +241,8 @@ class _AttendanceOperationsScreenState
                 await _loadData();
                 if (mounted) {
                   messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('Leave request rejected.')),
+                    const SnackBar(
+                      content: Text('تم رفض طلب الإجازة.'),
                       backgroundColor: Colors.orange,
                     ),
                   );
@@ -255,16 +251,16 @@ class _AttendanceOperationsScreenState
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Review failed')}: $e'),
+                      content: Text('فشلت مراجعة الطلب: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(
-              context.tr('Reject'),
-              style: const TextStyle(color: Colors.red),
+            child: const Text(
+              'رفض الطلب',
+              style: TextStyle(color: Colors.red),
             ),
           ),
           ElevatedButton(
@@ -280,8 +276,8 @@ class _AttendanceOperationsScreenState
                 await _loadData();
                 if (mounted) {
                   messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('Leave request approved!')),
+                    const SnackBar(
+                      content: Text('تمت الموافقة على طلب الإجازة بنجاح!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -290,18 +286,36 @@ class _AttendanceOperationsScreenState
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Review failed')}: $e'),
+                      content: Text('فشلت مراجعة الطلب: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Approve')),
+            child: const Text('الموافقة على الطلب'),
           ),
         ],
       ),
     );
+  }
+
+  String _sessionStatusLabel(SessionStatus status) {
+    return switch (status) {
+      SessionStatus.scheduled => 'مجدولة',
+      SessionStatus.inProgress => 'جارية الآن',
+      SessionStatus.completed => 'مكتملة',
+      SessionStatus.cancelled => 'ملغاة',
+    };
+  }
+
+  String _leaveStatusLabel(String status) {
+    return switch (status.toLowerCase()) {
+      'pending' => 'معلق بانتظار المراجعة',
+      'approved' => 'مقبول',
+      'rejected' => 'مرفوض',
+      _ => status,
+    };
   }
 
   @override
@@ -309,8 +323,8 @@ class _AttendanceOperationsScreenState
     return DefaultTabController(
       length: 2,
       child: PortalPageShell(
-        title: 'Attendance & Operations',
-        subtitle: 'Review sessions, mark rosters, and process leave requests.',
+        title: 'عمليات وإدارة الحضور',
+        subtitle: 'متابعة الحصص، رصد كشوفات الحضور، ومراجعة طلبات الإجازات والاستئذان.',
         icon: Icons.event_note,
         accentColor: AppColors.adminRole,
         actions: [
@@ -333,17 +347,17 @@ class _AttendanceOperationsScreenState
         ],
         child: Column(
           children: [
-            TabBar(
+            const TabBar(
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               tabs: [
                 Tab(
-                  icon: const Icon(Icons.event_note),
-                  text: context.tr('Sessions & Rosters'),
+                  icon: Icon(Icons.event_note),
+                  text: 'الحصص ورصد الحضور',
                 ),
                 Tab(
-                  icon: const Icon(Icons.event_busy),
-                  text: context.tr('Leave Requests'),
+                  icon: Icon(Icons.event_busy),
+                  text: 'طلبات الاستئذان والإجازات',
                 ),
               ],
             ),
@@ -353,8 +367,8 @@ class _AttendanceOperationsScreenState
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
                 isEmpty: false,
-                emptyTitle: 'No attendance data',
-                emptySubtitle: 'Create groups and class sessions first.',
+                emptyTitle: 'لا توجد بيانات حضور',
+                emptySubtitle: 'قم بإنشاء المجموعات والحصص أولاً.',
                 emptyIcon: Icons.event_note,
                 onRetry: _loadData,
                 child: TabBarView(
@@ -366,8 +380,8 @@ class _AttendanceOperationsScreenState
                             padding: const EdgeInsets.only(bottom: 12),
                             child: DropdownButtonFormField<GroupEntity>(
                               initialValue: _selectedGroup,
-                              decoration: InputDecoration(
-                                labelText: context.tr('Group'),
+                              decoration: const InputDecoration(
+                                labelText: 'المجموعة الدراسية',
                               ),
                               items: _groups
                                   .map(
@@ -386,17 +400,13 @@ class _AttendanceOperationsScreenState
                           ),
                         Expanded(
                           child: _selectedGroup == null
-                              ? Center(
-                                  child: Text(
-                                    context.tr('No active groups found.'),
-                                  ),
+                              ? const Center(
+                                  child: Text('لا توجد مجموعات نشطة حالياً.'),
                                 )
                               : _sessions.isEmpty
-                              ? Center(
+                              ? const Center(
                                   child: Text(
-                                    context.tr(
-                                      'No class sessions found for this group.',
-                                    ),
+                                    'لا توجد حصص مسجلة لهذه المجموعة.',
                                   ),
                                 )
                               : ListView.separated(
@@ -410,16 +420,14 @@ class _AttendanceOperationsScreenState
                                       icon: Icons.event_note,
                                       accentColor: AppColors.adminRole,
                                       title:
-                                          '${context.tr('Session')}: ${s.location ?? context.tr("No location assigned")}',
+                                          'حصة: ${s.location ?? "القاعة الرئيسية"}',
                                       subtitle:
-                                          '${context.tr('Date')}: ${s.sessionDate.year}-${s.sessionDate.month}-${s.sessionDate.day} | ${context.tr('Status')}: ${context.tr(s.status.name)}',
+                                          'التاريخ: ${s.sessionDate.year}-${s.sessionDate.month.toString().padLeft(2, '0')}-${s.sessionDate.day.toString().padLeft(2, '0')} | الحالة: ${_sessionStatusLabel(s.status)}',
                                       trailing: [
                                         FilledButton(
                                           onPressed: () =>
                                               _openAttendanceRoster(s),
-                                          child: Text(
-                                            context.tr('Take Attendance'),
-                                          ),
+                                          child: const Text('رصد الحضور'),
                                         ),
                                       ],
                                     );
@@ -429,10 +437,8 @@ class _AttendanceOperationsScreenState
                       ],
                     ),
                     _leaveRequests.isEmpty
-                        ? Center(
-                            child: Text(
-                              context.tr('No pending leave requests.'),
-                            ),
+                        ? const Center(
+                            child: Text('لا توجد طلبات إجازة مسجلة.'),
                           )
                         : ListView.separated(
                             padding: EdgeInsets.zero,
@@ -447,18 +453,19 @@ class _AttendanceOperationsScreenState
                                     ? AppColors.warning
                                     : AppColors.info,
                                 title:
-                                    '${context.tr('Leave Request')} (${context.tr(l.status)})',
-                                subtitle:
-                                    '${context.tr('Reason')}: ${l.reason}',
+                                    'طلب استئذان (${_leaveStatusLabel(l.status)})',
+                                subtitle: 'السبب: ${l.reason}',
                                 trailing: [
                                   if (l.status == 'pending')
                                     FilledButton(
                                       onPressed: () =>
                                           _showReviewLeaveDialog(l),
-                                      child: Text(context.tr('Review')),
+                                      child: const Text('مراجعة الطلب'),
                                     )
                                   else
-                                    PortalStatusChip(status: l.status),
+                                    PortalStatusChip(
+                                      status: _leaveStatusLabel(l.status),
+                                    ),
                                 ],
                               );
                             },

@@ -198,7 +198,7 @@ class HomeTab extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Code Playground',
+                                  context.tr('Code Playground'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.titleMedium(
@@ -209,7 +209,7 @@ class HomeTab extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Test examples and preview visual execution for students',
+                                  'تجربة الأكواد البرمجية ومتابعة الشرح التفاعلي مع الطلاب',
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.caption(
@@ -222,9 +222,9 @@ class HomeTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Tooltip(
-                            message: 'Open code playground',
-                            child: Icon(
+                          Tooltip(
+                            message: context.tr('Open code playground'),
+                            child: const Icon(
                               Icons.play_circle_fill_rounded,
                               color: AppColors.teacherRole,
                             ),

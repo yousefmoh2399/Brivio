@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GroupsSchedulesViewModel extends ChangeNotifier {
   bool _isLoading = false;
@@ -7,40 +8,46 @@ class GroupsSchedulesViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> _groupsData = [];
   List<Map<String, dynamic>> get groupsData => _groupsData;
 
-  void fetchGroupsData() {
+  Future<void> fetchGroupsData() async {
     _isLoading = true;
     notifyListeners();
 
-    // Mock data for Groups & Schedules
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _groupsData = [
-        {
-          'group_name': 'Math 101',
-          'timing': 'Mon/Wed 10:00 AM',
-          'teacher': 'Mr. Smith',
-          'is_active': true,
-        },
-        {
-          'group_name': 'Physics Advanced',
-          'timing': 'Tue/Thu 2:00 PM',
-          'teacher': 'Mrs. Doe',
-          'is_active': true,
-        },
-        {
-          'group_name': 'Chemistry Basics',
-          'timing': 'Fri 9:00 AM',
-          'teacher': 'Dr. White',
-          'is_active': false,
-        },
-        {
-          'group_name': 'History 201',
-          'timing': 'Mon/Wed 1:00 PM',
-          'teacher': 'Mr. Brown',
-          'is_active': true,
-        },
-      ];
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('groups')
+          .select('id, name, status, teachers(profiles(full_name)), schedules(day_of_week, start_time, end_time)')
+          .order('name');
+
+      final List<Map<String, dynamic>> list = [];
+      for (final item in (res as List)) {
+        final teacher = item['teachers'] as Map<String, dynamic>?;
+        final prof = teacher?['profiles'] as Map<String, dynamic>?;
+        final teacherName = prof?['full_name'] as String? ?? 'غير محدد';
+
+        final schedules = item['schedules'] as List<dynamic>? ?? [];
+        String timingStr = 'غير محدد الموعد';
+        if (schedules.isNotEmpty) {
+          final s0 = schedules.first as Map<String, dynamic>;
+          final day = s0['day_of_week'] ?? '';
+          final start = s0['start_time'] ?? '';
+          final end = s0['end_time'] ?? '';
+          timingStr = '$day $start - $end';
+        }
+
+        list.add({
+          'group_name': item['name'] as String? ?? 'مجموعة بدون اسم',
+          'timing': timingStr,
+          'teacher': teacherName,
+          'is_active': item['status'] == 'active',
+        });
+      }
+      _groupsData = list;
+    } catch (_) {
+      _groupsData = [];
+    } finally {
       _isLoading = false;
       notifyListeners();
-    });
+    }
   }
 }

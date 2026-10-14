@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
@@ -55,10 +56,29 @@ class _CommsTabState extends State<CommsTab> {
         elevation: 0,
         centerTitle: false,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _viewModel.contacts.length,
-        itemBuilder: (context, index) {
+      body: _viewModel.contacts.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.forum_outlined, size: 56, color: textPrimary.withValues(alpha: 0.3)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'لا توجد محادثات أو جهات اتصال حالياً',
+                    style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'ستظهر رسائل الطلاب وأولياء الأمور هنا عند بدء التواصل.',
+                    style: TextStyle(color: textPrimary.withValues(alpha: 0.6), fontSize: 13),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _viewModel.contacts.length,
+              itemBuilder: (context, index) {
           final contact = _viewModel.contacts[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -415,33 +435,36 @@ class ChatMessage {
 }
 
 class CommsViewModel {
-  final List<UserContact> contacts = [
-    UserContact(id: '1', name: 'John Doe', role: 'Student'),
-    UserContact(id: '2', name: 'Jane Smith', role: 'Parent'),
-    UserContact(id: '3', name: 'Alice Johnson', role: 'Student'),
-  ];
+  final List<UserContact> contacts = [];
+  final Map<String, List<ChatMessage>> _messages = {};
 
-  final Map<String, List<ChatMessage>> _messages = {
-    '1': [
-      ChatMessage(
-        text: 'Hello, Mr. Teacher! I have a question about the assignment.',
-        isMe: false,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 10)),
-      ),
-      ChatMessage(
-        text: 'Sure John, what do you need help with?',
-        isMe: true,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-      ),
-    ],
-    '2': [
-      ChatMessage(
-        text: 'Good morning, how is Jane doing in class?',
-        isMe: false,
-        timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ],
-  };
+  CommsViewModel() {
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('profiles')
+          .select('id, full_name, role')
+          .limit(50);
+      for (final item in (res as List)) {
+        final name = (item['full_name'] as String?)?.trim();
+        final role = item['role'] as String? ?? 'student';
+        if (name != null && name.isNotEmpty) {
+          final roleAr = role == 'student'
+              ? 'طالب'
+              : (role == 'parent' ? 'ولي أمر' : 'معلم');
+          contacts.add(UserContact(
+            id: item['id'] as String,
+            name: name,
+            role: roleAr,
+          ));
+        }
+      }
+    } catch (_) {}
+  }
 
   List<ChatMessage> getMessagesForContact(String contactId) {
     return _messages[contactId] ?? [];

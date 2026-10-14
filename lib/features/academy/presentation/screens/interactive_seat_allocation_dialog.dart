@@ -4,6 +4,8 @@ import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 class InteractiveSeatAllocationDialog extends StatefulWidget {
   final String centerName;
   final String hallName;
@@ -41,39 +43,48 @@ class InteractiveSeatAllocationDialog extends StatefulWidget {
 }
 
 class _InteractiveSeatAllocationDialogState extends State<InteractiveSeatAllocationDialog> {
-  late final Map<int, Map<String, dynamic>> _seats;
+  final Map<int, Map<String, dynamic>> _seats = {};
   bool _isGeneratingPdf = false;
-  final String _groupName = 'ثانوية عامة - فيزياء A';
-  final String _teacherName = 'أ. محمد عبد الله';
+  bool _isLoadingStudents = false;
+  String get _groupName => widget.currentSession ?? 'المجموعة العامة';
+  String get _teacherName => widget.centerName;
 
-  final List<Map<String, dynamic>> _availableStudents = [
-    {'name': 'عمر أحمد محمود', 'code': 'STU-101', 'phone': '01012345678'},
-    {'name': 'مريم طارق سالم', 'code': 'STU-102', 'phone': '01123456789'},
-    {'name': 'يوسف كريم عز الدين', 'code': 'STU-103', 'phone': '01234567890'},
-    {'name': 'نورهان سعيد كمال', 'code': 'STU-104', 'phone': '01512345678'},
-    {'name': 'خالد مصطفى بدر', 'code': 'STU-105', 'phone': '01099887766'},
-    {'name': 'حبيبة وائل شريف', 'code': 'STU-106', 'phone': '01188776655'},
-    {'name': 'أحمد هاني حسني', 'code': 'STU-107', 'phone': '01277665544'},
-    {'name': 'سارة إبراهيم عادل', 'code': 'STU-108', 'phone': '01066554433'},
-    {'name': 'علي حسن توفيق', 'code': 'STU-109', 'phone': '01155443322'},
-    {'name': 'فاطمة محمود خليل', 'code': 'STU-110', 'phone': '01244332211'},
-  ];
+  final List<Map<String, dynamic>> _availableStudents = [];
 
   @override
   void initState() {
     super.initState();
-    _seats = {};
+    _fetchRealStudents();
+  }
 
-    // Pre-populate some seats for realistic Egyptian center demonstration
-    for (int i = 0; i < _availableStudents.length; i++) {
-      final s = _availableStudents[i];
-      _seats[i + 1] = {
-        'seatNumber': i + 1,
-        'studentName': s['name'],
-        'studentCode': s['code'],
-        'studentPhone': s['phone'],
-        'notes': (i == 0) ? 'صف أول - ضعف نظر' : '',
-      };
+  Future<void> _fetchRealStudents() async {
+    setState(() => _isLoadingStudents = true);
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('students')
+          .select('id, student_code, profiles(full_name, phone_number)')
+          .limit(100);
+      final list = <Map<String, dynamic>>[];
+      for (final item in (res as List)) {
+        final prof = item['profiles'] as Map<String, dynamic>?;
+        final name = (prof?['full_name'] as String?)?.trim();
+        final code = item['student_code'] as String? ?? 'N/A';
+        final phone = prof?['phone_number'] as String? ?? '';
+        if (name != null && name.isNotEmpty) {
+          list.add({'name': name, 'code': code, 'phone': phone});
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _availableStudents.clear();
+          _availableStudents.addAll(list);
+        });
+      }
+    } catch (_) {
+      // Keep empty if query fails or table empty
+    } finally {
+      if (mounted) setState(() => _isLoadingStudents = false);
     }
   }
 
@@ -171,8 +182,27 @@ class _InteractiveSeatAllocationDialogState extends State<InteractiveSeatAllocat
                 const SizedBox(height: 12),
                 const Text('اختر الطالب من القائمة المسجلة بالمجموعة:', style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 8),
-                Expanded(
-                  child: ListView.builder(
+                if (_isLoadingStudents)
+                  const Expanded(child: Center(child: CircularProgressIndicator()))
+                else if (_availableStudents.isEmpty)
+                  const Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.person_off_outlined, size: 40, color: Colors.grey),
+                          SizedBox(height: 8),
+                          Text(
+                            'لا يوجد طلاب مسجلون حالياً في النظام',
+                            style: TextStyle(fontSize: 13, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
                     itemCount: _availableStudents.length,
                     itemBuilder: (_, i) {
                       final s = _availableStudents[i];

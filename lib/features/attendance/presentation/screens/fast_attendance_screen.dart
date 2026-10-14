@@ -38,49 +38,29 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: AppColors.darkSurface,
           title: Text(
-            'Log Incident for ${student.name}',
-            style: AppTypography.titleLarge(AppColors.darkTextPrimary),
+            'تسجيل ملاحظة / سلوك للطالب: ${student.name}',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           content: TextField(
             controller: controller,
-            style: AppTypography.bodyMedium(AppColors.darkTextPrimary),
-            decoration: InputDecoration(
-              hintText: 'Describe the behavior...',
-              hintStyle: AppTypography.bodyMedium(AppColors.darkTextSecondary),
-              filled: true,
-              fillColor: AppColors.darkSurfaceSecondary,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+            decoration: const InputDecoration(
+              hintText: 'اكتب وصف الملاحظة أو سبب التأخير...',
+              border: OutlineInputBorder(),
             ),
             maxLines: 3,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: AppTypography.labelLarge(AppColors.darkTextSecondary),
-              ),
+              child: const Text('إلغاء'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
               onPressed: () {
                 _viewModel.logIncident(student.id, controller.text.trim());
                 Navigator.pop(context);
               },
-              child: Text(
-                'Save',
-                style: AppTypography.labelLarge(Colors.white),
-              ),
+              child: const Text('حفظ الملاحظة'),
             ),
           ],
         );
@@ -90,16 +70,21 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
-        title: Text(
-          'Fast Attendance',
-          style: AppTypography.titleLarge(AppColors.darkTextPrimary),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
+        title: const Text('تسجيل الحضور السريع ⚡'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => _viewModel.loadStudents(),
+            tooltip: 'تحديث',
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -107,183 +92,187 @@ class _FastAttendanceScreenState extends State<FastAttendanceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Swipe right for Present, left for Absent',
-                style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
-                textAlign: TextAlign.center,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'اسحب لليمين لتسجيل الطالب (حاضر 🟢) أو لليسار (غائب 🔴)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary),
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: ListView.builder(
-                  itemCount: _viewModel.students.length,
-                  itemBuilder: (context, index) {
-                    final student = _viewModel.students[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Dismissible(
-                        key: ValueKey(student.id),
-                        background: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.success,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        secondaryBackground: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        confirmDismiss: (direction) async {
-                          if (direction == DismissDirection.startToEnd) {
-                            _viewModel.markAttendance(
-                              student.id,
-                              AttendanceStatus.present,
-                            );
-                          } else if (direction == DismissDirection.endToStart) {
-                            _viewModel.markAttendance(
-                              student.id,
-                              AttendanceStatus.absent,
-                            );
-                          }
-                          return false; // Don't actually remove from the list
-                        },
-                        child: GlassCard(
-                          padding: const EdgeInsets.all(14),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: AppColors.primarySubtle,
-                                radius: 22,
-                                child: Text(
-                                  student.name.isNotEmpty
-                                      ? student.name
-                                            .substring(0, 1)
-                                            .toUpperCase()
-                                      : '?',
-                                  style: AppTypography.titleMedium(
-                                    AppColors.primary,
-                                  ),
+                child: _viewModel.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _viewModel.students.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.people_outline_rounded, size: 56, color: textSecondary),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'لا يوجد طلاب مسجلون حالياً',
+                                  style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      student.name,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.titleMedium(
-                                        AppColors.darkTextPrimary,
-                                      ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'أضف طلاب في النظام أولاً لتتمكن من تسجيل الحضور السريع.',
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.bodySmall(textSecondary),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _viewModel.students.length,
+                            itemBuilder: (context, index) {
+                              final student = _viewModel.students[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: Dismissible(
+                                  key: ValueKey(student.id),
+                                  background: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success,
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                    if (student.incidentRecord != null &&
-                                        student.incidentRecord!.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          'Incident: ${student.incidentRecord}',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppTypography.bodySmall(
-                                            AppColors.error,
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, color: Colors.white, size: 28),
+                                        SizedBox(width: 8),
+                                        Text('حاضر', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+                                  secondaryBackground: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Text('غائب', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        SizedBox(width: 8),
+                                        Icon(Icons.cancel_rounded, color: Colors.white, size: 28),
+                                      ],
+                                    ),
+                                  ),
+                                  confirmDismiss: (direction) async {
+                                    if (direction == DismissDirection.startToEnd) {
+                                      _viewModel.markAttendance(
+                                        student.id,
+                                        AttendanceStatus.present,
+                                      );
+                                    } else if (direction == DismissDirection.endToStart) {
+                                      _viewModel.markAttendance(
+                                        student.id,
+                                        AttendanceStatus.absent,
+                                      );
+                                    }
+                                    return false;
+                                  },
+                                  child: GlassCard(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: AppColors.primarySubtle,
+                                          radius: 20,
+                                          child: Text(
+                                            student.name.isNotEmpty
+                                                ? student.name.substring(0, 1)
+                                                : '?',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
                                           ),
                                         ),
-                                      ),
-                                    const SizedBox(height: 10),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      children: [
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                student.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                                              ),
+                                              if (student.incidentRecord != null &&
+                                                  student.incidentRecord!.isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 4),
+                                                  child: Text(
+                                                    'ملاحظة: ${student.incidentRecord}',
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: AppTypography.bodySmall(AppColors.error),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
                                         if (student.status != null)
                                           _AttendanceStatusPill(
                                             status: student.status!,
                                           ),
-                                        Tooltip(
-                                          message: 'Log Incident',
-                                          child: IconButton.filledTonal(
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                            icon: const Icon(
-                                              Icons.warning_amber_rounded,
-                                            ),
-                                            color: AppColors.warning,
-                                            onPressed: () =>
-                                                _showIncidentDialog(student),
-                                          ),
+                                        IconButton(
+                                          visualDensity: VisualDensity.compact,
+                                          icon: const Icon(Icons.note_alt_outlined),
+                                          color: Colors.amber.shade800,
+                                          tooltip: 'إضافة ملاحظة',
+                                          onPressed: () => _showIncidentDialog(student),
                                         ),
                                       ],
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ),
               const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _viewModel.isLoading
-                    ? null
-                    : () async {
-                        await _viewModel.submitAttendance();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Attendance submitted!',
-                                style: AppTypography.bodyMedium(Colors.white),
+              if (_viewModel.students.isNotEmpty)
+                FilledButton.icon(
+                  onPressed: _viewModel.isLoading
+                      ? null
+                      : () async {
+                          await _viewModel.submitAttendance();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم حفظ واعتماد الحضور بنجاح!'),
+                                backgroundColor: AppColors.success,
                               ),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                            );
+                            Navigator.pop(context);
+                          }
+                        },
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: _viewModel.isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('اعتماد وحفظ الحضور', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
-                child: _viewModel.isLoading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        'Submit Attendance',
-                        style: AppTypography.labelLarge(Colors.white),
-                      ),
-              ),
             ],
           ),
         ),
@@ -300,16 +289,20 @@ class _AttendanceStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPresent = status == AttendanceStatus.present;
-    final color = isPresent ? AppColors.success : AppColors.error;
+    final color = isPresent ? Colors.green : Colors.red;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: isPresent ? AppColors.successSubtle : AppColors.errorSubtle,
-        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        isPresent ? 'Present' : 'Absent',
-        style: AppTypography.labelMedium(color),
+        isPresent ? 'حاضر' : 'غائب',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
       ),
     );
   }

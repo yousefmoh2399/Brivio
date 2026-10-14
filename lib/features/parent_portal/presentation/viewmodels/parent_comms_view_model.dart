@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Announcement {
   final String id;
@@ -39,59 +40,48 @@ class ParentCommsViewModel extends ChangeNotifier {
   List<Message> _messages = [];
   List<Message> get messages => _messages;
 
-  bool _isLoading = true;
+  bool _isLoading = false;
   bool get isLoading => _isLoading;
 
   ParentCommsViewModel() {
-    _loadMockData();
+    loadData();
   }
 
-  Future<void> _loadMockData() async {
+  Future<void> loadData() async {
     _isLoading = true;
     notifyListeners();
 
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('notifications')
+          .select('id, title, message, created_at')
+          .order('created_at', ascending: false)
+          .limit(20);
 
-    _announcements = [
-      Announcement(
-        id: '1',
-        title: 'Science Fair Next Week!',
-        content:
-            'Please remind your children to bring their science fair projects by Monday. We are excited to see their creativity!',
-        date: DateTime.now().subtract(const Duration(days: 1)),
-        author: 'Principal Smith',
-      ),
-      Announcement(
-        id: '2',
-        title: 'School Closed on Friday',
-        content:
-            'School will be closed this Friday for a teacher training day. Have a great long weekend.',
-        date: DateTime.now().subtract(const Duration(days: 3)),
-        author: 'Administration',
-      ),
-    ];
-
-    _messages = [
-      Message(
-        id: '1',
-        sender: 'Mrs. Johnson',
-        content:
-            'Hi! Just wanted to let you know Timmy did great on his math test today.',
-        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-        isFromMe: false,
-      ),
-      Message(
-        id: '2',
-        sender: 'Me',
-        content: 'That is wonderful news, thank you for letting me know!',
-        timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-        isFromMe: true,
-      ),
-    ];
-
-    _isLoading = false;
-    notifyListeners();
+      final List<Announcement> list = [];
+      for (final item in (res as List)) {
+        final dtStr = item['created_at']?.toString();
+        final dt = dtStr != null ? DateTime.tryParse(dtStr) ?? DateTime.now() : DateTime.now();
+        list.add(
+          Announcement(
+            id: item['id'] as String,
+            title: item['title'] as String? ?? 'إشعار من الإدارة',
+            content: item['message'] as String? ?? '',
+            date: dt,
+            author: 'إدارة السنتر',
+          ),
+        );
+      }
+      _announcements = list;
+      _messages = [];
+    } catch (_) {
+      _announcements = [];
+      _messages = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void sendMessage(String text) {
@@ -100,7 +90,7 @@ class ParentCommsViewModel extends ChangeNotifier {
     _messages.add(
       Message(
         id: DateTime.now().toString(),
-        sender: 'Me',
+        sender: 'ولي الأمر',
         content: text.trim(),
         timestamp: DateTime.now(),
         isFromMe: true,

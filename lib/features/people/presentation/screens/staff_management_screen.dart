@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/localization/app_localizations.dart';
-import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
-import '../../../academy/data/repositories/supabase_academy_repositories.dart';
-import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/account_login_qr_dialog.dart';
 import '../widgets/account_password_dialog.dart';
 
@@ -17,17 +13,14 @@ class StaffManagementScreen extends StatefulWidget {
 }
 
 class _StaffManagementScreenState extends State<StaffManagementScreen> {
-  late final SupabaseBranchRepository _branchRepo;
   List<Map<String, dynamic>> _staffProfiles = [];
-  List<Branch> _branches = [];
+  List<Map<String, dynamic>> _branches = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    final wrapper = SupabaseClientWrapper(Supabase.instance.client);
-    _branchRepo = SupabaseBranchRepository(wrapper);
     _loadStaff();
   }
 
@@ -40,16 +33,19 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     try {
       final res = await Supabase.instance.client
           .from('profiles')
-          .select()
-          .inFilter('role', ['staff', 'admin']);
-      final bRes = await _branchRepo.fetchBranches();
+          .select('id, full_name, email, role, status, center_id')
+          .inFilter('role', ['staff', 'admin'])
+          .order('full_name');
+
+      final bRes = await Supabase.instance.client
+          .from('branches')
+          .select('id, name')
+          .eq('status', 'active');
 
       if (mounted) {
         setState(() {
-          _staffProfiles = (res as List<dynamic>)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
-          _branches = bRes;
+          _staffProfiles = (res as List).cast<Map<String, dynamic>>();
+          _branches = (bRes as List).cast<Map<String, dynamic>>();
           _isLoading = false;
         });
       }
@@ -63,135 +59,63 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     }
   }
 
-  void _showEditStaffDialog(Map<String, dynamic> staff) {
-    final nameCtrl = TextEditingController(
-      text: staff['full_name'] as String? ?? '',
-    );
-    String targetRole = staff['role'] as String? ?? 'staff';
-    if (targetRole != 'staff' && targetRole != 'admin') targetRole = 'staff';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Edit Staff')),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Full Name'),
-                  ),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: targetRole,
-                  decoration: InputDecoration(labelText: context.tr('Role')),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'staff',
-                      child: Text(context.tr('Operations Staff')),
-                    ),
-                    DropdownMenuItem(
-                      value: 'admin',
-                      child: Text(context.tr('Branch Admin')),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => targetRole = v);
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty) return;
-
-                final nav = Navigator.of(ctx);
-                try {
-                  await Supabase.instance.client
-                      .from('profiles')
-                      .update({
-                        'full_name': nameCtrl.text.trim(),
-                        'role': targetRole,
-                      })
-                      .eq('id', staff['id']);
-
-                  nav.pop();
-                  _loadStaff();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Staff updated successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Update error: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: Text(context.tr('Save Changes')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showProvisionStaffDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
-    String targetRole = 'staff';
-    String? selectedBranchId = _branches.isNotEmpty ? _branches.first.id : null;
     bool obscurePassword = true;
+    String selectedRole = 'staff';
+    String? selectedBranchId;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Provision Staff / Admin Account')),
+          title: const Text('تسجيل وقيد موظف جديد'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Full Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم الكامل للموظف',
                   ),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: emailCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Email Address'),
+                  decoration: const InputDecoration(
+                    labelText: 'البريد الإلكتروني',
                   ),
                   keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'الدور الوظيفي',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'staff',
+                      child: Text('موظف استقبال / إداري (Staff)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'admin',
+                      child: Text('مشرف نظام / مدير فرع (Admin)'),
+                    ),
+                  ],
+                  onChanged: (v) =>
+                      setStateDialog(() => selectedRole = v ?? 'staff'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: passwordCtrl,
                   obscureText: obscurePassword,
                   decoration: InputDecoration(
-                    labelText: context.tr('Password (optional)'),
-                    helperText: context.tr(
-                      'Leave empty if this account will set it after QR login.',
-                    ),
+                    labelText: 'كلمة المرور (اختياري)',
+                    helperText: 'اتركها فارغة إذا كان الموظف سيسجل دخول برمز QR.',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () => setStateDialog(
@@ -205,36 +129,18 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     ),
                   ),
                 ),
-                DropdownButtonFormField<String>(
-                  initialValue: targetRole,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Target Role'),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'staff',
-                      child: Text(context.tr('Operations Staff')),
-                    ),
-                    DropdownMenuItem(
-                      value: 'admin',
-                      child: Text(context.tr('Branch Admin')),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => targetRole = v);
-                  },
-                ),
+                const SizedBox(height: 10),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedBranchId,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Branch Assignment'),
+                    decoration: const InputDecoration(
+                      labelText: 'الفرع التابع له',
                     ),
                     items: _branches
                         .map(
                           (b) => DropdownMenuItem(
-                            value: b.id,
-                            child: Text(b.name),
+                            value: b['id']?.toString(),
+                            child: Text(b['name']?.toString() ?? ''),
                           ),
                         )
                         .toList(),
@@ -247,7 +153,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -259,7 +165,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     passwordCtrl.text.length < 6) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Password must be at least 6 characters.'),
+                      content: Text('كلمة المرور لا تقل عن 6 أحرف.'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -274,7 +180,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                         body: {
                           'email': emailCtrl.text.trim(),
                           'fullName': nameCtrl.text.trim(),
-                          'role': targetRole,
+                          'role': selectedRole,
                           'branchId': selectedBranchId,
                           if (passwordCtrl.text.isNotEmpty)
                             'password': passwordCtrl.text,
@@ -286,12 +192,11 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     final message = data is Map
                         ? data['error']?.toString()
                         : null;
-                    throw Exception(message ?? 'Provisioning failed.');
+                    throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
                   }
-
                   final data = Map<String, dynamic>.from(response.data as Map);
                   if (data['success'] != true) {
-                    throw Exception('Provisioning failed.');
+                    throw Exception('فشلت عملية إنشاء الحساب.');
                   }
 
                   nav.pop();
@@ -299,9 +204,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Staff account provisioned successfully!',
-                        ),
+                        content: Text('تم إنشاء وقيد حساب الموظف بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -310,16 +213,14 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          'Provisioning error: ${_friendlyFunctionError(e)}',
-                        ),
+                        content: Text('خطأ في القيد: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Provision Account')),
+              child: const Text('تأكيد القيد'),
             ),
           ],
         ),
@@ -327,13 +228,79 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     );
   }
 
-  String _friendlyFunctionError(Object error) {
-    final text = error.toString();
-    if (text.contains('Requested function was not found') ||
-        text.contains('status: 404')) {
-      return 'Supabase function is not deployed yet. Deploy provision-user and try again.';
-    }
-    return text;
+  void _showEditStaffDialog(Map<String, dynamic> staff) {
+    final nameCtrl = TextEditingController(text: staff['full_name'] as String? ?? '');
+    String role = staff['role'] as String? ?? 'staff';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('تعديل بيانات الموظف'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'الاسم الكامل للموظف'),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: role,
+                decoration: const InputDecoration(labelText: 'الدور الوظيفي'),
+                items: const [
+                  DropdownMenuItem(value: 'staff', child: Text('موظف استقبال / إداري')),
+                  DropdownMenuItem(value: 'admin', child: Text('مشرف نظام / مدير فرع')),
+                ],
+                onChanged: (v) => setStateDialog(() => role = v ?? 'staff'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+                final nav = Navigator.of(ctx);
+                try {
+                  await Supabase.instance.client
+                      .from('profiles')
+                      .update({
+                        'full_name': nameCtrl.text.trim(),
+                        'role': role,
+                      })
+                      .eq('id', staff['id']);
+
+                  nav.pop();
+                  _loadStaff();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم تحديث بيانات الموظف بنجاح!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('فشل التحديث: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('حفظ التعديلات'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showLoginQr(Map<String, dynamic> staff) {
@@ -341,7 +308,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       context: context,
       builder: (_) => AccountLoginQrDialog(
         profileId: staff['id']?.toString() ?? '',
-        displayName: staff['full_name']?.toString() ?? 'Staff Member',
+        displayName: staff['full_name']?.toString() ?? 'موظف',
         email: staff['email']?.toString() ?? '',
       ),
     );
@@ -352,7 +319,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       context: context,
       builder: (_) => AccountPasswordDialog(
         profileId: staff['id']?.toString() ?? '',
-        displayName: staff['full_name']?.toString() ?? 'Staff Member',
+        displayName: staff['full_name']?.toString() ?? 'موظف',
         email: staff['email']?.toString() ?? '',
       ),
     );
@@ -361,19 +328,19 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: 'Staff & Admin Management',
-      subtitle: 'Provision operations staff and branch admin accounts.',
+      title: 'إدارة الكادر الإداري والموظفين',
+      subtitle: 'تسجيل موظفي الاستقبال ومشرفي الفروع وإدارة الصلاحيات التشغيلية.',
       icon: Icons.badge,
       accentColor: AppColors.info,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadStaff,
         ),
         PortalAction(
           icon: Icons.person_add,
-          label: 'Provision Staff',
+          label: 'تسجيل موظف جديد',
           onPressed: _showProvisionStaffDialog,
           primary: true,
         ),
@@ -382,8 +349,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: _staffProfiles.isEmpty,
-        emptyTitle: 'No staff accounts found',
-        emptySubtitle: 'Provision staff or admin users from here.',
+        emptyTitle: 'لا يوجد موظفون مسجلون',
+        emptySubtitle: 'يمكنك قيد وإضافة موظفين جدد ومسؤولي فروع عبر زر (تسجيل موظف جديد) بالأعلى.',
         emptyIcon: Icons.badge,
         onRetry: _loadStaff,
         child: ListView.separated(
@@ -395,23 +362,23 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             return PortalListCard(
               icon: Icons.badge,
               accentColor: AppColors.info,
-              title: (p['full_name'] as String?) ?? 'Staff Member',
+              title: (p['full_name'] as String?) ?? 'موظف',
               subtitle:
-                  '${context.tr('Email')}: ${p['email']} | ${context.tr('Role')}: ${context.l10n.t(p['role'] as String? ?? "staff").toUpperCase()}',
+                  'البريد: ${p['email']} | الدور: ${_roleInArabic(p['role'] as String? ?? "staff")}',
               trailing: [
                 IconButton(
-                  tooltip: context.tr('Login QR'),
+                  tooltip: 'رمز الاستجابة السريعة (QR)',
                   onPressed: () => _showLoginQr(p),
                   icon: const Icon(Icons.qr_code_2),
                 ),
                 IconButton(
-                  tooltip: context.tr('Set Password'),
+                  tooltip: 'تعيين كلمة المرور',
                   onPressed: () => _showPasswordDialog(p),
                   icon: const Icon(Icons.password),
                 ),
                 if (p['status'] == 'suspended')
                   IconButton(
-                    tooltip: context.tr('Activate Staff'),
+                    tooltip: 'تنشيط الحساب',
                     onPressed: () async {
                       try {
                         await Supabase.instance.client.rpc(
@@ -422,7 +389,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       } catch (err) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to activate: $err')),
+                            SnackBar(content: Text('فشل التنشيط: $err')),
                           );
                         }
                       }
@@ -431,24 +398,24 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   )
                 else
                   IconButton(
-                    tooltip: context.tr('Suspend Staff'),
+                    tooltip: 'إيقاف الحساب مؤقتاً',
                     onPressed: () async {
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: const Text('Suspend Staff'),
+                          title: const Text('إيقاف حساب الموظف'),
                           content: const Text(
-                            'Are you sure you want to suspend this staff member?',
+                            'هل أنت متأكد من رغبتك في إيقاف حساب هذا الموظف مؤقتاً؟',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel'),
+                              child: const Text('إلغاء'),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, true),
                               child: const Text(
-                                'Suspend',
+                                'إيقاف مؤقت',
                                 style: TextStyle(color: Colors.red),
                               ),
                             ),
@@ -462,41 +429,41 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                             params: {'user_uid': p['id']},
                           );
                           _loadStaff();
-                        } catch (e) {
+                        } catch (err) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
+                              SnackBar(content: Text('فشل الإيقاف: $err')),
                             );
                           }
                         }
                       }
                     },
-                    icon: const Icon(Icons.block, color: Colors.orange),
+                    icon: const Icon(Icons.block, color: Colors.red),
                   ),
                 IconButton(
-                  tooltip: context.tr('Edit Staff'),
+                  tooltip: 'تعديل البيانات',
                   onPressed: () => _showEditStaffDialog(p),
                   icon: const Icon(Icons.edit, color: Colors.blue),
                 ),
                 IconButton(
-                  tooltip: context.tr('Delete Staff'),
+                  tooltip: 'حذف الموظف',
                   onPressed: () async {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Delete Staff'),
+                        title: const Text('حذف الموظف نهائياً'),
                         content: const Text(
-                          'Are you sure you want to permanently delete this staff member?',
+                          'هل أنت متأكد من حذف حساب الموظف نهائياً؟',
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
+                            child: const Text('إلغاء'),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
                             child: const Text(
-                              'Delete',
+                              'حذف نهائي',
                               style: TextStyle(color: Colors.red),
                             ),
                           ),
@@ -510,23 +477,34 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                           params: {'target_user_id': p['id']},
                         );
                         _loadStaff();
-                      } catch (e) {
+                      } catch (err) {
                         if (mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('فشل الحذف: $err')),
+                          );
                         }
                       }
                     }
                   },
-                  icon: const Icon(Icons.delete_forever, color: Colors.red),
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
                 ),
-                PortalStatusChip(status: (p['status'] as String? ?? "active")),
+                PortalStatusChip(status: p['status'] as String? ?? 'active'),
               ],
             );
           },
         ),
       ),
     );
+  }
+
+  static String _roleInArabic(String role) {
+    switch (role.toLowerCase()) {
+      case 'admin':
+        return 'مشرف نظام / مدير فرع';
+      case 'staff':
+        return 'موظف استقبال / إداري';
+      default:
+        return role;
+    }
   }
 }

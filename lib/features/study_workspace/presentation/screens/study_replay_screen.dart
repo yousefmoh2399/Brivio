@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -142,10 +141,8 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: _sessions.isEmpty,
-        emptyTitle: context.tr('No replay sessions'),
-        emptySubtitle: context.tr(
-          'Replay data appears after students open lessons.',
-        ),
+        emptyTitle: 'لا توجد جلسات دراسية مسجلة',
+        emptySubtitle: 'تظهر بيانات الجلسات بمجرد تفاعل الطلاب مع الدروس والمذكرات.',
         emptyIcon: Icons.video_library,
         onRetry: _loadSessions,
         child: RefreshIndicator(
@@ -242,7 +239,7 @@ class _SessionList extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${session.lessonTitle} | ${session.durationSeconds}s | ${session.pagesRead} ${context.tr('pages')}',
+                        '${session.lessonTitle} | ${session.durationSeconds} ثانية | ${session.pagesRead} صفحات',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodySmall(
@@ -290,10 +287,10 @@ class _ReplayTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final selected = session;
     if (selected == null) {
-      return Center(child: Text(context.tr('Select a replay session.')));
+      return const Center(child: Text('اختر جلسة من القائمة لعرض مسارها.'));
     }
     if (events.isEmpty) {
-      return Center(child: Text(context.tr('No events were recorded.')));
+      return const Center(child: Text('لا توجد أحداث مسجلة لهذه الجلسة.'));
     }
     final maxMs = events.last.offsetMs <= 0 ? 1 : events.last.offsetMs;
     final visibleEvents = events
@@ -335,7 +332,7 @@ class _ReplayTimeline extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds}s',
+                            '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds} ثانية',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: AppTypography.bodySmall(
@@ -353,9 +350,7 @@ class _ReplayTimeline extends StatelessWidget {
                     Row(
                       children: [
                         IconButton.filledTonal(
-                          tooltip: context.tr(
-                            isPlaying ? 'Pause replay' : 'Play replay',
-                          ),
+                          tooltip: isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل',
                           onPressed: onPlayPause,
                           icon: Icon(
                             isPlaying ? Icons.pause : Icons.play_arrow,
@@ -382,7 +377,7 @@ class _ReplayTimeline extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '${context.tr('Now')}: ${context.tr(currentEvent.eventType.replaceAll('_', ' '))}',
+                        'الحدث: ${currentEvent.eventType.replaceAll('_', ' ')}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

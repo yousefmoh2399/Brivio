@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -70,7 +69,7 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Role "$roleName" created successfully')),
+          SnackBar(content: Text('تم إنشاء الدور "$roleName" بنجاح')),
         );
         _loadRbacData();
       }
@@ -78,7 +77,7 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error creating role: $e')));
+        ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء إنشاء الدور: $e')));
       }
     }
   }
@@ -121,13 +120,13 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Permissions updated for ${role['name']}')),
+          SnackBar(content: Text('تم تحديث صلاحيات الدور ${role['name']} بنجاح')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating permissions: $e')),
+          SnackBar(content: Text('حدث خطأ أثناء تحديث الصلاحيات: $e')),
         );
       }
     }
@@ -154,19 +153,19 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
     return DefaultTabController(
       length: 2,
       child: PortalPageShell(
-        title: 'Security Governance',
-        subtitle: 'Manage access controls, roles, and permissions securely.',
+        title: 'إدارة الأدوار والصلاحيات (RBAC)',
+        subtitle: 'التحكم في أدوار المستخدمين وصلاحيات الوصول لبيانات وعمليات السنتر.',
         icon: Icons.admin_panel_settings,
         accentColor: AppColors.adminRole,
         actions: [
           PortalAction(
             icon: Icons.add,
-            label: 'Create Role',
+            label: 'إضافة دور جديد',
             onPressed: _showCreateRoleModal,
           ),
           PortalAction(
             icon: Icons.refresh,
-            label: 'Refresh',
+            label: 'تحديث',
             onPressed: _loadRbacData,
           ),
         ],
@@ -198,14 +197,14 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                 unselectedLabelColor: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.color,
-                tabs: [
+                tabs: const [
                   Tab(
-                    icon: const Icon(Icons.shield_outlined),
-                    text: context.tr('System Roles'),
+                    icon: Icon(Icons.shield_outlined),
+                    text: 'أدوار النظام',
                   ),
                   Tab(
-                    icon: const Icon(Icons.policy_outlined),
-                    text: context.tr('Permissions Catalog'),
+                    icon: Icon(Icons.policy_outlined),
+                    text: 'دليل الصلاحيات',
                   ),
                 ],
               ),
@@ -215,8 +214,8 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
                 isLoading: _isLoading,
                 errorMessage: _errorMessage,
                 isEmpty: false, // handeled in tabs
-                emptyTitle: 'No security data',
-                emptySubtitle: 'Run migrations to seed roles and permissions.',
+                emptyTitle: 'لا توجد بيانات أمان',
+                emptySubtitle: 'لم يتم العثور على أي أدوار أو صلاحيات مسجلة.',
                 emptyIcon: Icons.security,
                 onRetry: _loadRbacData,
                 child: TabBarView(
@@ -246,7 +245,7 @@ class _RolesTabView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (roles.isEmpty) {
-      return Center(child: Text('No system roles found.'));
+      return const Center(child: Text('لا توجد أدوار نظام مسجلة حالياً.'));
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -282,11 +281,11 @@ class _RolesTabView extends StatelessWidget {
                   roleName,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: Text((r['description'] as String?) ?? 'System Role'),
+                subtitle: Text((r['description'] as String?) ?? 'دور في النظام'),
                 trailing: FilledButton.tonalIcon(
                   onPressed: () => onAssignPermissions(r),
                   icon: const Icon(Icons.edit_attributes),
-                  label: const Text('Permissions'),
+                  label: const Text('الصلاحيات'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.adminRole.withValues(alpha: 0.1),
                     foregroundColor: AppColors.adminRole,
@@ -309,7 +308,7 @@ class _PermissionsTabView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (permissions.isEmpty) {
-      return Center(child: Text('No system permissions found.'));
+      return const Center(child: Text('لا توجد صلاحيات مسجلة.'));
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -340,7 +339,7 @@ class _PermissionsTabView extends StatelessWidget {
                     const Icon(Icons.category, size: 18, color: Colors.grey),
                     const SizedBox(width: 8),
                     Text(
-                      'MODULE: $module',
+                      'الوحدة: $module',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
@@ -380,8 +379,8 @@ class _PermissionsTabView extends StatelessWidget {
                             p['code'] as String? ?? 'permission.code',
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          subtitle: Text('Action: ${p['action']}'),
-                          trailing: const PortalStatusChip(status: 'enforced'),
+                          subtitle: Text('العملية: ${p['action']}'),
+                          trailing: const PortalStatusChip(status: 'مفعّلة'),
                         ),
                       );
                     },
@@ -437,7 +436,7 @@ class _CreateRoleSheetState extends State<_CreateRoleSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Create New Role',
+                  'إضافة دور جديد للنظام',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -452,8 +451,8 @@ class _CreateRoleSheetState extends State<_CreateRoleSheet> {
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Role Name',
-                hintText: 'e.g., manager',
+                labelText: 'اسم الدور',
+                hintText: 'مثال: manager, receptionist, cashier...',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.badge),
               ),
@@ -463,8 +462,8 @@ class _CreateRoleSheetState extends State<_CreateRoleSheet> {
               controller: _descController,
               maxLines: 3,
               decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Describe what this role can do...',
+                labelText: 'الوصف والمهام',
+                hintText: 'وصف المسؤوليات الموكلة لهذا الدور...',
                 border: OutlineInputBorder(),
                 prefixIcon: Padding(
                   padding: EdgeInsets.only(bottom: 32), // align top
@@ -483,7 +482,7 @@ class _CreateRoleSheetState extends State<_CreateRoleSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: AppColors.adminRole,
               ),
-              child: const Text('Create Role'),
+              child: const Text('حفظ وإنشاء الدور'),
             ),
           ],
         ),
@@ -568,13 +567,13 @@ class _AssignPermissionSheetState extends State<_AssignPermissionSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Assign Permissions',
+                            'تعيين وتعديل الصلاحيات',
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            'Role: ${(widget.role['name'] as String? ?? '').toUpperCase()}',
-                            style: TextStyle(
+                            'الدور المحدد: ${(widget.role['name'] as String? ?? '').toUpperCase()}',
+                            style: const TextStyle(
                               color: AppColors.adminRole,
                               fontWeight: FontWeight.w600,
                             ),
@@ -614,7 +613,7 @@ class _AssignPermissionSheetState extends State<_AssignPermissionSheet> {
                               });
                             },
                             title: Text(p['code'] as String? ?? ''),
-                            subtitle: Text('Module: ${p['module']}'),
+                            subtitle: Text('الوحدة: ${p['module']} • ${p['action'] ?? ""}'),
                             secondary: const Icon(
                               Icons.key,
                               color: Colors.grey,
@@ -633,7 +632,7 @@ class _AssignPermissionSheetState extends State<_AssignPermissionSheet> {
                     backgroundColor: AppColors.adminRole,
                   ),
                   child: Text(
-                    'Save Permissions (${_selectedIds.length} selected)',
+                    'حفظ الصلاحيات (${_selectedIds.length} محددة)',
                   ),
                 ),
               ),

@@ -126,13 +126,43 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final notificationRepo = getIt<INotificationRepository>();
 
       final results = await Future.wait([
-        studentRepo.fetchStudents(),
-        parentRepo.fetchParents(),
-        teacherRepo.fetchTeachers(),
-        branchRepo.fetchBranches(),
-        subjectRepo.fetchSubjects(),
-        groupRepo.fetchGroups(),
-        summaryRepo.fetchSummary(),
+        studentRepo.fetchStudents().catchError(
+          (_) => const PaginatedResult<Student>(
+            total: 0,
+            page: 1,
+            pageSize: 20,
+            data: [],
+          ),
+        ),
+        parentRepo.fetchParents().catchError(
+          (_) => const PaginatedResult<Parent>(
+            total: 0,
+            page: 1,
+            pageSize: 20,
+            data: [],
+          ),
+        ),
+        teacherRepo.fetchTeachers().catchError(
+          (_) => const PaginatedResult<Teacher>(
+            total: 0,
+            page: 1,
+            pageSize: 20,
+            data: [],
+          ),
+        ),
+        branchRepo.fetchBranches().catchError((_) => <Branch>[]),
+        subjectRepo.fetchSubjects().catchError((_) => <SubjectEntity>[]),
+        groupRepo.fetchGroups().catchError((_) => <GroupEntity>[]),
+        summaryRepo.fetchSummary().catchError(
+          (_) => const AcademyCoreSummary(
+            activeBranches: 0,
+            activeStudents: 0,
+            activeTeachers: 0,
+            activeSubjects: 0,
+            activeGroups: 0,
+            todayScheduledClasses: 0,
+          ),
+        ),
         _fetchOpsMetrics(),
         _fetchRecentActivity(),
         notificationRepo.getNotifications().catchError(
@@ -237,8 +267,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
       leaves.map(
         (row) => _AdminActivityItem.fromMap(
           row,
-          title: row['reason']?.toString() ?? 'Leave request',
-          type: 'Leave',
+          title: row['reason']?.toString().isNotEmpty == true
+              ? row['reason'].toString()
+              : 'طلب إجازة',
+          type: 'إجازة',
           dateKey: 'submitted_at',
         ),
       ),
@@ -256,9 +288,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         (row) => _AdminActivityItem.fromMap(
           row,
           title: row['invoice_number']?.toString().isNotEmpty == true
-              ? row['invoice_number'].toString()
-              : 'Invoice',
-          type: 'Finance',
+              ? 'فاتورة #${row['invoice_number']}'
+              : 'فاتورة',
+          type: 'مالية',
           dateKey: 'due_at',
         ),
       ),
@@ -275,8 +307,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       enrollments.map(
         (row) => _AdminActivityItem.fromMap(
           row,
-          title: 'Student enrollment',
-          type: 'Enrollment',
+          title: 'تسجيل طالب جديد',
+          type: 'تسجيل',
           dateKey: 'start_date',
         ),
       ),
@@ -345,35 +377,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
     ];
 
     return PortalScaffold(
-      title: 'Academy Suite',
-      subtitle: 'Admin operations',
+      title: 'إدارة السنتر والمنظومة',
+      subtitle: 'لوحة التحكم الإدارية المتكاملة',
       icon: Icons.admin_panel_settings,
       accentColor: AppColors.adminRole,
       selectedIndex: _selectedIndex,
       destinations: const [
-        PortalDestination(icon: Icons.dashboard, label: 'Overview'),
-        PortalDestination(icon: Icons.domain, label: 'Branches'),
-        PortalDestination(icon: Icons.book, label: 'Subjects'),
-        PortalDestination(icon: Icons.group_work, label: 'Groups'),
-        PortalDestination(icon: Icons.schedule, label: 'Schedules'),
-        PortalDestination(icon: Icons.school, label: 'Students'),
-        PortalDestination(icon: Icons.family_restroom, label: 'Parents'),
-        PortalDestination(icon: Icons.person, label: 'Teachers'),
-        PortalDestination(icon: Icons.badge, label: 'Staff'),
-        PortalDestination(icon: Icons.auto_stories, label: 'Curriculum'),
-        PortalDestination(icon: Icons.help_outline, label: 'Questions'),
-        PortalDestination(icon: Icons.assignment, label: 'Homework'),
-        PortalDestination(icon: Icons.quiz, label: 'Exams'),
-        PortalDestination(icon: Icons.event_note, label: 'Attendance'),
-        PortalDestination(icon: Icons.monetization_on, label: 'Finance'),
-        PortalDestination(icon: Icons.security, label: 'Security'),
-        PortalDestination(icon: Icons.manage_search, label: 'Audit'),
-        PortalDestination(icon: Icons.video_library, label: 'Replay'),
-        PortalDestination(icon: Icons.upload_file, label: 'Import'),
-        PortalDestination(icon: Icons.settings, label: 'Settings'),
-        PortalDestination(icon: Icons.analytics, label: 'Analytics'),
-        PortalDestination(icon: Icons.support_agent, label: 'Helpdesk'),
-        PortalDestination(icon: Icons.assessment, label: 'Reports'),
+        PortalDestination(icon: Icons.dashboard, label: 'نظرة عامة'),
+        PortalDestination(icon: Icons.domain, label: 'الفروع'),
+        PortalDestination(icon: Icons.book, label: 'المواد'),
+        PortalDestination(icon: Icons.group_work, label: 'المجموعات'),
+        PortalDestination(icon: Icons.schedule, label: 'الجداول'),
+        PortalDestination(icon: Icons.school, label: 'الطلاب'),
+        PortalDestination(icon: Icons.family_restroom, label: 'أولياء الأمور'),
+        PortalDestination(icon: Icons.person, label: 'المعلمون'),
+        PortalDestination(icon: Icons.badge, label: 'الموظفون'),
+        PortalDestination(icon: Icons.auto_stories, label: 'المناهج'),
+        PortalDestination(icon: Icons.help_outline, label: 'الأسئلة'),
+        PortalDestination(icon: Icons.assignment, label: 'الواجبات'),
+        PortalDestination(icon: Icons.quiz, label: 'الاختبارات'),
+        PortalDestination(icon: Icons.event_note, label: 'الحضور'),
+        PortalDestination(icon: Icons.monetization_on, label: 'المالية'),
+        PortalDestination(icon: Icons.security, label: 'الصلاحيات'),
+        PortalDestination(icon: Icons.manage_search, label: 'سجل العمليات'),
+        PortalDestination(icon: Icons.video_library, label: 'تسجيلات الحصص'),
+        PortalDestination(icon: Icons.upload_file, label: 'استيراد البيانات'),
+        PortalDestination(icon: Icons.settings, label: 'الإعدادات'),
+        PortalDestination(icon: Icons.analytics, label: 'التحليلات'),
+        PortalDestination(icon: Icons.support_agent, label: 'الدعم الفني'),
+        PortalDestination(icon: Icons.assessment, label: 'التقارير'),
       ],
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadSummaryData,
@@ -429,10 +461,11 @@ class _AdminOverview extends StatelessWidget {
           FadeInSlide(
             duration: const Duration(milliseconds: 400),
             child: PortalHeader(
-              eyebrow: 'Admin Portal',
-              title: 'Welcome, ${user?.fullName ?? "Administrator"}',
+              eyebrow: 'بوابة إدارة السنتر',
+              title:
+                  'أهلاً بك، ${user?.fullName ?? "مدير النظام"}',
               subtitle:
-                  '${authViewModel.userRole?.displayName ?? "Admin"} - ${user?.branchId ?? "Global access"}',
+                  '${authViewModel.userRole?.displayName ?? "الإدارة"} • ${user?.branchId ?? "الفرع الرئيسي"}',
               icon: Icons.admin_panel_settings,
               accentColor: AppColors.adminRole,
               trailing: Wrap(
@@ -624,11 +657,11 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const FadeInSlide(
-            delay: Duration(milliseconds: 100),
-            child: PortalSectionTitle(
-              title: 'Academy Operations',
-              subtitle: 'Live counts from the production database.',
+          FadeInSlide(
+            delay: const Duration(milliseconds: 100),
+            child: const PortalSectionTitle(
+              title: 'إحصائيات وتشغيل المركز',
+              subtitle: 'أحدث الأعداد والإحصائيات المباشرة من قاعدة البيانات.',
             ),
           ),
           const SizedBox(height: 12),
@@ -637,7 +670,7 @@ class _AdminOverview extends StatelessWidget {
             child: PortalMetricGrid(
               children: [
                 PortalMetricCard(
-                  label: 'Branches',
+                  label: 'الفروع',
                   value: (summary?.activeBranches ?? branches.length)
                       .toString(),
                   icon: Icons.domain,
@@ -645,7 +678,7 @@ class _AdminOverview extends StatelessWidget {
                   onTap: () => onNavigate(1),
                 ),
                 PortalMetricCard(
-                  label: 'Subjects',
+                  label: 'المواد الدراسية',
                   value: (summary?.activeSubjects ?? subjects.length)
                       .toString(),
                   icon: Icons.book,
@@ -653,14 +686,14 @@ class _AdminOverview extends StatelessWidget {
                   onTap: () => onNavigate(2),
                 ),
                 PortalMetricCard(
-                  label: 'Groups',
+                  label: 'المجموعات',
                   value: (summary?.activeGroups ?? groups.length).toString(),
                   icon: Icons.group_work,
                   accentColor: Colors.blue,
                   onTap: () => onNavigate(3),
                 ),
                 PortalMetricCard(
-                  label: 'Students',
+                  label: 'الطلاب',
                   value: (summary?.activeStudents ?? students.length)
                       .toString(),
                   icon: Icons.school,
@@ -668,7 +701,7 @@ class _AdminOverview extends StatelessWidget {
                   onTap: () => onNavigate(5),
                 ),
                 PortalMetricCard(
-                  label: 'Parents',
+                  label: 'أولياء الأمور',
                   value: (parentTotal == 0 ? parents.length : parentTotal)
                       .toString(),
                   icon: Icons.family_restroom,
@@ -676,7 +709,7 @@ class _AdminOverview extends StatelessWidget {
                   onTap: () => onNavigate(6),
                 ),
                 PortalMetricCard(
-                  label: 'Teachers',
+                  label: 'المعلمون',
                   value: (summary?.activeTeachers ?? teachers.length)
                       .toString(),
                   icon: Icons.person,
@@ -690,8 +723,8 @@ class _AdminOverview extends StatelessWidget {
           const FadeInSlide(
             delay: Duration(milliseconds: 200),
             child: PortalSectionTitle(
-              title: 'Setup Readiness',
-              subtitle: 'Minimum data needed for a usable production rollout.',
+              title: 'جاهزية التهيئة والإعداد',
+              subtitle: 'البيانات الأساسية المطلوبة لتشغيل السنتر بالكامل.',
             ),
           ),
           const SizedBox(height: 12),
@@ -700,42 +733,42 @@ class _AdminOverview extends StatelessWidget {
             child: _SetupReadinessCard(
               items: [
                 _SetupCheck(
-                  'Branches',
+                  'الفروع',
                   branches.isNotEmpty,
                   onTap: () => onNavigate(1),
                 ),
                 _SetupCheck(
-                  'Subjects',
+                  'المواد الدراسية',
                   subjects.isNotEmpty,
                   onTap: () => onNavigate(2),
                 ),
                 _SetupCheck(
-                  'Groups',
+                  'المجموعات',
                   groups.isNotEmpty,
                   onTap: () => onNavigate(3),
                 ),
                 _SetupCheck(
-                  'Students',
+                  'الطلاب',
                   students.isNotEmpty,
                   onTap: () => onNavigate(5),
                 ),
                 _SetupCheck(
-                  'Teachers',
+                  'المعلمون',
                   teachers.isNotEmpty,
                   onTap: () => onNavigate(7),
                 ),
                 _SetupCheck(
-                  'Parents',
+                  'أولياء الأمور',
                   parentTotal > 0 || parents.isNotEmpty,
                   onTap: () => onNavigate(6),
                 ),
                 _SetupCheck(
-                  'Published lessons',
+                  'الدروس المنشورة',
                   opsMetrics.publishedLessons > 0,
                   onTap: () => onNavigate(9),
                 ),
                 _SetupCheck(
-                  'Finance records',
+                  'سجلات مالية',
                   opsMetrics.openInvoices > 0,
                   onTap: () => onNavigate(14),
                 ),
@@ -746,8 +779,8 @@ class _AdminOverview extends StatelessWidget {
           const FadeInSlide(
             delay: Duration(milliseconds: 300),
             child: PortalSectionTitle(
-              title: 'Runtime Analytics',
-              subtitle: 'Operational workload currently visible to admins.',
+              title: 'إحصائيات التشغيل المباشرة',
+              subtitle: 'حجم العمليات الحالية المسجلة بالسنتر.',
             ),
           ),
           const SizedBox(height: 12),
@@ -756,42 +789,42 @@ class _AdminOverview extends StatelessWidget {
             child: PortalMetricGrid(
               children: [
                 PortalMetricCard(
-                  label: 'Today sessions',
+                  label: 'حصص اليوم',
                   value: opsMetrics.todaySessions.toString(),
                   icon: Icons.today,
                   accentColor: AppColors.info,
                   onTap: () => onNavigate(13),
                 ),
                 PortalMetricCard(
-                  label: 'Attendance exceptions',
+                  label: 'استثناءات الحضور',
                   value: opsMetrics.attendanceExceptions.toString(),
                   icon: Icons.assignment_late,
                   accentColor: AppColors.warning,
                   onTap: () => onNavigate(13),
                 ),
                 PortalMetricCard(
-                  label: 'Pending leaves',
+                  label: 'طلبات إجازة معلقة',
                   value: opsMetrics.pendingLeaves.toString(),
                   icon: Icons.event_busy,
                   accentColor: AppColors.warning,
                   onTap: () => onNavigate(13),
                 ),
                 PortalMetricCard(
-                  label: 'Grading queue',
+                  label: 'بانتظار التصحيح',
                   value: opsMetrics.gradingQueue.toString(),
                   icon: Icons.grading,
                   accentColor: AppColors.primary,
                   onTap: () => onNavigate(11),
                 ),
                 PortalMetricCard(
-                  label: 'Open invoices',
+                  label: 'فواتير مستحقة',
                   value: opsMetrics.openInvoices.toString(),
                   icon: Icons.receipt_long,
                   accentColor: AppColors.error,
                   onTap: () => onNavigate(14),
                 ),
                 PortalMetricCard(
-                  label: 'Published boards',
+                  label: 'سبورات منشورة',
                   value: opsMetrics.publishedBoards.toString(),
                   icon: Icons.draw,
                   accentColor: AppColors.success,
@@ -807,8 +840,8 @@ class _AdminOverview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const PortalSectionTitle(
-                  title: 'Export',
-                  subtitle: 'Copy CSV snapshots from the data loaded here.',
+                  title: 'تصدير البيانات (CSV)',
+                  subtitle: 'نسخ لقطات فورية من بيانات السنتر إلى الحافظة.',
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -818,17 +851,17 @@ class _AdminOverview extends StatelessWidget {
                     _ExportButton(
                       onPressed: () => _copyStudentsCsv(context),
                       icon: Icons.school_rounded,
-                      label: 'Students CSV',
+                      label: 'تصدير الطلاب',
                     ),
                     _ExportButton(
                       onPressed: () => _copyGroupsCsv(context),
                       icon: Icons.group_work_rounded,
-                      label: 'Groups CSV',
+                      label: 'تصدير المجموعات',
                     ),
                     _ExportButton(
                       onPressed: () => _copyTeachersCsv(context),
                       icon: Icons.person_rounded,
-                      label: 'Teachers CSV',
+                      label: 'تصدير المدرسين',
                     ),
                   ],
                 ),
@@ -836,11 +869,11 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const FadeInSlide(
-            delay: Duration(milliseconds: 450),
-            child: PortalSectionTitle(
-              title: 'Recent Activity',
-              subtitle: 'Latest leave, invoice, and enrollment records.',
+          FadeInSlide(
+            delay: const Duration(milliseconds: 450),
+            child: const PortalSectionTitle(
+              title: 'أحدث النشاطات والعمليات',
+              subtitle: 'سجل العمليات والأحداث الأخيرة داخل المركز.',
             ),
           ),
           const SizedBox(height: 12),
@@ -867,7 +900,7 @@ class _AdminOverview extends StatelessWidget {
         ],
       ),
     ];
-    await _copyCsv(context, 'Students CSV copied', rows);
+    await _copyCsv(context, 'تم نسخ بيانات الطلاب بصيغة CSV إلى الحافظة', rows);
   }
 
   Future<void> _copyGroupsCsv(BuildContext context) async {
@@ -877,7 +910,7 @@ class _AdminOverview extends StatelessWidget {
         (g) => [g.id, g.code, g.name, g.subjectId, g.branchId, g.status],
       ),
     ];
-    await _copyCsv(context, 'Groups CSV copied', rows);
+    await _copyCsv(context, 'تم نسخ بيانات المجموعات بصيغة CSV إلى الحافظة', rows);
   }
 
   Future<void> _copyTeachersCsv(BuildContext context) async {
@@ -887,7 +920,7 @@ class _AdminOverview extends StatelessWidget {
         (t) => [t.id, t.fullName, t.email, t.specialization ?? ''],
       ),
     ];
-    await _copyCsv(context, 'Teachers CSV copied', rows);
+    await _copyCsv(context, 'تم نسخ بيانات المعلمين بصيغة CSV إلى الحافظة', rows);
   }
 
   Future<void> _copyCsv(
@@ -958,7 +991,7 @@ class _AdminActivityItem {
 
   String get dateLabel {
     final value = date;
-    if (value == null) return 'No date';
+    if (value == null) return 'بدون تاريخ';
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
@@ -1085,7 +1118,7 @@ class _ActivityList extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: Text(
-                'No recent activity visible yet.',
+                'لا توجد أنشطة أو عمليات مسجلة حتى الآن.',
                 style: TextStyle(
                   color: isDark
                       ? AppColors.darkTextSecondary
@@ -1116,9 +1149,9 @@ class _ActivityList extends StatelessWidget {
 
   static IconData _iconForType(String type) {
     return switch (type) {
-      'Leave' => Icons.event_busy,
-      'Finance' => Icons.receipt_long,
-      'Enrollment' => Icons.person_add,
+      'إجازة' => Icons.event_busy,
+      'مالية' => Icons.receipt_long,
+      'تسجيل' => Icons.person_add,
       _ => Icons.history,
     };
   }

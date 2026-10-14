@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -26,6 +25,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   List<Branch> _branches = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String _centerName = 'المركز التعليمي';
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -34,6 +34,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     _studentRepo = SupabaseStudentRepository(wrapper);
     _branchRepo = SupabaseBranchRepository(wrapper);
+    _loadCenterInfo();
     _loadStudents();
   }
 
@@ -41,6 +42,30 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCenterInfo() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', user.id)
+            .maybeSingle();
+        final centerId = profile?['center_id'];
+        if (centerId != null) {
+          final center = await Supabase.instance.client
+              .from('educational_centers')
+              .select('name')
+              .eq('id', centerId)
+              .maybeSingle();
+          if (center != null && center['name'] != null) {
+            setState(() => _centerName = center['name']);
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadStudents() async {
@@ -83,28 +108,30 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Edit Student')),
+          title: const Text('تعديل بيانات الطالب'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Full Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم الكامل للطالب',
                   ),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: codeCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Student Code'),
+                  decoration: const InputDecoration(
+                    labelText: 'كود الطالب',
                   ),
                 ),
+                const SizedBox(height: 10),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedBranchId,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Branch Assignment'),
+                    decoration: const InputDecoration(
+                      labelText: 'الفرع التابع له',
                     ),
                     items:
                         _branches
@@ -119,7 +146,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             0,
                             const DropdownMenuItem(
                               value: null,
-                              child: Text('No Branch Assigned'),
+                              child: Text('بدون فرع محدد'),
                             ),
                           ),
                     onChanged: (v) =>
@@ -131,7 +158,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -148,8 +175,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                       .from('students')
                       .update({
                         'student_code': codeCtrl.text.trim(),
-                        if (selectedBranchId != null)
-                          'primary_branch_id': selectedBranchId,
+                        'primary_branch_id': selectedBranchId,
                       })
                       .eq('id', student.id);
 
@@ -158,7 +184,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Student updated successfully!'),
+                        content: Text('تم تحديث بيانات الطالب بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -167,14 +193,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Update error: $e'),
+                        content: Text('فشل التحديث: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Save Changes')),
+              child: const Text('حفظ التعديلات'),
             ),
           ],
         ),
@@ -186,28 +212,29 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
-    String? selectedBranchId = _branches.isNotEmpty ? _branches.first.id : null;
     bool obscurePassword = true;
+    String? selectedBranchId;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Provision New Student Account')),
+          title: const Text('تسجيل وقيد طالب جديد'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Full Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم الكامل للطالب',
                   ),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: emailCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Email Address'),
+                  decoration: const InputDecoration(
+                    labelText: 'البريد الإلكتروني',
                   ),
                   keyboardType: TextInputType.emailAddress,
                 ),
@@ -216,10 +243,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   controller: passwordCtrl,
                   obscureText: obscurePassword,
                   decoration: InputDecoration(
-                    labelText: context.tr('Password (optional)'),
-                    helperText: context.tr(
-                      'Leave empty if the student will set it after QR login.',
-                    ),
+                    labelText: 'كلمة المرور (اختياري)',
+                    helperText: 'اتركها فارغة إذا كان الطالب سيسجل بـ QR لأول مرة.',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () => setStateDialog(
@@ -233,11 +258,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
                 if (_branches.isNotEmpty)
                   DropdownButtonFormField<String>(
                     initialValue: selectedBranchId,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Branch Assignment'),
+                    decoration: const InputDecoration(
+                      labelText: 'الفرع التابع له',
                     ),
                     items: _branches
                         .map(
@@ -256,7 +282,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -268,7 +294,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     passwordCtrl.text.length < 6) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Password must be at least 6 characters.'),
+                      content: Text('يجب ألا تقل كلمة المرور عن 6 أحرف.'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -295,11 +321,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     final message = data is Map
                         ? data['error']?.toString()
                         : null;
-                    throw Exception(message ?? 'Provisioning failed.');
+                    throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
                   }
                   final data = Map<String, dynamic>.from(response.data as Map);
                   if (data['success'] != true) {
-                    throw Exception('Provisioning failed.');
+                    throw Exception('فشلت عملية إنشاء الحساب.');
                   }
 
                   nav.pop();
@@ -307,9 +333,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Student provisioned with invite email sent!',
-                        ),
+                        content: Text('تم إنشاء وقيد حساب الطالب بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -318,14 +342,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Provisioning error: $e'),
+                        content: Text('خطأ في القيد: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Provision Student')),
+              child: const Text('تأكيد القيد'),
             ),
           ],
         ),
@@ -373,13 +397,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Student report generated.')),
+          const SnackBar(content: Text('تم تصدير كشف الطلاب بنجاح 📄')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate report: $e')),
+          SnackBar(content: Text('فشل تصدير التقرير: $e')),
         );
       }
     }
@@ -408,13 +432,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
       await service.generateBulkStudentIdCardsPdf(
         students: studentsData,
-        centerName: 'سنتر الأوائل التعليمي',
+        centerName: _centerName,
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم توليد شيت كارنيهات الطلاب بنجاح (جاهز للطباعة والتغليف)'),
+            content: Text('تم توليد شيت كارنيهات الطلاب بنجاح (جاهز للطباعة والتغليف) 🪪'),
             backgroundColor: Colors.green,
           ),
         );
@@ -438,15 +462,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }).toList();
 
     return PortalPageShell(
-      title: 'Student Management',
-      subtitle:
-          'Provision student accounts and review academy enrollment data.',
+      title: 'إدارة شؤون الطلاب',
+      subtitle: 'تسجيل وقيد الطلاب، طباعة الكارنيهات والباركود، ومتابعة الفروع.',
       icon: Icons.school,
       accentColor: AppColors.studentRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadStudents,
         ),
         PortalAction(
@@ -457,13 +480,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
         ),
         PortalAction(
           icon: Icons.person_add,
-          label: 'Provision Student',
+          label: 'تسجيل طالب جديد',
           onPressed: _showProvisionStudentDialog,
           primary: true,
         ),
         PortalAction(
           icon: Icons.picture_as_pdf,
-          label: 'Export Report',
+          label: 'تصدير كشف (PDF)',
           onPressed: _exportStudentData,
           primary: false,
         ),
@@ -472,7 +495,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
         children: [
           PortalSearchField(
             controller: _searchController,
-            label: 'Search students',
+            label: 'بحث بالاسم، الكود، أو البريد الإلكتروني...',
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -481,9 +504,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: filtered.isEmpty,
-              emptyTitle: 'No students found',
-              emptySubtitle:
-                  'Provision students from here after branches exist.',
+              emptyTitle: 'لا يوجد طلاب مسجلون',
+              emptySubtitle: 'يمكنك قيد وإضافة طلاب جدد عبر زر (تسجيل طالب جديد) بالأعلى.',
               emptyIcon: Icons.school,
               onRetry: _loadStudents,
               child: ListView.separated(
@@ -497,21 +519,21 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     accentColor: AppColors.studentRole,
                     title: s.fullName,
                     subtitle:
-                        '${context.tr('Code')}: ${s.studentCode} | ${context.tr('Email')}: ${s.email}',
+                        'الكود: ${s.studentCode} | البريد: ${s.email}',
                     trailing: [
                       IconButton(
-                        tooltip: context.tr('Login QR'),
+                        tooltip: 'رمز الاستجابة السريعة (QR)',
                         onPressed: () => _showLoginQr(s),
                         icon: const Icon(Icons.qr_code_2),
                       ),
                       IconButton(
-                        tooltip: context.tr('Set Password'),
+                        tooltip: 'تعيين كلمة المرور',
                         onPressed: () => _showPasswordDialog(s),
                         icon: const Icon(Icons.password),
                       ),
                       if (s.status == 'suspended')
                         IconButton(
-                          tooltip: context.tr('Activate Student'),
+                          tooltip: 'تنشيط الحساب',
                           onPressed: () async {
                             try {
                               await Supabase.instance.client.rpc(
@@ -521,7 +543,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Student activated'),
+                                    content: Text('تم تنشيط حساب الطالب'),
                                   ),
                                 );
                                 _loadStudents();
@@ -529,7 +551,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
+                                  SnackBar(content: Text('خطأ: $e')),
                                 );
                               }
                             }
@@ -541,24 +563,24 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         )
                       else
                         IconButton(
-                          tooltip: context.tr('Suspend User'),
+                          tooltip: 'إيقاف الحساب مؤقتاً',
                           onPressed: () async {
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (ctx) => AlertDialog(
-                                title: const Text('Suspend Student'),
+                                title: const Text('إيقاف حساب الطالب'),
                                 content: const Text(
-                                  'Are you sure you want to suspend this student?',
+                                  'هل أنت متأكد من رغبتك في إيقاف حساب هذا الطالب مؤقتاً؟',
                                 ),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Cancel'),
+                                    child: const Text('إلغاء'),
                                   ),
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx, true),
                                     child: const Text(
-                                      'Suspend',
+                                      'إيقاف مؤقت',
                                       style: TextStyle(color: Colors.red),
                                     ),
                                   ),
@@ -574,7 +596,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Student suspended'),
+                                      content: Text('تم إيقاف حساب الطالب'),
                                     ),
                                   );
                                   _loadStudents();
@@ -582,7 +604,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                               } catch (e) {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error: $e')),
+                                    SnackBar(content: Text('خطأ: $e')),
                                   );
                                 }
                               }
@@ -591,29 +613,29 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
                       IconButton(
-                        tooltip: context.tr('Edit Student'),
+                        tooltip: 'تعديل البيانات',
                         onPressed: () => _showEditStudentDialog(s),
                         icon: const Icon(Icons.edit, color: Colors.blue),
                       ),
                       IconButton(
-                        tooltip: context.tr('Delete Student'),
+                        tooltip: 'حذف الطالب',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Student'),
+                              title: const Text('حذف الطالب نهائياً'),
                               content: const Text(
-                                'Are you sure you want to permanently delete this student?',
+                                'هل أنت متأكد من حذف حساب الطالب وسجلاته نهائياً من النظام؟',
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
+                                  child: const Text('إلغاء'),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, true),
                                   child: const Text(
-                                    'Delete',
+                                    'حذف نهائي',
                                     style: TextStyle(color: Colors.red),
                                   ),
                                 ),
@@ -630,7 +652,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
+                                  SnackBar(content: Text('خطأ: $e')),
                                 );
                               }
                             }

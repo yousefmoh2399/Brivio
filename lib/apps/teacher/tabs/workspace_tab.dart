@@ -93,7 +93,7 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                           onPressed: () {
                             ClassBroadcastDialog.show(
                               context,
-                              groupName: 'ثانوية عامة - لغات A',
+                              groupName: 'المجموعة الدراسية',
                             );
                           },
                         ),
@@ -103,7 +103,7 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                           onPressed: () {
                             SmartExamGeneratorDialog.show(
                               context,
-                              subjectName: 'فيزياء',
+                              subjectName: 'المادة الدراسية',
                             );
                           },
                         ),

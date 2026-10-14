@@ -25,8 +25,6 @@ import '../../features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../features/parent_portal/presentation/screens/absence_excuse_dialog.dart';
-import '../../features/parent_portal/presentation/screens/monthly_report_card_screen.dart';
-import '../../features/parent_portal/presentation/screens/parent_financial_ledger_screen.dart';
 import 'screens/parent_helpdesk_screen.dart';
 
 class ParentDashboard extends StatefulWidget {
@@ -320,9 +318,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
           isLoading: _isLoading,
           errorMessage: null,
           isEmpty: _linkedChildren.isEmpty,
-          emptyTitle: 'No linked children',
-          emptySubtitle:
-              'Ask the academy admin to link your account to a student profile.',
+          emptyTitle: context.tr('No linked children'),
+          emptySubtitle: context.tr(
+            'Ask the academy admin to link your account to a student profile.',
+          ),
           emptyIcon: Icons.family_restroom,
           onRetry: _loadLinkedChildren,
           child: ListView(
@@ -351,11 +350,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   Widget _buildHeader() {
     return PortalHeader(
-      eyebrow: 'Guardian Portal',
-      title: _selectedChild?.fullName ?? 'Parent overview',
+      eyebrow: context.tr('Guardian Portal'),
+      title: _selectedChild?.fullName ?? context.tr('Parent overview'),
       subtitle: _selectedChild == null
-          ? '${_linkedChildren.length} linked children'
-          : '${_selectedChild!.studentCode} • ${_childGroups.length} active groups',
+          ? '${_linkedChildren.length} ${context.tr("linked children")}'
+          : '${_selectedChild!.studentCode} • ${_childGroups.length} ${context.tr("active groups")}',
       icon: Icons.family_restroom,
       accentColor: AppColors.parentRole,
       trailing: SizedBox(
@@ -414,9 +413,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PortalSectionTitle(
-          title: 'Account',
-          subtitle: 'Manage your guardian profile and app access.',
+        PortalSectionTitle(
+          title: context.tr('Account'),
+          subtitle: context.tr('Manage your guardian profile and app access.'),
         ),
         const SizedBox(height: 12),
         PortalListCard(
@@ -446,7 +445,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                 }
               },
               icon: const Icon(Icons.edit, size: 18),
-              label: const Text('Edit'),
+              label: Text(context.tr('Edit')),
             ),
           ],
         ),
@@ -454,14 +453,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalListCard(
           icon: Icons.notifications_active,
           accentColor: AppColors.parentRole,
-          title: 'Notifications',
+          title: context.tr('Notifications'),
           subtitle: _unreadCount == 0
-              ? 'No unread notifications.'
-              : '$_unreadCount unread notifications.',
+              ? context.tr('No unread notifications.')
+              : '$_unreadCount ${context.tr("unread notifications.")}',
           trailing: [
             TextButton(
               onPressed: () => setState(() => _selectedIndex = 5),
-              child: const Text('Open'),
+              child: Text(context.tr('Open')),
             ),
           ],
         ),
@@ -469,13 +468,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalListCard(
           icon: Icons.settings,
           accentColor: AppColors.info,
-          title: 'Settings',
-          subtitle:
-              'Language, theme, notifications, privacy, and biometric login.',
+          title: context.tr('Settings'),
+          subtitle: context.tr(
+            'Language, theme, notifications, privacy, and biometric login.',
+          ),
           trailing: [
             TextButton(
               onPressed: () => setState(() => _selectedIndex = 7),
-              child: const Text('Open'),
+              child: Text(context.tr('Open')),
             ),
           ],
         ),
@@ -483,12 +483,12 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalListCard(
           icon: Icons.logout,
           accentColor: AppColors.error,
-          title: 'Sign out',
-          subtitle: 'Leave the guardian portal on this device.',
+          title: context.tr('Sign out'),
+          subtitle: context.tr('Leave the guardian portal on this device.'),
           trailing: [
             TextButton(
               onPressed: widget.authViewModel.signOut,
-              child: const Text('Sign out'),
+              child: Text(context.tr('Sign out')),
             ),
           ],
         ),
@@ -584,14 +584,16 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(
-          title: 'Exams & grades',
-          subtitle: 'Published exams, attempts, scores, and answer review.',
+        PortalSectionTitle(
+          title: context.tr('Exams & grades'),
+          subtitle: context.tr(
+            'Published exams, attempts, scores, and answer review.',
+          ),
         ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _examItems.isEmpty,
-          emptyText: 'No exams are visible for this child yet.',
+          emptyText: context.tr('No exams are visible for this child yet.'),
           children: _examItems
               .map(
                 (item) => PortalListCard(
@@ -619,14 +621,18 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(
-          title: 'Published lessons',
-          subtitle: 'Progress is calculated from the student reading history.',
+        PortalSectionTitle(
+          title: context.tr('Published lessons'),
+          subtitle: context.tr(
+            'Progress is calculated from the student reading history.',
+          ),
         ),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: snapshot == null || snapshot.availableLessons.isEmpty,
-          emptyText: 'No published lessons available for this child yet.',
+          emptyText: context.tr(
+            'No published lessons available for this child yet.',
+          ),
           children: (snapshot?.availableLessons ?? const <StudyLessonSummary>[])
               .map(
                 (lesson) => Card(
@@ -665,7 +671,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         PortalMetricGrid(
           children: [
             PortalMetricCard(
-              label: 'Present',
+              label: context.tr('Present'),
               value: _attendance
                   .where((item) => item.status == 'present')
                   .length
@@ -674,7 +680,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
               accentColor: AppColors.success,
             ),
             PortalMetricCard(
-              label: 'Absent',
+              label: context.tr('Absent'),
               value: _attendance
                   .where((item) => item.status == 'absent')
                   .length
@@ -683,7 +689,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
               accentColor: AppColors.error,
             ),
             PortalMetricCard(
-              label: 'Late',
+              label: context.tr('Late'),
               value: _attendance
                   .where((item) => item.status == 'late')
                   .length
@@ -696,10 +702,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const SizedBox(height: 18),
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: PortalSectionTitle(
-                title: 'Leave requests',
-                subtitle: 'Submit and track absence excuses.',
+                title: context.tr('Leave requests'),
+                subtitle: context.tr('Submit and track absence excuses.'),
               ),
             ),
             FilledButton.icon(
@@ -712,7 +718,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _leaveRequests.isEmpty,
-          emptyText: 'No leave requests yet.',
+          emptyText: context.tr('No leave requests yet.'),
           children: _leaveRequests
               .map(
                 (item) => PortalListCard(
@@ -727,11 +733,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Attendance history'),
+        PortalSectionTitle(title: context.tr('Attendance history')),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _attendance.isEmpty,
-          emptyText: 'No attendance records yet.',
+          emptyText: context.tr('No attendance records yet.'),
           children: _attendance
               .map(
                 (item) => PortalListCard(
@@ -755,73 +761,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   Widget _buildPaymentsPage() {
     final summary = _financialSummary;
-    final child = _selectedChild;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Comprehensive Financial Ledger Card ──
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'كشف الحساب المالي الشفاف (Ledger) 💳',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'تقرير مالي تفصيلي بكل مليم دُفع بالسنتر، أرقام الإيصالات، وتفقيط الجنيه المصري وتصدير PDF معتمد.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ParentFinancialLedgerScreen(
-                        studentName: child?.fullName ?? 'الطالب',
-                        studentCode: child?.studentCode ?? 'STU-101',
-                        groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
-                        parentName: widget.authViewModel.currentUser?.fullName ?? 'ولي الأمر',
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.receipt_long_rounded, size: 18),
-                label: const Text('فتح كشف الحساب'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-
         PortalMetricGrid(
           children: [
             PortalMetricCard(
@@ -860,7 +803,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: _invoices.isEmpty,
-          emptyText: 'No invoices issued for this child.',
+          emptyText: context.tr('No invoices issued for this child.'),
           children: _invoices
               .map(
                 (invoice) => PortalListCard(
@@ -914,67 +857,6 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Monthly Report Card Official Certificate Banner ──
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.purple.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.purple.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.card_membership_rounded, color: Colors.purple, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'شهادة التقرير الشهري الشامل (Report Card) 📊',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'شهادة معتمدة بنسب حضور الطالب، متوسط الامتحانات والواجبات، وتقييم السلوك وملاحظات المدرس مع تصدير PDF.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.purple,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MonthlyReportCardScreen(
-                        studentName: child?.fullName ?? 'الطالب',
-                        studentCode: child?.studentCode ?? 'STU-101',
-                        groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-                label: const Text('عرض الشهادة و PDF'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-
         PortalSectionTitle(
           title: 'التقرير الشهري التراكمي',
           subtitle:
@@ -1026,7 +908,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: report.monthAttendance.isEmpty,
-          emptyText: 'No attendance records in this month yet.',
+          emptyText: context.tr('No attendance records in this month yet.'),
           children: report.monthAttendance
               .map(
                 (item) => PortalListCard(
@@ -1045,11 +927,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
               .toList(),
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Payment follow-up'),
+        PortalSectionTitle(title: context.tr('Payment follow-up')),
         const SizedBox(height: 8),
         _InfoList(
           isEmpty: report.openInvoices.isEmpty,
-          emptyText: 'No open cash invoices.',
+          emptyText: 'لا توجد فواتير معلقة.',
           children: report.openInvoices
               .map(
                 (invoice) => PortalListCard(

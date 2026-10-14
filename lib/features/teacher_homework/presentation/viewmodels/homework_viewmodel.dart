@@ -1,48 +1,55 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/homework_models.dart';
 
 class HomeworkViewModel extends ChangeNotifier {
-  final List<HomeworkAssignment> _assignments = [
-    HomeworkAssignment(
-      id: 'a1',
-      title: 'Math Worksheet - Chapter 5',
-      description: 'Complete all exercises in Chapter 5. Show your work.',
-      dueDate: DateTime.now().add(const Duration(days: 2)),
-      assignedClasses: ['Class 10A', 'Class 10B'],
-      totalPoints: 100,
-    ),
-    HomeworkAssignment(
-      id: 'a2',
-      title: 'Physics Lab Report',
-      description: 'Write a comprehensive report on the pendulum experiment.',
-      dueDate: DateTime.now().add(const Duration(days: 5)),
-      assignedClasses: ['Class 11 Science'],
-      totalPoints: 50,
-    ),
-  ];
-
-  final List<HomeworkSubmission> _submissions = [
-    HomeworkSubmission(
-      id: 's1',
-      assignmentId: 'a1',
-      studentId: 'stu1',
-      studentName: 'Alice Johnson',
-      submittedAt: DateTime.now().subtract(const Duration(hours: 5)),
-      fileUrl: 'https://example.com/alice_math.pdf',
-    ),
-    HomeworkSubmission(
-      id: 's2',
-      assignmentId: 'a1',
-      studentId: 'stu2',
-      studentName: 'Bob Smith',
-      submittedAt: DateTime.now().subtract(const Duration(hours: 1)),
-      fileUrl: 'https://example.com/bob_math.pdf',
-      score: 85,
-      teacherFeedback: 'Good work, but review exercise 4.',
-    ),
-  ];
+  final List<HomeworkAssignment> _assignments = [];
+  final List<HomeworkSubmission> _submissions = [];
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
 
   List<HomeworkAssignment> get assignments => _assignments;
+
+  HomeworkViewModel() {
+    loadAssignments();
+  }
+
+  Future<void> loadAssignments() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('homework')
+          .select('id, title, description, due_date, groups(name)')
+          .order('due_date', ascending: false);
+
+      _assignments.clear();
+      for (final item in (res as List)) {
+        final grp = item['groups'] as Map<String, dynamic>?;
+        final grpName = grp?['name'] as String? ?? 'عام';
+        final dueStr = item['due_date']?.toString();
+        final due = dueStr != null ? DateTime.tryParse(dueStr) ?? DateTime.now() : DateTime.now();
+
+        _assignments.add(
+          HomeworkAssignment(
+            id: item['id'] as String,
+            title: item['title'] as String? ?? 'واجب منزلي',
+            description: item['description'] as String? ?? '',
+            dueDate: due,
+            assignedClasses: [grpName],
+            totalPoints: 100,
+          ),
+        );
+      }
+    } catch (_) {
+      // Keep empty if query fails or table empty
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   List<HomeworkSubmission> getSubmissionsForAssignment(String assignmentId) {
     return _submissions.where((s) => s.assignmentId == assignmentId).toList();

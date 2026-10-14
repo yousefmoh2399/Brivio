@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExamModel {
   final String id;
@@ -45,58 +46,65 @@ class TeacherExamsViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    // Mock delay
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      final client = Supabase.instance.client;
 
-    _questionBanks = [
-      QuestionBankModel(
-        id: 'qb1',
-        name: 'Algebra Fundamentals',
-        subject: 'Math',
-        questionCount: 45,
-      ),
-      QuestionBankModel(
-        id: 'qb2',
-        name: 'World War II History',
-        subject: 'History',
-        questionCount: 120,
-      ),
-      QuestionBankModel(
-        id: 'qb3',
-        name: 'Physics Mechanics',
-        subject: 'Physics',
-        questionCount: 65,
-      ),
-    ];
+      // 1. Fetch real exams
+      try {
+        final examRes = await client
+            .from('exams')
+            .select('id, title, status, total_marks, created_at, groups(name)')
+            .order('created_at', ascending: false)
+            .limit(50);
 
-    _exams = [
-      ExamModel(
-        id: 'e1',
-        title: 'Midterm Algebra Exam',
-        subject: 'Math',
-        status: 'Draft',
-        totalQuestions: 20,
-        dueDate: DateTime.now().add(const Duration(days: 7)),
-      ),
-      ExamModel(
-        id: 'e2',
-        title: 'History Pop Quiz',
-        subject: 'History',
-        status: 'Published',
-        totalQuestions: 10,
-        dueDate: DateTime.now().add(const Duration(days: 2)),
-      ),
-      ExamModel(
-        id: 'e3',
-        title: 'Physics Final',
-        subject: 'Physics',
-        status: 'Grading',
-        totalQuestions: 50,
-        dueDate: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-    ];
+        final List<ExamModel> exList = [];
+        for (final item in (examRes as List)) {
+          final grp = item['groups'] as Map<String, dynamic>?;
+          final sub = grp?['name'] as String? ?? 'عام';
+          final dtStr = item['created_at']?.toString();
+          final dt = dtStr != null ? DateTime.tryParse(dtStr) ?? DateTime.now() : DateTime.now();
 
-    _isLoading = false;
-    notifyListeners();
+          exList.add(
+            ExamModel(
+              id: item['id'] as String,
+              title: item['title'] as String? ?? 'اختبار',
+              subject: sub,
+              status: item['status'] as String? ?? 'منشور',
+              totalQuestions: (item['total_marks'] as num?)?.toInt() ?? 10,
+              dueDate: dt,
+            ),
+          );
+        }
+        _exams = exList;
+      } catch (_) {
+        _exams = [];
+      }
+
+      // 2. Fetch question banks or subjects
+      try {
+        final qbRes = await client
+            .from('subjects')
+            .select('id, name')
+            .limit(50);
+
+        final List<QuestionBankModel> qbList = [];
+        for (final item in (qbRes as List)) {
+          qbList.add(
+            QuestionBankModel(
+              id: item['id'] as String,
+              name: 'بنك أسئلة: ${item['name']}',
+              subject: item['name'] as String? ?? '',
+              questionCount: 0,
+            ),
+          );
+        }
+        _questionBanks = qbList;
+      } catch (_) {
+        _questionBanks = [];
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

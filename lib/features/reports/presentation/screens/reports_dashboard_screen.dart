@@ -3,6 +3,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/services/report_generator_service.dart';
 
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../viewmodels/reports_dashboard_viewmodel.dart';
 import 'groups_schedules_report_screen.dart';
@@ -27,21 +28,38 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
 
   Future<void> _generateReport(
     String title,
+    List<dynamic> data,
     Future<void> Function() generateAction,
   ) async {
+    if (data.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('لا توجد بيانات مسجلة حالياً لتوليد تقرير $title'),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isGenerating = true);
     try {
       await generateAction();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$title generated successfully!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم استخراج وتصدير $title بنجاح!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to generate $title: $e'),
+          content: Text('فشل استخراج $title: $e'),
           backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } finally {
@@ -51,141 +69,145 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
-        title: const Text(
-          'Reports Dashboard',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('لوحة التقارير الأكاديمية والمالية 📊'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'تحديث البيانات',
+            onPressed: () => _viewModel.loadData(),
+          ),
+        ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.cosmicGradient),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              ListView(
-                padding: const EdgeInsets.all(24),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () => _viewModel.loadData(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
                 children: [
-                  const Text(
-                    'Available Reports',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.3,
-                    ),
+                  Text(
+                    'التقارير المعتمدة المتاحة',
+                    style: AppTypography.titleLarge(textPrimary).copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Generate and download premium reports for your institution.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
+                    'استخرج تقارير PDF رسمية مطبوعة وموثقة للمركز والطلاب والإدارة.',
+                    style: AppTypography.bodySmall(textSecondary),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   PortalMetricGrid(
                     children: [
                       PortalMetricCard(
-                        label: 'Student Grades',
-                        value: 'Generate',
-                        icon: Icons.school,
+                        label: 'درجات الطلاب والاختبارات',
+                        value: 'تصدير PDF',
+                        icon: Icons.school_rounded,
                         accentColor: Colors.blue,
                         onTap: () => _generateReport(
-                          'Student Grades Report',
+                          'تقرير درجات الطلاب',
+                          _viewModel.studentsData,
                           () => _reportService.generateGradesReport(
-                            className: 'All Students',
+                            className: 'كافة الطلاب',
                             studentsData: _viewModel.studentsData,
                           ),
                         ),
                       ),
                       PortalMetricCard(
-                        label: 'Attendance',
-                        value: 'Generate',
-                        icon: Icons.event_note,
+                        label: 'سجلات ونسب الحضور',
+                        value: 'تصدير PDF',
+                        icon: Icons.event_note_rounded,
                         accentColor: Colors.green,
                         onTap: () => _generateReport(
-                          'Attendance Report',
+                          'تقرير الحضور والغياب',
+                          _viewModel.attendanceData,
                           () => _reportService.generateAttendanceReport(
-                            className: 'All Students',
+                            className: 'كافة الطلاب',
                             attendanceData: _viewModel.attendanceData,
                           ),
                         ),
                       ),
                       PortalMetricCard(
-                        label: 'Financial',
-                        value: 'Generate',
-                        icon: Icons.monetization_on,
+                        label: 'التقرير المالي والإيرادات',
+                        value: 'تصدير PDF',
+                        icon: Icons.monetization_on_rounded,
                         accentColor: Colors.orange,
                         onTap: () => _generateReport(
-                          'Financial Report',
+                          'التقرير المالي',
+                          _viewModel.financialData,
                           () => _reportService.generateFinancialReport(
                             financialData: _viewModel.financialData,
                           ),
                         ),
                       ),
                       PortalMetricCard(
-                        label: 'Teachers',
-                        value: 'Generate',
-                        icon: Icons.person,
+                        label: 'أداء وتقييم المعلمين',
+                        value: 'تصدير PDF',
+                        icon: Icons.person_search_rounded,
                         accentColor: Colors.purple,
                         onTap: () => _generateReport(
-                          'Teacher Metrics Report',
+                          'تقرير أداء المعلمين',
+                          _viewModel.teacherData,
                           () => _reportService.generateTeacherMetricsReport(
                             teacherData: _viewModel.teacherData,
                           ),
                         ),
                       ),
                       PortalMetricCard(
-                        label: 'Groups & Schedules',
-                        value: 'View',
-                        icon: Icons.schedule,
-                        accentColor: Colors.red,
+                        label: 'جداول الحصص والمجموعات',
+                        value: 'عرض الجداول',
+                        icon: Icons.schedule_rounded,
+                        accentColor: Colors.teal,
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const GroupsSchedulesReportScreen(),
+                              builder: (context) => const GroupsSchedulesReportScreen(),
                             ),
                           );
                         },
                       ),
                       PortalMetricCard(
-                        label: 'Parents',
-                        value: 'Generate',
-                        icon: Icons.family_restroom,
+                        label: 'بيانات أولياء الأمور',
+                        value: 'تصدير PDF',
+                        icon: Icons.family_restroom_rounded,
                         accentColor: Colors.deepPurple,
                         onTap: () => _generateReport(
-                          'Linked Parents Report',
+                          'تقرير أولياء الأمور',
+                          _viewModel.parentsData,
                           () => _reportService.generateParentsReport(
                             parentsData: _viewModel.parentsData,
                           ),
                         ),
                       ),
                       PortalMetricCard(
-                        label: 'Homework',
-                        value: 'Generate',
-                        icon: Icons.menu_book,
+                        label: 'متابعة الواجبات المدرسية',
+                        value: 'تصدير PDF',
+                        icon: Icons.menu_book_rounded,
                         accentColor: Colors.brown,
                         onTap: () => _generateReport(
-                          'Homework Completion Report',
+                          'تقرير تسليم الواجبات',
+                          _viewModel.homeworkData,
                           () => _reportService.generateHomeworkReport(
                             homeworkData: _viewModel.homeworkData,
                           ),
                         ),
                       ),
                       PortalMetricCard(
-                        label: 'Curriculum',
-                        value: 'Generate',
-                        icon: Icons.library_books,
+                        label: 'المناهج وخطة التدريس',
+                        value: 'تصدير PDF',
+                        icon: Icons.library_books_rounded,
                         accentColor: Colors.blueGrey,
                         onTap: () => _generateReport(
-                          'Curriculum Progress Report',
+                          'تقرير المناهج الدراسية',
+                          _viewModel.curriculumData,
                           () => _reportService.generateCurriculumReport(
                             curriculumData: _viewModel.curriculumData,
                           ),
@@ -195,13 +217,13 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
                   ),
                 ],
               ),
-              if (_isGenerating)
-                Container(
-                  color: Colors.black45,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-            ],
-          ),
+            ),
+            if (_isGenerating || _viewModel.isLoading)
+              Container(
+                color: Colors.black38,
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+          ],
         ),
       ),
     );

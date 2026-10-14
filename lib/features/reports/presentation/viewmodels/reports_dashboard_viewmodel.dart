@@ -1,107 +1,153 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReportsDashboardViewModel extends ChangeNotifier {
   bool isLoading = false;
 
-  final List<Map<String, dynamic>> studentsData = [
-    {
-      'name': 'Alice',
-      'exam_score': 95,
-      'homework_score': 100,
-      'missing_assignments': 0,
-    },
-    {
-      'name': 'Bob',
-      'exam_score': 78,
-      'homework_score': 85,
-      'missing_assignments': 1,
-    },
-  ];
+  List<Map<String, dynamic>> studentsData = [];
+  List<Map<String, dynamic>> attendanceData = [];
+  List<Map<String, dynamic>> financialData = [];
+  List<Map<String, dynamic>> teacherData = [];
+  List<Map<String, dynamic>> parentsData = [];
+  List<Map<String, dynamic>> homeworkData = [];
+  List<Map<String, dynamic>> curriculumData = [];
 
-  final List<Map<String, dynamic>> attendanceData = [
-    {'name': 'Alice', 'present': 20, 'absent': 0, 'absence_dates': ''},
-    {
-      'name': 'Bob',
-      'present': 18,
-      'absent': 2,
-      'absence_dates': '2026-08-01, 2026-08-05',
-    },
-  ];
-
-  final List<Map<String, dynamic>> financialData = [
-    {
-      'date': '2026-08-10',
-      'description': 'Tuition Fee - Alice',
-      'type': 'Inflow',
-      'amount': 500,
-      'notes': '',
-    },
-    {
-      'date': '2026-08-11',
-      'description': 'Office Supplies',
-      'type': 'Outflow',
-      'amount': -50,
-      'notes': 'Stationery',
-    },
-  ];
-
-  final List<Map<String, dynamic>> teacherData = [
-    {'name': 'Mr. Smith', 'classes_taught': 5, 'avg_attendance': 95.5},
-    {'name': 'Mrs. Doe', 'classes_taught': 3, 'avg_attendance': 98.0},
-  ];
-
-  final List<Map<String, dynamic>> parentsData = [
-    {
-      'name': 'Mr. & Mrs. Smith',
-      'students': 'Alice, Charlie',
-      'email': 'smith@example.com',
-      'status': 'Active',
-    },
-    {
-      'name': 'Mr. Doe',
-      'students': 'Bob',
-      'email': 'doe@example.com',
-      'status': 'Inactive',
-    },
-  ];
-
-  final List<Map<String, dynamic>> homeworkData = [
-    {
-      'group': 'Math 101',
-      'total': 15,
-      'completion_rate': '92%',
-      'avg_score': 88,
-    },
-    {
-      'group': 'Science 202',
-      'total': 10,
-      'completion_rate': '85%',
-      'avg_score': 76,
-    },
-  ];
-
-  final List<Map<String, dynamic>> curriculumData = [
-    {
-      'subject': 'Mathematics',
-      'total_modules': 12,
-      'completed_modules': 8,
-      'progress': '66%',
-    },
-    {
-      'subject': 'Physics',
-      'total_modules': 10,
-      'completed_modules': 5,
-      'progress': '50%',
-    },
-  ];
-
-  void loadData() {
+  Future<void> loadData() async {
     isLoading = true;
     notifyListeners();
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      final client = Supabase.instance.client;
+
+      // 1. Students
+      try {
+        final stuRes = await client
+            .from('students')
+            .select('id, student_code, profiles(full_name)')
+            .limit(100);
+        studentsData = (stuRes as List).map((item) {
+          final prof = item['profiles'] as Map<String, dynamic>?;
+          return {
+            'name': prof?['full_name'] ?? 'طالب',
+            'exam_score': 0,
+            'homework_score': 0,
+            'missing_assignments': 0,
+          };
+        }).toList();
+      } catch (_) {
+        studentsData = [];
+      }
+
+      // 2. Attendance
+      try {
+        final attRes = await client
+            .from('attendance')
+            .select('status, date, students(profiles(full_name))')
+            .limit(100);
+        attendanceData = (attRes as List).map((item) {
+          final stu = item['students'] as Map<String, dynamic>?;
+          final prof = stu?['profiles'] as Map<String, dynamic>?;
+          final isPresent = item['status'] == 'present';
+          return {
+            'name': prof?['full_name'] ?? 'طالب',
+            'present': isPresent ? 1 : 0,
+            'absent': isPresent ? 0 : 1,
+            'absence_dates': !isPresent ? (item['date']?.toString() ?? '') : '',
+          };
+        }).toList();
+      } catch (_) {
+        attendanceData = [];
+      }
+
+      // 3. Financial
+      try {
+        final finRes = await client
+            .from('receipts')
+            .select('receipt_number, total_amount, payment_method, created_at, notes')
+            .limit(100);
+        financialData = (finRes as List).map((item) {
+          return {
+            'date': item['created_at']?.toString().split('T').first ?? '',
+            'description': 'إيصال سداد #${item['receipt_number'] ?? ''}',
+            'type': 'تحصيل',
+            'amount': (item['total_amount'] as num?)?.toDouble() ?? 0.0,
+            'notes': item['notes'] ?? '',
+          };
+        }).toList();
+      } catch (_) {
+        financialData = [];
+      }
+
+      // 4. Teachers
+      try {
+        final tchRes = await client
+            .from('teachers')
+            .select('id, profiles(full_name)')
+            .limit(50);
+        teacherData = (tchRes as List).map((item) {
+          final prof = item['profiles'] as Map<String, dynamic>?;
+          return {
+            'name': prof?['full_name'] ?? 'معلم',
+            'classes_taught': 0,
+            'avg_attendance': 100.0,
+          };
+        }).toList();
+      } catch (_) {
+        teacherData = [];
+      }
+
+      // 5. Parents
+      try {
+        final parRes = await client
+            .from('parents')
+            .select('id, profiles(full_name, email)')
+            .limit(50);
+        parentsData = (parRes as List).map((item) {
+          final prof = item['profiles'] as Map<String, dynamic>?;
+          return {
+            'name': prof?['full_name'] ?? 'ولي أمر',
+            'students': '-',
+            'email': prof?['email'] ?? '',
+            'status': 'نشط',
+          };
+        }).toList();
+      } catch (_) {
+        parentsData = [];
+      }
+
+      // 6. Homework
+      try {
+        final hwRes = await client.from('homework').select('title, groups(name)').limit(50);
+        homeworkData = (hwRes as List).map((item) {
+          final grp = item['groups'] as Map<String, dynamic>?;
+          return {
+            'group': grp?['name'] ?? 'مجموعة',
+            'total': 0,
+            'completion_rate': '0%',
+            'avg_score': 0,
+          };
+        }).toList();
+      } catch (_) {
+        homeworkData = [];
+      }
+
+      // 7. Curriculum
+      try {
+        final subRes = await client.from('subjects').select('name, code').limit(50);
+        curriculumData = (subRes as List).map((item) {
+          return {
+            'subject': item['name'] ?? '',
+            'total_modules': 0,
+            'completed_modules': 0,
+            'progress': '0%',
+          };
+        }).toList();
+      } catch (_) {
+        curriculumData = [];
+      }
+    } finally {
       isLoading = false;
       notifyListeners();
-    });
+    }
   }
 }

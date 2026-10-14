@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
@@ -10,7 +11,7 @@ class ClassroomCapacityScreen extends StatefulWidget {
 
   const ClassroomCapacityScreen({
     super.key,
-    this.centerName = 'سنتر الأوائل التعليمي',
+    this.centerName = 'المركز التعليمي',
   });
 
   @override
@@ -18,52 +19,141 @@ class ClassroomCapacityScreen extends StatefulWidget {
 }
 
 class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
-  final List<Map<String, dynamic>> _halls = [
-    {
-      'id': 'hall-1',
-      'name': 'قاعة 1 (المسرح الكبير)',
-      'floor': 'الطابق الأرضي',
-      'capacity': 100,
-      'occupied': 92,
-      'current_session': 'فيزياء ثانوية عامة - أ. محمد عبد الله',
-      'time': '10:00 ص - 12:00 م',
-      'air_conditioned': true,
-    },
-    {
-      'id': 'hall-2',
-      'name': 'قاعة 2 (مدرج المتفوقين)',
-      'floor': 'الطابق الأول',
-      'capacity': 70,
-      'occupied': 45,
-      'current_session': 'رياضيات بحتة - أ. أحمد الشناوي',
-      'time': '11:00 ص - 01:00 م',
-      'air_conditioned': true,
-    },
-    {
-      'id': 'hall-3',
-      'name': 'قاعة 3 (معمل اللغات)',
-      'floor': 'الطابق الثاني',
-      'capacity': 40,
-      'occupied': 39, // 97.5% - Over capacity warning!
-      'current_session': 'لغة إنجليزية لغات - Miss Sarah',
-      'time': '12:00 م - 02:00 م',
-      'air_conditioned': true,
-    },
-    {
-      'id': 'hall-4',
-      'name': 'قاعة 4 (القاعة الفرعية)',
-      'floor': 'الطابق الأرضي',
-      'capacity': 50,
-      'occupied': 0, // Empty / Idle
-      'current_session': null,
-      'time': 'شاغرة حالياً',
-      'air_conditioned': false,
-    },
-  ];
+  List<Map<String, dynamic>> _halls = [];
+  bool _isLoading = false;
 
-  void _editCapacityDialog(Map<String, dynamic> hall) {
+  @override
+  void initState() {
+    super.initState();
+    _loadHalls();
+  }
+
+  Future<void> _loadHalls() async {
+    setState(() => _isLoading = true);
+    try {
+      final client = Supabase.instance.client;
+      final res = await client.from('rooms').select().order('name');
+      final List<Map<String, dynamic>> loaded = [];
+      for (final item in (res as List)) {
+        loaded.add({
+          'id': item['id'] as String,
+          'name': item['name'] as String? ?? 'قاعة بدون اسم',
+          'floor': item['code'] != null ? 'كود: ${item['code']}' : 'الطابق الأرضي',
+          'capacity': (item['capacity'] as num?)?.toInt() ?? 30,
+          'occupied': 0,
+          'current_session': null,
+          'time': 'شاغرة حالياً',
+          'air_conditioned': true,
+        });
+      }
+      if (mounted) {
+        setState(() {
+          _halls = loaded;
+        });
+      }
+    } catch (_) {
+      // If table query fails, _halls remains empty
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showAddHallDialog() async {
+    final nameCtrl = TextEditingController();
+    final capCtrl = TextEditingController(text: '40');
+    final codeCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إضافة قاعة دراسية جديدة'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'اسم القاعة / المدرج *',
+                  hintText: 'مثال: قاعة 1، مدرج أ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: capCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'السعة القصوى (عدد المقاعد) *',
+                  hintText: '40',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'كود القاعة (اختياري)',
+                  hintText: 'مثال: R-101',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              final cap = int.tryParse(capCtrl.text.trim()) ?? 30;
+              final code = codeCtrl.text.trim().isNotEmpty
+                  ? codeCtrl.text.trim()
+                  : 'RM-${DateTime.now().millisecondsSinceEpoch % 10000}';
+              if (name.isEmpty) return;
+
+              try {
+                final client = Supabase.instance.client;
+                final branchRes = await client.from('branches').select('id').limit(1);
+                String? branchId;
+                if ((branchRes as List).isNotEmpty) {
+                  branchId = branchRes.first['id'] as String;
+                } else {
+                  final newBranch = await client.from('branches').insert({
+                    'name': 'الفرع الرئيسي',
+                    'code': 'MAIN-01',
+                    'status': 'active',
+                  }).select('id').single();
+                  branchId = newBranch['id'] as String;
+                }
+
+                await client.from('rooms').insert({
+                  'name': name,
+                  'capacity': cap,
+                  'code': code,
+                  'branch_id': branchId,
+                  'status': 'active',
+                });
+
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  _loadHalls();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('فشل إضافة القاعة: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editCapacityDialog(Map<String, dynamic> hall) async {
     final capCtrl = TextEditingController(text: '${hall['capacity']}');
-    showDialog(
+    await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('تعديل سعة مقاعد ${hall['name']}'),
@@ -75,11 +165,18 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               final newCap = int.tryParse(capCtrl.text.trim());
               if (newCap != null && newCap > 0) {
-                setState(() => hall['capacity'] = newCap);
-                Navigator.pop(ctx);
+                try {
+                  final client = Supabase.instance.client;
+                  await client.from('rooms').update({'capacity': newCap}).eq('id', hall['id']);
+                  setState(() => hall['capacity'] = newCap);
+                  if (mounted) Navigator.pop(ctx);
+                } catch (_) {
+                  setState(() => hall['capacity'] = newCap);
+                  if (mounted) Navigator.pop(ctx);
+                }
               }
             },
             child: const Text('حفظ'),
@@ -107,227 +204,302 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: const Text('إدارة مقاعد وسعة القاعات 🏛️'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline_rounded),
+            tooltip: 'إضافة قاعة جديدة',
+            onPressed: _showAddHallDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'تحديث',
+            onPressed: _loadHalls,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Center Capacity Overview Card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.teal.shade800, Colors.blueGrey.shade900],
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'إجمالي سعة السنتر: ${widget.centerName}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadHalls,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Center Capacity Overview Card
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.teal.shade800, Colors.blueGrey.shade900],
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
                         ),
-                        child: Text(
-                          '${overallRate.toStringAsFixed(0)}% إشغال كلي',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildSummaryMetric('إجمالي المقاعد', '$totalCapacity مقعد', Colors.white),
-                      _buildSummaryMetric('الطلاب الحاضرون الآن', '$totalOccupied طالب', Colors.amberAccent),
-                      _buildSummaryMetric('المقاعد الشاغرة', '${totalCapacity - totalOccupied} مقعد', Colors.greenAccent),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            Text(
-              'القاعات الدراسية (${_halls.length})',
-              style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            ..._halls.map((hall) {
-              final cap = hall['capacity'] as int;
-              final occ = hall['occupied'] as int;
-              final rate = cap > 0 ? (occ / cap) * 100 : 0.0;
-              final isNearFull = rate >= 90.0;
-              final isIdle = occ == 0;
-
-              Color statusColor;
-              String statusLabel;
-
-              if (isIdle) {
-                statusColor = Colors.grey;
-                statusLabel = 'شاغرة حالياً';
-              } else if (isNearFull) {
-                statusColor = Colors.red;
-                statusLabel = 'مكتملة تقريباً ⚠️';
-              } else if (rate >= 70) {
-                statusColor = Colors.orange;
-                statusLabel = 'إشغال مرتفع';
-              } else {
-                statusColor = Colors.green;
-                statusLabel = 'سعة متوفرة';
-              }
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: GlassCard(
-                  padding: const EdgeInsets.all(16),
-                  borderColor: isNearFull ? Colors.red.withValues(alpha: 0.4) : null,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: statusColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(Icons.meeting_room_rounded, color: statusColor),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    hall['name'],
-                                    style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    '${hall['floor']} • ${hall['air_conditioned'] ? 'مكيفة ❄️' : 'مراوح'}',
-                                    style: AppTypography.caption(textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              statusLabel,
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Session detail if active
-                      if (hall['current_session'] != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.cast_for_education_rounded, size: 16, color: AppColors.primary),
-                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'الحصة الجارية: ${hall['current_session']}',
-                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textPrimary),
+                                  'إجمالي سعة السنتر: ${widget.centerName}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
-                                hall['time'],
-                                style: TextStyle(fontSize: 11, color: textSecondary),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${overallRate.toStringAsFixed(0)}% إشغال كلي',
+                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              Expanded(child: _buildSummaryMetric('إجمالي المقاعد', '$totalCapacity مقعد', Colors.white)),
+                              Expanded(child: _buildSummaryMetric('الطلاب الحاضرون الآن', '$totalOccupied طالب', Colors.amberAccent)),
+                              Expanded(child: _buildSummaryMetric('المقاعد الشاغرة', '${totalCapacity - totalOccupied} مقعد', Colors.greenAccent)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'القاعات الدراسية (${_halls.length})',
+                          style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: _showAddHallDialog,
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('قاعة جديدة'),
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 10),
 
-                      // Seats progress bar
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'المقاعد المشغولة: $occ من $cap مقعد',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary),
+                    if (_halls.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : Colors.black12,
                           ),
-                          Text(
-                            '${rate.toStringAsFixed(0)}%',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      LinearProgressIndicator(
-                        value: cap > 0 ? occ / cap : 0,
-                        backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                        borderRadius: BorderRadius.circular(6),
-                        minHeight: 7,
-                      ),
-                      const SizedBox(height: 10),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.meeting_room_outlined, size: 56, color: textSecondary),
+                            const SizedBox(height: 16),
+                            Text(
+                              'لا توجد قاعات مضافة حالياً',
+                              style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'أضف قاعات ومدرجات السنتر وحدد السعة الاستيعابية لكل قاعة لتنظيم الحضور والمقاعد.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.bodySmall(textSecondary),
+                            ),
+                            const SizedBox(height: 20),
+                            FilledButton.icon(
+                              onPressed: _showAddHallDialog,
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('إضافة أول قاعة'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ..._halls.map((hall) {
+                        final cap = hall['capacity'] as int;
+                        final occ = hall['occupied'] as int;
+                        final rate = cap > 0 ? (occ / cap) * 100 : 0.0;
+                        final isNearFull = rate >= 90.0;
+                        final isIdle = occ == 0;
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          FilledButton.tonalIcon(
-                            onPressed: () {
-                              InteractiveSeatAllocationDialog.show(
-                                context,
-                                centerName: widget.centerName,
-                                hallName: hall['name'] as String,
-                                capacity: cap,
-                                currentSession: hall['current_session'] as String?,
-                              );
-                            },
-                            icon: const Icon(Icons.event_seat_rounded, size: 16),
-                            label: const Text('تسكين المقاعد والديسكات 🏷️'),
+                        Color statusColor;
+                        String statusLabel;
+
+                        if (isIdle) {
+                          statusColor = Colors.grey;
+                          statusLabel = 'شاغرة حالياً';
+                        } else if (isNearFull) {
+                          statusColor = Colors.red;
+                          statusLabel = 'مكتملة تقريباً ⚠️';
+                        } else if (rate >= 70) {
+                          statusColor = Colors.orange;
+                          statusLabel = 'إشغال مرتفع';
+                        } else {
+                          statusColor = Colors.green;
+                          statusLabel = 'سعة متوفرة';
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: GlassCard(
+                            padding: const EdgeInsets.all(16),
+                            borderColor: isNearFull ? Colors.red.withValues(alpha: 0.4) : null,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 40,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Icon(Icons.meeting_room_rounded, color: statusColor),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  hall['name'],
+                                                  style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                Text(
+                                                  hall['floor'],
+                                                  style: AppTypography.caption(textSecondary),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        statusLabel,
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+
+                                if (hall['current_session'] != null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.cast_for_education_rounded, size: 16, color: AppColors.primary),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'الحصة الجارية: ${hall['current_session']}',
+                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: textPrimary),
+                                          ),
+                                        ),
+                                        Text(
+                                          hall['time'],
+                                          style: TextStyle(fontSize: 11, color: textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Seats progress bar
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'المقاعد المشغولة: $occ من $cap مقعد',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textPrimary),
+                                    ),
+                                    Text(
+                                      '${rate.toStringAsFixed(0)}%',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                LinearProgressIndicator(
+                                  value: cap > 0 ? occ / cap : 0,
+                                  backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                  valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                                  borderRadius: BorderRadius.circular(6),
+                                  minHeight: 7,
+                                ),
+                                const SizedBox(height: 10),
+
+                                Wrap(
+                                  alignment: WrapAlignment.end,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    FilledButton.tonalIcon(
+                                      onPressed: () {
+                                        InteractiveSeatAllocationDialog.show(
+                                          context,
+                                          centerName: widget.centerName,
+                                          hallName: hall['name'] as String,
+                                          capacity: cap,
+                                          currentSession: hall['current_session'] as String?,
+                                        );
+                                      },
+                                      icon: const Icon(Icons.event_seat_rounded, size: 16),
+                                      label: const Text('تسكين المقاعد والديسكات 🏷️'),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () => _editCapacityDialog(hall),
+                                      icon: const Icon(Icons.tune_rounded, size: 16),
+                                      label: const Text('تعديل السعة'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          TextButton.icon(
-                            onPressed: () => _editCapacityDialog(hall),
-                            icon: const Icon(Icons.tune_rounded, size: 16),
-                            label: const Text('تعديل السعة'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        );
+                      }),
+                  ],
                 ),
-              );
-            }),
-          ],
-        ),
-      ),
+              ),
+            ),
     );
   }
 

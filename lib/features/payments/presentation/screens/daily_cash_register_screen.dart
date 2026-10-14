@@ -5,17 +5,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 
 /// Screen for Reception Cashiers and Supervisors to Reconcile and Close Daily Cash Register Shifts.
-/// Calculates gross receipts, teacher payouts, and net drawer balance with banknote counting and PDF export.
+/// Calculates gross receipts, cash payouts, and net drawer balance with banknote counting and PDF export.
 class DailyCashRegisterScreen extends StatefulWidget {
-  final String centerName;
-  final String cashierName;
+  final String? centerName;
+  final String? cashierName;
 
   const DailyCashRegisterScreen({
     super.key,
-    this.centerName = 'سنتر الأوائل التعليمي',
-    this.cashierName = 'موظف الاستقبال',
+    this.centerName,
+    this.cashierName,
   });
 
   @override
@@ -25,7 +26,10 @@ class DailyCashRegisterScreen extends StatefulWidget {
 class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
   bool _isLoading = true;
   DateTime _selectedDate = DateTime.now();
-  String _selectedShift = 'الوردية المسائية (الرئيسية)';
+  String _selectedShift = 'الوردية المسائية';
+
+  String _centerName = 'المركز التعليمي';
+  String _cashierName = 'مسؤول الخزينة';
 
   // Financial aggregates
   double _grossCashReceipts = 0.0;
@@ -49,6 +53,12 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.centerName != null && widget.centerName!.isNotEmpty) {
+      _centerName = widget.centerName!;
+    }
+    if (widget.cashierName != null && widget.cashierName!.isNotEmpty) {
+      _cashierName = widget.cashierName!;
+    }
     _loadShiftData();
   }
 
@@ -76,19 +86,53 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
   double get _discrepancy => _actualCountedCash - _netExpectedCash;
 
+  Future<void> _fetchCenterAndCashierInfo() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('full_name, center_id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (profile != null) {
+          final fullName = profile['full_name'] as String?;
+          if (fullName != null && fullName.isNotEmpty && widget.cashierName == null) {
+            _cashierName = fullName;
+          }
+          final centerId = profile['center_id'];
+          if (centerId != null && widget.centerName == null) {
+            final center = await Supabase.instance.client
+                .from('educational_centers')
+                .select('name')
+                .eq('id', centerId)
+                .maybeSingle();
+            if (center != null && center['name'] != null) {
+              _centerName = center['name'];
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadShiftData() async {
     setState(() => _isLoading = true);
 
     try {
+      await _fetchCenterAndCashierInfo();
+
       final startOfDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day).toIso8601String();
       final endOfDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59).toIso8601String();
 
       // Fetch today's receipts from Supabase
       final receiptsRes = await Supabase.instance.client
           .from('receipts')
-          .select('id, receipt_number, amount_minor, payment_method, created_at, student_id')
-          .gte('created_at', startOfDay)
-          .lte('created_at', endOfDay);
+          .select('id, receipt_number, amount_minor, currency, issued_at, student:students(profiles(full_name))')
+          .gte('issued_at', startOfDay)
+          .lte('issued_at', endOfDay)
+          .order('issued_at', ascending: false);
 
       double grossInflow = 0.0;
       int countInflow = 0;
@@ -98,61 +142,51 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
         final amt = ((r['amount_minor'] as num? ?? 0) / 100.0).toDouble();
         grossInflow += amt;
         countInflow++;
+        final studentName = r['student']?['profiles']?['full_name']?.toString() ?? 'طالب';
+        final recNum = r['receipt_number']?.toString() ?? r['id'].toString().substring(0, 8);
         logs.add({
           'type': 'receipt',
-          'title': 'إيصال تحصيل نقدية #${r['receipt_number'] ?? r['id']}',
+          'title': 'إيصال تحصيل نقدية #$recNum • $studentName',
           'amount': amt,
-          'time': r['created_at'] != null
-              ? DateFormat('hh:mm a').format(DateTime.parse(r['created_at']))
+          'time': r['issued_at'] != null
+              ? DateFormat('hh:mm a').format(DateTime.parse(r['issued_at']))
               : 'اليوم',
           'is_credit': true,
         });
       }
 
-      // If database has 0 receipts for today, provide standard center baseline so cashier can immediately test
-      if (grossInflow == 0.0) {
-        grossInflow = 3850.0;
-        countInflow = 24;
-        logs.addAll([
-          {'type': 'receipt', 'title': 'تحصيل كاش • حصة فيزياء 3 ث (أحمد محمود)', 'amount': 150.0, 'time': '10:15 ص', 'is_credit': true},
-          {'type': 'receipt', 'title': 'تحصيل كاش • مذكرة كيمياء (مريم خالد)', 'amount': 80.0, 'time': '10:45 ص', 'is_credit': true},
-          {'type': 'receipt', 'title': 'تحصيل كاش • مصاريف شهرية عربي (عمر حسن)', 'amount': 500.0, 'time': '11:30 ص', 'is_credit': true},
-          {'type': 'receipt', 'title': 'تحصيل كاش • 18 طالب مجموعة 12:00 م', 'amount': 2700.0, 'time': '12:10 م', 'is_credit': true},
-          {'type': 'receipt', 'title': 'تحصيل كاش • حجز ترم ثانٍ (يوسف إبراهيم)', 'amount': 420.0, 'time': '01:25 م', 'is_credit': true},
-        ]);
-      }
+      // Fetch today's cash refunds or payouts
+      double payouts = 0.0;
+      int countPayouts = 0;
+      try {
+        final txRes = await Supabase.instance.client
+            .from('payment_transactions')
+            .select('id, provider, amount_minor, currency, transaction_type, status, occurred_at')
+            .eq('provider', 'cash')
+            .gte('occurred_at', startOfDay)
+            .lte('occurred_at', endOfDay)
+            .order('occurred_at', ascending: false);
 
-      // Teacher payouts sample or from settlements table
-      double payouts = 1450.0;
-      int countPayouts = 2;
-      logs.addAll([
-        {'type': 'payout', 'title': 'تصفية أرباح حصة • أ/ محمد علي (رياضيات)', 'amount': 950.0, 'time': '12:45 م', 'is_credit': false},
-        {'type': 'payout', 'title': 'تصفية أرباح حصة • أ/ سارة إبراهيم (أحياء)', 'amount': 500.0, 'time': '02:00 م', 'is_credit': false},
-      ]);
+        for (final p in (txRes as List<dynamic>)) {
+          final type = p['transaction_type']?.toString();
+          final amt = ((p['amount_minor'] as num? ?? 0) / 100.0).toDouble();
+          if (type == 'refund') {
+            payouts += amt;
+            countPayouts++;
+            logs.add({
+              'type': 'refund',
+              'title': 'استرداد / منصرف نقدي بالخزينة',
+              'amount': amt,
+              'time': p['occurred_at'] != null
+                  ? DateFormat('hh:mm a').format(DateTime.parse(p['occurred_at']))
+                  : 'اليوم',
+              'is_credit': false,
+            });
+          }
+        }
+      } catch (_) {}
 
       final net = grossInflow - payouts;
-
-      // Automatically pre-populate default drawer count to match initially for convenience
-      if (_c200.text == '0' && _c100.text == '0') {
-        int remaining = net.toInt();
-        final c200Count = remaining ~/ 200;
-        remaining %= 200;
-        final c100Count = remaining ~/ 100;
-        remaining %= 100;
-        final c50Count = remaining ~/ 50;
-        remaining %= 50;
-        final c20Count = remaining ~/ 20;
-        remaining %= 20;
-        final c10Count = remaining ~/ 10;
-        final coins = remaining.toDouble();
-
-        _c200.text = '$c200Count';
-        _c100.text = '$c100Count';
-        _c50.text = '$c50Count';
-        _c20.text = '$c20Count';
-        _c10.text = '$c10Count';
-        _cCoins.text = coins > 0 ? '$coins' : '0';
-      }
 
       if (mounted) {
         setState(() {
@@ -168,16 +202,50 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _grossCashReceipts = 3850.0;
-          _receiptsCount = 24;
-          _teacherPayouts = 1450.0;
-          _payoutsCount = 2;
-          _netExpectedCash = 2400.0;
-          _c200.text = '12';
+          _grossCashReceipts = 0.0;
+          _receiptsCount = 0;
+          _teacherPayouts = 0.0;
+          _payoutsCount = 0;
+          _netExpectedCash = 0.0;
+          _transactions = [];
           _isLoading = false;
         });
       }
     }
+  }
+
+  void _fillDrawerWithExactNet() {
+    int remaining = _netExpectedCash > 0 ? _netExpectedCash.toInt() : 0;
+    final c200Count = remaining ~/ 200;
+    remaining %= 200;
+    final c100Count = remaining ~/ 100;
+    remaining %= 100;
+    final c50Count = remaining ~/ 50;
+    remaining %= 50;
+    final c20Count = remaining ~/ 20;
+    remaining %= 20;
+    final c10Count = remaining ~/ 10;
+    final coins = remaining.toDouble();
+
+    setState(() {
+      _c200.text = '$c200Count';
+      _c100.text = '$c100Count';
+      _c50.text = '$c50Count';
+      _c20.text = '$c20Count';
+      _c10.text = '$c10Count';
+      _cCoins.text = coins > 0 ? '$coins' : '0';
+    });
+  }
+
+  void _clearDrawerCounts() {
+    setState(() {
+      _c200.text = '0';
+      _c100.text = '0';
+      _c50.text = '0';
+      _c20.text = '0';
+      _c10.text = '0';
+      _cCoins.text = '0';
+    });
   }
 
   Future<void> _exportClosingPdf({bool printDirectly = false}) async {
@@ -195,9 +263,9 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
     try {
       await service.generateDailyCashRegisterClosingPdf(
-        centerName: widget.centerName,
+        centerName: _centerName,
         shiftName: _selectedShift,
-        cashierName: widget.cashierName,
+        cashierName: _cashierName,
         dateStr: dateStr,
         receiptsCount: _receiptsCount,
         totalGrossCashInflow: _grossCashReceipts,
@@ -233,26 +301,27 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final counted = _actualCountedCash;
     final diff = _discrepancy;
-    final isMatching = diff.abs() < 0.01;
-    final isSurplus = diff > 0;
+    final isMatching = diff.abs() < 0.01 && (counted > 0 || _netExpectedCash == 0);
+    final isSurplus = diff > 0.01;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
         appBar: AppBar(
-          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          elevation: 1,
+          backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          elevation: 0.5,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'جرد وتقفيل الخزينة اليومية (Shift Closing)',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Text(
+                'جرد وتقفيل الخزينة اليومية',
+                style: AppTypography.titleMedium(isDark ? Colors.white : Colors.black87)
+                    .copyWith(fontWeight: FontWeight.bold),
               ),
               Text(
-                '${widget.centerName} • ${DateFormat('yyyy/MM/dd').format(_selectedDate)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                '$_centerName • $_cashierName • ${DateFormat('yyyy/MM/dd').format(_selectedDate)}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ],
           ),
@@ -285,32 +354,32 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
                       // Overview Metric Cards
                       _buildMetricCardsGrid(isDark),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
                       // Banknotes Counting Calculator Card
                       _buildCashDrawerCalculatorCard(isDark, counted, diff, isMatching, isSurplus),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
 
                       // Transaction Feed & Closing Action
                       _buildTransactionsFeedCard(isDark),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 24),
 
                       // Official Action Button
                       Center(
                         child: ElevatedButton.icon(
                           onPressed: () => _exportClosingPdf(printDirectly: false),
                           icon: const Icon(Icons.verified_rounded),
-                          label: const Text('اعتماد وتقفيل الوردية وطباعة محضر الجرد (PDF)'),
+                          label: const Text('اعتماد وتقفيل الوردية وتصدير محضر الجرد (PDF)'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal.shade800,
+                            backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                            textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
@@ -321,34 +390,47 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
   Widget _buildShiftFilterBar(bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 420;
+          final dropdown = Row(
             children: [
               const Icon(Icons.access_time_rounded, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _selectedShift,
-                underline: const SizedBox.shrink(),
-                items: const [
-                  DropdownMenuItem(value: 'الوردية الصباحية (09:00 ص - 03:00 م)', child: Text('الوردية الصباحية')),
-                  DropdownMenuItem(value: 'الوردية المسائية (الرئيسية)', child: Text('الوردية المسائية (الرئيسية)')),
-                  DropdownMenuItem(value: 'إجمالي اليوم بالكامل', child: Text('إجمالي اليوم بالكامل')),
-                ],
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedShift = v);
-                },
+              Expanded(
+                child: DropdownButton<String>(
+                  value: _selectedShift,
+                  isExpanded: true,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'الوردية الصباحية',
+                      child: Text('الوردية الصباحية', overflow: TextOverflow.ellipsis),
+                    ),
+                    DropdownMenuItem(
+                      value: 'الوردية المسائية',
+                      child: Text('الوردية المسائية', overflow: TextOverflow.ellipsis),
+                    ),
+                    DropdownMenuItem(
+                      value: 'إجمالي اليوم بالكامل',
+                      child: Text('إجمالي اليوم بالكامل', overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedShift = v);
+                  },
+                ),
               ),
             ],
-          ),
-          TextButton.icon(
+          );
+
+          final dateButton = TextButton.icon(
             icon: const Icon(Icons.calendar_today_rounded, size: 16),
             label: Text(DateFormat('yyyy/MM/dd').format(_selectedDate)),
             onPressed: () async {
@@ -363,8 +445,27 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
                 _loadShiftData();
               }
             },
-          ),
-        ],
+          );
+
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                dropdown,
+                const Divider(height: 8),
+                Align(alignment: Alignment.centerLeft, child: dateButton),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: dropdown),
+              const SizedBox(width: 8),
+              dateButton,
+            ],
+          );
+        },
       ),
     );
   }
@@ -379,20 +480,20 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: constraints.maxWidth > 700 ? 1.4 : 1.25,
+          childAspectRatio: constraints.maxWidth > 700 ? 1.4 : 1.35,
           children: [
             _metricCard(
               title: 'إجمالي المقبوضات النقدية',
               value: '${_grossCashReceipts.toStringAsFixed(1)} ج.م',
-              subtitle: '$_receiptsCount عملية تحصيل كاش',
+              subtitle: '$_receiptsCount عملية تحصيل',
               icon: Icons.payments_rounded,
               color: Colors.green,
               isDark: isDark,
             ),
             _metricCard(
-              title: 'منصرفات وتصفيات المدرسين',
+              title: 'المنصرفات والاستردادات',
               value: '${_teacherPayouts.toStringAsFixed(1)} ج.م',
-              subtitle: '$_payoutsCount إيصالات تصفية منصرفة',
+              subtitle: '$_payoutsCount عملية منصرفة',
               icon: Icons.assignment_return_rounded,
               color: Colors.orange,
               isDark: isDark,
@@ -406,11 +507,17 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
               isDark: isDark,
             ),
             _metricCard(
-              title: 'طريقة الدفع المعتمدة',
-              value: 'نقداً بالخزينة',
-              subtitle: 'CASH ONLY (خالص نقداً)',
-              icon: Icons.local_atm_rounded,
-              color: Colors.teal,
+              title: 'حالة المطابقة',
+              value: _discrepancy.abs() < 0.01 && _actualCountedCash > 0
+                  ? 'مطابق تماماً'
+                  : (_discrepancy > 0.01
+                      ? 'فائض (+${_discrepancy.toStringAsFixed(1)})'
+                      : (_actualCountedCash == 0 && _netExpectedCash > 0
+                          ? 'بانتظار العد'
+                          : 'عجز (${_discrepancy.toStringAsFixed(1)})')),
+              subtitle: 'مقارنة الفعلي بالسيستم',
+              icon: Icons.price_check_rounded,
+              color: _discrepancy.abs() < 0.01 && _actualCountedCash > 0 ? Colors.green : Colors.teal,
               isDark: isDark,
             ),
           ],
@@ -428,10 +535,10 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Column(
@@ -446,13 +553,13 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5, color: Colors.grey, fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
                 ),
               ),
               Icon(icon, color: color, size: 18),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: AlignmentDirectional.centerStart,
@@ -461,8 +568,8 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9.5, color: color)),
+          const SizedBox(height: 3),
+          Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: color)),
         ],
       ),
     );
@@ -478,9 +585,9 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,36 +595,30 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: Row(
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.calculate_rounded, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.calculate_rounded, color: AppColors.primary, size: 20),
+                    Text(
+                      'حاسبة عد النقدية الفعلية بالدرج',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'حاسبة عد النقدية الفعلية بالدرج',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'سجّل عدد الورقات النقدية لمطابقة الدرج مع السيستم',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 10.5, color: Colors.grey),
-                          ),
-                        ],
-                      ),
+                    Text(
+                      'سجّل عدد الفئات النقدية بالدرج لمقارنتها مع رصيد النظام',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10.5, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -525,7 +626,7 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
               const SizedBox(width: 8),
               // Discrepancy Badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: isMatching
                       ? Colors.green.withValues(alpha: 0.15)
@@ -540,16 +641,16 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
                   children: [
                     Icon(
                       isMatching ? Icons.check_circle_rounded : (isSurplus ? Icons.trending_up : Icons.warning_rounded),
-                      size: 14,
+                      size: 13,
                       color: isMatching ? Colors.green : (isSurplus ? Colors.blue : Colors.red),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       isMatching
                           ? 'مطابق 🎯'
-                          : (isSurplus ? '+${diff.toStringAsFixed(1)}' : diff.toStringAsFixed(1)),
+                          : (isSurplus ? '+${diff.toStringAsFixed(1)} ج.م' : '${diff.toStringAsFixed(1)} ج.م'),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.bold,
                         color: isMatching ? Colors.green : (isSurplus ? Colors.blue : Colors.red),
                       ),
@@ -559,15 +660,33 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+
+          // Actions row (auto-fill & reset)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.flash_on_rounded, size: 14),
+                label: const Text('ملء القيمة المطابقة', style: TextStyle(fontSize: 11)),
+                onPressed: _fillDrawerWithExactNet,
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.refresh_rounded, size: 14),
+                label: const Text('تصفير العداد', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                onPressed: _clearDrawerCounts,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
 
           // Banknote Inputs Grid
           LayoutBuilder(
             builder: (ctx, constraints) {
               final isWide = constraints.maxWidth > 600;
               return Wrap(
-                spacing: 12,
-                runSpacing: 12,
+                spacing: 10,
+                runSpacing: 10,
                 children: [
                   _denominationField('فئة 200 جنيه', _c200, 200, isWide),
                   _denominationField('فئة 100 جنيه', _c100, 100, isWide),
@@ -579,27 +698,32 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Total Counted Banner
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              color: isDark ? AppColors.darkBackground : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('إجمالي النقدية المحصية بالدرج فعلياً:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Expanded(
+                  child: Text(
+                    'إجمالي النقدية المحصية بالدرج فعلياً:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
                 Text(
                   '${counted.toStringAsFixed(1)} ج.م',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Notes
           TextField(
@@ -624,7 +748,7 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
     bool isWide, {
     bool isAmount = false,
   }) {
-    final width = isWide ? 170.0 : 155.0;
+    final width = isWide ? 170.0 : 150.0;
     final count = int.tryParse(controller.text) ?? 0;
     final subtotal = isAmount ? (double.tryParse(controller.text) ?? 0.0) : (count * multiplier).toDouble();
 
@@ -642,7 +766,7 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               suffixText: isAmount ? 'ج.م' : 'ورقة',
               suffixStyle: const TextStyle(fontSize: 10, color: Colors.grey),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -661,11 +785,11 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
   Widget _buildTransactionsFeedCard(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -673,58 +797,84 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'حركات النقدية المسجلة خلال الوردية',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              const Expanded(
+                child: Text(
+                  'حركات النقدية المسجلة خلال اليوم',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
-                '${_transactions.length} معاملة',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                '${_transactions.length} حركة',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _transactions.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (ctx, i) {
-              final tx = _transactions[i];
-              final isCredit = tx['is_credit'] == true;
-              final amount = tx['amount'] as double? ?? 0.0;
+          if (_transactions.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.receipt_long_outlined, size: 36, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'لا توجد حركات نقدية مسجلة لهذا التاريخ',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'ستظهر المقبوضات وتصفيات الحصص فور تسجيلها بالسنتر',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _transactions.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (ctx, i) {
+                final tx = _transactions[i];
+                final isCredit = tx['is_credit'] == true;
+                final amount = tx['amount'] as double? ?? 0.0;
 
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                leading: CircleAvatar(
-                  backgroundColor: isCredit
-                      ? Colors.green.withValues(alpha: 0.15)
-                      : Colors.orange.withValues(alpha: 0.15),
-                  child: Icon(
-                    isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                    color: isCredit ? Colors.green : Colors.orange,
-                    size: 18,
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  leading: CircleAvatar(
+                    backgroundColor: isCredit
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : Colors.orange.withValues(alpha: 0.15),
+                    child: Icon(
+                      isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                      color: isCredit ? Colors.green : Colors.orange,
+                      size: 18,
+                    ),
                   ),
-                ),
-                title: Text(
-                  tx['title']?.toString() ?? '',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  tx['time']?.toString() ?? '',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-                trailing: Text(
-                  '${isCredit ? '+' : '-'}${amount.toStringAsFixed(1)} ج.م',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isCredit ? Colors.green : Colors.orange,
+                  title: Text(
+                    tx['title']?.toString() ?? '',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
-                ),
-              );
-            },
-          ),
+                  subtitle: Text(
+                    tx['time']?.toString() ?? '',
+                    style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                  ),
+                  trailing: Text(
+                    '${isCredit ? '+' : '-'}${amount.toStringAsFixed(1)} ج.م',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isCredit ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

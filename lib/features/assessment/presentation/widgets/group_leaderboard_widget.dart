@@ -113,72 +113,6 @@ class _GroupLeaderboardWidgetState extends State<GroupLeaderboardWidget> {
         }
       }
 
-      // If empty (e.g. no exams recorded yet in database), provide center hall of fame baseline
-      if (list.isEmpty) {
-        list.addAll([
-          const _RankedStudent(
-            rank: 1,
-            id: '1',
-            name: 'أحمد محمود كمال',
-            code: 'STU-2026-104',
-            scorePercentage: 99.5,
-            attendanceRate: 100,
-            points: 995,
-            badge: 'عبقري المجموعة 🥇',
-          ),
-          const _RankedStudent(
-            rank: 2,
-            id: '2',
-            name: 'مريم خالد عبد العزيز',
-            code: 'STU-2026-088',
-            scorePercentage: 98.0,
-            attendanceRate: 100,
-            points: 980,
-            badge: 'المتفوقة الفضية 🥈',
-          ),
-          const _RankedStudent(
-            rank: 3,
-            id: '3',
-            name: 'يوسف إبراهيم الشناوي',
-            code: 'STU-2026-215',
-            scorePercentage: 96.5,
-            attendanceRate: 98,
-            points: 965,
-            badge: 'المتفوق البرونزي 🥉',
-          ),
-          const _RankedStudent(
-            rank: 4,
-            id: '4',
-            name: 'سارة طارق المنشاوي',
-            code: 'STU-2026-072',
-            scorePercentage: 94.0,
-            attendanceRate: 100,
-            points: 940,
-            badge: 'وسام الالتزام بالحضور 🌟',
-          ),
-          const _RankedStudent(
-            rank: 5,
-            id: '5',
-            name: 'عمر حسن النجار',
-            code: 'STU-2026-140',
-            scorePercentage: 92.5,
-            attendanceRate: 96,
-            points: 925,
-            badge: 'نجم الأسبوع ⭐',
-          ),
-          const _RankedStudent(
-            rank: 6,
-            id: '6',
-            name: 'ندى شريف القاضي',
-            code: 'STU-2026-301',
-            scorePercentage: 90.0,
-            attendanceRate: 100,
-            points: 900,
-            badge: 'وسام الاجتهاد والمثابرة 💡',
-          ),
-        ]);
-      }
-
       if (mounted) {
         setState(() {
           _rankedStudents = list;
@@ -290,7 +224,38 @@ class _GroupLeaderboardWidgetState extends State<GroupLeaderboardWidget> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _rankedStudents.isEmpty
-                      ? const Center(child: Text('لا توجد بيانات مرتبة لهذه المجموعة بعد.'))
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.emoji_events_outlined,
+                                  size: 48,
+                                  color: Colors.amber.withValues(alpha: 0.5),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'لا توجد نتائج مسجلة لهذه المجموعة بعد',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'سيظهر الطلاب المتفوقون هنا فور تسجيل درجات الامتحانات بالسنتر.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                       : CustomScrollView(
                           slivers: [
                             // Podium Component for Top 3
@@ -636,7 +601,6 @@ class _RankedStudent {
   final double scorePercentage;
   final int attendanceRate;
   final int points;
-  final String? badge;
 
   const _RankedStudent({
     required this.rank,
@@ -646,7 +610,6 @@ class _RankedStudent {
     required this.scorePercentage,
     required this.attendanceRate,
     required this.points,
-    this.badge,
   });
 }
 

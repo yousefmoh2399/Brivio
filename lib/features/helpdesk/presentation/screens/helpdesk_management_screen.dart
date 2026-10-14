@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/components/glass_card.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../data/models/support_ticket.dart';
 import '../../data/models/ticket_reply.dart';
 import '../../data/repositories/helpdesk_repository.dart';
@@ -42,44 +41,42 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(context.tr('Create Ticket')),
+          title: const Text('فتح تذكرة دعم فني جديدة'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: titleController,
-                decoration: InputDecoration(labelText: context.tr('Subject')),
+                decoration: const InputDecoration(labelText: 'موضوع التذكرة / المشكلة'),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: context.tr('Description'),
+                decoration: const InputDecoration(
+                  labelText: 'تفاصيل الاستفسار أو البلاغ',
                 ),
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: priority,
-                items: ['low', 'normal', 'high', 'urgent']
-                    .map(
-                      (p) => DropdownMenuItem(
-                        value: p,
-                        child: Text(context.tr(p)),
-                      ),
-                    )
-                    .toList(),
+                items: const [
+                  DropdownMenuItem(value: 'low', child: Text('منخفضة')),
+                  DropdownMenuItem(value: 'normal', child: Text('عادية')),
+                  DropdownMenuItem(value: 'high', child: Text('عالية')),
+                  DropdownMenuItem(value: 'urgent', child: Text('عاجلة جداً')),
+                ],
                 onChanged: (val) {
                   if (val != null) priority = val;
                 },
-                decoration: InputDecoration(labelText: context.tr('Priority')),
+                decoration: const InputDecoration(labelText: 'درجة الأهمية'),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -94,7 +91,7 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
                   _loadTickets();
                 }
               },
-              child: Text(context.tr('Submit')),
+              child: const Text('إرسال التذكرة'),
             ),
           ],
         );
@@ -107,21 +104,19 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
     return DefaultTabController(
       length: 3,
       child: PortalPageShell(
-        title: context.tr('Helpdesk Ticketing'),
-        subtitle: context.tr(
-          'Manage user support requests and technical issues.',
-        ),
+        title: 'الدعم الفني والتذاكر',
+        subtitle: 'متابعة استفسارات ومشاكل الطلاب والمعلمين وأولياء الأمور.',
         icon: Icons.support_agent,
         accentColor: AppColors.info,
         actions: [
           PortalAction(
             icon: Icons.add,
-            label: context.tr('New Ticket'),
+            label: 'تذكرة جديدة',
             onPressed: _showCreateTicketDialog,
           ),
           PortalAction(
             icon: Icons.refresh,
-            label: context.tr('Refresh'),
+            label: 'تحديث',
             onPressed: _loadTickets,
           ),
         ],
@@ -133,11 +128,9 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
             }
 
             if (snapshot.hasError) {
-              return Center(
+              return const Center(
                 child: Text(
-                  context.tr(
-                    'Unable to load support tickets. Please try again.',
-                  ),
+                  'تعذر تحميل تذاكر الدعم الفني. يرجى إعادة المحاولة.',
                 ),
               );
             }
@@ -186,15 +179,13 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
                     ).textTheme.bodyMedium?.color,
                     tabs: [
                       Tab(
-                        text: '${context.tr('Open')} (${openTickets.length})',
+                        text: 'جديدة مفتوحة (${openTickets.length})',
                       ),
                       Tab(
-                        text:
-                            '${context.tr('In Progress')} (${inProgressTickets.length})',
+                        text: 'قيد المتابعة (${inProgressTickets.length})',
                       ),
                       Tab(
-                        text:
-                            '${context.tr('Closed')} (${closedTickets.length})',
+                        text: 'مغلقة ومحلولة (${closedTickets.length})',
                       ),
                     ],
                   ),
@@ -261,8 +252,8 @@ class _TicketList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (tickets.isEmpty) {
-      return Center(
-        child: Text(context.tr('No tickets found in this category.')),
+      return const Center(
+        child: Text('لا توجد تذاكر دعم فني في هذا القسم.'),
       );
     }
 
@@ -276,7 +267,7 @@ class _TicketList extends StatelessWidget {
         final t = tickets[i];
         final priorityColor = _getPriorityColor(t.priority);
         final avatarColor = _getAvatarColor(t.userId);
-        final dateFormatted = timeago.format(t.createdAt);
+        final dateFormatted = timeago.format(t.createdAt, locale: 'ar');
 
         return FadeInSlide(
           delay: Duration(milliseconds: 50 * i),
@@ -306,7 +297,7 @@ class _TicketList extends StatelessWidget {
                             Row(
                               children: [
                                 Text(
-                                  t.id.substring(0, 8).toUpperCase(),
+                                  '#${t.id.substring(0, 8).toUpperCase()}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.grey,
@@ -331,7 +322,7 @@ class _TicketList extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${context.tr('User ID')}: ${t.userId.substring(0, 8)}',
+                              'معرف المستخدم: ${t.userId.substring(0, 8)}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             const SizedBox(height: 12),
@@ -352,16 +343,16 @@ class _TicketList extends StatelessWidget {
                                     ),
                                   ),
                                   child: Text(
-                                    t.priority.toUpperCase(),
+                                    _priorityLabel(t.priority),
                                     style: TextStyle(
                                       color: priorityColor,
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                PortalStatusChip(status: t.status),
+                                PortalStatusChip(status: _statusLabel(t.status)),
                               ],
                             ),
                           ],
@@ -376,6 +367,26 @@ class _TicketList extends StatelessWidget {
         );
       },
     );
+  }
+
+  static String _priorityLabel(String priority) {
+    return switch (priority.toLowerCase()) {
+      'urgent' => 'عاجلة جداً',
+      'high' => 'عالية',
+      'normal' => 'عادية',
+      'low' => 'منخفضة',
+      _ => priority,
+    };
+  }
+
+  static String _statusLabel(String status) {
+    return switch (status.toLowerCase()) {
+      'open' => 'مفتوحة',
+      'in_progress' => 'قيد المتابعة',
+      'resolved' => 'تم الحل',
+      'closed' => 'مغلقة',
+      _ => status,
+    };
   }
 
   void _showTicketDetails(
@@ -484,7 +495,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.ticket.id,
+                            'تذكرة #${widget.ticket.id.substring(0, 8)}',
                             style: const TextStyle(
                               color: Colors.grey,
                               fontWeight: FontWeight.bold,
@@ -522,30 +533,28 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                           child: Icon(Icons.person, color: widget.avatarColor),
                         ),
                         title: Text(
-                          '${context.tr('User ID')}: ${widget.ticket.userId}',
+                          'معرف المستخدم: ${widget.ticket.userId.substring(0, 8)}',
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${context.tr('Submitted')}: ${widget.dateFormatted}',
+                              'تاريخ الإرسال: ${widget.dateFormatted}',
                             ),
                             if (widget.ticket.groupId != null)
                               Text(
-                                '${context.tr('Group')}: ${widget.ticket.groupId}',
+                                'المجموعة: ${widget.ticket.groupId}',
                               ),
                           ],
                         ),
                         trailing: DropdownButton<String>(
                           value: _currentStatus,
-                          items: ['open', 'in_progress', 'resolved', 'closed']
-                              .map(
-                                (s) => DropdownMenuItem(
-                                  value: s,
-                                  child: Text(s.toUpperCase()),
-                                ),
-                              )
-                              .toList(),
+                          items: const [
+                            DropdownMenuItem(value: 'open', child: Text('مفتوحة')),
+                            DropdownMenuItem(value: 'in_progress', child: Text('قيد المتابعة')),
+                            DropdownMenuItem(value: 'resolved', child: Text('تم الحل')),
+                            DropdownMenuItem(value: 'closed', child: Text('مغلقة')),
+                          ],
                           onChanged: (val) async {
                             if (val != null) {
                               setState(() => _currentStatus = val);
@@ -560,9 +569,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      context.tr('Description'),
-                      style: const TextStyle(
+                    const Text(
+                      'تفاصيل التذكرة والمشكلة',
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.grey,
                       ),
@@ -573,9 +582,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 32),
-                    Text(
-                      context.tr('Activity'),
-                      style: const TextStyle(
+                    const Text(
+                      'الردود والمتابعات',
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.grey,
                       ),
@@ -599,7 +608,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                           child: TextField(
                             controller: _replyController,
                             decoration: InputDecoration(
-                              hintText: context.tr('Type a reply...'),
+                              hintText: 'اكتب رداً أو متابعة على التذكرة...',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(24),
                               ),

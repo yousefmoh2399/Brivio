@@ -12,16 +12,20 @@ class SupabaseAdminRepository implements IAdminRepository {
 
   @override
   Future<AdminSetting?> getSetting(String key) async {
-    final response = await _client.rpc(
-      'get_admin_setting',
-      params: {'setting_key': key},
-    );
-    if (response == null) return null;
-    return AdminSetting(
-      key: key,
-      value: response,
-      updatedAt: DateTime.now(), // Real time comes from table normally
-    );
+    try {
+      final response = await _client.rpc(
+        'get_admin_setting',
+        params: {'setting_key': key},
+      );
+      if (response == null) return null;
+      return AdminSetting(
+        key: key,
+        value: response,
+        updatedAt: DateTime.now(), // Real time comes from table normally
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

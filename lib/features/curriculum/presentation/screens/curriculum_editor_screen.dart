@@ -156,7 +156,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     final selectedSubject = _selectedSubject;
     if (selectedSubject == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Create an active subject first.'))),
+        const SnackBar(content: Text('يرجى اختيار مادة دراسية أولاً.')),
       );
       return;
     }
@@ -166,20 +166,21 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Create Semester')),
+        title: const Text('إضافة فصل دراسي جديد'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Semester Name (e.g. Fall 2026)'),
+              decoration: const InputDecoration(
+                labelText: 'اسم الفصل الدراسي (مثال: الفصل الدراسي الأول)',
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: codeCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Semester Code (e.g. FALL-2026)'),
+              decoration: const InputDecoration(
+                labelText: 'كود الفصل (مثال: TERM-1)',
               ),
             ),
           ],
@@ -187,7 +188,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -215,16 +216,14 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        '${context.tr('Failed to create semester')}: $e',
-                      ),
+                      content: Text('فشل إضافة الفصل الدراسي: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Create')),
+            child: const Text('إضافة الفصل'),
           ),
         ],
       ),
@@ -238,20 +237,21 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('${context.tr('Create Unit in')} ${semester.name}'),
+        title: Text('إضافة وحدة في ${semester.name}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Unit Name (e.g. Unit 1: Algorithms)'),
+              decoration: const InputDecoration(
+                labelText: 'اسم الوحدة (مثال: الوحدة الأولى: الحركة والقوى)',
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: codeCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Unit Code (e.g. U1-ALG)'),
+              decoration: const InputDecoration(
+                labelText: 'كود الوحدة (مثال: U1)',
               ),
             ),
           ],
@@ -259,7 +259,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -285,16 +285,14 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        '${context.tr('Failed to create unit')}: $e',
-                      ),
+                      content: Text('فشل إضافة الوحدة: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Create Unit')),
+            child: const Text('إضافة الوحدة'),
           ),
         ],
       ),
@@ -310,33 +308,34 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text('${context.tr('Create Lesson in')} ${unit.name}'),
+            title: Text('إضافة درس في ${unit.name}'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: titleCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Lesson Title'),
+                  decoration: const InputDecoration(
+                    labelText: 'عنوان الدرس',
                   ),
                 ),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: lessonTypeStr,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Lesson Type'),
+                  decoration: const InputDecoration(
+                    labelText: 'نوع الدرس والمحتوى',
                   ),
-                  items: [
+                  items: const [
                     DropdownMenuItem(
                       value: 'video',
-                      child: Text(context.tr('Video')),
+                      child: Text('فيديو شرح'),
                     ),
                     DropdownMenuItem(
                       value: 'pdf',
-                      child: Text(context.tr('PDF / Document')),
+                      child: Text('مستند / مذكرة PDF'),
                     ),
                     DropdownMenuItem(
                       value: 'quiz',
-                      child: Text(context.tr('Interactive Quiz')),
+                      child: Text('اختبار تفاعلي'),
                     ),
                   ],
                   onChanged: (v) {
@@ -348,7 +347,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Cancel')),
+                child: const Text('إلغاء'),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -371,16 +370,14 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            '${context.tr('Failed to create lesson')}: $e',
-                          ),
+                          content: Text('فشل إضافة الدرس: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
                     }
                   }
                 },
-                child: Text(context.tr('Create Lesson')),
+                child: const Text('إضافة الدرس'),
               ),
             ],
           );
@@ -391,28 +388,28 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
 
   void _showUploadResourceDialog(Lesson lesson) {
     final titleCtrl = TextEditingController(
-      text: '${lesson.title} Resource PDF',
+      text: 'مذكرة ${lesson.title}',
     );
     final objectPathCtrl = TextEditingController(text: 'lessons/${lesson.id}/');
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('${context.tr('Attach PDF Resource')} (${lesson.title})'),
+        title: Text('إرفاق مذكرة / ملف PDF (${lesson.title})'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: titleCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Resource Title'),
+              decoration: const InputDecoration(
+                labelText: 'عنوان الملف أو المذكرة',
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: objectPathCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Storage object path'),
+              decoration: const InputDecoration(
+                labelText: 'مسار التخزين (Object Path)',
                 hintText: 'lessons/<lesson-id>/lecture.pdf',
               ),
             ),
@@ -421,11 +418,11 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.cloud_upload),
-            label: Text(context.tr('Attach Resource')),
+            label: const Text('إرفاق الملف'),
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty ||
                   objectPathCtrl.text.trim().isEmpty) {
@@ -451,8 +448,8 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 _loadCurriculum();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('PDF resource attached!')),
+                    const SnackBar(
+                      content: Text('تم إرفاق الملف بنجاح!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -461,7 +458,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Upload failed')}: $e'),
+                      content: Text('فشل إرفاق الملف: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -474,23 +471,41 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     );
   }
 
+  String _lessonTypeLabel(LessonType type) {
+    return switch (type) {
+      LessonType.video => 'فيديو شرح',
+      LessonType.pdf => 'مستند PDF',
+      LessonType.quiz => 'اختبار تفاعلي',
+      LessonType.text => 'محتوى نصي',
+      LessonType.programming => 'تطبيق برمجي / عملي',
+    };
+  }
+
+  String _lessonStatusLabel(LessonStatus status) {
+    return switch (status) {
+      LessonStatus.published => 'منشور للطلاب',
+      LessonStatus.draft => 'مسودة',
+      LessonStatus.archived => 'مؤرشف',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: 'Curriculum Editor',
-      subtitle: 'Build semesters, units, lessons, and protected resources.',
+      title: 'إدارة المناهج والدروس',
+      subtitle: 'تنظيم الفصول الدراسية والوحدات والدروس ورفع المذكرات التعليمية.',
       icon: Icons.auto_stories,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadCurriculum,
         ),
         if (_selectedSubject != null)
           PortalAction(
             icon: Icons.add,
-            label: 'Add Semester',
+            label: 'إضافة فصل دراسي',
             onPressed: _showCreateSemesterDialog,
             primary: true,
           ),
@@ -499,8 +514,8 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: false,
-        emptyTitle: 'No curriculum data',
-        emptySubtitle: 'Create an active subject first.',
+        emptyTitle: 'لا توجد بيانات مناهج',
+        emptySubtitle: 'قم بإضافة مادة دراسية أولاً.',
         emptyIcon: Icons.auto_stories,
         onRetry: _loadCurriculum,
         child: Column(
@@ -510,7 +525,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<SubjectEntity>(
                   initialValue: _selectedSubject,
-                  decoration: InputDecoration(labelText: context.tr('Subject')),
+                  decoration: const InputDecoration(labelText: 'المادة الدراسية'),
                   items: _subjects
                       .map(
                         (s) => DropdownMenuItem(
@@ -528,13 +543,11 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
               ),
             Expanded(
               child: _selectedSubject == null
-                  ? Center(child: Text(context.tr('No active subjects found.')))
+                  ? const Center(child: Text('لا توجد مواد دراسية نشطة حالياً.'))
                   : _semesters.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Text(
-                        context.tr(
-                          'No semesters found. Add a semester to start.',
-                        ),
+                        'لا توجد فصول دراسية مضافة. أضف فصلاً دراسياً للبدء.',
                       ),
                     )
                   : ListView.builder(
@@ -557,36 +570,38 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
+                              'الكود: ${sem.code} | عدد الوحدات: ${sem.units.length}',
                             ),
                             trailing: _CurriculumActionMenu(
                               actions: [
                                 _CurriculumAction(
                                   icon: Icons.add_circle,
                                   color: Colors.blue,
-                                  label: context.tr('Add Unit'),
+                                  label: 'إضافة وحدة',
                                   onPressed: () => _showCreateUnitDialog(sem),
                                 ),
                                 _CurriculumAction(
                                   icon: Icons.delete,
                                   color: Colors.red,
-                                  label: context.tr('Delete Semester'),
+                                  label: 'حذف الفصل الدراسي',
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
-                                        title: const Text('Delete Semester'),
-                                        content: const Text('Are you sure?'),
+                                        title: const Text('حذف الفصل الدراسي'),
+                                        content: const Text(
+                                          'هل أنت متأكد من حذف هذا الفصل وجميع وحداته ودروسه؟',
+                                        ),
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
                                                 Navigator.pop(ctx, false),
-                                            child: const Text('Cancel'),
+                                            child: const Text('إلغاء'),
                                           ),
                                           ElevatedButton(
                                             onPressed: () =>
                                                 Navigator.pop(ctx, true),
-                                            child: const Text('Delete'),
+                                            child: const Text('تأكيد الحذف'),
                                           ),
                                         ],
                                       ),
@@ -616,31 +631,31 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                     ),
                                   ),
                                   subtitle: Text(
-                                    '${context.tr('Lessons')}: ${unit.lessons.length}',
+                                    'عدد الدروس: ${unit.lessons.length}',
                                   ),
                                   trailing: _CurriculumActionMenu(
                                     actions: [
                                       _CurriculumAction(
                                         icon: Icons.add_circle_outline,
                                         color: Colors.orange,
-                                        label: context.tr('Add Lesson'),
+                                        label: 'إضافة درس',
                                         onPressed: () =>
                                             _showCreateLessonDialog(unit),
                                       ),
                                       _CurriculumAction(
                                         icon: Icons.delete,
                                         color: Colors.red,
-                                        label: context.tr('Delete Unit'),
+                                        label: 'حذف الوحدة',
                                         onPressed: () async {
                                           final confirm =
                                               await showDialog<bool>(
                                                 context: context,
                                                 builder: (ctx) => AlertDialog(
                                                   title: const Text(
-                                                    'Delete Unit',
+                                                    'حذف الوحدة',
                                                   ),
                                                   content: const Text(
-                                                    'Are you sure?',
+                                                    'هل أنت متأكد من حذف هذه الوحدة وجميع دروسها؟',
                                                   ),
                                                   actions: [
                                                     TextButton(
@@ -650,7 +665,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                                             false,
                                                           ),
                                                       child: const Text(
-                                                        'Cancel',
+                                                        'إلغاء',
                                                       ),
                                                     ),
                                                     ElevatedButton(
@@ -660,7 +675,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                                             true,
                                                           ),
                                                       child: const Text(
-                                                        'Delete',
+                                                        'تأكيد الحذف',
                                                       ),
                                                     ),
                                                   ],
@@ -685,16 +700,14 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                       ),
                                       title: Text(lesson.title),
                                       subtitle: Text(
-                                        '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)} | ${context.tr('Attachments')}: ${lesson.resources.length}',
+                                        'النوع: ${_lessonTypeLabel(lesson.lessonType)} | الحالة: ${_lessonStatusLabel(lesson.status)} | المرفقات: ${lesson.resources.length}',
                                       ),
                                       trailing: _CurriculumActionMenu(
                                         actions: [
                                           _CurriculumAction(
                                             icon: Icons.attach_file,
                                             color: Colors.purple,
-                                            label: context.tr(
-                                              'Upload Private PDF Resource',
-                                            ),
+                                            label: 'إرفاق مذكرة / ملف PDF',
                                             onPressed: () =>
                                                 _showUploadResourceDialog(
                                                   lesson,
@@ -707,7 +720,9 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                             color: isPublished
                                                 ? Colors.green
                                                 : Colors.grey,
-                                            label: context.tr('Toggle Publish'),
+                                            label: isPublished
+                                                ? 'إلغاء النشر (تحويل لمسودة)'
+                                                : 'نشر للطلاب',
                                             onPressed: () async {
                                               await _lessonRepo.publishLesson(
                                                 lesson.id,
@@ -719,7 +734,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                           _CurriculumAction(
                                             icon: Icons.delete,
                                             color: Colors.red,
-                                            label: context.tr('Delete Lesson'),
+                                            label: 'حذف الدرس',
                                             onPressed: () async {
                                               final confirm =
                                                   await showDialog<bool>(
@@ -727,10 +742,10 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                                     builder: (ctx) =>
                                                         AlertDialog(
                                                           title: const Text(
-                                                            'Delete Lesson',
+                                                            'حذف الدرس',
                                                           ),
                                                           content: const Text(
-                                                            'Are you sure?',
+                                                            'هل أنت متأكد من حذف هذا الدرس؟',
                                                           ),
                                                           actions: [
                                                             TextButton(
@@ -740,7 +755,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                                                     false,
                                                                   ),
                                                               child: const Text(
-                                                                'Cancel',
+                                                                'إلغاء',
                                                               ),
                                                             ),
                                                             ElevatedButton(
@@ -750,12 +765,12 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                                                     true,
                                                                   ),
                                                               child: const Text(
-                                                                'Delete',
+                                                                'تأكيد الحذف',
                                                               ),
                                                             ),
                                                           ],
                                                         ),
-                                                  );
+                                                    );
                                               if (confirm == true) {
                                                 await _lessonRepo.deleteLesson(
                                                   lesson.id,

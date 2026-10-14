@@ -907,45 +907,48 @@ class PortalStateView extends StatelessWidget {
           : AppColors.lightTextSecondary;
 
       return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                width: 0.8,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  width: 0.8,
+                ),
               ),
-            ),
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(emptyIcon, size: 26, color: AppColors.primary),
                   ),
-                  child: Icon(emptyIcon, size: 28, color: AppColors.primary),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  context.l10n.t(emptyTitle),
-                  textAlign: TextAlign.center,
-                  style: AppTypography.titleMedium(
-                    textPrimary,
-                  ).copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  context.l10n.t(emptySubtitle),
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodySmall(textSecondary),
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  Text(
+                    context.l10n.t(emptyTitle),
+                    textAlign: TextAlign.center,
+                    style: AppTypography.titleMedium(
+                      textPrimary,
+                    ).copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    context.l10n.t(emptySubtitle),
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodySmall(textSecondary),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

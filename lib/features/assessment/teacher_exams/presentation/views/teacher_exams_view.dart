@@ -31,7 +31,7 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Exams & Assessments',
+          'الاختبارات والتقييمات 📝',
           style: AppTypography.titleLarge(AppColors.darkTextPrimary),
         ),
       ),
@@ -47,7 +47,7 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                   FadeInSlide(
                     delay: const Duration(milliseconds: 100),
                     child: Text(
-                      'Question Banks',
+                      'بنوك الأسئلة والمقررات',
                       style: AppTypography.titleMedium(
                         AppColors.darkTextPrimary,
                       ),
@@ -62,7 +62,7 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                   FadeInSlide(
                     delay: const Duration(milliseconds: 300),
                     child: Text(
-                      'Your Exams',
+                      'الاختبارات الحالية',
                       style: AppTypography.titleMedium(
                         AppColors.darkTextPrimary,
                       ),
@@ -81,13 +81,22 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
 
   Widget _buildQuestionBanksList(List<QuestionBankModel> banks) {
     if (banks.isEmpty) {
-      return Text(
-        'No question banks found.',
-        style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Text(
+            'لا توجد بنوك أسئلة مسجلة حالياً.',
+            style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+          ),
+        ),
       );
     }
     return SizedBox(
-      height: 180,
+      height: 150,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: banks.length,
@@ -118,14 +127,14 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                 const Spacer(),
                 Text(
                   bank.name,
-                  style: AppTypography.titleMedium(AppColors.darkTextPrimary),
+                  style: AppTypography.titleSmall(AppColors.darkTextPrimary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
-                  '${bank.questionCount} Questions',
-                  style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+                  '${bank.questionCount} سؤال',
+                  style: AppTypography.caption(AppColors.darkTextSecondary),
                 ),
               ],
             ),
@@ -137,9 +146,18 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
 
   Widget _buildExamsList(List<ExamModel> exams) {
     if (exams.isEmpty) {
-      return Text(
-        'No exams found.',
-        style: AppTypography.bodyMedium(AppColors.darkTextSecondary),
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Text(
+            'لا توجد اختبارات مسجلة حالياً.',
+            style: TextStyle(color: AppColors.darkTextSecondary, fontSize: 13),
+          ),
+        ),
       );
     }
     return ListView.separated(
@@ -154,28 +172,28 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.1),
+                  color: AppColors.secondary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.assignment, color: AppColors.secondary),
+                child: const Icon(Icons.assignment_outlined, color: AppColors.secondary, size: 22),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       exam.title,
-                      style: AppTypography.titleMedium(
+                      style: AppTypography.titleSmall(
                         AppColors.darkTextPrimary,
-                      ),
+                      ).copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${exam.subject} • ${exam.totalQuestions} Questions',
+                      '${exam.subject} • ${exam.totalQuestions} درجة',
                       style: AppTypography.caption(AppColors.darkTextSecondary),
                     ),
                   ],
@@ -196,13 +214,13 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      exam.status,
+                      _getStatusLabel(exam.status),
                       style: AppTypography.caption(
                         _getStatusColor(exam.status),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     _formatDate(exam.dueDate),
                     style: AppTypography.caption(AppColors.darkTextSecondary),
@@ -219,13 +237,29 @@ class _TeacherExamsViewState extends State<TeacherExamsView> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'published':
+      case 'منشور':
         return AppColors.success;
       case 'draft':
+      case 'مسودة':
         return AppColors.warning;
       case 'grading':
+      case 'قيد التصحيح':
         return AppColors.info;
       default:
         return AppColors.darkTextSecondary;
+    }
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'published':
+        return 'منشور';
+      case 'draft':
+        return 'مسودة';
+      case 'grading':
+        return 'قيد التصحيح';
+      default:
+        return status;
     }
   }
 

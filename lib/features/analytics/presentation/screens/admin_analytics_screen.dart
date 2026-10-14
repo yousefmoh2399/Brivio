@@ -32,16 +32,16 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return PortalPageShell(
-      title: 'Academy Analytics',
+      title: 'التحليلات والمؤشرات البيانية 📈',
       subtitle:
-          'Premium insights, revenue tracking, and student performance metrics.',
-      icon: Icons.analytics,
+          'متابعة الإيرادات والتحصيل المالي ومعدلات حضور وأداء الطلاب في السنتر.',
+      icon: Icons.analytics_rounded,
       accentColor: Colors.deepPurple,
       actions: [
         PortalAction(
-          icon: Icons.file_download,
-          label: 'Export PDF',
-          onPressed: () {},
+          icon: Icons.refresh_rounded,
+          label: 'تحديث',
+          onPressed: () => _viewModel.loadAnalytics(),
         ),
       ],
       child: ListenableBuilder(
@@ -73,33 +73,33 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                   children: [
                     Expanded(
                       child: _AnalyticsSummaryCard(
-                        title: 'Total Revenue',
-                        value: '\$${revenue.toStringAsFixed(2)}',
+                        title: 'إجمالي الإيرادات',
+                        value: '${revenue.toStringAsFixed(0)} ج.م',
                         trend: '+0.0%',
                         isPositive: true,
-                        icon: Icons.attach_money,
+                        icon: Icons.monetization_on_rounded,
                         color: Colors.green,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: _AnalyticsSummaryCard(
-                        title: 'Active Students',
-                        value: '$students',
+                        title: 'الطلاب المسجلون',
+                        value: '$students طالب',
                         trend: '+0.0%',
                         isPositive: true,
-                        icon: Icons.school,
+                        icon: Icons.school_rounded,
                         color: Colors.blue,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: _AnalyticsSummaryCard(
-                        title: 'Avg Attendance',
+                        title: 'نسبة الحضور',
                         value: '${attendance.toStringAsFixed(1)}%',
                         trend: '0.0%',
                         isPositive: true,
-                        icon: Icons.fact_check,
+                        icon: Icons.fact_check_rounded,
                         color: Colors.orange,
                       ),
                     ),
@@ -124,15 +124,15 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Revenue Growth',
-                            style: Theme.of(context).textTheme.titleLarge
+                            'معدل نمو الإيرادات',
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           SegmentedButton<String>(
                             segments: const [
-                              ButtonSegment(value: '1M', label: Text('1M')),
-                              ButtonSegment(value: '6M', label: Text('6M')),
-                              ButtonSegment(value: '1Y', label: Text('1Y')),
+                              ButtonSegment(value: '1M', label: Text('شهر')),
+                              ButtonSegment(value: '6M', label: Text('6 أشهر')),
+                              ButtonSegment(value: '1Y', label: Text('سنة')),
                             ],
                             selected: const {'6M'},
                             onSelectionChanged: (val) {},
@@ -143,9 +143,8 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      // Placeholder for a beautiful chart
                       Container(
-                        height: 200,
+                        height: 180,
                         width: double.infinity,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
@@ -160,19 +159,17 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         ),
                         child: Stack(
                           children: [
-                            // Grid lines
                             Column(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: List.generate(
                                 5,
                                 (index) => Divider(
-                                  color: Colors.grey.withValues(alpha: 0.2),
+                                  color: Colors.grey.withValues(alpha: 0.15),
                                 ),
                               ),
                             ),
-                            // Mock smooth curve
                             CustomPaint(
-                              size: const Size(double.infinity, 200),
+                              size: const Size(double.infinity, 180),
                               painter: _MockChartPainter(
                                 color: Colors.deepPurple,
                               ),
@@ -204,13 +201,13 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Top Performing Subjects',
-                              style: Theme.of(context).textTheme.titleLarge
+                              'المواد الأكثر تسجيلاً وحضوراً',
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 24),
-                            if (analytics?.subjectPerformances != null)
-                              ...analytics!.subjectPerformances.map((perf) {
+                            if (analytics?.subjectPerformances != null && analytics!.subjectPerformances.isNotEmpty)
+                              ...analytics.subjectPerformances.map((perf) {
                                 final colors = [
                                   Colors.blue,
                                   Colors.purple,
@@ -230,7 +227,17 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                                     color: colors[colorIndex],
                                   ),
                                 );
-                              }),
+                              })
+                            else
+                              const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(
+                                  child: Text(
+                                    'لا توجد بيانات أداء مسجلة حتى الآن.',
+                                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -253,8 +260,8 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Student Demographics',
-                              style: Theme.of(context).textTheme.titleLarge
+                              'توزيع الطلاب',
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 24),
@@ -263,15 +270,15 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                                 alignment: Alignment.center,
                                 children: [
                                   SizedBox(
-                                    width: 150,
-                                    height: 150,
+                                    width: 130,
+                                    height: 130,
                                     child: CircularProgressIndicator(
                                       value:
                                           analytics
                                               ?.demographics
                                               .malePercentage ??
-                                          0.65,
-                                      strokeWidth: 12,
+                                          0.5,
+                                      strokeWidth: 10,
                                       backgroundColor: Colors.pink.withValues(
                                         alpha: 0.2,
                                       ),
@@ -282,30 +289,30 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        '${((analytics?.demographics.malePercentage ?? 0.65) * 100).toInt()}%',
+                                        '${((analytics?.demographics.malePercentage ?? 0.5) * 100).toInt()}%',
                                         style: Theme.of(context)
                                             .textTheme
-                                            .headlineMedium
+                                            .titleLarge
                                             ?.copyWith(
                                               fontWeight: FontWeight.bold,
                                             ),
                                       ),
                                       const Text(
-                                        'Male',
-                                        style: TextStyle(color: Colors.grey),
+                                        'بنين',
+                                        style: TextStyle(color: Colors.grey, fontSize: 12),
                                       ),
                                     ],
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 28),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                _LegendItem(label: 'Male', color: Colors.blue),
+                                const _LegendItem(label: 'بنين', color: Colors.blue),
                                 _LegendItem(
-                                  label: 'Female',
+                                  label: 'بنات',
                                   color: Colors.pink.withValues(alpha: 0.8),
                                 ),
                               ],
@@ -336,12 +343,12 @@ class _LegendItem extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
       ],
     );
   }
@@ -366,7 +373,7 @@ class _SubjectPerformanceRow extends StatelessWidget {
           flex: 2,
           child: Text(
             subject,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
         ),
         Expanded(
@@ -381,8 +388,8 @@ class _SubjectPerformanceRow extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        Text('$score%', style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(width: 14),
+        Text('$score%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
       ],
     );
   }
@@ -423,7 +430,6 @@ class _MockChartPainter extends CustomPainter {
 
     canvas.drawPath(path, paint);
 
-    // Add fill under path
     final fillPath = Path.from(path);
     fillPath.lineTo(size.width, size.height);
     fillPath.lineTo(0, size.height);
@@ -433,7 +439,7 @@ class _MockChartPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [color.withValues(alpha: 0.3), color.withValues(alpha: 0.0)],
+        colors: [color.withValues(alpha: 0.25), color.withValues(alpha: 0.0)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(fillPath, fillPaint);
@@ -467,7 +473,7 @@ class _AnalyticsSummaryCard extends StatelessWidget {
     return GlassCard(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -475,35 +481,35 @@ class _AnalyticsSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: 20),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: isPositive
                       ? Colors.green.withValues(alpha: 0.1)
                       : Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                      size: 14,
+                      size: 12,
                       color: isPositive ? Colors.green : Colors.red,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
                       trend,
                       style: TextStyle(
                         color: isPositive ? Colors.green : Colors.red,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -511,20 +517,21 @@ class _AnalyticsSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
+              fontSize: 20,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: const TextStyle(
               color: Colors.grey,
               fontWeight: FontWeight.w600,
+              fontSize: 12,
             ),
           ),
         ],

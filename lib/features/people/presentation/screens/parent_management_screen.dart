@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -86,14 +85,14 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Edit Parent')),
+        title: const Text('تعديل بيانات ولي الأمر'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: InputDecoration(labelText: context.tr('Full Name')),
+                decoration: const InputDecoration(labelText: 'الاسم الكامل لولي الأمر'),
               ),
             ],
           ),
@@ -101,12 +100,11 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
-
               final nav = Navigator.of(ctx);
               try {
                 await Supabase.instance.client
@@ -119,7 +117,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Parent updated successfully!'),
+                      content: Text('تم تحديث بيانات ولي الأمر بنجاح!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -128,14 +126,14 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Update error: $e'),
+                      content: Text('فشل التحديث: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Save Changes')),
+            child: const Text('حفظ التعديلات'),
           ),
         ],
       ),
@@ -152,21 +150,22 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text(context.tr('Provision New Parent Account')),
+          title: const Text('تسجيل وقيد ولي أمر جديد'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Full Name'),
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم الكامل لولي الأمر',
                   ),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: emailCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Email Address'),
+                  decoration: const InputDecoration(
+                    labelText: 'البريد الإلكتروني',
                   ),
                   keyboardType: TextInputType.emailAddress,
                 ),
@@ -175,10 +174,8 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                   controller: passwordCtrl,
                   obscureText: obscurePassword,
                   decoration: InputDecoration(
-                    labelText: context.tr('Password (optional)'),
-                    helperText: context.tr(
-                      'Leave empty if the parent will set it after QR login.',
-                    ),
+                    labelText: 'كلمة المرور (اختياري)',
+                    helperText: 'اتركها فارغة إذا كان ولي الأمر سيسجل دخول برمز QR.',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () => setStateDialog(
@@ -198,7 +195,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -210,7 +207,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                     passwordCtrl.text.length < 6) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Password must be at least 6 characters.'),
+                      content: Text('كلمة المرور لا تقل عن 6 أحرف.'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -236,11 +233,11 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                     final message = data is Map
                         ? data['error']?.toString()
                         : null;
-                    throw Exception(message ?? 'Provisioning failed.');
+                    throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
                   }
                   final data = Map<String, dynamic>.from(response.data as Map);
                   if (data['success'] != true) {
-                    throw Exception('Provisioning failed.');
+                    throw Exception('فشلت عملية إنشاء الحساب.');
                   }
 
                   nav.pop();
@@ -248,9 +245,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text(
-                          'Parent account provisioned successfully!',
-                        ),
+                        content: Text('تم إنشاء وقيد حساب ولي الأمر بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -259,14 +254,14 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Provisioning error: $e'),
+                        content: Text('خطأ في القيد: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Provision Parent')),
+              child: const Text('تأكيد القيد'),
             ),
           ],
         ),
@@ -274,25 +269,22 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     );
   }
 
-  void _showLinkStudentDialog(Parent parent) {
-    String? selectedStudentId = _students.isNotEmpty
-        ? _students.first.id
-        : null;
-    String relationshipType = 'guardian';
+  void _showLinkChildDialog(Parent parent) {
+    String? selectedStudentId = _students.isNotEmpty ? _students.first.id : null;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text('Link Child to ${parent.fullName}'),
+          title: Text('ربط ابن بـ ${parent.fullName}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_students.isNotEmpty)
                 DropdownButtonFormField<String>(
                   initialValue: selectedStudentId,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Select Child / Student'),
+                  decoration: const InputDecoration(
+                    labelText: 'اختر الطالب من القائمة',
                   ),
                   items: _students
                       .map(
@@ -302,70 +294,50 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                         ),
                       )
                       .toList(),
-                  onChanged: (v) => setStateDialog(() => selectedStudentId = v),
-                ),
-              DropdownButtonFormField<String>(
-                initialValue: relationshipType,
-                decoration: InputDecoration(
-                  labelText: context.tr('Relationship Type'),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: 'father',
-                    child: Text(context.tr('Father')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'mother',
-                    child: Text(context.tr('Mother')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'guardian',
-                    child: Text(context.tr('Guardian')),
-                  ),
-                ],
-                onChanged: (v) {
-                  if (v != null) setStateDialog(() => relationshipType = v);
-                },
-              ),
+                  onChanged: (v) =>
+                      setStateDialog(() => selectedStudentId = v),
+                )
+              else
+                const Text('لا يوجد طلاب متاحين للربط حالياً.'),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (selectedStudentId == null) return;
-                final nav = Navigator.of(ctx);
-                try {
-                  await _parentRepo.linkParentToStudent(
-                    parentId: parent.id,
-                    studentId: selectedStudentId!,
-                    relationshipType: relationshipType,
-                  );
-                  nav.pop();
-                  _loadParents();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Child linked successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Linking failed: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: Text(context.tr('Link Child')),
+              onPressed: selectedStudentId == null
+                  ? null
+                  : () async {
+                      final nav = Navigator.of(ctx);
+                      try {
+                        await _parentRepo.linkParentToStudent(
+                          parentId: parent.id,
+                          studentId: selectedStudentId!,
+                        );
+                        nav.pop();
+                        _loadParents();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم ربط الطالب بولي الأمر بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل الربط: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('تأكيد الربط'),
             ),
           ],
         ),
@@ -404,19 +376,19 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     }).toList();
 
     return PortalPageShell(
-      title: 'Parent Management',
-      subtitle: 'Provision guardian accounts and link them to students.',
+      title: 'إدارة أولياء الأمور',
+      subtitle: 'تسجيل حسابات أولياء الأمور، ربط الأبناء، ومتابعة التواصل.',
       icon: Icons.family_restroom,
       accentColor: AppColors.parentRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadParents,
         ),
         PortalAction(
           icon: Icons.person_add,
-          label: 'Provision Parent',
+          label: 'تسجيل ولي أمر جديد',
           onPressed: _showProvisionParentDialog,
           primary: true,
         ),
@@ -425,7 +397,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
         children: [
           PortalSearchField(
             controller: _searchController,
-            label: 'Search parents',
+            label: 'بحث باسم ولي الأمر أو البريد الإلكتروني...',
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -434,8 +406,8 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: filtered.isEmpty,
-              emptyTitle: 'No parents found',
-              emptySubtitle: 'Provision guardian accounts, then link children.',
+              emptyTitle: 'لا يوجد أولياء أمور مسجلون',
+              emptySubtitle: 'يمكنك قيد وإضافة أولياء أمور جدد عبر زر (تسجيل ولي أمر جديد) بالأعلى.',
               emptyIcon: Icons.family_restroom,
               onRetry: _loadParents,
               child: ListView.separated(
@@ -447,42 +419,51 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                   final linked = _linkedStudents[p.id] ?? [];
                   final childrenNames = linked
                       .map((s) => s.fullName)
-                      .join(', ');
+                      .join('، ');
 
                   return PortalListCard(
                     icon: Icons.family_restroom,
                     accentColor: AppColors.parentRole,
                     title: p.fullName,
                     subtitle:
-                        '${context.tr('Email')}: ${p.email}'
-                        '${childrenNames.isNotEmpty ? '\n${context.tr('Children')}: $childrenNames' : ''}',
+                        'البريد: ${p.email}\nالأبناء المرتبطون: ${childrenNames.isEmpty ? "لا يوجد أبناء مرتبطين بعد" : childrenNames}',
                     trailing: [
                       IconButton(
-                        tooltip: context.tr('Login QR'),
+                        tooltip: 'ربط ابن جديد',
+                        onPressed: () => _showLinkChildDialog(p),
+                        icon: const Icon(Icons.person_add_alt_1),
+                      ),
+                      IconButton(
+                        tooltip: 'رمز الاستجابة السريعة (QR)',
                         onPressed: () => _showLoginQr(p),
                         icon: const Icon(Icons.qr_code_2),
                       ),
                       IconButton(
-                        tooltip: context.tr('Set Password'),
+                        tooltip: 'تعيين كلمة المرور',
                         onPressed: () => _showPasswordDialog(p),
                         icon: const Icon(Icons.password),
                       ),
                       if (p.status == 'suspended')
                         IconButton(
-                          tooltip: context.tr('Activate Parent'),
+                          tooltip: 'تنشيط الحساب',
                           onPressed: () async {
                             try {
                               await Supabase.instance.client.rpc(
                                 'activate_user',
                                 params: {'user_uid': p.profileId},
                               );
-                              _loadParents();
-                            } catch (err) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Failed to activate: $err'),
+                                  const SnackBar(
+                                    content: Text('تم تنشيط حساب ولي الأمر'),
                                   ),
+                                );
+                                _loadParents();
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('خطأ: $e')),
                                 );
                               }
                             }
@@ -494,24 +475,24 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                         )
                       else
                         IconButton(
-                          tooltip: context.tr('Suspend Parent'),
+                          tooltip: 'إيقاف الحساب مؤقتاً',
                           onPressed: () async {
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (ctx) => AlertDialog(
-                                title: const Text('Suspend Parent'),
+                                title: const Text('إيقاف حساب ولي الأمر'),
                                 content: const Text(
-                                  'Are you sure you want to suspend this parent?',
+                                  'هل أنت متأكد من رغبتك في إيقاف حساب ولي الأمر مؤقتاً؟',
                                 ),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Cancel'),
+                                    child: const Text('إلغاء'),
                                   ),
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx, true),
                                     child: const Text(
-                                      'Suspend',
+                                      'إيقاف مؤقت',
                                       style: TextStyle(color: Colors.red),
                                     ),
                                   ),
@@ -524,13 +505,18 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                                   'suspend_user',
                                   params: {'user_uid': p.profileId},
                                 );
-                                _loadParents();
-                              } catch (err) {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Failed to suspend: $err'),
+                                    const SnackBar(
+                                      content: Text('تم إيقاف حساب ولي الأمر'),
                                     ),
+                                  );
+                                  _loadParents();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('خطأ: $e')),
                                   );
                                 }
                               }
@@ -539,29 +525,29 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                           icon: const Icon(Icons.block, color: Colors.red),
                         ),
                       IconButton(
-                        tooltip: context.tr('Edit Parent'),
+                        tooltip: 'تعديل البيانات',
                         onPressed: () => _showEditParentDialog(p),
                         icon: const Icon(Icons.edit, color: Colors.blue),
                       ),
                       IconButton(
-                        tooltip: context.tr('Delete Parent'),
+                        tooltip: 'حذف ولي الأمر',
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Parent'),
+                              title: const Text('حذف ولي الأمر نهائياً'),
                               content: const Text(
-                                'Are you sure you want to permanently delete this parent?',
+                                'هل أنت متأكد من حذف حساب ولي الأمر نهائياً من النظام؟',
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
+                                  child: const Text('إلغاء'),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, true),
                                   child: const Text(
-                                    'Delete',
+                                    'حذف نهائي',
                                     style: TextStyle(color: Colors.red),
                                   ),
                                 ),
@@ -578,7 +564,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
+                                  SnackBar(content: Text('خطأ: $e')),
                                 );
                               }
                             }
@@ -589,11 +575,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                           color: Colors.red,
                         ),
                       ),
-                      FilledButton.icon(
-                        onPressed: () => _showLinkStudentDialog(p),
-                        icon: const Icon(Icons.link),
-                        label: Text(context.tr('Link Child')),
-                      ),
+                      PortalStatusChip(status: p.status),
                     ],
                   );
                 },

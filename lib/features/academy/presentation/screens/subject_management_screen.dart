@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -70,29 +69,29 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Create New Subject')),
+        title: const Text('إضافة مادة دراسية جديدة'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr(
-                    'Subject Name (e.g. Programming Fundamentals)',
-                  ),
+                decoration: const InputDecoration(
+                  labelText: 'اسم المادة (مثال: الرياضيات البحتة)',
                 ),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: codeCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Subject Code (e.g. CS-101)'),
+                decoration: const InputDecoration(
+                  labelText: 'كود المادة (مثال: MATH-01)',
                 ),
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: descCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Description'),
+                decoration: const InputDecoration(
+                  labelText: 'الوصف أو الملاحظات',
                 ),
                 maxLines: 2,
               ),
@@ -102,7 +101,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -126,20 +125,26 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                 await _subjectRepo.createSubject(s);
                 nav.pop();
                 _loadSubjects();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تمت إضافة المادة بنجاح!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        '${context.tr('Failed to create subject')}: $e',
-                      ),
+                      content: Text('فشل إضافة المادة: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               }
             },
-            child: Text(context.tr('Create Subject')),
+            child: const Text('حفظ المادة'),
           ),
         ],
       ),
@@ -156,42 +161,33 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text('${context.tr('Edit Subject')} (${subject.code})'),
+          title: const Text('تعديل بيانات المادة الدراسية'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Subject Name'),
-                  ),
+                  decoration: const InputDecoration(labelText: 'اسم المادة'),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: codeCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Subject Code'),
-                  ),
+                  decoration: const InputDecoration(labelText: 'كود المادة'),
                 ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: descCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Description'),
-                  ),
+                  decoration: const InputDecoration(labelText: 'الوصف'),
                   maxLines: 2,
                 ),
+                const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: status,
-                  decoration: InputDecoration(labelText: context.tr('Status')),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'active',
-                      child: Text(context.tr('active')),
-                    ),
-                    DropdownMenuItem(
-                      value: 'archived',
-                      child: Text(context.tr('archived')),
-                    ),
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(value: 'active', child: Text('نشطة (Active)')),
+                    DropdownMenuItem(value: 'archived', child: Text('مؤرشفة (Archived)')),
                   ],
                   onChanged: (v) {
                     if (v != null) setStateDialog(() => status = v);
@@ -203,7 +199,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -229,10 +225,8 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                   _loadSubjects();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.tr('Subject updated successfully!'),
-                        ),
+                      const SnackBar(
+                        content: Text('تم تحديث المادة بنجاح!'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -241,16 +235,14 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          '${context.tr('Failed to update subject')}: $e',
-                        ),
+                        content: Text('فشل التحديث: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
               },
-              child: Text(context.tr('Save Changes')),
+              child: const Text('حفظ التعديلات'),
             ),
           ],
         ),
@@ -267,19 +259,19 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
     }).toList();
 
     return PortalPageShell(
-      title: 'Subject Management',
-      subtitle: 'Manage the curriculum subjects used by groups and content.',
+      title: 'إدارة المواد والمناهج',
+      subtitle: 'إضافة وتعديل المواد الدراسية وربطها بالمجموعات والواجبات والاختبارات.',
       icon: Icons.book,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.refresh,
-          label: 'Refresh',
+          label: 'تحديث',
           onPressed: _loadSubjects,
         ),
         PortalAction(
           icon: Icons.add,
-          label: 'Add Subject',
+          label: 'إضافة مادة جديدة',
           onPressed: _showCreateSubjectDialog,
           primary: true,
         ),
@@ -288,7 +280,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
         children: [
           PortalSearchField(
             controller: _searchController,
-            label: 'Search subjects',
+            label: 'بحث باسم المادة أو الكود...',
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -297,8 +289,8 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: filtered.isEmpty,
-              emptyTitle: 'No subjects found',
-              emptySubtitle: 'Add a subject or change your search.',
+              emptyTitle: 'لا توجد مواد دراسية مسجلة',
+              emptySubtitle: 'قم بإضافة المادة الدراسية الأولى عبر زر (إضافة مادة جديدة) بالأعلى.',
               emptyIcon: Icons.book,
               onRetry: _loadSubjects,
               child: ListView.separated(
@@ -312,32 +304,32 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                     accentColor: AppColors.adminRole,
                     title: s.name,
                     subtitle:
-                        'Code: ${s.code} | Description: ${s.description ?? "N/A"}',
+                        'الكود: ${s.code} | الوصف: ${s.description ?? "بدون وصف"}',
                     trailing: [
                       PortalStatusChip(status: s.status),
                       IconButton(
-                        icon: const Icon(Icons.edit),
+                        icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () => _showEditSubjectDialog(s),
-                        tooltip: 'Edit Subject',
+                        tooltip: 'تعديل المادة',
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Subject'),
+                              title: const Text('حذف المادة الدراسية'),
                               content: const Text(
-                                'Are you sure you want to delete this subject?',
+                                'هل أنت متأكد من رغبتك في حذف هذه المادة؟',
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
+                                  child: const Text('إلغاء'),
                                 ),
                                 ElevatedButton(
                                   onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Delete'),
+                                  child: const Text('حذف'),
                                 ),
                               ],
                             ),
@@ -350,14 +342,14 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Failed to delete: $e'),
+                                    content: Text('فشل الحذف: $e'),
                                   ),
                                 );
                               }
                             }
                           }
                         },
-                        tooltip: 'Delete Subject',
+                        tooltip: 'حذف المادة',
                       ),
                     ],
                   );
