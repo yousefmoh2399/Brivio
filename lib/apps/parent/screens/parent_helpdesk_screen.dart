@@ -183,28 +183,12 @@ class _ParentHelpdeskScreenState extends State<ParentHelpdeskScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: PortalPageShell(
-        title: 'الدعم الفني والشكاوى',
-        subtitle: 'متابعة طلبات الدعم والاستفسارات الفنية الخاصة بك وبأبنائك.',
-        icon: Icons.support_agent,
-        accentColor: AppColors.primary,
-        actions: [
-          PortalAction(
-            icon: Icons.add,
-            label: 'تذكرة جديدة',
-            onPressed: _showCreateTicketDialog,
-          ),
-          PortalAction(
-            icon: Icons.refresh,
-            label: 'تحديث',
-            onPressed: _loadTickets,
-          ),
-        ],
-        child: FutureBuilder<List<SupportTicket>>(
-          future: _ticketsFuture,
-          builder: (context, snapshot) {
+    final canPop = Navigator.of(context).canPop();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bodyContent = FutureBuilder<List<SupportTicket>>(
+      future: _ticketsFuture,
+      builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -294,7 +278,67 @@ class _ParentHelpdeskScreenState extends State<ParentHelpdeskScreen> {
               ],
             );
           },
+        );
+
+    if (canPop) {
+      return DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          appBar: AppBar(
+            title: const Text(
+              'الدعم الفني والشكاوى',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            centerTitle: true,
+            elevation: 0,
+            scrolledUnderElevation: 1,
+            backgroundColor: (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0.95),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'رجوع',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'تحديث',
+                onPressed: _loadTickets,
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _showCreateTicketDialog,
+            backgroundColor: AppColors.primary,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text('تذكرة جديدة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+          body: bodyContent,
         ),
+      );
+    }
+
+    return DefaultTabController(
+      length: 3,
+      child: PortalPageShell(
+        title: 'الدعم الفني والشكاوى',
+        subtitle: 'متابعة طلبات الدعم والاستفسارات الفنية الخاصة بك وبأبنائك.',
+        icon: Icons.support_agent,
+        accentColor: AppColors.primary,
+        eyebrow: 'بوابة أولياء الأمور',
+        actions: [
+          PortalAction(
+            icon: Icons.add,
+            label: 'تذكرة جديدة',
+            onPressed: _showCreateTicketDialog,
+          ),
+          PortalAction(
+            icon: Icons.refresh,
+            label: 'تحديث',
+            onPressed: _loadTickets,
+          ),
+        ],
+        child: bodyContent,
       ),
     );
   }

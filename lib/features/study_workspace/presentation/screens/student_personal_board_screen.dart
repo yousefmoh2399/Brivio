@@ -471,14 +471,14 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
-              const Row(
+              Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [
+                children: const [
                   Icon(Icons.lock_outline_rounded, size: 12, color: Colors.green),
                   SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      'مسودة خاصة بك 100% • لا يراها أحد غيرك',
+                      'مسودة خاصة 🔒',
                       style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,

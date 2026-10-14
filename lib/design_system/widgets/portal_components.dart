@@ -742,6 +742,8 @@ class PortalPageShell extends StatelessWidget {
   final List<PortalAction> actions;
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final String? eyebrow;
+  final bool showBackButton;
 
   const PortalPageShell({
     super.key,
@@ -752,10 +754,13 @@ class PortalPageShell extends StatelessWidget {
     required this.child,
     this.actions = const [],
     this.padding = const EdgeInsets.all(20),
+    this.eyebrow,
+    this.showBackButton = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final canPop = showBackButton && Navigator.of(context).canPop();
     final primaryActions = actions.where((a) => a.primary).toList();
     final secondaryActions = actions.where((a) => !a.primary).toList();
 
@@ -791,20 +796,31 @@ class PortalPageShell extends StatelessWidget {
       );
     }
 
+    final effectiveEyebrow = eyebrow ?? 'منظومة بريفيو التعليمية';
+
     return SafeArea(
       child: Padding(
         padding: padding,
         child: Column(
           children: [
             PortalHeader(
-              eyebrow: 'Student Portal',
+              eyebrow: effectiveEyebrow,
               title: title,
               subtitle: subtitle,
               icon: icon,
               accentColor: accentColor,
-              trailing: actions.isEmpty
-                  ? null
-                  : Wrap(
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (canPop)
+                    IconButton.filledTonal(
+                      tooltip: 'رجوع',
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  if (canPop && actions.isNotEmpty) const SizedBox(width: 8),
+                  if (actions.isNotEmpty)
+                    Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       alignment: WrapAlignment.end,
@@ -813,6 +829,8 @@ class PortalPageShell extends StatelessWidget {
                         ...primaryActions.map(buildAction),
                       ],
                     ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Expanded(child: child),

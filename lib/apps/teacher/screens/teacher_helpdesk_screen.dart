@@ -121,6 +121,143 @@ class _TeacherHelpdeskScreenState extends State<TeacherHelpdeskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bodyContent = FutureBuilder<List<SupportTicket>>(
+      future: _ticketsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: AppColors.secondary));
+        }
+
+        if (snapshot.hasError) {
+          return const Center(
+            child: Text(
+              'تعذر تحميل تذاكر الدعم. يرجى المحاولة مرة أخرى.',
+            ),
+          );
+        }
+
+        final allTickets = snapshot.data ?? [];
+        final openTickets = allTickets
+            .where((t) => t.status == 'open')
+            .toList();
+        final inProgressTickets = allTickets
+            .where((t) => t.status == 'in_progress')
+            .toList();
+        final closedTickets = allTickets
+            .where((t) => t.status == 'resolved' || t.status == 'closed')
+            .toList();
+
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.secondary.withValues(alpha: 0.15),
+                ),
+                labelColor: AppColors.secondary,
+                unselectedLabelColor: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.color,
+                tabs: [
+                  Tab(
+                    text: 'مفتوحة (${openTickets.length})',
+                  ),
+                  Tab(
+                    text: 'قيد المتابعة (${inProgressTickets.length})',
+                  ),
+                  Tab(
+                    text: 'مغلقة (${closedTickets.length})',
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _TicketList(
+                    tickets: openTickets,
+                    onStatusChange: _loadTickets,
+                    accentColor: AppColors.secondary,
+                  ),
+                  _TicketList(
+                    tickets: inProgressTickets,
+                    onStatusChange: _loadTickets,
+                    accentColor: AppColors.secondary,
+                  ),
+                  _TicketList(
+                    tickets: closedTickets,
+                    onStatusChange: _loadTickets,
+                    accentColor: AppColors.secondary,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (canPop) {
+      return DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+          appBar: AppBar(
+            title: const Text(
+              'الدعم الفني والشكاوى',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            centerTitle: true,
+            elevation: 0,
+            scrolledUnderElevation: 1,
+            backgroundColor: (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0.95),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'رجوع',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'تحديث',
+                onPressed: _loadTickets,
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _showCreateTicketDialog,
+            backgroundColor: AppColors.secondary,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text('تذكرة جديدة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+          body: bodyContent,
+        ),
+      );
+    }
+
     return DefaultTabController(
       length: 3,
       child: PortalPageShell(
@@ -128,6 +265,7 @@ class _TeacherHelpdeskScreenState extends State<TeacherHelpdeskScreen> {
         subtitle: 'متابعة استفساراتك وطلبات المساعدة الفنية والتقنية والشكاوى',
         icon: Icons.support_agent,
         accentColor: AppColors.secondary,
+        eyebrow: 'بوابة المعلمين',
         actions: [
           PortalAction(
             icon: Icons.add,
@@ -140,101 +278,7 @@ class _TeacherHelpdeskScreenState extends State<TeacherHelpdeskScreen> {
             onPressed: _loadTickets,
           ),
         ],
-        child: FutureBuilder<List<SupportTicket>>(
-          future: _ticketsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return const Center(
-                child: Text(
-                  'تعذر تحميل تذاكر الدعم. يرجى المحاولة مرة أخرى.',
-                ),
-              );
-            }
-
-            final allTickets = snapshot.data ?? [];
-            final openTickets = allTickets
-                .where((t) => t.status == 'open')
-                .toList();
-            final inProgressTickets = allTickets
-                .where((t) => t.status == 'in_progress')
-                .toList();
-            final closedTickets = allTickets
-                .where((t) => t.status == 'resolved' || t.status == 'closed')
-                .toList();
-
-            return Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TabBar(
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    indicator: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: AppColors.secondary.withValues(alpha: 0.15),
-                    ),
-                    labelColor: AppColors.secondary,
-                    unselectedLabelColor: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.color,
-                    tabs: [
-                      Tab(
-                        text: 'مفتوحة (${openTickets.length})',
-                      ),
-                      Tab(
-                        text: 'قيد المتابعة (${inProgressTickets.length})',
-                      ),
-                      Tab(
-                        text: 'مغلقة (${closedTickets.length})',
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _TicketList(
-                        tickets: openTickets,
-                        onStatusChange: _loadTickets,
-                        accentColor: AppColors.secondary,
-                      ),
-                      _TicketList(
-                        tickets: inProgressTickets,
-                        onStatusChange: _loadTickets,
-                        accentColor: AppColors.secondary,
-                      ),
-                      _TicketList(
-                        tickets: closedTickets,
-                        onStatusChange: _loadTickets,
-                        accentColor: AppColors.secondary,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+        child: bodyContent,
       ),
     );
   }

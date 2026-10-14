@@ -375,25 +375,29 @@ class _ParentDashboardState extends State<ParentDashboard> {
               'يرجى إدخال كود الطالب المسلّم لك من إدارة السنتر لربطه بحسابك ومتابعة دراسته لحظياً.',
           emptyIcon: Icons.family_restroom,
           onRetry: _openLinkChildScreen,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _buildHeader(),
-              if (_isChildLoading) ...[
-                const SizedBox(height: 12),
-                const LinearProgressIndicator(),
-              ],
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 12),
-                PortalErrorBanner(
-                  message: _errorMessage!,
-                  onRetry: _loadLinkedChildren,
-                ),
-              ],
-              const SizedBox(height: 16),
-              _buildSelectedPage(),
-            ],
-          ),
+          child: _selectedIndex == 6
+              ? const ParentHelpdeskScreen()
+              : _selectedIndex == 8
+                  ? const AppSettingsPanel()
+                  : ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        _buildHeader(),
+                        if (_isChildLoading) ...[
+                          const SizedBox(height: 12),
+                          const LinearProgressIndicator(),
+                        ],
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 12),
+                          PortalErrorBanner(
+                            message: _errorMessage!,
+                            onRetry: _loadLinkedChildren,
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        _buildSelectedPage(),
+                      ],
+                    ),
         ),
       ),
     );
@@ -458,16 +462,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
       3 => _buildPaymentsPage(),
       4 => _buildMonthlyReportPage(),
       5 => _buildNotificationsPage(),
-      6 => _boundedPortalPage(const ParentHelpdeskScreen()),
+      6 => const SizedBox.shrink(),
       7 => _buildAccountPage(),
-      8 => _boundedPortalPage(const AppSettingsPanel()),
+      8 => const SizedBox.shrink(),
       _ => _buildOverviewPage(),
     };
-  }
-
-  Widget _boundedPortalPage(Widget child) {
-    final height = MediaQuery.sizeOf(context).height;
-    return SizedBox(height: height * 0.78, child: child);
   }
 
   Widget _buildAccountPage() {

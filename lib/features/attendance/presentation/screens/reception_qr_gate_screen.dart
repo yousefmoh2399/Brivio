@@ -197,7 +197,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
       if (fallbackGroups.isEmpty) {
         fallbackGroups.add(
           const GroupEntity(
-            id: 'offline_default_group',
+            id: '00000000-0000-0000-0000-000000000001',
             name: 'مجموعة الاستقبال (وضع عدم الاتصال)',
             code: 'OFFLINE-01',
             subjectId: '',
@@ -217,7 +217,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
       }
 
       fallbackSession ??= ClassSession(
-        id: 'offline_session_${initialGroup.id}',
+        id: '00000000-0000-0000-0000-000000000002',
         groupId: initialGroup.id,
         sessionDate: DateTime.now(),
         scheduledStartAt: DateTime.now(),

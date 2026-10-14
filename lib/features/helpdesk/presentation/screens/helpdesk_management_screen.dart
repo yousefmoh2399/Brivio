@@ -108,6 +108,7 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen> {
         subtitle: 'متابعة استفسارات ومشاكل الطلاب والمعلمين وأولياء الأمور.',
         icon: Icons.support_agent,
         accentColor: AppColors.info,
+        eyebrow: 'إدارة المنظومة والسنتر',
         actions: [
           PortalAction(
             icon: Icons.add,

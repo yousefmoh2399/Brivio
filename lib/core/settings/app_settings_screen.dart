@@ -18,11 +18,37 @@ class AppSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (canPop) {
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        appBar: AppBar(
+          title: const Text(
+            'إعدادات المنظومة والتطبيق',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          backgroundColor: (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0.95),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'رجوع',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: const AppSettingsPanel(),
+      );
+    }
+
     return const PortalPageShell(
       title: 'إعدادات المنظومة والتطبيق',
       subtitle: 'تخصيص المظهر العام، لغة العرض، الإشعارات، والأمان المتقدم.',
       icon: Icons.settings_suggest_rounded,
       accentColor: AppColors.primary,
+      eyebrow: 'الإعدادات العامة',
       child: Material(
         type: MaterialType.transparency,
         child: AppSettingsPanel(),
@@ -46,12 +72,51 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
   bool _biometricLogin = false;
   bool _pushNotifications = true;
   bool _animationQuality = true;
+  bool _soundEffects = true;
+  bool _isClearingCache = false;
   String _timeZone = 'UTC+03:00';
+
+  String? _userName;
+  String? _userEmail;
+  String? _userRole;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user != null) {
+        String? name = user.userMetadata?['full_name'] as String? ??
+            user.userMetadata?['name'] as String?;
+        String? role = user.userMetadata?['role'] as String?;
+
+        if (name == null || role == null) {
+          final res = await client
+              .from('profiles')
+              .select('full_name, role')
+              .eq('id', user.id)
+              .maybeSingle();
+          if (res != null) {
+            name ??= res['full_name'] as String?;
+            role ??= res['role'] as String?;
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _userEmail = user.email;
+            _userName = name ?? 'مستخدم المنظومة';
+            _userRole = role;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSettings() async {
@@ -163,6 +228,35 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
     }
   }
 
+  Future<void> _clearCache() async {
+    setState(() => _isClearingCache = true);
+    await Future.delayed(const Duration(milliseconds: 600));
+    try {
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _isClearingCache = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم مسح الذاكرة المؤقتة بنجاح واستعادة الأداء السلس 🧹'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  String _formatRole(String? role) {
+    return switch (role?.toLowerCase()) {
+      'admin' => 'مدير النظام والسنتر 👑',
+      'teacher' => 'معلم معتمد 👨‍🏫',
+      'student' => 'طالب 🎓',
+      'parent' => 'ولي أمر 👨‍👩‍👦',
+      'staff' => 'موظف استقبال وإدارة 🏛️',
+      _ => 'مستخدم بريفيو',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsService = GetIt.instance<SettingsService>();
@@ -171,7 +265,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         : null;
 
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -183,8 +277,14 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
+              // 0. User Profile & Cloud Status Header Card
+              _buildUserProfileCard(isDark, primaryColor),
+
+              const SizedBox(height: 18),
+
               // 1. Appearance Section
               _SettingsGroup(
                 title: 'المظهر وتنسيق الشاشة',
@@ -258,6 +358,18 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                       (v) => _animationQuality = v,
                     ),
                   ),
+                  const Divider(height: 1),
+                  _SettingsSwitchTile(
+                    icon: Icons.volume_up_rounded,
+                    iconColor: Colors.teal,
+                    title: 'المؤثرات الصوتية والاهتزاز',
+                    subtitle: 'إصدار صوت وتنبيه لمسي عند مسح الكود أو تسجيل الحضور',
+                    value: _soundEffects,
+                    onChanged: (val) {
+                      setState(() => _soundEffects = val);
+                      if (val) HapticFeedback.mediumImpact();
+                    },
+                  ),
                 ],
               ),
 
@@ -307,8 +419,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                   _SettingsActionTile(
                     icon: Icons.schedule_rounded,
                     iconColor: Colors.blue,
-                    title: 'المنطقة الزمنية',
-                    subtitle: 'التوقيت المحلي لحساب الحصص والمواعيد: $_timeZone',
+                    title: 'المنطقة الزمنية للمنظومة',
+                    subtitle: 'التوقيت المعتمد لحساب الحصص والمواعيد: $_timeZone',
                     trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                     onTap: () => _pickTimeZone(context),
                   ),
@@ -319,15 +431,15 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
 
               // 3. Notifications & Alerts
               _SettingsGroup(
-                title: 'الإشعارات والتنبيهات',
+                title: 'الإشعارات والتنبيهات الفورية',
                 icon: Icons.notifications_active_rounded,
                 accentColor: Colors.orange,
                 children: [
                   _SettingsSwitchTile(
                     icon: Icons.notifications_on_rounded,
                     iconColor: Colors.orange,
-                    title: 'الإشعارات الفورية (Push)',
-                    subtitle: 'استلام تنبيهات فورية عند تسجيل الحضور أو إضافة درجات وامتحانات',
+                    title: 'الإشعارات الفورية (Push Notifications)',
+                    subtitle: 'استلام تنبيهات لحظية عند تسجيل الحضور أو إعلان الدرجات',
                     value: _pushNotifications,
                     onChanged: (val) {
                       _updateSetting(
@@ -345,7 +457,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                   const Divider(height: 1),
                   _SettingsSwitchTile(
                     icon: Icons.mark_email_read_rounded,
-                    iconColor: Colors.amber.shade700,
+                    iconColor: Colors.amber.shade800,
                     title: 'النشرة والملخص اليومي',
                     subtitle: 'إرسال ملخص بالعمليات اليومية وحالات الغياب عبر البريد',
                     value: _emailDigest,
@@ -423,7 +535,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     icon: Icons.verified_user_rounded,
                     iconColor: Colors.teal,
                     title: 'المصادقة الثنائية (2FA)',
-                    subtitle: 'إلزام التحقق بخطوتين عند تسجيل الدخول لحسابات الإدارة والسنتر',
+                    subtitle: 'إلزام التحقق بخطوتين عند تسجيل الدخول لحسابات السنتر',
                     value: _twoFactorAuth,
                     onChanged: (val) => _updateSetting(
                       'two_factor_auth',
@@ -458,7 +570,67 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
 
               const SizedBox(height: 18),
 
-              // 5. System Info & Account Operations
+              // 5. Storage & Cache Maintenance
+              _SettingsGroup(
+                title: 'الذاكرة المؤقتة وسرعة الاستجابة',
+                icon: Icons.cleaning_services_rounded,
+                accentColor: Colors.cyan,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.cyan.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.storage_rounded, color: Colors.cyan, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'تفريغ الكاش والبيانات المؤقتة',
+                                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                'إزالة الصور المؤقتة وملفات التخزين لتسريع التطبيق وحل أي بطء',
+                                style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _isClearingCache
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2.5),
+                              )
+                            : OutlinedButton(
+                                onPressed: _clearCache,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text('تنظيف 🧹', style: TextStyle(fontSize: 12)),
+                              ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // 6. System Info & Account Operations
               _SettingsGroup(
                 title: 'معلومات الحساب والمنظومة',
                 icon: Icons.info_outline_rounded,
@@ -523,6 +695,15 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                   ),
                   const Divider(height: 1),
                   _SettingsActionTile(
+                    icon: Icons.logout_rounded,
+                    iconColor: Colors.deepOrange,
+                    title: 'تسجيل الخروج من الحساب',
+                    subtitle: 'الخروج الآمن والعودة لشاشة تسجيل الدخول',
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.deepOrange),
+                    onTap: _confirmSignOut,
+                  ),
+                  const Divider(height: 1),
+                  _SettingsActionTile(
                     icon: Icons.delete_forever_rounded,
                     iconColor: Colors.red,
                     title: 'حذف الحساب نهائياً',
@@ -542,6 +723,118 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildUserProfileCard(bool isDark, Color primary) {
+    final initials = (_userName != null && _userName!.isNotEmpty)
+        ? _userName!.split(' ').take(2).map((e) => e.isNotEmpty ? e[0] : '').join()
+        : 'B';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+              : [AppColors.primary.withValues(alpha: 0.08), Colors.white],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: primary.withValues(alpha: 0.15),
+            child: Text(
+              initials,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _userName ?? 'مستخدم المنظومة',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _userEmail ?? 'غير مسجل بريد إلكتروني',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _formatRole(_userRole),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppColors.success,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'متصل',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppColors.success,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -611,6 +904,34 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
           ),
         );
       },
+    );
+  }
+
+  void _confirmSignOut() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('هل ترغب في تسجيل الخروج من حسابك الحالي؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await Supabase.instance.client.auth.signOut();
+              if (mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            },
+            child: const Text('تسجيل الخروج'),
+          ),
+        ],
+      ),
     );
   }
 

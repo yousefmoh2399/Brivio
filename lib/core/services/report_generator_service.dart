@@ -4,12 +4,45 @@ import 'package:printing/printing.dart';
 import 'thermal_printer_service.dart';
 
 class ReportGeneratorService {
+  static pw.ThemeData? _cachedArabicTheme;
+  static pw.Font? _cairoRegular;
+  static pw.Font? _cairoBold;
+
+  /// Loads Arabic Unicode fonts (Cairo / Amiri / Noto) so Arabic letters render cleanly without Helvetica crash
+  static Future<pw.ThemeData> getArabicPdfTheme() async {
+    if (_cachedArabicTheme != null) return _cachedArabicTheme!;
+    try {
+      _cairoRegular ??= await PdfGoogleFonts.cairoRegular();
+      _cairoBold ??= await PdfGoogleFonts.cairoBold();
+      _cachedArabicTheme = pw.ThemeData.withFont(
+        base: _cairoRegular,
+        bold: _cairoBold,
+      );
+      return _cachedArabicTheme!;
+    } catch (_) {
+      try {
+        final amiri = await PdfGoogleFonts.amiriRegular();
+        final amiriBold = await PdfGoogleFonts.amiriBold();
+        _cachedArabicTheme = pw.ThemeData.withFont(base: amiri, bold: amiriBold);
+        return _cachedArabicTheme!;
+      } catch (_) {
+        return pw.ThemeData();
+      }
+    }
+  }
+
+  /// Instantiates a new PDF Document pre-configured with Arabic Unicode fonts
+  static Future<pw.Document> createDocument() async {
+    final theme = await getArabicPdfTheme();
+    return pw.Document(theme: theme);
+  }
+
   /// Generates a PDF report for Student Grades and Missing Homeworks.
   Future<void> generateGradesReport({
     required String className,
     required List<Map<String, dynamic>> studentsData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -62,7 +95,7 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> attendanceData,
     String personType = 'Student',
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -113,7 +146,7 @@ class ReportGeneratorService {
   Future<void> generateFinancialReport({
     required List<Map<String, dynamic>> financialData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -160,7 +193,7 @@ class ReportGeneratorService {
   Future<void> generateTeacherMetricsReport({
     required List<Map<String, dynamic>> teacherData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -219,7 +252,7 @@ class ReportGeneratorService {
   Future<void> generateStudentRosterReport({
     required List<Map<String, dynamic>> studentsData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -265,7 +298,7 @@ class ReportGeneratorService {
   Future<void> generateTeacherRosterReport({
     required List<Map<String, dynamic>> teachersData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -312,7 +345,7 @@ class ReportGeneratorService {
     required String groupName,
     required List<Map<String, dynamic>> examData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -358,7 +391,7 @@ class ReportGeneratorService {
   Future<void> generateGroupsSchedulesReport({
     required List<Map<String, dynamic>> groupsData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -404,7 +437,7 @@ class ReportGeneratorService {
   Future<void> generateParentsReport({
     required List<Map<String, dynamic>> parentsData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -452,7 +485,7 @@ class ReportGeneratorService {
   Future<void> generateHomeworkReport({
     required List<Map<String, dynamic>> homeworkData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -503,7 +536,7 @@ class ReportGeneratorService {
   Future<void> generateCurriculumReport({
     required List<Map<String, dynamic>> curriculumData,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.MultiPage(
@@ -568,7 +601,7 @@ class ReportGeneratorService {
     required double netPayout,
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.Page(
@@ -773,7 +806,7 @@ class ReportGeneratorService {
     String cashierName = 'خزينة السنتر',
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pdf.addPage(
       pw.Page(
@@ -925,7 +958,7 @@ class ReportGeneratorService {
     String academicYear = '2025 / 2026',
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -934,8 +967,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     // 8 cards per A4 page (2 columns x 4 rows)
     const int cardsPerPage = 8;
@@ -1198,7 +1231,7 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> transactionLog,
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -1207,8 +1240,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     pdf.addPage(
       pw.Page(
@@ -1519,7 +1552,7 @@ class ReportGeneratorService {
     String instructions = 'أجب عن جميع الأسئلة الآتية - ممنوع استخدام الهاتف المحمول - زمن الاختبار محدد بالأعلى',
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -1528,8 +1561,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     double totalPoints = 0;
     for (final q in questions) {
@@ -1998,7 +2031,7 @@ class ReportGeneratorService {
     required List<Map<String, dynamic>> submissionsData,
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -2007,8 +2040,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     final totalStudents = submissionsData.length;
     final submittedCount = submissionsData.where((s) => s['is_submitted'] == true).length;
@@ -2239,7 +2272,7 @@ class ReportGeneratorService {
     String academicYear = '2025 / 2026',
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -2248,8 +2281,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     final formattedDue = dueAt != null ? '${dueAt.year}-${dueAt.month.toString().padLeft(2, '0')}-${dueAt.day.toString().padLeft(2, '0')}' : 'الحصة القادمة';
 
@@ -2530,7 +2563,7 @@ class ReportGeneratorService {
     String academicYear = '2025 / 2026',
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -2539,8 +2572,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     pdf.addPage(
       pw.MultiPage(
@@ -2725,7 +2758,7 @@ class ReportGeneratorService {
     String? teacherNotes,
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -2734,8 +2767,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     pdf.addPage(
       pw.Page(
@@ -2942,7 +2975,7 @@ class ReportGeneratorService {
     required double totalAmount,
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -2951,8 +2984,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     final dateStr = '${saleDate.year}-${saleDate.month.toString().padLeft(2, '0')}-${saleDate.day.toString().padLeft(2, '0')} ${saleDate.hour.toString().padLeft(2, '0')}:${saleDate.minute.toString().padLeft(2, '0')}';
 
@@ -3064,7 +3097,7 @@ class ReportGeneratorService {
     String sessionDateStr = '',
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -3073,8 +3106,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     // Chunk into pages of 8 labels per A4 page (4 rows x 2 columns)
     const labelsPerPage = 8;
@@ -3255,7 +3288,7 @@ class ReportGeneratorService {
     bool includeAnswerKey = false,
     bool printDirectly = false,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await createDocument();
 
     pw.Font? cairoBold;
     pw.Font? cairoRegular;
@@ -3264,8 +3297,8 @@ class ReportGeneratorService {
       cairoRegular = await PdfGoogleFonts.cairoRegular();
     } catch (_) {}
 
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
 
     pdf.addPage(
       pw.MultiPage(

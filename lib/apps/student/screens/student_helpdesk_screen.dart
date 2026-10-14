@@ -37,6 +37,20 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
   final HelpdeskRepository _repo = HelpdeskRepository();
   bool _isLoading = true;
   List<SupportTicket> _tickets = [];
+  String _filter = 'all';
+
+  int get _openCount => _tickets.where((t) => t.status.toLowerCase() == 'open').length;
+  int get _inProgressCount => _tickets.where((t) => t.status.toLowerCase() == 'in_progress').length;
+  int get _closedCount => _tickets.where((t) => t.status.toLowerCase() == 'closed' || t.status.toLowerCase() == 'resolved').length;
+
+  List<SupportTicket> get _filteredTickets {
+    return switch (_filter) {
+      'open' => _tickets.where((t) => t.status.toLowerCase() == 'open').toList(),
+      'in_progress' => _tickets.where((t) => t.status.toLowerCase() == 'in_progress').toList(),
+      'closed' => _tickets.where((t) => t.status.toLowerCase() == 'closed' || t.status.toLowerCase() == 'resolved').toList(),
+      _ => _tickets,
+    };
+  }
 
   @override
   void initState() {
@@ -82,24 +96,257 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final content = RefreshIndicator(
+      onRefresh: _loadTickets,
+      color: AppColors.primary,
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Column(
+                      children: [
+                        _buildKpiSummary(isDark),
+                        const SizedBox(height: 12),
+                        _buildWhatsAppBanner(isDark),
+                        const SizedBox(height: 14),
+                        _buildFilterChips(isDark),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_filteredTickets.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(isDark),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final ticket = _filteredTickets[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildTicketCard(ticket, isDark),
+                          );
+                        },
+                        childCount: _filteredTickets.length,
+                      ),
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              ],
+            ),
+    );
+
+    if (canPop) {
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        appBar: AppBar(
+          title: const Text(
+            'الدعم الفني والشكاوى',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          backgroundColor: (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0.95),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'رجوع',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'تحديث',
+              onPressed: _loadTickets,
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _showCreateDialog,
+          backgroundColor: AppColors.primary,
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text('تذكرة جديدة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+        body: content,
+      );
+    }
+
     return PortalPageShell(
       title: 'الدعم الفني والشكاوى',
       subtitle: 'متابعة تذاكر الدعم والطلبات والاستفسارات الفنية',
       icon: Icons.headset_mic,
       accentColor: AppColors.primary,
+      eyebrow: 'بوابة الطلاب',
       actions: [
         PortalAction(
           icon: Icons.add,
           label: 'تذكرة جديدة',
           onPressed: _showCreateDialog,
         ),
+        PortalAction(
+          icon: Icons.refresh,
+          label: 'تحديث',
+          onPressed: _loadTickets,
+        ),
       ],
-      child: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : _tickets.isEmpty
-          ? _buildEmptyState(isDark)
-          : _buildTicketsList(isDark),
+      child: content,
+    );
+  }
+
+  Widget _buildKpiSummary(bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatItem('مفتوحة', '$_openCount', AppColors.warning, Icons.mark_email_unread_rounded, isDark),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatItem('قيد المتابعة', '$_inProgressCount', AppColors.primary, Icons.pending_actions_rounded, isDark),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatItem('تم الحل', '$_closedCount', AppColors.success, Icons.task_alt_rounded, isDark),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.white60 : Colors.black54,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWhatsAppBanner(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF064E3B), const Color(0xFF0F172A)]
+              : [const Color(0xFFD1FAE5), Colors.white],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.support_agent_rounded, color: Color(0xFF10B981), size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'فريق الدعم الفني متواجد للمساعدة',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'متوسط وقت الرد على التذاكر أقل من ساعة خلال أوقات العمل الرسمية.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips(bool isDark) {
+    final chips = [
+      {'key': 'all', 'label': 'جميع التذاكر (${_tickets.length})'},
+      {'key': 'open', 'label': 'المفتوحة ($_openCount)'},
+      {'key': 'in_progress', 'label': 'قيد المعالجة ($_inProgressCount)'},
+      {'key': 'closed', 'label': 'المكتملة ($_closedCount)'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: chips.map((c) {
+          final isSelected = _filter == c['key'];
+          return Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: FilterChip(
+              selected: isSelected,
+              label: Text(c['label']!),
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+              ),
+              selectedColor: AppColors.primary,
+              backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+              checkmarkColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(
+                  color: isSelected
+                      ? AppColors.primary
+                      : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                ),
+              ),
+              onSelected: (_) => setState(() => _filter = c['key']!),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -108,107 +355,148 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleIcon(
+              icon: Icons.support_agent_rounded,
+              color: textSecondary,
+              size: 64,
+              iconSize: 32,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'لا توجد تذاكر في هذا القسم حالياً',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'إذا كانت لديك أي مشكلة أو استفسار دراسي أو مالي، افتح تذكرة وسنتابعها معك فوراً.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _showCreateDialog,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('فتح تذكرة جديدة الآن'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTicketCard(SupportTicket ticket, bool isDark) {
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textTertiary = isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
+
+    return GlassCard(
+      onTap: () => _viewTicket(ticket),
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleIcon(
-            icon: Icons.support_agent_rounded,
-            color: textSecondary,
-            size: 64,
-            iconSize: 32,
+            icon: Icons.chat_bubble_outline_rounded,
+            color: _getStatusColor(ticket.status),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'لا توجد تذاكر دعم مسجلة حالياً',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        ticket.subject,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: textPrimary,
+                        ),
+                      ),
+                    ),
+                    StatusChip(
+                      label: _statusArabic(ticket.status),
+                      status: _getChipStatus(ticket.status),
+                      small: true,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  ticket.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: textSecondary,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getPriorityColor(ticket.priority).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _priorityArabic(ticket.priority),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: _getPriorityColor(ticket.priority),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '• ${_formatDate(ticket.createdAt)}',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: textTertiary,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                  ],
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'أنشئ تذكرة للتواصل مع الإدارة أو الدعم الفني بشأن دوراتك أو حسابك.',
-            style: TextStyle(color: textSecondary),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTicketsList(bool isDark) {
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final textTertiary = isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
-
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemCount: _tickets.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final ticket = _tickets[index];
-        return GlassCard(
-          onTap: () => _viewTicket(ticket),
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleIcon(
-                icon: Icons.chat_bubble_outline_rounded,
-                color: _getStatusColor(ticket.status),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            ticket.subject,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: textPrimary,
-                            ),
-                          ),
-                        ),
-                        StatusChip(
-                          label: _statusArabic(ticket.status),
-                          status: _getChipStatus(ticket.status),
-                          small: true,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      ticket.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'الأولوية: ${_priorityArabic(ticket.priority)} • ${_formatDate(ticket.createdAt)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  Color _getPriorityColor(String priority) {
+    return switch (priority.toLowerCase()) {
+      'urgent' => Colors.red,
+      'high' => Colors.deepOrange,
+      'normal' => Colors.blue,
+      'low' => Colors.green,
+      _ => Colors.blue,
+    };
   }
 
   Color _getStatusColor(String status) {
