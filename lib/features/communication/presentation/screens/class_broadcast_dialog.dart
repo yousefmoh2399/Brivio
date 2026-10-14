@@ -83,24 +83,28 @@ class _ClassBroadcastDialogState extends State<ClassBroadcastDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.campaign_rounded, color: AppColors.primary, size: 24),
                         ),
-                        child: const Icon(Icons.campaign_rounded, color: AppColors.primary, size: 24),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'إذاعة تنبيه جماعي للمجموعة 📢',
-                        style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            'إذاعة تنبيه جماعي للمجموعة 📢',
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),

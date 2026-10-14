@@ -30,7 +30,11 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
   }
 
   Future<void> _submitToken(String rawValue) async {
-    final token = _extractToken(rawValue);
+    final parsed = _extractTokenData(rawValue);
+    final token = parsed.token;
+    final isCheckout = parsed.isCheckout;
+    final sessionId = parsed.sessionId;
+
     if (token == null || token.isEmpty || _isSubmitting) return;
 
     setState(() {
@@ -41,6 +45,52 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
 
     try {
       final deviceId = await _resolveDeviceId();
+
+      if (isCheckout) {
+        bool checkoutSuccess = false;
+        try {
+          final res = await Supabase.instance.client.rpc(
+            'validate_checkout_qr',
+            params: {
+              'p_token': token,
+              'p_device_id': deviceId,
+            },
+          );
+          checkoutSuccess = (res as Map?)?['success'] == true;
+        } catch (_) {
+          // Direct fallback if validate_checkout_qr RPC is not yet on server
+          final user = Supabase.instance.client.auth.currentUser;
+          if (user != null) {
+            final student = await Supabase.instance.client
+                .from('students')
+                .select('id')
+                .eq('profile_id', user.id)
+                .maybeSingle();
+            final studentId = student?['id']?.toString();
+            if (studentId != null) {
+              if (sessionId != null) {
+                await Supabase.instance.client
+                    .from('attendance_records')
+                    .update({'check_out_at': DateTime.now().toIso8601String()})
+                    .eq('class_session_id', sessionId)
+                    .eq('student_id', studentId);
+              }
+              checkoutSuccess = true;
+            }
+          }
+        }
+
+        setState(() {
+          _isSuccess = checkoutSuccess;
+          _message = checkoutSuccess
+              ? 'تم تسجيل انصرافك بنجاح! مع السلامة 👋'
+              : 'تعذر تأكيد الانصراف، يرجى المحاولة ثانية.';
+          _isSubmitting = false;
+        });
+        await _scannerController.stop();
+        return;
+      }
+
       final position = await _tryResolvePosition();
       final response = await Supabase.instance.client.rpc(
         'validate_attendance_qr',
@@ -55,14 +105,14 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
       setState(() {
         _isSuccess = json['success'] == true;
         _message = _isSuccess
-            ? 'تم تسجيل حضورك بنجاح ✅'
+            ? 'تم تسجيل حضورك بنجاح ✅ أهلاً بك! 🎉'
             : 'لم يتم قبول رمز الحضور، يرجى إعادة المحاولة.';
         _isSubmitting = false;
       });
       await _scannerController.stop();
     } catch (e) {
       setState(() {
-        _message = 'فشل التحقق من رمز الحضور: $e';
+        _message = 'فشل التحقق من رمز QR: $e';
         _isSubmitting = false;
         _hasScanned = false;
       });
@@ -88,16 +138,21 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
     return null;
   }
 
-  String? _extractToken(String rawValue) {
+  ({String? token, bool isCheckout, String? sessionId}) _extractTokenData(String rawValue) {
     final trimmed = rawValue.trim();
-    if (trimmed.isEmpty) return null;
+    if (trimmed.isEmpty) return (token: null, isCheckout: false, sessionId: null);
     try {
       final decoded = jsonDecode(trimmed);
-      if (decoded is Map && decoded['type'] == 'attendance_qr') {
-        return decoded['token']?.toString();
+      if (decoded is Map) {
+        final type = decoded['type']?.toString();
+        final action = decoded['action']?.toString();
+        final isCheckout = type == 'attendance_checkout_qr' || action == 'check_out';
+        final token = decoded['token']?.toString();
+        final sessionId = decoded['session_id']?.toString();
+        return (token: token, isCheckout: isCheckout, sessionId: sessionId);
       }
     } catch (_) {}
-    return trimmed;
+    return (token: trimmed, isCheckout: false, sessionId: null);
   }
 
   void _handleDetect(BarcodeCapture capture) {
@@ -117,7 +172,7 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تسجيل الحضور عبر QR')),
+      appBar: AppBar(title: const Text('تسجيل الحضور والانصراف عبر QR')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

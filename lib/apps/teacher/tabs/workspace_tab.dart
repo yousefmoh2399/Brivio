@@ -6,6 +6,7 @@ import '../../../features/assessment/presentation/screens/teacher_exam_screen.da
 import '../../../features/assessment/presentation/screens/teacher_grading_screen.dart';
 import '../../../features/assessment/presentation/screens/teacher_homework_screen.dart';
 import '../../../features/assessment/presentation/screens/teacher_question_bank_screen.dart';
+import '../../../features/attendance/presentation/screens/teacher_session_board_screen.dart';
 import '../../../features/attendance/presentation/screens/teacher_attendance_screen.dart';
 import '../../../features/study_workspace/presentation/screens/study_replay_screen.dart';
 import '../../../features/academy/presentation/screens/teacher_assistants_screen.dart';
@@ -75,6 +76,20 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                     Row(
                       children: [
                         IconButton(
+                          tooltip: 'السبورة الذكية للشرح 🎨',
+                          icon: const Icon(Icons.draw_rounded, color: Colors.teal),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TeacherSessionBoardScreen(
+                                  teacherId: widget.teacherId,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
                           tooltip: 'طاقم المساعدين (TAs) 👥',
                           icon: const Icon(Icons.people_outline_rounded, color: AppColors.primary),
                           onPressed: () {
@@ -116,7 +131,7 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 100),
                 child: Container(
-                  height: 44,
+                  height: 48,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: isDark
@@ -158,12 +173,66 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                       letterSpacing: -0.2,
                     ),
                     tabs: const [
-                      Tab(text: 'بنك الأسئلة'),
-                      Tab(text: 'الواجبات والتكليفات'),
-                      Tab(text: 'الامتحانات'),
-                      Tab(text: 'سجل الحضور'),
-                      Tab(text: 'التصحيح والرصد'),
-                      Tab(text: 'إعادة الحصص (Replay)'),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.quiz_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('بنك الأسئلة'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.assignment_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('الواجبات والتكليفات'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.description_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('الامتحانات'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.co_present_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('الحصص والغياب'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.grading_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('التصحيح والرصد'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.play_circle_outline_rounded, size: 16),
+                            SizedBox(width: 6),
+                            Text('إعادة الحصص (Replay)'),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),

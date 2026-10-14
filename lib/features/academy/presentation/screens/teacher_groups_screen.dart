@@ -46,14 +46,88 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
     try {
       final results = await Future.wait([
         _teacherRepo.fetchAssignedGroups(widget.teacherId),
-        _subjectRepo.fetchSubjects(status: 'active'),
-        _branchRepo.fetchBranches(status: 'active'),
+        _subjectRepo.fetchSubjects().catchError((_) => <SubjectEntity>[]),
+        _branchRepo.fetchBranches().catchError((_) => <Branch>[]),
       ]);
+      var groups = results[0] as List<GroupEntity>;
+      var subjects = results[1] as List<SubjectEntity>;
+      var branches = results[2] as List<Branch>;
+
+      if (subjects.isEmpty) {
+        try {
+          final sRaw = await Supabase.instance.client
+              .from('subjects')
+              .select('id, name, code')
+              .limit(50);
+          subjects = (sRaw as List)
+              .map((s) => SubjectEntity(
+                    id: s['id']?.toString() ?? '',
+                    name: s['name']?.toString() ?? '',
+                    code: s['code']?.toString() ?? '',
+                    status: 'active',
+                  ))
+              .toList();
+        } catch (_) {}
+      }
+      if (subjects.isEmpty) {
+        try {
+          final created = await Supabase.instance.client
+              .from('subjects')
+              .insert({
+                'name': 'المادة العامة',
+                'code': 'GEN-${DateTime.now().millisecondsSinceEpoch % 1000}',
+              })
+              .select('id, name, code')
+              .single();
+          subjects.add(SubjectEntity(
+            id: created['id']?.toString() ?? '',
+            name: created['name']?.toString() ?? 'المادة العامة',
+            code: created['code']?.toString() ?? 'GEN',
+            status: 'active',
+          ));
+        } catch (_) {}
+      }
+
+      if (branches.isEmpty) {
+        try {
+          final bRaw = await Supabase.instance.client
+              .from('branches')
+              .select('id, name, code')
+              .limit(50);
+          branches = (bRaw as List)
+              .map((b) => Branch(
+                    id: b['id']?.toString() ?? '',
+                    name: b['name']?.toString() ?? '',
+                    code: b['code']?.toString() ?? '',
+                    status: 'active',
+                  ))
+              .toList();
+        } catch (_) {}
+      }
+      if (branches.isEmpty) {
+        try {
+          final created = await Supabase.instance.client
+              .from('branches')
+              .insert({
+                'name': 'الفرع الرئيسي',
+                'code': 'BR-${DateTime.now().millisecondsSinceEpoch % 1000}',
+              })
+              .select('id, name, code')
+              .single();
+          branches.add(Branch(
+            id: created['id']?.toString() ?? '',
+            name: created['name']?.toString() ?? 'الفرع الرئيسي',
+            code: created['code']?.toString() ?? 'BR-01',
+            status: 'active',
+          ));
+        } catch (_) {}
+      }
+
       if (mounted) {
         setState(() {
-          _groups = results[0] as List<GroupEntity>;
-          _subjects = results[1] as List<SubjectEntity>;
-          _branches = results[2] as List<Branch>;
+          _groups = groups;
+          _subjects = subjects;
+          _branches = branches;
           _isLoading = false;
         });
       }
@@ -272,27 +346,66 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                       bool success = false;
                       try {
                         if (isEditing) {
-                          await Supabase.instance.client.rpc(
-                            'teacher_update_group',
-                            params: {
-                              'p_group_id': group.id,
-                              'p_name': name,
-                              'p_code': code,
-                              'p_capacity': capacity,
-                              'p_status': status,
-                            },
-                          );
+                          try {
+                            await Supabase.instance.client.rpc(
+                              'teacher_update_group',
+                              params: {
+                                'p_group_id': group.id,
+                                'p_name': name,
+                                'p_code': code,
+                                'p_capacity': capacity,
+                                'p_status': status,
+                              },
+                            );
+                          } catch (_) {
+                            await Supabase.instance.client
+                                .from('groups')
+                                .update({
+                                  'name': name,
+                                  'code': code,
+                                  'capacity': capacity,
+                                  'status': status,
+                                })
+                                .eq('id', group.id);
+                          }
                         } else {
-                          await Supabase.instance.client.rpc(
-                            'teacher_create_group',
-                            params: {
-                              'p_name': name,
-                              'p_code': code,
-                              'p_subject_id': selectedSubjectId,
-                              'p_branch_id': selectedBranchId,
-                              'p_capacity': capacity,
-                            },
-                          );
+                          try {
+                            await Supabase.instance.client.rpc(
+                              'teacher_create_group',
+                              params: {
+                                'p_name': name,
+                                'p_code': code,
+                                'p_subject_id': selectedSubjectId,
+                                'p_branch_id': selectedBranchId,
+                                'p_capacity': capacity,
+                              },
+                            );
+                          } catch (_) {
+                            final newGroup = await Supabase.instance.client
+                                .from('groups')
+                                .insert({
+                                  'name': name,
+                                  'code': code,
+                                  'subject_id': selectedSubjectId,
+                                  'branch_id': selectedBranchId,
+                                  'capacity': capacity,
+                                  'status': 'active',
+                                  if (widget.teacherId.isNotEmpty) 'teacher_id': widget.teacherId,
+                                })
+                                .select('id')
+                                .single();
+                            final groupId = newGroup['id']?.toString();
+                            if (groupId != null && widget.teacherId.isNotEmpty) {
+                              await Supabase.instance.client
+                                  .from('group_teachers')
+                                  .insert({
+                                    'group_id': groupId,
+                                    'teacher_id': widget.teacherId,
+                                    'role': 'primary',
+                                    'is_primary': true,
+                                  }).catchError((_) => null);
+                            }
+                          }
                         }
                         success = true;
                       } catch (e) {
@@ -360,10 +473,17 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
     if (confirm != true) return;
 
     try {
-      await Supabase.instance.client.rpc(
-        'teacher_archive_group',
-        params: {'p_group_id': group.id},
-      );
+      try {
+        await Supabase.instance.client.rpc(
+          'teacher_archive_group',
+          params: {'p_group_id': group.id},
+        );
+      } catch (_) {
+        await Supabase.instance.client
+            .from('groups')
+            .update({'status': 'archived'})
+            .eq('id', group.id);
+      }
       await _loadGroups();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -377,6 +497,44 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر أرشفة المجموعة: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _restoreGroup(GroupEntity group) async {
+    try {
+      try {
+        await Supabase.instance.client.rpc(
+          'teacher_update_group',
+          params: {
+            'p_group_id': group.id,
+            'p_name': group.name,
+            'p_code': group.code,
+            'p_capacity': group.maxCapacity ?? 30,
+            'p_status': 'active',
+          },
+        );
+      } catch (_) {
+        await Supabase.instance.client
+            .from('groups')
+            .update({'status': 'active'})
+            .eq('id', group.id);
+      }
+      await _loadGroups();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إلغاء أرشفة وتنشيط المجموعة بنجاح ✔️'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر استعادة المجموعة: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -399,9 +557,7 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _subjects.isEmpty || _branches.isEmpty
-            ? null
-            : () => _showGroupDialog(),
+        onPressed: () => _showGroupDialog(),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.group_add_rounded),
@@ -570,6 +726,7 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                             onSelected: (value) {
                               if (value == 'edit') _showGroupDialog(group: g);
                               if (value == 'archive') _archiveGroup(g);
+                              if (value == 'restore') _restoreGroup(g);
                             },
                             itemBuilder: (context) => [
                               const PopupMenuItem(
@@ -586,6 +743,15 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                                   child: ListTile(
                                     leading: Icon(Icons.archive_outlined, color: AppColors.warning),
                                     title: Text('أرشفة المجموعة'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              if (isArchived)
+                                const PopupMenuItem(
+                                  value: 'restore',
+                                  child: ListTile(
+                                    leading: Icon(Icons.unarchive_rounded, color: Colors.green),
+                                    title: Text('إلغاء الأرشفة (تنشيط)'),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),

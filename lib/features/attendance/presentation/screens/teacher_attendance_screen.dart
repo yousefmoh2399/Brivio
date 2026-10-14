@@ -499,12 +499,41 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         _GroupPicker(
           groups: _groups,
           selectedGroup: _selectedGroup,
           onChanged: _selectGroup,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lightbulb_outline_rounded, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'جدول حصص المجموعة: يمكنك بدء رمز QR لتسجيل حضور وانصراف الطلاب، أو تشغيل سبورة الشرح الذكية الخاصة بالحصة.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         Expanded(
           child: RefreshIndicator(
@@ -799,6 +828,8 @@ class _TeacherAttendanceQrDialogState
   DateTime? _expiresAt;
   List<_QrRosterItem> _roster = [];
 
+  bool _isCheckOutMode = false;
+
   @override
   void initState() {
     super.initState();
@@ -827,10 +858,18 @@ class _TeacherAttendanceQrDialogState
         'get_current_attendance_qr',
         params: {'p_class_session_id': widget.session.id},
       );
-      final rosterResponse = await Supabase.instance.client.rpc(
-        'get_session_qr_attendance_roster',
-        params: {'p_class_session_id': widget.session.id},
-      );
+      dynamic rosterResponse;
+      try {
+        rosterResponse = await Supabase.instance.client.rpc(
+          'get_teacher_session_attendance_roster',
+          params: {'p_class_session_id': widget.session.id},
+        );
+      } catch (_) {
+        rosterResponse = await Supabase.instance.client.rpc(
+          'get_session_qr_attendance_roster',
+          params: {'p_class_session_id': widget.session.id},
+        );
+      }
       final json = Map<String, dynamic>.from(response as Map);
       final roster = (rosterResponse as List)
           .whereType<Map>()
@@ -849,6 +888,102 @@ class _TeacherAttendanceQrDialogState
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _markStudentCheckout(String studentId) async {
+    try {
+      try {
+        await Supabase.instance.client.rpc(
+          'mark_student_checkout',
+          params: {
+            'p_class_session_id': widget.session.id,
+            'p_student_id': studentId,
+          },
+        );
+      } catch (_) {
+        await Supabase.instance.client
+            .from('attendance_records')
+            .update({'check_out_at': DateTime.now().toIso8601String()})
+            .eq('class_session_id', widget.session.id)
+            .eq('student_id', studentId);
+      }
+      await _refreshQrWorkspace();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تسجيل انصراف الطالب بنجاح 👋'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تسجيل الانصراف: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _batchMarkCheckout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تسجيل انصراف لجميع الطلاب؟ 👋'),
+        content: const Text(
+          'سيتم تسجيل انصراف لجميع الطلاب الحاضرين في هذه الحصة فوراً.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('تسجيل الانصراف للجميع'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      try {
+        await Supabase.instance.client.rpc(
+          'batch_mark_checkout',
+          params: {'p_class_session_id': widget.session.id},
+        );
+      } catch (_) {
+        await Supabase.instance.client
+            .from('attendance_records')
+            .update({'check_out_at': DateTime.now().toIso8601String()})
+            .eq('class_session_id', widget.session.id)
+            .filter('attendance_status', 'in', '("present","late")')
+            .isFilter('check_out_at', null);
+      }
+      await _refreshQrWorkspace();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تسجيل انصراف جميع الطلاب الحاضرين بنجاح! 🏫👋'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تسجيل انصراف الطلاب: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -909,7 +1044,12 @@ class _TeacherAttendanceQrDialogState
     final token = _token;
     final qrPayload = token == null
         ? null
-        : jsonEncode({'type': 'attendance_qr', 'token': token});
+        : jsonEncode({
+            'type': _isCheckOutMode ? 'attendance_checkout_qr' : 'attendance_qr',
+            'token': token,
+            'action': _isCheckOutMode ? 'check_out' : 'check_in',
+            'session_id': widget.session.id,
+          });
     final secondsLeft = _expiresAt
         ?.difference(DateTime.now())
         .inSeconds
@@ -917,21 +1057,120 @@ class _TeacherAttendanceQrDialogState
     final presentCount = _roster
         .where((item) => item.status == 'present' || item.status == 'late')
         .length;
+    final checkedOutCount = _roster
+        .where((item) => item.checkOutAt != null)
+        .length;
 
     return AlertDialog(
-      title: const Text('رمز الحضور الذكي (QR Code)'),
+      title: Row(
+        children: [
+          Icon(
+            _isCheckOutMode ? Icons.logout_rounded : Icons.qr_code_2_rounded,
+            color: _isCheckOutMode ? AppColors.warning : AppColors.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _isCheckOutMode ? 'تسجيل انصراف الطلاب (Check-Out)' : 'رمز الحضور الذكي (QR Code)',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ],
+      ),
       content: SizedBox(
-        width: 420,
+        width: 440,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'يمسح الطلاب هذا الرمز لتسجيل الحضور فورياً. يتجدد الرمز أوتوماتيكياً كل دقيقة لضمان الأمان.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
+              // Segmented Switch for Check-In vs Check-Out
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => setState(() => _isCheckOutMode = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: !_isCheckOutMode
+                                ? AppColors.primary
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.login_rounded,
+                                size: 18,
+                                color: !_isCheckOutMode ? Colors.white : Colors.grey,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'تسجيل الحضور',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: !_isCheckOutMode ? Colors.white : Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => setState(() => _isCheckOutMode = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _isCheckOutMode
+                                ? AppColors.warning
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.logout_rounded,
+                                size: 18,
+                                color: _isCheckOutMode ? Colors.white : Colors.grey,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'تسجيل الانصراف',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: _isCheckOutMode ? Colors.white : Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Text(
+                _isCheckOutMode
+                    ? 'يمسح الطلاب هذا الرمز لتسجيل الانصراف ومغادرة الحصة. يتجدد الرمز أوتوماتيكياً كل 15 ثانية.'
+                    : 'يمسح الطلاب هذا الرمز لتسجيل الحضور فورياً. يتجدد الرمز أوتوماتيكياً كل 15 ثانية لضمان الأمان.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.all(48),
@@ -948,50 +1187,87 @@ class _TeacherAttendanceQrDialogState
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _isCheckOutMode
+                          ? AppColors.warning.withValues(alpha: 0.5)
+                          : AppColors.primary.withValues(alpha: 0.5),
+                      width: 2,
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: QrImageView(
                       data: qrPayload,
                       version: QrVersions.auto,
-                      size: 240,
+                      size: 220,
                       backgroundColor: Colors.white,
                     ),
                   ),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 secondsLeft == null
                     ? 'بانتظار إنشاء الرمز'
-                    : 'ينتهي خلال $secondsLeft ثانية',
-                style: Theme.of(context).textTheme.titleMedium,
+                    : 'يتجدد الرمز خلال $secondsLeft ثانية',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'حاضر: $presentCount',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.green,
+              // Counters Row
+              if (_isCheckOutMode)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'انصرف: $checkedOutCount',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'غائب: ${_roster.length - presentCount}',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.red,
+                    Text(
+                      'في القاعة: ${presentCount - checkedOutCount}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.warning,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'الإجمالي: ${_roster.length}',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                    Text(
+                      'إجمالي الحاضرين: $presentCount',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'حاضر: $presentCount',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green,
+                      ),
+                    ),
+                    Text(
+                      'غائب: ${_roster.length - presentCount}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.red,
+                      ),
+                    ),
+                    Text(
+                      'الإجمالي: ${_roster.length}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 8),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 180),
@@ -1007,6 +1283,58 @@ class _TeacherAttendanceQrDialogState
                           final item = _roster[index];
                           final checkedIn =
                               item.status == 'present' || item.status == 'late';
+                          final checkedOut = item.checkOutAt != null;
+
+                          if (_isCheckOutMode) {
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                checkedOut
+                                    ? Icons.check_circle_rounded
+                                    : (checkedIn ? Icons.person_pin_rounded : Icons.radio_button_unchecked),
+                                color: checkedOut
+                                    ? Colors.green
+                                    : (checkedIn ? AppColors.warning : Colors.grey),
+                              ),
+                              title: Text(item.fullName),
+                              subtitle: Text(
+                                checkedOut
+                                    ? 'انصرف: ${_formatQrTime(item.checkOutAt!)}'
+                                    : (checkedIn
+                                        ? 'حضر: ${_formatQrTime(item.checkInAt ?? DateTime.now())}'
+                                        : 'لم يحضر'),
+                              ),
+                              trailing: checkedOut
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'انصرف 👋',
+                                        style: TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    )
+                                  : (checkedIn
+                                      ? TextButton.icon(
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                            visualDensity: VisualDensity.compact,
+                                          ),
+                                          onPressed: () => _markStudentCheckout(item.studentId),
+                                          icon: const Icon(Icons.logout_rounded, size: 14),
+                                          label: const Text('انصراف', style: TextStyle(fontSize: 12)),
+                                        )
+                                      : const Text('غائب', style: TextStyle(color: Colors.grey))),
+                            );
+                          }
+
                           return ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
@@ -1036,17 +1364,28 @@ class _TeacherAttendanceQrDialogState
           onPressed: _isFinalizing ? null : () => Navigator.pop(context),
           child: const Text('إغلاق'),
         ),
-        OutlinedButton.icon(
-          onPressed: _isFinalizing ? null : _finalizeAttendance,
-          icon: _isFinalizing
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.done_all),
-          label: const Text('اعتماد الحضور النهائي'),
-        ),
+        if (_isCheckOutMode)
+          FilledButton.tonalIcon(
+            onPressed: _isFinalizing ? null : _batchMarkCheckout,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.warning.withValues(alpha: 0.2),
+              foregroundColor: AppColors.warning,
+            ),
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('تسجيل انصراف للجميع 👋'),
+          )
+        else
+          OutlinedButton.icon(
+            onPressed: _isFinalizing ? null : _finalizeAttendance,
+            icon: _isFinalizing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.done_all),
+            label: const Text('اعتماد الحضور النهائي'),
+          ),
         FilledButton.icon(
           onPressed: _isFinalizing ? null : _refreshQrWorkspace,
           icon: const Icon(Icons.refresh),
@@ -1063,6 +1402,7 @@ class _QrRosterItem {
   final String fullName;
   final String status;
   final DateTime? checkInAt;
+  final DateTime? checkOutAt;
   final String? deviceId;
   final bool markedByQr;
 
@@ -1072,6 +1412,7 @@ class _QrRosterItem {
     required this.fullName,
     required this.status,
     required this.checkInAt,
+    this.checkOutAt,
     required this.deviceId,
     required this.markedByQr,
   });
@@ -1084,6 +1425,7 @@ class _QrRosterItem {
       fullName: json['full_name']?.toString() ?? 'طالب',
       status: json['attendance_status']?.toString() ?? 'pending',
       checkInAt: DateTime.tryParse(json['check_in_at']?.toString() ?? ''),
+      checkOutAt: DateTime.tryParse(json['check_out_at']?.toString() ?? ''),
       deviceId: json['device_id']?.toString(),
       markedByQr: json['marked_by_qr'] == true,
     );
