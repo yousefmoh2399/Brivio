@@ -24,6 +24,8 @@ import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/curriculum/presentation/screens/curriculum_editor_screen.dart';
+import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
+import '../../features/payments/domain/models/payment_models.dart';
 import '../../features/payments/presentation/screens/finance_management_screen.dart';
 import '../../features/people/presentation/screens/parent_management_screen.dart';
 import '../../features/people/presentation/screens/staff_management_screen.dart';
@@ -67,7 +69,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
   List<SubjectEntity> _subjects = [];
   List<GroupEntity> _groups = [];
   AcademyCoreSummary? _summary;
+  int _studentTotal = 0;
+  int _teacherTotal = 0;
   int _parentTotal = 0;
+  double _treasuryTotalCollected = 0.0;
+  double _treasuryTodayCollected = 0.0;
+  double _treasuryPendingInvoices = 0.0;
+  int _treasuryReceiptsCount = 0;
   _AdminOpsMetrics _opsMetrics = const _AdminOpsMetrics();
   List<_AdminActivityItem> _recentActivity = [];
   List<AppNotification> _notifications = [];
@@ -108,6 +116,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
   }
 
+  Future<Map<String, dynamic>> _fetchTodayTreasuryCollections() async {
+    try {
+      final now = DateTime.now();
+      final todayStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final startOfDay = '$todayStr 00:00:00';
+      final endOfDay = '$todayStr 23:59:59';
+
+      final res = await Supabase.instance.client
+          .from('receipts')
+          .select('amount_minor')
+          .gte('issued_at', startOfDay)
+          .lte('issued_at', endOfDay);
+
+      double sum = 0.0;
+      int count = 0;
+      for (final row in res) {
+        sum += ((row['amount_minor'] as num? ?? 0) / 100.0);
+        count++;
+      }
+      return {'todayCollected': sum, 'todayCount': count};
+    } catch (_) {
+      return {'todayCollected': 0.0, 'todayCount': 0};
+    }
+  }
+
   Future<void> _loadSummaryData() async {
     setState(() {
       _isLoading = true;
@@ -123,6 +157,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final subjectRepo = SupabaseSubjectRepository(wrapper);
       final groupRepo = SupabaseGroupRepository(wrapper);
       final summaryRepo = SupabaseAcademySummaryRepository(wrapper);
+      final paymentRepo = SupabasePaymentRepository(wrapper);
       final notificationRepo = getIt<INotificationRepository>();
 
       final results = await Future.wait([
@@ -169,15 +204,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
           (_) => <AppNotification>[],
         ),
         notificationRepo.getUnreadCount().catchError((_) => 0),
+        paymentRepo.fetchSystemFinancialSummary().catchError(
+          (_) => SystemFinancialSummary(
+            totalOutstandingMinor: 0,
+            totalCollectedMinor: 0,
+            expectedMonthlyRevenueMinor: 0,
+            totalAdjustmentsMinor: 0,
+          ),
+        ),
+        _fetchTodayTreasuryCollections(),
       ]);
 
       if (!mounted) return;
       setState(() {
-        _students = (results[0] as PaginatedResult<Student>).data;
+        final studentResult = results[0] as PaginatedResult<Student>;
+        _students = studentResult.data;
+        _studentTotal = studentResult.total;
+
         final parentResult = results[1] as PaginatedResult<Parent>;
         _parents = parentResult.data;
         _parentTotal = parentResult.total;
-        _teachers = (results[2] as PaginatedResult<Teacher>).data;
+
+        final teacherResult = results[2] as PaginatedResult<Teacher>;
+        _teachers = teacherResult.data;
+        _teacherTotal = teacherResult.total;
+
         _branches = results[3] as List<Branch>;
         _subjects = results[4] as List<SubjectEntity>;
         _groups = results[5] as List<GroupEntity>;
@@ -186,6 +237,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _recentActivity = results[8] as List<_AdminActivityItem>;
         _notifications = results[9] as List<AppNotification>;
         _unreadCount = results[10] as int;
+
+        final sysSummary = results[11] as SystemFinancialSummary;
+        _treasuryTotalCollected = sysSummary.totalCollectedMinor / 100.0;
+        _treasuryPendingInvoices = sysSummary.totalOutstandingMinor / 100.0;
+
+        final todayFin = results[12] as Map<String, dynamic>;
+        _treasuryTodayCollected =
+            (todayFin['todayCollected'] as num?)?.toDouble() ?? 0.0;
+        _treasuryReceiptsCount =
+            (todayFin['todayCount'] as num?)?.toInt() ?? 0;
+
         _isLoading = false;
       });
     } catch (e) {
@@ -226,6 +288,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _safeList(
         () => client.from('invoices').select('id').inFilter('status', [
           'issued',
+          'pending',
+          'unpaid',
           'overdue',
           'partially_paid',
         ]),
@@ -256,6 +320,64 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final client = Supabase.instance.client;
     final activity = <_AdminActivityItem>[];
 
+    // 1. Receipts (الخزينة والتحصيلات النقدية)
+    final receipts = await _safeList(
+      () => client
+          .from('receipts')
+          .select('id, receipt_number, amount_minor, issued_at')
+          .order('issued_at', ascending: false)
+          .limit(6),
+    );
+    activity.addAll(
+      receipts.map(
+        (row) {
+          final amt = ((row['amount_minor'] as num? ?? 0) / 100.0);
+          final amtFormatted =
+              amt == amt.toInt() ? amt.toInt().toString() : amt.toStringAsFixed(2);
+          final recNum = row['receipt_number']?.toString().isNotEmpty == true
+              ? row['receipt_number'].toString()
+              : (row['id']?.toString().length ?? 0) > 6
+                  ? row['id'].toString().substring(0, 6)
+                  : (row['id']?.toString() ?? '');
+          return _AdminActivityItem.fromMap(
+            row,
+            title: 'تحصيل نقدية بالخزينة #$recNum ($amtFormatted ج.م)',
+            type: 'خزينة',
+            dateKey: 'issued_at',
+          );
+        },
+      ),
+    );
+
+    // 2. Attendance Records (الحضور الميداني)
+    final attendance = await _safeList(
+      () => client
+          .from('attendance_records')
+          .select('id, attendance_status, marked_at')
+          .order('marked_at', ascending: false)
+          .limit(6),
+    );
+    activity.addAll(
+      attendance.map(
+        (row) {
+          final status = row['attendance_status']?.toString() ?? 'present';
+          final title = switch (status) {
+            'present' => 'تسجيل حضور طالب',
+            'absent' => 'تسجيل غياب طالب',
+            'late' => 'تسجيل تأخر طالب',
+            _ => 'حركة حضور بالسنتر',
+          };
+          return _AdminActivityItem.fromMap(
+            row,
+            title: title,
+            type: 'حضور',
+            dateKey: 'marked_at',
+          );
+        },
+      ),
+    );
+
+    // 3. Leave Requests
     final leaves = await _safeList(
       () => client
           .from('leave_requests')
@@ -276,11 +398,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
 
+    // 4. Invoices
     final invoices = await _safeList(
       () => client
           .from('invoices')
-          .select('id, invoice_number, status, due_at')
-          .order('due_at')
+          .select('id, invoice_number, status, due_at, issued_at')
+          .order('issued_at', ascending: false)
           .limit(6),
     );
     activity.addAll(
@@ -289,27 +412,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
           row,
           title: row['invoice_number']?.toString().isNotEmpty == true
               ? 'فاتورة #${row['invoice_number']}'
-              : 'فاتورة',
+              : 'فاتورة جديدة',
           type: 'مالية',
-          dateKey: 'due_at',
+          dateKey: row['issued_at'] != null ? 'issued_at' : 'due_at',
         ),
       ),
     );
 
+    // 5. Enrollments
     final enrollments = await _safeList(
       () => client
           .from('enrollments')
-          .select('id, status, start_date')
-          .order('start_date', ascending: false)
+          .select('id, status, enrolled_at, start_date')
+          .order('enrolled_at', ascending: false)
           .limit(6),
     );
     activity.addAll(
       enrollments.map(
         (row) => _AdminActivityItem.fromMap(
           row,
-          title: 'تسجيل طالب جديد',
+          title: 'تسجيل طالب في مجموعة',
           type: 'تسجيل',
-          dateKey: 'start_date',
+          dateKey: row['enrolled_at'] != null ? 'enrolled_at' : 'start_date',
         ),
       ),
     );
@@ -346,7 +470,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         subjects: _subjects,
         groups: _groups,
         summary: _summary,
+        studentTotal: _studentTotal,
+        teacherTotal: _teacherTotal,
         parentTotal: _parentTotal,
+        treasuryTotalCollected: _treasuryTotalCollected,
+        treasuryTodayCollected: _treasuryTodayCollected,
+        treasuryPendingInvoices: _treasuryPendingInvoices,
+        treasuryReceiptsCount: _treasuryReceiptsCount,
         opsMetrics: _opsMetrics,
         recentActivity: _recentActivity,
         onRetry: _loadSummaryData,
@@ -426,7 +556,13 @@ class _AdminOverview extends StatelessWidget {
   final List<SubjectEntity> subjects;
   final List<GroupEntity> groups;
   final AcademyCoreSummary? summary;
+  final int studentTotal;
+  final int teacherTotal;
   final int parentTotal;
+  final double treasuryTotalCollected;
+  final double treasuryTodayCollected;
+  final double treasuryPendingInvoices;
+  final int treasuryReceiptsCount;
   final _AdminOpsMetrics opsMetrics;
   final List<_AdminActivityItem> recentActivity;
   final VoidCallback onRetry;
@@ -443,12 +579,30 @@ class _AdminOverview extends StatelessWidget {
     required this.subjects,
     required this.groups,
     required this.summary,
+    required this.studentTotal,
+    required this.teacherTotal,
     required this.parentTotal,
+    required this.treasuryTotalCollected,
+    required this.treasuryTodayCollected,
+    required this.treasuryPendingInvoices,
+    required this.treasuryReceiptsCount,
     required this.opsMetrics,
     required this.recentActivity,
     required this.onRetry,
     required this.onNavigate,
   });
+
+  static String _formatMoney(double amount) {
+    if (amount == 0) return '0';
+    final isInt = amount == amount.truncateToDouble();
+    final parts =
+        (isInt ? amount.toInt().toString() : amount.toStringAsFixed(2)).split('.');
+    final withCommas = parts[0].replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+    return parts.length > 1 ? '$withCommas.${parts[1]}' : withCommas;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -459,10 +613,23 @@ class _AdminOverview extends StatelessWidget {
     final textSecondary =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-    final studentCount = summary?.activeStudents ?? students.length;
-    final teacherCount = summary?.activeTeachers ?? teachers.length;
-    final groupCount = summary?.activeGroups ?? groups.length;
-    final parentCount = parentTotal == 0 ? parents.length : parentTotal;
+    final studentCount = summary?.activeStudents != null && summary!.activeStudents > 0
+        ? summary!.activeStudents
+        : (studentTotal > 0 ? studentTotal : students.length);
+    final teacherCount = summary?.activeTeachers != null && summary!.activeTeachers > 0
+        ? summary!.activeTeachers
+        : (teacherTotal > 0 ? teacherTotal : teachers.length);
+    final groupCount = summary?.activeGroups != null && summary!.activeGroups > 0
+        ? summary!.activeGroups
+        : groups.length;
+    final parentCount = parentTotal > 0 ? parentTotal : parents.length;
+
+    final treasuryValue = '${_formatMoney(treasuryTotalCollected)} ج.م';
+    final treasurySubtitle = treasuryTodayCollected > 0
+        ? 'تحصيل اليوم: +${_formatMoney(treasuryTodayCollected)} ج.م'
+        : (treasuryPendingInvoices > 0
+            ? 'مستحقات معلقة: ${_formatMoney(treasuryPendingInvoices)} ج.م'
+            : (treasuryTotalCollected > 0 ? 'إجمالي النقدية المحصلة' : 'لا توجد متحصلات بعد'));
 
     return RefreshIndicator(
       onRefresh: () async => onRetry(),
@@ -478,6 +645,7 @@ class _AdminOverview extends StatelessWidget {
               isDark,
               studentCount,
               teacherCount,
+              treasuryValue,
             ),
           ),
 
@@ -567,8 +735,8 @@ class _AdminOverview extends StatelessWidget {
                       Expanded(
                         child: _ExecutiveKpiCard(
                           title: 'الخزينة والتحصيل',
-                          value: '${(studentCount * 450).toStringAsFixed(0)} ج.م',
-                          subtitle: 'تقدير اشتراكات الشهر',
+                          value: treasuryValue,
+                          subtitle: treasurySubtitle,
                           icon: Icons.account_balance_wallet_rounded,
                           accentColor: AppColors.success,
                           onTap: () => onNavigate(14),
@@ -623,8 +791,8 @@ class _AdminOverview extends StatelessWidget {
                         Expanded(
                           child: _ExecutiveKpiCard(
                             title: 'الخزينة والتحصيل',
-                            value: '${(studentCount * 450).toStringAsFixed(0)} ج.م',
-                            subtitle: 'اشتراكات الشهر',
+                            value: treasuryValue,
+                            subtitle: treasurySubtitle,
                             icon: Icons.account_balance_wallet_rounded,
                             accentColor: AppColors.success,
                             onTap: () => onNavigate(14),
@@ -971,7 +1139,11 @@ class _AdminOverview extends StatelessWidget {
     bool isDark,
     int studentCount,
     int teacherCount,
+    String treasuryValue,
   ) {
+    final branchName = branches.where((b) => b.id == user?.branchId).firstOrNull?.name ??
+        (user?.branchId != null && (user!.branchId as String).length < 15 ? (user!.branchId as String) : 'الفرع الرئيسي');
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1074,7 +1246,7 @@ class _AdminOverview extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • ${user?.branchId ?? "الفرع الرئيسي"}',
+            '${authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • $branchName',
             style: TextStyle(
               fontSize: 13,
               color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
@@ -1090,14 +1262,16 @@ class _AdminOverview extends StatelessWidget {
               color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Wrap(
+              alignment: WrapAlignment.spaceAround,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 _buildHeroStat('الطلاب المسجلون', '$studentCount طالب', Icons.school_rounded, AppColors.primary),
-                Container(width: 1, height: 26, color: isDark ? Colors.white12 : Colors.black12),
                 _buildHeroStat('المعلمون', '$teacherCount معلم', Icons.person_rounded, AppColors.purple),
-                Container(width: 1, height: 26, color: isDark ? Colors.white12 : Colors.black12),
                 _buildHeroStat('حصص اليوم', '${opsMetrics.todaySessions} حصة', Icons.today_rounded, AppColors.warning),
+                _buildHeroStat('الخزينة', treasuryValue, Icons.account_balance_wallet_rounded, AppColors.success),
               ],
             ),
           ),
@@ -1604,6 +1778,8 @@ class _ActivityList extends StatelessWidget {
 
   static IconData _iconForType(String type) {
     return switch (type) {
+      'خزينة' => Icons.point_of_sale_rounded,
+      'حضور' => Icons.how_to_reg_rounded,
       'إجازة' => Icons.event_busy,
       'مالية' => Icons.receipt_long,
       'تسجيل' => Icons.person_add,
@@ -1613,9 +1789,9 @@ class _ActivityList extends StatelessWidget {
 
   static Color _colorForStatus(String status) {
     return switch (status.toLowerCase()) {
-      'active' || 'paid' || 'approved' => AppColors.success,
-      'pending' || 'issued' || 'partially_paid' => AppColors.warning,
-      'overdue' || 'rejected' || 'failed' => AppColors.error,
+      'active' || 'paid' || 'approved' || 'present' => AppColors.success,
+      'pending' || 'issued' || 'partially_paid' || 'late' => AppColors.warning,
+      'overdue' || 'rejected' || 'failed' || 'absent' => AppColors.error,
       _ => AppColors.info,
     };
   }

@@ -89,7 +89,7 @@ class SupabaseAdminRepository implements IAdminRepository {
         final stuRes = await _client.from('students').count(CountOption.exact);
         totalStudents = stuRes;
       } catch (_) {
-        totalStudents = 120;
+        totalStudents = 0;
       }
       data['total_students'] = totalStudents;
     }
@@ -101,7 +101,7 @@ class SupabaseAdminRepository implements IAdminRepository {
         final sessRes = await _client.from('class_sessions').count(CountOption.exact);
         totalSessions = sessRes;
       } catch (_) {
-        totalSessions = 28;
+        totalSessions = 0;
       }
       data['total_sessions'] = totalSessions;
     }
@@ -116,44 +116,66 @@ class SupabaseAdminRepository implements IAdminRepository {
           final presents = list.where((r) => r['attendance_status'] == 'present').length;
           attendanceRate = (presents / list.length) * 100;
         } else {
-          attendanceRate = 94.5;
+          attendanceRate = 0.0;
         }
       } catch (_) {
-        attendanceRate = 94.5;
+        attendanceRate = 0.0;
       }
       data['attendance_rate'] = attendanceRate;
     }
 
-    // 4. Total Revenue
+    // 4. Total Revenue (from receipts and paid invoices)
     double totalRevenue = (data['total_revenue'] as num?)?.toDouble() ?? 0.0;
     if (totalRevenue == 0) {
       try {
-        final invRes = await _client.from('invoices').select('amount, status').eq('status', 'paid');
-        final list = invRes as List;
+        final receiptsRes = await _client.from('receipts').select('amount_minor');
+        final list = receiptsRes as List;
         if (list.isNotEmpty) {
-          totalRevenue = list.fold<double>(0.0, (acc, item) => acc + ((item['amount'] as num?)?.toDouble() ?? 0.0));
+          totalRevenue = list.fold<double>(
+            0.0,
+            (acc, item) => acc + (((item['amount_minor'] as num?)?.toDouble() ?? 0.0) / 100.0),
+          );
         } else {
-          totalRevenue = (totalStudents > 0 ? totalStudents : 120) * 450.0;
+          final invRes = await _client
+              .from('invoices')
+              .select('amount_paid_minor, total_minor, status')
+              .inFilter('status', ['paid', 'partially_paid']);
+          final invList = invRes as List;
+          if (invList.isNotEmpty) {
+            totalRevenue = invList.fold<double>(
+              0.0,
+              (acc, item) => acc + (((item['amount_paid_minor'] ?? item['total_minor'] as num?)?.toDouble() ?? 0.0) / 100.0),
+            );
+          } else {
+            totalRevenue = 0.0;
+          }
         }
       } catch (_) {
-        totalRevenue = (totalStudents > 0 ? totalStudents : 120) * 450.0;
+        totalRevenue = 0.0;
       }
       data['total_revenue'] = totalRevenue;
     }
 
     // 5. Revenue Growth
-    data['revenue_growth'] = [
-      {'date': startDate.toIso8601String(), 'amount': (totalRevenue * 0.2).clamp(1000.0, 1000000.0)},
-      {
-        'date': startDate.add(const Duration(days: 7)).toIso8601String(),
-        'amount': (totalRevenue * 0.45).clamp(2000.0, 1000000.0),
-      },
-      {
-        'date': startDate.add(const Duration(days: 14)).toIso8601String(),
-        'amount': (totalRevenue * 0.75).clamp(3500.0, 1000000.0),
-      },
-      {'date': endDate.toIso8601String(), 'amount': totalRevenue.clamp(5000.0, 1000000.0)},
-    ];
+    if (totalRevenue > 0) {
+      data['revenue_growth'] = [
+        {'date': startDate.toIso8601String(), 'amount': totalRevenue * 0.25},
+        {
+          'date': startDate.add(const Duration(days: 7)).toIso8601String(),
+          'amount': totalRevenue * 0.50,
+        },
+        {
+          'date': startDate.add(const Duration(days: 14)).toIso8601String(),
+          'amount': totalRevenue * 0.75,
+        },
+        {'date': endDate.toIso8601String(), 'amount': totalRevenue},
+      ];
+    } else {
+      data['revenue_growth'] = [
+        {'date': startDate.toIso8601String(), 'amount': 0.0},
+        {'date': endDate.toIso8601String(), 'amount': 0.0},
+      ];
+    }
 
     // 6. Subject Performances
     try {
@@ -176,12 +198,7 @@ class SupabaseAdminRepository implements IAdminRepository {
       });
       data['subject_performances'] = performances;
     } catch (_) {
-      data['subject_performances'] = [
-        {'subject_name': 'الفيزياء', 'average_score': 88.5},
-        {'subject_name': 'الرياضيات', 'average_score': 92.0},
-        {'subject_name': 'الكيمياء', 'average_score': 85.0},
-        {'subject_name': 'اللغة العربية', 'average_score': 90.5},
-      ];
+      data['subject_performances'] = <Map<String, dynamic>>[];
     }
 
     // 7. Demographics
@@ -191,20 +208,16 @@ class SupabaseAdminRepository implements IAdminRepository {
       int males = 0;
       int females = 0;
       for (var p in profiles) {
-        if (p['gender']?.toString().toLowerCase() == 'male' || p['gender']?.toString() == 'ذكر') {
+        final g = p['gender']?.toString().toLowerCase();
+        if (g == 'male' || g == 'ذكر') {
           males++;
-        } else {
+        } else if (g == 'female' || g == 'أنثى') {
           females++;
         }
       }
-      if (males == 0 && females == 0) throw Exception('No demographics data');
       data['demographics'] = {'total_males': males, 'total_females': females};
     } catch (_) {
-      final maleCount = (totalStudents * 0.55).toInt();
-      data['demographics'] = {
-        'total_males': maleCount,
-        'total_females': (totalStudents - maleCount).clamp(0, 999999),
-      };
+      data['demographics'] = {'total_males': 0, 'total_females': 0};
     }
 
     return AdminAnalytics.fromJson(data);
