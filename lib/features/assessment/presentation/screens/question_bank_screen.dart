@@ -187,6 +187,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               initialValue: qType,
+                              isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'نوع السؤال *',
                                 border: OutlineInputBorder(),
@@ -218,6 +219,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               initialValue: difficulty,
+                              isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'مستوى الصعوبة',
                                 border: OutlineInputBorder(),
@@ -254,13 +256,16 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                       // MCQ Options Builder
                       if (qType == 'multiple_choice') ...[
                         const Divider(height: 24),
-                        Row(
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
                             const Text(
                               'خيارات الإجابة (حدد الإجابة الصحيحة):',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
-                            const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
@@ -273,7 +278,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                   Icon(Icons.check_circle, size: 14, color: Colors.green),
                                   SizedBox(width: 4),
                                   Text(
-                                    'الإجابة الصحيحة محددة بالدائرة الخضراء',
+                                    'الإجابة الصحيحة بالدائرة الخضراء',
                                     style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -597,6 +602,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               initialValue: qType,
+                              isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'نوع السؤال *',
                                 border: OutlineInputBorder(),
@@ -628,6 +634,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               initialValue: difficulty,
+                              isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'مستوى الصعوبة',
                                 border: OutlineInputBorder(),
@@ -663,13 +670,16 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                       // MCQ Options Builder
                       if (qType == 'multiple_choice') ...[
                         const Divider(height: 24),
-                        Row(
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
                             const Text(
                               'خيارات الإجابة (حدد الإجابة الصحيحة):',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
-                            const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
@@ -682,7 +692,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                   Icon(Icons.check_circle, size: 14, color: Colors.green),
                                   SizedBox(width: 4),
                                   Text(
-                                    'الإجابة الصحيحة محددة بالدائرة الخضراء',
+                                    'الإجابة الصحيحة بالدائرة الخضراء',
                                     style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -1211,6 +1221,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<SubjectEntity>(
                   initialValue: _selectedSubject,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'المادة الدراسية'),
                   items: _subjects
                       .map(

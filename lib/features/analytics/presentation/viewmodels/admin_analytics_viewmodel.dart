@@ -27,7 +27,7 @@ class AdminAnalyticsViewModel extends ChangeNotifier {
 
       _analytics = await _adminRepository.getAnalytics(start, end);
     } catch (e) {
-      _errorMessage = 'Failed to load analytics: $e';
+      _errorMessage = 'تعذر تحميل بيانات التحليلات: $e';
     } finally {
       _isLoading = false;
       notifyListeners();

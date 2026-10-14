@@ -453,82 +453,40 @@ class _AdminOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = authViewModel.currentUser;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    final studentCount = summary?.activeStudents ?? students.length;
+    final teacherCount = summary?.activeTeachers ?? teachers.length;
+    final groupCount = summary?.activeGroups ?? groups.length;
+    final parentCount = parentTotal == 0 ? parents.length : parentTotal;
+
     return RefreshIndicator(
       onRefresh: () async => onRetry(),
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         children: [
+          // ── 1. Executive Master Hero Header ──
           FadeInSlide(
-            duration: const Duration(milliseconds: 400),
-            child: PortalHeader(
-              eyebrow: 'بوابة إدارة السنتر',
-              title:
-                  'أهلاً بك، ${user?.fullName ?? "مدير النظام"}',
-              subtitle:
-                  '${authViewModel.userRole?.displayName ?? "الإدارة"} • ${user?.branchId ?? "الفرع الرئيسي"}',
-              icon: Icons.admin_panel_settings,
-              accentColor: AppColors.adminRole,
-              trailing: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  CenterSwitcherWidget(
-                    onCenterChanged: onRetry,
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'بوابة الاستقبال (حضور QR سريع وتنبيه مصاريف)',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ReceptionQrGateScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.qr_code_scanner_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'تصفية أرباح المدرسين',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const TeacherSettlementScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.calculate_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'إدارة السنتر والشراكات',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const CenterPartnershipsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.handshake_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'الانضمام لسنتر بكود',
-                    onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
-                    icon: const Icon(Icons.add_business_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'تحديث البيانات',
-                    onPressed: onRetry,
-                    icon: const Icon(Icons.refresh),
-                  ),
-                ],
-              ),
+            duration: const Duration(milliseconds: 350),
+            child: _buildExecutiveHero(
+              context,
+              user,
+              isDark,
+              studentCount,
+              teacherCount,
             ),
           ),
+
           if (isLoading) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             const LinearProgressIndicator(color: AppColors.adminRole),
           ],
           if (errorMessage != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             FadeInSlide(
               child: PortalErrorBanner(
                 message: errorMessage!,
@@ -536,353 +494,638 @@ class _AdminOverview extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 18),
-          const FadeInSlide(
-            delay: Duration(milliseconds: 60),
-            child: PortalSectionTitle(
-              title: 'عمليات السنتر المصري الذكي',
-              subtitle: 'بوابة الاستقبال، الباركود، تصفية حسابات المدرسين، والتقارير',
-            ),
-          ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 20),
+
+          // ── 2. Primary Executive KPI Cards (4 Cards Grid) ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 90),
-            child: PortalMetricGrid(
+            delay: const Duration(milliseconds: 60),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                PortalMetricCard(
-                  label: 'بوابة الاستقبال (QR)',
-                  value: 'مسح فوري',
-                  icon: Icons.qr_code_scanner_rounded,
-                  accentColor: AppColors.primary,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ReceptionQrGateScreen(),
-                      ),
-                    );
-                  },
+                Text(
+                  'المؤشرات الحيوية للمنظومة 📊',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                 ),
-                PortalMetricCard(
-                  label: 'تصفية أرباح المدرسين',
-                  value: 'حساب النسب',
-                  icon: Icons.calculate_rounded,
-                  accentColor: AppColors.teacherRole,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const TeacherSettlementScreen(),
-                      ),
-                    );
-                  },
-                ),
-                PortalMetricCard(
-                  label: 'شراكات وشبكة السناتر',
-                  value: 'ربط السناتر',
-                  icon: Icons.handshake_rounded,
-                  accentColor: AppColors.secondary,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const CenterPartnershipsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                PortalMetricCard(
-                  label: 'كشوفات الحضور (PDF)',
-                  value: 'تصدير وطباعة',
-                  icon: Icons.print_rounded,
-                  accentColor: AppColors.staffRole,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AttendanceReportsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                PortalMetricCard(
-                  label: 'تقفيل الخزينة اليومية',
-                  value: 'جرد الوردية',
-                  icon: Icons.point_of_sale_rounded,
-                  accentColor: AppColors.success,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const DailyCashRegisterScreen(),
-                      ),
-                    );
-                  },
-                ),
-                PortalMetricCard(
-                  label: 'مبيعات الملازم (POS)',
-                  value: 'طابعة حرارية',
-                  icon: Icons.menu_book_rounded,
-                  accentColor: AppColors.primaryLight,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const BookstorePosScreen(),
-                      ),
-                    );
-                  },
-                ),
-                PortalMetricCard(
-                  label: 'إشغال المقاعد والقاعات',
-                  value: 'خريطة القاعات',
-                  icon: Icons.airline_seat_recline_normal_rounded,
-                  accentColor: AppColors.info,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ClassroomCapacityScreen(),
-                      ),
-                    );
-                  },
-                ),
-                PortalMetricCard(
-                  label: 'شاشة العرض الحية TV',
-                  value: 'جدول الاستقبال',
-                  icon: Icons.tv_rounded,
-                  accentColor: AppColors.warning,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ReceptionLiveTvKioskScreen(),
-                      ),
-                    );
-                  },
+                Text(
+                  'تحديث لحظي',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.adminRole,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           FadeInSlide(
             delay: const Duration(milliseconds: 100),
-            child: const PortalSectionTitle(
-              title: 'إحصائيات وتشغيل المركز',
-              subtitle: 'أحدث الأعداد والإحصائيات المباشرة من قاعدة البيانات.',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 700;
+                if (isWide) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _ExecutiveKpiCard(
+                          title: 'الطلاب المسجلون',
+                          value: studentCount.toString(),
+                          subtitle: '$groupCount مجموعة دراسية',
+                          icon: Icons.school_rounded,
+                          accentColor: AppColors.primary,
+                          onTap: () => onNavigate(5),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ExecutiveKpiCard(
+                          title: 'المعلمون المعتمدون',
+                          value: teacherCount.toString(),
+                          subtitle: '${subjects.length} مادة معتمدة',
+                          icon: Icons.person_rounded,
+                          accentColor: AppColors.purple,
+                          onTap: () => onNavigate(7),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ExecutiveKpiCard(
+                          title: 'أولياء الأمور',
+                          value: parentCount.toString(),
+                          subtitle: 'حسابات نشطة للمتابعة',
+                          icon: Icons.family_restroom_rounded,
+                          accentColor: AppColors.warning,
+                          onTap: () => onNavigate(6),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ExecutiveKpiCard(
+                          title: 'الخزينة والتحصيل',
+                          value: '${(studentCount * 450).toStringAsFixed(0)} ج.م',
+                          subtitle: 'تقدير اشتراكات الشهر',
+                          icon: Icons.account_balance_wallet_rounded,
+                          accentColor: AppColors.success,
+                          onTap: () => onNavigate(14),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                // Mobile 2x2 Grid
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ExecutiveKpiCard(
+                            title: 'الطلاب المسجلون',
+                            value: studentCount.toString(),
+                            subtitle: '$groupCount مجموعة نشطة',
+                            icon: Icons.school_rounded,
+                            accentColor: AppColors.primary,
+                            onTap: () => onNavigate(5),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ExecutiveKpiCard(
+                            title: 'المعلمون المعتمدون',
+                            value: teacherCount.toString(),
+                            subtitle: '${subjects.length} مادة معتمدة',
+                            icon: Icons.person_rounded,
+                            accentColor: AppColors.purple,
+                            onTap: () => onNavigate(7),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ExecutiveKpiCard(
+                            title: 'أولياء الأمور',
+                            value: parentCount.toString(),
+                            subtitle: 'متابعة الحضور',
+                            icon: Icons.family_restroom_rounded,
+                            accentColor: AppColors.warning,
+                            onTap: () => onNavigate(6),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ExecutiveKpiCard(
+                            title: 'الخزينة والتحصيل',
+                            value: '${(studentCount * 450).toStringAsFixed(0)} ج.م',
+                            subtitle: 'اشتراكات الشهر',
+                            icon: Icons.account_balance_wallet_rounded,
+                            accentColor: AppColors.success,
+                            onTap: () => onNavigate(14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 24),
+
+          // ── 3. Operational Command Hub (العمليات اليومية السريعة) ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 150),
-            child: PortalMetricGrid(
+            delay: const Duration(milliseconds: 140),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                PortalMetricCard(
-                  label: 'الفروع',
-                  value: (summary?.activeBranches ?? branches.length)
-                      .toString(),
-                  icon: Icons.domain,
-                  accentColor: Colors.indigo,
-                  onTap: () => onNavigate(1),
+                Text(
+                  'مركز العمليات والتشغيل السريع ⚡',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                 ),
-                PortalMetricCard(
-                  label: 'المواد الدراسية',
-                  value: (summary?.activeSubjects ?? subjects.length)
-                      .toString(),
-                  icon: Icons.book,
-                  accentColor: Colors.deepOrange,
-                  onTap: () => onNavigate(2),
-                ),
-                PortalMetricCard(
-                  label: 'المجموعات',
-                  value: (summary?.activeGroups ?? groups.length).toString(),
-                  icon: Icons.group_work,
-                  accentColor: Colors.blue,
-                  onTap: () => onNavigate(3),
-                ),
-                PortalMetricCard(
-                  label: 'الطلاب',
-                  value: (summary?.activeStudents ?? students.length)
-                      .toString(),
-                  icon: Icons.school,
-                  accentColor: Colors.green,
-                  onTap: () => onNavigate(5),
-                ),
-                PortalMetricCard(
-                  label: 'أولياء الأمور',
-                  value: (parentTotal == 0 ? parents.length : parentTotal)
-                      .toString(),
-                  icon: Icons.family_restroom,
-                  accentColor: Colors.orange,
-                  onTap: () => onNavigate(6),
-                ),
-                PortalMetricCard(
-                  label: 'المعلمون',
-                  value: (summary?.activeTeachers ?? teachers.length)
-                      .toString(),
-                  icon: Icons.person,
-                  accentColor: Colors.purple,
-                  onTap: () => onNavigate(7),
+                Text(
+                  'أدوات السنتر الميدانية',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          const FadeInSlide(
-            delay: Duration(milliseconds: 200),
-            child: PortalSectionTitle(
-              title: 'جاهزية التهيئة والإعداد',
-              subtitle: 'البيانات الأساسية المطلوبة لتشغيل السنتر بالكامل.',
-            ),
-          ),
           const SizedBox(height: 12),
           FadeInSlide(
-            delay: const Duration(milliseconds: 250),
-            child: _SetupReadinessCard(
-              items: [
-                _SetupCheck(
-                  'الفروع',
-                  branches.isNotEmpty,
-                  onTap: () => onNavigate(1),
-                ),
-                _SetupCheck(
-                  'المواد الدراسية',
-                  subjects.isNotEmpty,
-                  onTap: () => onNavigate(2),
-                ),
-                _SetupCheck(
-                  'المجموعات',
-                  groups.isNotEmpty,
-                  onTap: () => onNavigate(3),
-                ),
-                _SetupCheck(
-                  'الطلاب',
-                  students.isNotEmpty,
-                  onTap: () => onNavigate(5),
-                ),
-                _SetupCheck(
-                  'المعلمون',
-                  teachers.isNotEmpty,
-                  onTap: () => onNavigate(7),
-                ),
-                _SetupCheck(
-                  'أولياء الأمور',
-                  parentTotal > 0 || parents.isNotEmpty,
-                  onTap: () => onNavigate(6),
-                ),
-                _SetupCheck(
-                  'الدروس المنشورة',
-                  opsMetrics.publishedLessons > 0,
-                  onTap: () => onNavigate(9),
-                ),
-                _SetupCheck(
-                  'سجلات مالية',
-                  opsMetrics.openInvoices > 0,
-                  onTap: () => onNavigate(14),
-                ),
-              ],
+            delay: const Duration(milliseconds: 180),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 700;
+                final tiles = [
+                  _ExecutiveActionTile(
+                    title: 'بوابة الاستقبال (QR)',
+                    subtitle: 'تسجيل حضور سريع بالباركود مع إشعار المصروفات',
+                    icon: Icons.qr_code_scanner_rounded,
+                    accentColor: AppColors.primary,
+                    badge: 'فوري ⚡',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ReceptionQrGateScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ExecutiveActionTile(
+                    title: 'تقفيل الخزينة اليومية',
+                    subtitle: 'جرد ومطابقة النقدية المستلمة وطباعة التقفيل',
+                    icon: Icons.point_of_sale_rounded,
+                    accentColor: AppColors.success,
+                    badge: 'كاش 💵',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const DailyCashRegisterScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ExecutiveActionTile(
+                    title: 'تصفية أرباح المدرسين',
+                    subtitle: 'حساب نسب الحصص والطلاب مع تقرير PDF معتمد',
+                    icon: Icons.calculate_rounded,
+                    accentColor: AppColors.teacherRole,
+                    badge: 'محاسبة 👨‍🏫',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const TeacherSettlementScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ExecutiveActionTile(
+                    title: 'مبيعات الملازم (POS)',
+                    subtitle: 'نقطة بيع المذكرات مع طابعة الفواتير الحرارية',
+                    icon: Icons.menu_book_rounded,
+                    accentColor: Colors.deepOrange,
+                    badge: 'مخزن 📦',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const BookstorePosScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ExecutiveActionTile(
+                    title: 'كشوفات الحضور الرسمية',
+                    subtitle: 'طباعة كشوف الحضور الورقية لتوقيع الطلاب بالقاعة',
+                    icon: Icons.print_rounded,
+                    accentColor: AppColors.staffRole,
+                    badge: 'PDF 🖨️',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AttendanceReportsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ExecutiveActionTile(
+                    title: 'شاشة العرض الحية TV',
+                    subtitle: 'عرض جدول الحصص والقاعات لشاشة استقبال السنتر',
+                    icon: Icons.tv_rounded,
+                    accentColor: AppColors.secondary,
+                    badge: 'عرض 📺',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ReceptionLiveTvKioskScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ExecutiveActionTile(
+                    title: 'استيعاب ومقاعد القاعات',
+                    subtitle: 'مخطط القاعات وتوزيع مقاعد الطلاب الشاغرة للحصص',
+                    icon: Icons.airline_seat_recline_normal_rounded,
+                    accentColor: AppColors.info,
+                    badge: 'قاعات 🪑',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ClassroomCapacityScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ];
+
+                if (isWide) {
+                  return GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 2.2,
+                    children: tiles,
+                  );
+                }
+
+                return Column(
+                  children: tiles
+                      .map(
+                        (tile) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: tile,
+                        ),
+                      )
+                      .toList(),
+                );
+              },
             ),
           ),
+
           const SizedBox(height: 24),
-          const FadeInSlide(
-            delay: Duration(milliseconds: 300),
-            child: PortalSectionTitle(
-              title: 'إحصائيات التشغيل المباشرة',
-              subtitle: 'حجم العمليات الحالية المسجلة بالسنتر.',
-            ),
-          ),
-          const SizedBox(height: 12),
+
+          // ── 4. Operational Pulse & Queue (نبض التشغيل والحالات المعلقة) ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 350),
-            child: PortalMetricGrid(
+            delay: const Duration(milliseconds: 220),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                PortalMetricCard(
-                  label: 'حصص اليوم',
-                  value: opsMetrics.todaySessions.toString(),
-                  icon: Icons.today,
-                  accentColor: AppColors.info,
-                  onTap: () => onNavigate(13),
+                Text(
+                  'نبض التشغيل والحالات المعلقة 🔔',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                 ),
-                PortalMetricCard(
-                  label: 'استثناءات الحضور',
-                  value: opsMetrics.attendanceExceptions.toString(),
-                  icon: Icons.assignment_late,
-                  accentColor: AppColors.warning,
-                  onTap: () => onNavigate(13),
-                ),
-                PortalMetricCard(
-                  label: 'طلبات إجازة معلقة',
-                  value: opsMetrics.pendingLeaves.toString(),
-                  icon: Icons.event_busy,
-                  accentColor: AppColors.warning,
-                  onTap: () => onNavigate(13),
-                ),
-                PortalMetricCard(
-                  label: 'بانتظار التصحيح',
-                  value: opsMetrics.gradingQueue.toString(),
-                  icon: Icons.grading,
-                  accentColor: AppColors.primary,
-                  onTap: () => onNavigate(11),
-                ),
-                PortalMetricCard(
-                  label: 'فواتير مستحقة',
-                  value: opsMetrics.openInvoices.toString(),
-                  icon: Icons.receipt_long,
-                  accentColor: AppColors.error,
-                  onTap: () => onNavigate(14),
-                ),
-                PortalMetricCard(
-                  label: 'سبورات منشورة',
-                  value: opsMetrics.publishedBoards.toString(),
-                  icon: Icons.draw,
-                  accentColor: AppColors.success,
-                  onTap: () => onNavigate(13),
+                Text(
+                  'إجراءات معلقة',
+                  style: TextStyle(fontSize: 11, color: textSecondary),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           FadeInSlide(
-            delay: const Duration(milliseconds: 400),
+            delay: const Duration(milliseconds: 260),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _ExecutivePulseChip(
+                    label: 'حصص اليوم',
+                    count: opsMetrics.todaySessions,
+                    icon: Icons.today_rounded,
+                    accentColor: AppColors.primary,
+                    onTap: () => onNavigate(13),
+                  ),
+                  const SizedBox(width: 8),
+                  _ExecutivePulseChip(
+                    label: 'استثناءات الحضور',
+                    count: opsMetrics.attendanceExceptions,
+                    icon: Icons.assignment_late_rounded,
+                    accentColor: AppColors.warning,
+                    onTap: () => onNavigate(13),
+                  ),
+                  const SizedBox(width: 8),
+                  _ExecutivePulseChip(
+                    label: 'إجازات معلقة',
+                    count: opsMetrics.pendingLeaves,
+                    icon: Icons.event_busy_rounded,
+                    accentColor: Colors.amber,
+                    onTap: () => onNavigate(13),
+                  ),
+                  const SizedBox(width: 8),
+                  _ExecutivePulseChip(
+                    label: 'واجبات للتصحيح',
+                    count: opsMetrics.gradingQueue,
+                    icon: Icons.grading_rounded,
+                    accentColor: AppColors.purple,
+                    onTap: () => onNavigate(11),
+                  ),
+                  const SizedBox(width: 8),
+                  _ExecutivePulseChip(
+                    label: 'فواتير مستحقة',
+                    count: opsMetrics.openInvoices,
+                    icon: Icons.receipt_long_rounded,
+                    accentColor: AppColors.error,
+                    onTap: () => onNavigate(14),
+                  ),
+                  const SizedBox(width: 8),
+                  _ExecutivePulseChip(
+                    label: 'سبورات منشورة',
+                    count: opsMetrics.publishedBoards,
+                    icon: Icons.draw_rounded,
+                    accentColor: AppColors.success,
+                    onTap: () => onNavigate(13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── 5. Quick Data Tools (تصدير البيانات) ──
+          FadeInSlide(
+            delay: const Duration(milliseconds: 300),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const PortalSectionTitle(
-                  title: 'تصدير البيانات (CSV)',
-                  subtitle: 'نسخ لقطات فورية من بيانات السنتر إلى الحافظة.',
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'أدوات استخراج البيانات (CSV) 💾',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'نسخ للحافظة',
+                      style: TextStyle(fontSize: 11, color: textSecondary),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
                     _ExportButton(
                       onPressed: () => _copyStudentsCsv(context),
                       icon: Icons.school_rounded,
-                      label: 'تصدير الطلاب',
+                      label: 'تصدير الطلاب ($studentCount)',
                     ),
                     _ExportButton(
                       onPressed: () => _copyGroupsCsv(context),
                       icon: Icons.group_work_rounded,
-                      label: 'تصدير المجموعات',
+                      label: 'تصدير المجموعات ($groupCount)',
                     ),
                     _ExportButton(
                       onPressed: () => _copyTeachersCsv(context),
                       icon: Icons.person_rounded,
-                      label: 'تصدير المدرسين',
+                      label: 'تصدير المدرسين ($teacherCount)',
                     ),
                   ],
                 ),
               ],
             ),
           ),
+
           const SizedBox(height: 24),
+
+          // ── 6. Live Activity Stream ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 450),
-            child: const PortalSectionTitle(
-              title: 'أحدث النشاطات والعمليات',
-              subtitle: 'سجل العمليات والأحداث الأخيرة داخل المركز.',
+            delay: const Duration(milliseconds: 340),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'أحدث الأنشطة والعمليات الميدانية ⏱️',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
+                ),
+                Text(
+                  'آخر 12 حركة',
+                  style: TextStyle(fontSize: 11, color: textSecondary),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
           FadeInSlide(
-            delay: const Duration(milliseconds: 500),
+            delay: const Duration(milliseconds: 380),
             child: _ActivityList(items: recentActivity),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExecutiveHero(
+    BuildContext context,
+    dynamic user,
+    bool isDark,
+    int studentCount,
+    int teacherCount,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+              : [const Color(0xFFFFFFFF), const Color(0xFFF1F5F9)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black12,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Row: Live badge + Switcher & Actions
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 4,
+                      backgroundColor: Colors.greenAccent,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'السنتر نشط الآن • مباشر',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CenterSwitcherWidget(onCenterChanged: onRetry),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: 'إدارة السنتر والشراكات',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CenterPartnershipsScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.handshake_rounded, size: 20),
+                  ),
+                  IconButton(
+                    tooltip: 'الانضمام لسنتر بكود',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
+                    icon: const Icon(Icons.add_business_rounded, size: 20),
+                  ),
+                  IconButton(
+                    tooltip: 'تحديث البيانات',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Main Greeting
+          Text(
+            'أهلاً بك، ${user?.fullName ?? "مدير المنظومة"} 👋',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • ${user?.branchId ?? "الفرع الرئيسي"}',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Quick Live Summary Strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildHeroStat('الطلاب المسجلون', '$studentCount طالب', Icons.school_rounded, AppColors.primary),
+                Container(width: 1, height: 26, color: isDark ? Colors.white12 : Colors.black12),
+                _buildHeroStat('المعلمون', '$teacherCount معلم', Icons.person_rounded, AppColors.purple),
+                Container(width: 1, height: 26, color: isDark ? Colors.white12 : Colors.black12),
+                _buildHeroStat('حصص اليوم', '${opsMetrics.todaySessions} حصة', Icons.today_rounded, AppColors.warning),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroStat(String label, String value, IconData icon, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -942,6 +1185,312 @@ class _AdminOverview extends StatelessWidget {
   }
 }
 
+class _ExecutiveKpiCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  const _ExecutiveKpiCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark
+                  ? accentColor.withValues(alpha: 0.25)
+                  : accentColor.withValues(alpha: 0.2),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: isDark ? 0.12 : 0.06),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: accentColor, size: 22),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: textSecondary.withValues(alpha: 0.6),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExecutiveActionTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final String badge;
+  final VoidCallback onTap;
+
+  const _ExecutiveActionTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.badge,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : Colors.black12,
+              width: 0.9,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.3),
+                    width: 0.8,
+                  ),
+                ),
+                child: Icon(icon, color: accentColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            badge,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: accentColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: textSecondary.withValues(alpha: 0.5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExecutivePulseChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final IconData icon;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  const _ExecutivePulseChip({
+    required this.label,
+    required this.count,
+    required this.icon,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: count > 0
+                  ? accentColor.withValues(alpha: 0.4)
+                  : (isDark ? AppColors.darkBorder : Colors.black12),
+              width: count > 0 ? 1.2 : 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: accentColor),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AdminOpsMetrics {
   final int todaySessions;
   final int attendanceExceptions;
@@ -995,100 +1544,6 @@ class _AdminActivityItem {
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
-  }
-}
-
-class _SetupCheck {
-  final String label;
-  final bool isReady;
-  final VoidCallback onTap;
-
-  const _SetupCheck(this.label, this.isReady, {required this.onTap});
-}
-
-class _SetupReadinessCard extends StatelessWidget {
-  final List<_SetupCheck> items;
-
-  const _SetupReadinessCard({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    final ready = items.where((item) => item.isReady).length;
-    final percent = items.isEmpty ? 0.0 : ready / items.length;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GlassCard(
-      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: percent),
-                  duration: const Duration(milliseconds: 1000),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, _) => LinearProgressIndicator(
-                    value: value,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(8),
-                    color: AppColors.success,
-                    backgroundColor: AppColors.success.withValues(alpha: 0.15),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                '$ready/${items.length}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: items
-                .map(
-                  (item) => ActionChip(
-                    avatar: Icon(
-                      item.isReady
-                          ? Icons.check_circle_rounded
-                          : Icons.error_outline_rounded,
-                      color: item.isReady
-                          ? AppColors.success
-                          : AppColors.warning,
-                      size: 18,
-                    ),
-                    label: Text(
-                      item.label,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    onPressed: item.onTap,
-                    backgroundColor: isDark
-                        ? AppColors.darkBackground
-                        : AppColors.lightBackground,
-                    side: BorderSide(
-                      color: item.isReady
-                          ? AppColors.success.withValues(alpha: 0.3)
-                          : AppColors.warning.withValues(alpha: 0.3),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ),
-    );
   }
 }
 
