@@ -30,6 +30,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
   List<Question> _questions = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -78,7 +79,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
       case QuestionType.multipleChoice:
         return 'اختيار من متعدد';
       case QuestionType.trueFalse:
-        return 'صح وخطأ';
+        return 'صح أو خطأ';
       case QuestionType.shortAnswer:
         return 'إجابة قصيرة';
       case QuestionType.longAnswer:
@@ -90,11 +91,14 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     if (_selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('لم يتم العثور على مجموعات دراسية مسندة.'),
+          content: Text('يرجى اختيار مجموعة دراسية أولاً.'),
         ),
       );
       return;
     }
+
+    final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
 
     QuestionType selectedType =
         existingQuestion?.questionType ?? QuestionType.multipleChoice;
@@ -130,6 +134,9 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
         correctIdx = existingQuestion.options.indexWhere((o) => o.isCorrect);
         if (correctIdx == -1) correctIdx = 0;
       }
+    } else if (selectedType == QuestionType.trueFalse) {
+      opt1Ctrl.text = 'صواب';
+      opt2Ctrl.text = 'خطأ';
     }
 
     // Short/Long answer specific
@@ -139,7 +146,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
 
     await showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.32),
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -155,387 +163,496 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
 
           return Dialog(
             backgroundColor: surfaceColor,
-            insetPadding: const EdgeInsets.all(16),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
               side: BorderSide(color: borderColor),
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560, maxHeight: 720),
+              constraints: const BoxConstraints(maxWidth: 580, maxHeight: 750),
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        existingQuestion == null
-                            ? 'إضافة سؤال جديد'
-                            : 'تعديل السؤال',
-                        style: AppTypography.displaySmall(textColor),
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<QuestionType>(
-                        initialValue: selectedType,
-                        dropdownColor: isDark
-                            ? AppColors.darkCard
-                            : AppColors.lightCard,
-                        decoration: const InputDecoration(
-                          labelText: 'نوع السؤال',
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: QuestionType.multipleChoice,
-                            child: Text(
-                              'اختيار من متعدد (MCQ)',
-                              style: TextStyle(color: textColor),
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.quiz_rounded,
+                                color: AppColors.primary,
+                                size: 24,
+                              ),
                             ),
-                          ),
-                          DropdownMenuItem(
-                            value: QuestionType.trueFalse,
-                            child: Text(
-                              'صح أو خطأ',
-                              style: TextStyle(color: textColor),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    existingQuestion == null
+                                        ? 'إضافة سؤال جديد لبنك الأسئلة ❓'
+                                        : 'تعديل السؤال ✏️',
+                                    style: AppTypography.titleLarge(textColor).copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'مادة: ${_selectedGroup?.name ?? ""}',
+                                    style: AppTypography.caption(AppColors.primary),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          DropdownMenuItem(
-                            value: QuestionType.shortAnswer,
-                            child: Text(
-                              'إجابة قصيرة',
-                              style: TextStyle(color: textColor),
+                            IconButton(
+                              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                              icon: const Icon(Icons.close_rounded),
                             ),
-                          ),
-                          DropdownMenuItem(
-                            value: QuestionType.longAnswer,
-                            child: Text(
-                              'إجابة مقالية (مطولة)',
-                              style: TextStyle(color: textColor),
-                            ),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) {
-                            setStateDialog(() {
-                              selectedType = v;
-                              if (v == QuestionType.trueFalse) {
-                                opt1Ctrl.text = 'صواب';
-                                opt2Ctrl.text = 'خطأ';
-                                correctIdx = 0;
-                              } else {
-                                opt1Ctrl.clear();
-                                opt2Ctrl.clear();
-                              }
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: promptCtrl,
-                        style: TextStyle(color: textColor),
-                        decoration: const InputDecoration(
-                          labelText: 'نص السؤال أو رأس المسألة',
+                          ],
                         ),
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 8),
-
-                      if (selectedType == QuestionType.multipleChoice) ...[
-                        TextField(
-                          controller: opt1Ctrl,
-                          style: TextStyle(color: textColor),
-                          decoration: const InputDecoration(
-                            labelText: 'الخيار الأول (أ)',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: opt2Ctrl,
-                          style: TextStyle(color: textColor),
-                          decoration: const InputDecoration(
-                            labelText: 'الخيار الثاني (ب)',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: opt3Ctrl,
-                          style: TextStyle(color: textColor),
-                          decoration: const InputDecoration(
-                            labelText: 'الخيار الثالث (ج)',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: opt4Ctrl,
-                          style: TextStyle(color: textColor),
-                          decoration: const InputDecoration(
-                            labelText: 'الخيار الرابع (د)',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<int>(
-                          initialValue: correctIdx,
+                        const Divider(height: 24),
+                        DropdownButtonFormField<QuestionType>(
+                          initialValue: selectedType,
                           dropdownColor: isDark
                               ? AppColors.darkCard
                               : AppColors.lightCard,
                           decoration: const InputDecoration(
-                            labelText: 'الإجابة الصحيحة',
+                            labelText: 'نوع السؤال *',
+                            prefixIcon: Icon(Icons.category_rounded),
                           ),
                           items: [
                             DropdownMenuItem(
-                              value: 0,
+                              value: QuestionType.multipleChoice,
                               child: Text(
-                                'الخيار الأول (أ) هو الصحيح',
+                                'اختيار من متعدد (MCQ)',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                             DropdownMenuItem(
-                              value: 1,
+                              value: QuestionType.trueFalse,
                               child: Text(
-                                'الخيار الثاني (ب) هو الصحيح',
+                                'صح أو خطأ',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                             DropdownMenuItem(
-                              value: 2,
+                              value: QuestionType.shortAnswer,
                               child: Text(
-                                'الخيار الثالث (ج) هو الصحيح',
+                                'إجابة قصيرة',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                             DropdownMenuItem(
-                              value: 3,
+                              value: QuestionType.longAnswer,
                               child: Text(
-                                'الخيار الرابع (د) هو الصحيح',
+                                'إجابة مقالية (مطولة)',
                                 style: TextStyle(color: textColor),
                               ),
                             ),
                           ],
-                          onChanged: (v) {
-                            if (v != null) setStateDialog(() => correctIdx = v);
-                          },
+                          onChanged: isSaving
+                              ? null
+                              : (v) {
+                                  if (v != null) {
+                                    setStateDialog(() {
+                                      selectedType = v;
+                                      if (v == QuestionType.trueFalse) {
+                                        opt1Ctrl.text = 'صواب';
+                                        opt2Ctrl.text = 'خطأ';
+                                        correctIdx = 0;
+                                      } else {
+                                        opt1Ctrl.clear();
+                                        opt2Ctrl.clear();
+                                      }
+                                    });
+                                  }
+                                },
                         ),
-                      ] else if (selectedType == QuestionType.trueFalse) ...[
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<int>(
-                          initialValue: correctIdx,
-                          dropdownColor: isDark
-                              ? AppColors.darkCard
-                              : AppColors.lightCard,
-                          decoration: const InputDecoration(
-                            labelText: 'الإجابة الصحيحة',
-                          ),
-                          items: [
-                            DropdownMenuItem(
-                              value: 0,
-                              child: Text(
-                                'صواب (صح) هي الإجابة الصحيحة',
-                                style: TextStyle(color: textColor),
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 1,
-                              child: Text(
-                                'خطأ هي الإجابة الصحيحة',
-                                style: TextStyle(color: textColor),
-                              ),
-                            ),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) setStateDialog(() => correctIdx = v);
-                          },
-                        ),
-                      ] else ...[
-                        TextField(
-                          controller: explanationCtrl,
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: promptCtrl,
                           style: TextStyle(color: textColor),
                           decoration: const InputDecoration(
-                            labelText: 'الإجابة النموذجية / الشرح والتوضيح',
+                            labelText: 'نص السؤال أو رأس المسألة *',
+                            hintText: 'اكتب نص السؤال بدقة ووضوح...',
+                            prefixIcon: Icon(Icons.help_outline_rounded),
                           ),
                           maxLines: 3,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'يرجى كتابة نص السؤال';
+                            }
+                            return null;
+                          },
                         ),
-                      ],
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: ptsCtrl,
-                        style: TextStyle(color: textColor),
-                        decoration: const InputDecoration(
-                          labelText: 'درجة السؤال (الافتراضية)',
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(
-                              'إلغاء',
-                              style: TextStyle(color: textColor),
+                        const SizedBox(height: 14),
+
+                        if (selectedType == QuestionType.multipleChoice) ...[
+                          Text(
+                            'خيارات الإجابة *',
+                            style: AppTypography.titleSmall(textColor).copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: opt1Ctrl,
+                            style: TextStyle(color: textColor),
+                            decoration: const InputDecoration(
+                              labelText: 'الخيار الأول (أ) *',
+                              prefixIcon: Icon(Icons.looks_one_rounded),
                             ),
-                            onPressed: () async {
-                              if (promptCtrl.text.trim().isEmpty) return;
-                              final nav = Navigator.of(ctx);
-                              try {
-                                List<QuestionOption> opts = [];
-
-                                if (selectedType ==
-                                    QuestionType.multipleChoice) {
-                                  opts = [
-                                    QuestionOption(
-                                      id: '',
-                                      questionId: '',
-                                      text: opt1Ctrl.text.trim(),
-                                      isCorrect: correctIdx == 0,
-                                      orderNumber: 1,
-                                    ),
-                                    QuestionOption(
-                                      id: '',
-                                      questionId: '',
-                                      text: opt2Ctrl.text.trim(),
-                                      isCorrect: correctIdx == 1,
-                                      orderNumber: 2,
-                                    ),
-                                    QuestionOption(
-                                      id: '',
-                                      questionId: '',
-                                      text: opt3Ctrl.text.trim(),
-                                      isCorrect: correctIdx == 2,
-                                      orderNumber: 3,
-                                    ),
-                                    QuestionOption(
-                                      id: '',
-                                      questionId: '',
-                                      text: opt4Ctrl.text.trim(),
-                                      isCorrect: correctIdx == 3,
-                                      orderNumber: 4,
-                                    ),
-                                  ];
-                                } else if (selectedType ==
-                                    QuestionType.trueFalse) {
-                                  opts = [
-                                    QuestionOption(
-                                      id: '',
-                                      questionId: '',
-                                      text: 'صواب',
-                                      isCorrect: correctIdx == 0,
-                                      orderNumber: 1,
-                                    ),
-                                    QuestionOption(
-                                      id: '',
-                                      questionId: '',
-                                      text: 'خطأ',
-                                      isCorrect: correctIdx == 1,
-                                      orderNumber: 2,
-                                    ),
-                                  ];
-                                }
-
-                                final q = Question(
-                                  id: existingQuestion?.id ?? '',
-                                  subjectId: _selectedGroup!.subjectId,
-                                  questionType: selectedType,
-                                  prompt: promptCtrl.text.trim(),
-                                  explanation:
-                                      explanationCtrl.text.trim().isNotEmpty
-                                      ? explanationCtrl.text.trim()
-                                      : null,
-                                  defaultPoints:
-                                      double.tryParse(ptsCtrl.text) ?? 5.0,
-                                  options: opts,
-                                );
-
-                                if (existingQuestion != null) {
-                                  // Check if used in exams
-                                  final res = await Supabase.instance.client
-                                      .from('exam_questions')
-                                      .select('exams(title)')
-                                      .eq('question_id', existingQuestion.id);
-
-                                  if (res.isNotEmpty) {
-                                    // Ask to update all or save as new
-                                    if (!mounted) return;
-                                    final doUpdate = await showDialog<bool>(
-                                      context: context,
-                                      builder: (c) => AlertDialog(
-                                        title: const Text('تنبيه'),
-                                        content: const Text(
-                                          'هذا السؤال مستخدم في امتحانات نشطة. هل تريد تحديثه في كافة الامتحانات، أم حفظه كسؤال جديد منفصل؟',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(c, false),
-                                            child: const Text('حفظ كسؤال جديد'),
-                                          ),
-                                          FilledButton(
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor: AppColors.error,
-                                            ),
-                                            onPressed: () =>
-                                                Navigator.pop(c, true),
-                                            child: const Text('تحديث في الكل'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-
-                                    if (doUpdate == true) {
-                                      await _questionRepo.updateQuestion(
-                                        q,
-                                        opts,
-                                      );
-                                    } else {
-                                      await _questionRepo.createQuestion(
-                                        q,
-                                        opts,
-                                      );
-                                    }
-                                  } else {
-                                    await _questionRepo.updateQuestion(q, opts);
-                                  }
-                                } else {
-                                  await _questionRepo.createQuestion(q, opts);
-                                }
-
-                                nav.pop();
-                                _loadQuestions();
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('تم حفظ السؤال بنجاح!'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('فشل الحفظ: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'الخيار الأول مطلوب';
                               }
+                              return null;
                             },
-                            child: Text(
-                              existingQuestion == null
-                                  ? 'حفظ السؤال'
-                                  : 'تحديث السؤال',
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: opt2Ctrl,
+                            style: TextStyle(color: textColor),
+                            decoration: const InputDecoration(
+                              labelText: 'الخيار الثاني (ب) *',
+                              prefixIcon: Icon(Icons.looks_two_rounded),
                             ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'الخيار الثاني مطلوب';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: opt3Ctrl,
+                            style: TextStyle(color: textColor),
+                            decoration: const InputDecoration(
+                              labelText: 'الخيار الثالث (ج)',
+                              prefixIcon: Icon(Icons.looks_3_rounded),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: opt4Ctrl,
+                            style: TextStyle(color: textColor),
+                            decoration: const InputDecoration(
+                              labelText: 'الخيار الرابع (د)',
+                              prefixIcon: Icon(Icons.looks_4_rounded),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<int>(
+                            initialValue: correctIdx,
+                            dropdownColor: isDark
+                                ? AppColors.darkCard
+                                : AppColors.lightCard,
+                            decoration: const InputDecoration(
+                              labelText: 'الإجابة الصحيحة المعتمدة *',
+                              prefixIcon: Icon(Icons.check_circle_outline_rounded, color: Colors.green),
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: 0,
+                                child: Text(
+                                  'الخيار الأول (أ) هو الصحيح ✔️',
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 1,
+                                child: Text(
+                                  'الخيار الثاني (ب) هو الصحيح ✔️',
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 2,
+                                child: Text(
+                                  'الخيار الثالث (ج) هو الصحيح ✔️',
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 3,
+                                child: Text(
+                                  'الخيار الرابع (د) هو الصحيح ✔️',
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                            ],
+                            onChanged: isSaving
+                                ? null
+                                : (v) {
+                                    if (v != null) setStateDialog(() => correctIdx = v);
+                                  },
+                          ),
+                        ] else if (selectedType == QuestionType.trueFalse) ...[
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<int>(
+                            initialValue: correctIdx,
+                            dropdownColor: isDark
+                                ? AppColors.darkCard
+                                : AppColors.lightCard,
+                            decoration: const InputDecoration(
+                              labelText: 'الإجابة الصحيحة المعتمدة *',
+                              prefixIcon: Icon(Icons.check_circle_outline_rounded, color: Colors.green),
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: 0,
+                                child: Text(
+                                  'صواب (صح) هي الإجابة الصحيحة ✔️',
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 1,
+                                child: Text(
+                                  'خطأ هي الإجابة الصحيحة ✔️',
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
+                            ],
+                            onChanged: isSaving
+                                ? null
+                                : (v) {
+                                    if (v != null) setStateDialog(() => correctIdx = v);
+                                  },
+                          ),
+                        ] else ...[
+                          TextFormField(
+                            controller: explanationCtrl,
+                            style: TextStyle(color: textColor),
+                            decoration: const InputDecoration(
+                              labelText: 'الإجابة النموذجية / الشرح والتوضيح',
+                              hintText: 'اكتب نموذج الإجابة ليظهر للطالب بعد التسليم أو أثناء التصحيح...',
+                              prefixIcon: Icon(Icons.lightbulb_outline_rounded),
+                            ),
+                            maxLines: 3,
                           ),
                         ],
-                      ),
-                    ],
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: ptsCtrl,
+                          style: TextStyle(color: textColor),
+                          decoration: const InputDecoration(
+                            labelText: 'الدرجة الافتراضية للسؤال *',
+                            hintText: 'مثال: 5',
+                            prefixIcon: Icon(Icons.grade_rounded),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'يرجى إدخال درجة السؤال';
+                            }
+                            final val = double.tryParse(v);
+                            if (val == null || val <= 0) {
+                              return 'أدخل درجة صحيحة أكبر من صفر';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                              child: Text(
+                                'إلغاء',
+                                style: TextStyle(color: textColor),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: isSaving
+                                  ? null
+                                  : () async {
+                                      if (!formKey.currentState!.validate()) {
+                                        return;
+                                      }
+
+                                      setStateDialog(() => isSaving = true);
+                                      final nav = Navigator.of(ctx);
+                                      try {
+                                        List<QuestionOption> opts = [];
+
+                                        if (selectedType == QuestionType.multipleChoice) {
+                                          opts.add(
+                                            QuestionOption(
+                                              id: '',
+                                              questionId: '',
+                                              text: opt1Ctrl.text.trim(),
+                                              isCorrect: correctIdx == 0,
+                                              orderNumber: 1,
+                                            ),
+                                          );
+                                          opts.add(
+                                            QuestionOption(
+                                              id: '',
+                                              questionId: '',
+                                              text: opt2Ctrl.text.trim(),
+                                              isCorrect: correctIdx == 1,
+                                              orderNumber: 2,
+                                            ),
+                                          );
+                                          if (opt3Ctrl.text.trim().isNotEmpty) {
+                                            opts.add(
+                                              QuestionOption(
+                                                id: '',
+                                                questionId: '',
+                                                text: opt3Ctrl.text.trim(),
+                                                isCorrect: correctIdx == 2,
+                                                orderNumber: 3,
+                                              ),
+                                            );
+                                          }
+                                          if (opt4Ctrl.text.trim().isNotEmpty) {
+                                            opts.add(
+                                              QuestionOption(
+                                                id: '',
+                                                questionId: '',
+                                                text: opt4Ctrl.text.trim(),
+                                                isCorrect: correctIdx == 3,
+                                                orderNumber: 4,
+                                              ),
+                                            );
+                                          }
+                                        } else if (selectedType == QuestionType.trueFalse) {
+                                          opts = [
+                                            QuestionOption(
+                                              id: '',
+                                              questionId: '',
+                                              text: 'صواب',
+                                              isCorrect: correctIdx == 0,
+                                              orderNumber: 1,
+                                            ),
+                                            QuestionOption(
+                                              id: '',
+                                              questionId: '',
+                                              text: 'خطأ',
+                                              isCorrect: correctIdx == 1,
+                                              orderNumber: 2,
+                                            ),
+                                          ];
+                                        }
+
+                                        final q = Question(
+                                          id: existingQuestion?.id ?? '',
+                                          subjectId: _selectedGroup!.subjectId,
+                                          questionType: selectedType,
+                                          prompt: promptCtrl.text.trim(),
+                                          explanation: explanationCtrl.text.trim().isNotEmpty
+                                              ? explanationCtrl.text.trim()
+                                              : null,
+                                          defaultPoints: double.tryParse(ptsCtrl.text) ?? 5.0,
+                                          options: opts,
+                                        );
+
+                                        if (existingQuestion != null) {
+                                          final res = await Supabase.instance.client
+                                              .from('exam_questions')
+                                              .select('exams(title)')
+                                              .eq('question_id', existingQuestion.id);
+
+                                          if (res.isNotEmpty) {
+                                            if (!mounted) return;
+                                            final doUpdate = await showDialog<bool>(
+                                              context: context,
+                                              builder: (c) => AlertDialog(
+                                                title: const Text('تنبيه هام ⚠️'),
+                                                content: const Text(
+                                                  'هذا السؤال مستخدم في امتحانات نشطة حالياً. هل تريد تحديثه في كافة الامتحانات المرتبطة، أم حفظه كسؤال جديد منفصل؟',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () => Navigator.pop(c, false),
+                                                    child: const Text('حفظ كسؤال جديد'),
+                                                  ),
+                                                  FilledButton(
+                                                    style: FilledButton.styleFrom(
+                                                      backgroundColor: AppColors.error,
+                                                    ),
+                                                    onPressed: () => Navigator.pop(c, true),
+                                                    child: const Text('تحديث في الكل'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+
+                                            if (doUpdate == true) {
+                                              await _questionRepo.updateQuestion(q, opts);
+                                            } else {
+                                              await _questionRepo.createQuestion(q, opts);
+                                            }
+                                          } else {
+                                            await _questionRepo.updateQuestion(q, opts);
+                                          }
+                                        } else {
+                                          await _questionRepo.createQuestion(q, opts);
+                                        }
+
+                                        nav.pop();
+                                        _loadQuestions();
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('تم حفظ السؤال بنجاح في بنك الأسئلة ✔️'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          setStateDialog(() => isSaving = false);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('فشل حفظ السؤال: $e'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              icon: isSaving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.check_circle_rounded),
+                              label: Text(
+                                isSaving
+                                    ? 'جاري الحفظ...'
+                                    : (existingQuestion == null ? 'حفظ السؤال 💾' : 'تحديث السؤال ✔️'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -550,16 +667,20 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذف السؤال'),
-        content: const Text('هل أنت متأكد من حذف هذا السؤال من بنك الأسئلة؟'),
+        title: const Text('حذف السؤال من بنك الأسئلة 🗑️'),
+        content: Text(
+          'هل أنت متأكد من رغبتك في حذف هذا السؤال؟\n'
+          'نص السؤال: "${question.prompt}"',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
+            child: const Text('تراجع'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف'),
+            child: const Text('تأكيد الحذف'),
           ),
         ],
       ),
@@ -569,10 +690,20 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
     try {
       await _questionRepo.deleteQuestion(question.id);
       await _loadQuestions();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف السؤال بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل الحذف: $e')),
+        SnackBar(
+          content: Text('تعذر حذف السؤال: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -628,6 +759,14 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
+    final filteredQuestions = _questions.where((q) {
+      if (_searchQuery.trim().isEmpty) return true;
+      final qStr = _searchQuery.trim().toLowerCase();
+      final inPrompt = q.prompt.toLowerCase().contains(qStr);
+      final inOptions = q.options.any((o) => o.text.toLowerCase().contains(qStr));
+      return inPrompt || inOptions;
+    }).toList();
+
     return Stack(
       children: [
         RefreshIndicator(
@@ -643,13 +782,15 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'حدث خطأ: $_errorMessage',
+                            'حدث خطأ في تحميل البيانات: $_errorMessage',
                             style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
                             onPressed: _loadQuestions,
-                            child: const Text('إعادة المحاولة'),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('إعادة المحاولة'),
                           ),
                         ],
                       ),
@@ -675,7 +816,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                   ? AppColors.darkCard
                                   : AppColors.lightCard,
                               decoration: const InputDecoration(
-                                labelText: 'المجموعة الدراسية',
+                                labelText: 'المجموعة الدراسية المختارة',
+                                prefixIcon: Icon(Icons.group_rounded, color: AppColors.primary),
                                 border: InputBorder.none,
                               ),
                               items: _groups
@@ -698,7 +840,29 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                           ),
                         ),
                       ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    if (_questions.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'ابحث في أسئلة المادة أو خياراتها...',
+                              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onChanged: (val) => setState(() => _searchQuery = val),
+                          ),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
                     if (_selectedGroup == null)
                       SliverFillRemaining(
                         hasScrollBody: false,
@@ -713,8 +877,40 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.quiz_outlined,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'لا توجد أسئلة مضافة في بنك الأسئلة لهذه المادة بعد.',
+                                  style: AppTypography.titleMedium(textColor).copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'اضغط على زر "إضافة سؤال جديد" بالأسفل لبناء بنك أسئلتك.',
+                                  style: AppTypography.bodySmall(subtitleColor),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (filteredQuestions.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
                           child: Text(
-                            'لا توجد أسئلة مضافة في بنك الأسئلة لهذه المجموعة.',
+                            'لا توجد أسئلة تطابق بحثك "$_searchQuery"',
                             style: AppTypography.bodyMedium(subtitleColor),
                           ),
                         ),
@@ -724,95 +920,205 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate((ctx, i) {
-                            final q = _questions[i];
+                            final q = filteredQuestions[i];
                             return FadeInSlide(
-                              duration: Duration(milliseconds: 300 + (i * 50)),
+                              duration: Duration(milliseconds: 250 + (i * 35)),
                               child: Padding(
                                 padding: const EdgeInsets.only(bottom: 12.0),
                                 child: GlassCard(
                                   padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      CircleAvatar(
-                                        backgroundColor: AppColors.primary
-                                            .withValues(alpha: 0.2),
-                                        child: const Icon(
-                                          Icons.help_outline,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              q.prompt,
-                                              maxLines: 4,
-                                              overflow: TextOverflow.ellipsis,
-                                              style:
-                                                  AppTypography.titleMedium(
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          CircleAvatar(
+                                            backgroundColor: AppColors.primary
+                                                .withValues(alpha: 0.15),
+                                            child: Text(
+                                              '${i + 1}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  q.prompt,
+                                                  style: AppTypography.titleMedium(
                                                     textColor,
                                                   ).copyWith(
                                                     fontWeight: FontWeight.bold,
                                                   ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              'النوع: ${_questionTypeName(q.questionType)} | الدرجة: ${q.defaultPoints} درجات',
-                                              style: AppTypography.caption(
-                                                subtitleColor,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      PopupMenuButton<String>(
-                                        tooltip: 'خيارات',
-                                        icon: const Icon(
-                                          Icons.more_vert_rounded,
-                                        ),
-                                        onSelected: (value) {
-                                          if (value == 'edit') {
-                                            _showQuestionEditorDialog(q);
-                                          } else if (value == 'delete') {
-                                            _deleteQuestion(q);
-                                          }
-                                        },
-                                        itemBuilder: (context) => [
-                                          const PopupMenuItem(
-                                            value: 'edit',
-                                            child: ListTile(
-                                              leading: Icon(
-                                                Icons.edit_rounded,
-                                              ),
-                                              title: Text('تعديل'),
-                                              contentPadding: EdgeInsets.zero,
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue.withValues(alpha: 0.1),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        _questionTypeName(q.questionType),
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors.blue,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.amber.withValues(alpha: 0.15),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        '${q.defaultPoints.toStringAsFixed(0)} درجات',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors.amber.shade900,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                          const PopupMenuItem(
-                                            value: 'delete',
-                                            child: ListTile(
-                                              leading: Icon(
-                                                Icons.delete_outline,
-                                                color: AppColors.error,
+                                          PopupMenuButton<String>(
+                                            tooltip: 'خيارات السؤال',
+                                            icon: const Icon(Icons.more_vert_rounded),
+                                            onSelected: (value) {
+                                              if (value == 'edit') {
+                                                _showQuestionEditorDialog(q);
+                                              } else if (value == 'delete') {
+                                                _deleteQuestion(q);
+                                              }
+                                            },
+                                            itemBuilder: (context) => [
+                                              const PopupMenuItem(
+                                                value: 'edit',
+                                                child: ListTile(
+                                                  leading: Icon(
+                                                    Icons.edit_rounded,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                  title: Text('تعديل السؤال'),
+                                                  contentPadding: EdgeInsets.zero,
+                                                ),
                                               ),
-                                              title: Text('حذف'),
-                                              contentPadding: EdgeInsets.zero,
-                                            ),
+                                              const PopupMenuItem(
+                                                value: 'delete',
+                                                child: ListTile(
+                                                  leading: Icon(
+                                                    Icons.delete_outline_rounded,
+                                                    color: AppColors.error,
+                                                  ),
+                                                  title: Text('حذف السؤال'),
+                                                  contentPadding: EdgeInsets.zero,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
+                                      if (q.options.isNotEmpty) ...[
+                                        const SizedBox(height: 12),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: q.options.map((opt) {
+                                            final isCorrect = opt.isCorrect;
+                                            return Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: isCorrect
+                                                    ? Colors.green.withValues(alpha: 0.12)
+                                                    : (isDark
+                                                        ? Colors.white10
+                                                        : Colors.black.withValues(alpha: 0.03)),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: isCorrect
+                                                      ? Colors.green
+                                                      : Colors.grey.withValues(alpha: 0.25),
+                                                  width: isCorrect ? 1.5 : 1,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (isCorrect) ...[
+                                                    const Icon(
+                                                      Icons.check_circle_rounded,
+                                                      size: 14,
+                                                      color: Colors.green,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                  ],
+                                                  Text(
+                                                    opt.text,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: isCorrect
+                                                          ? FontWeight.bold
+                                                          : FontWeight.normal,
+                                                      color: isCorrect
+                                                          ? Colors.green.shade800
+                                                          : textColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                      if (q.explanation != null && q.explanation!.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blueGrey.withValues(alpha: 0.08),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '💡 نموذج الإجابة: ${q.explanation}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.blueGrey,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
                               ),
                             );
-                          }, childCount: _questions.length),
+                          }, childCount: filteredQuestions.length),
                         ),
                       ),
                   ],
@@ -828,7 +1134,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
               backgroundColor: Colors.teal.shade700,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.print_rounded),
-              label: const Text('طباعة كويز ورقي (PDF)'),
+              label: const Text('طباعة كويز ورقي (PDF) 📄'),
             ),
           ),
         if (_selectedGroup != null)
@@ -840,8 +1146,8 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
               onPressed: () => _showQuestionEditorDialog(),
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              icon: const Icon(Icons.add),
-              label: const Text('إضافة سؤال جديد'),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('إضافة سؤال جديد ❓'),
             ),
           ),
       ],

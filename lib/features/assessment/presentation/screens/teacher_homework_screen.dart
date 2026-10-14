@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -83,6 +82,53 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
     }
   }
 
+  String _formatDateTime(DateTime dt) {
+    final d = dt.toLocal();
+    final period = d.hour >= 12 ? 'م' : 'ص';
+    final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final min = d.minute.toString().padLeft(2, '0');
+    return '${d.year}/${d.month}/${d.day} $hour:$min $period';
+  }
+
+  String _questionTypeName(QuestionType type) {
+    switch (type) {
+      case QuestionType.multipleChoice:
+        return 'اختيار من متعدد';
+      case QuestionType.trueFalse:
+        return 'صح أو خطأ';
+      case QuestionType.shortAnswer:
+        return 'إجابة قصيرة';
+      case QuestionType.longAnswer:
+        return 'سؤال مقالي';
+    }
+  }
+
+  String _statusArabic(String status) {
+    switch (status.toLowerCase()) {
+      case 'published':
+        return 'متاح للحل';
+      case 'closed':
+        return 'مغلق';
+      case 'draft':
+        return 'مسودة';
+      default:
+        return status;
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'published':
+        return Colors.green;
+      case 'closed':
+        return Colors.orange;
+      case 'draft':
+        return Colors.grey;
+      default:
+        return AppColors.primary;
+    }
+  }
+
   Future<void> _selectGroup(GroupEntity? group) async {
     setState(() => _selectedGroup = group);
     await _loadGroupsAndHomeworks();
@@ -92,11 +138,13 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
     final group = _selectedGroup;
     if (group == null) return;
 
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final ptsCtrl = TextEditingController(text: '100');
     DateTime? availableFrom;
     DateTime dueAt = DateTime.now().add(const Duration(days: 7));
+    bool isSubmitting = false;
 
     Future<DateTime?> pickDateTime(DateTime initial) async {
       final date = await showDatePicker(
@@ -104,11 +152,15 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
         initialDate: initial,
         firstDate: DateTime.now().subtract(const Duration(days: 1)),
         lastDate: DateTime.now().add(const Duration(days: 365)),
+        confirmText: 'تأكيد',
+        cancelText: 'إلغاء',
       );
       if (date == null || !mounted) return null;
       final time = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(initial),
+        confirmText: 'تأكيد',
+        cancelText: 'إلغاء',
       );
       if (time == null) return null;
       return DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -116,6 +168,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final textColor = isDark
@@ -125,146 +178,261 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) => Dialog(
             backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.all(16),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: GlassCard(
               padding: const EdgeInsets.all(24),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${context.tr('Create Homework for')} ${group.name}',
-                      style: AppTypography.displaySmall(textColor),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: titleCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Homework title'),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.assignment_add,
+                              color: AppColors.primary,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'إضافة واجب جديد 📝',
+                                  style: AppTypography.titleLarge(textColor).copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'مجموعة: ${group.name}',
+                                  style: AppTypography.caption(
+                                    AppColors.primary,
+                                  ).copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: descCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Instructions'),
-                      ),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: ptsCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: context.tr('Max score'),
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.play_circle_outline),
-                      title: Text(context.tr('Opens at')),
-                      subtitle: Text(
-                        availableFrom == null
-                            ? context.tr('Immediately')
-                            : availableFrom!.toLocal().toString(),
-                      ),
-                      trailing: TextButton(
-                        onPressed: () async {
-                          final picked = await pickDateTime(
-                            availableFrom ?? DateTime.now(),
-                          );
-                          if (picked != null) {
-                            setDialogState(() => availableFrom = picked);
+                      const Divider(height: 24),
+                      TextFormField(
+                        controller: titleCtrl,
+                        style: TextStyle(color: textColor),
+                        decoration: const InputDecoration(
+                          labelText: 'عنوان الواجب *',
+                          hintText: 'مثال: واجب الأسبوع الأول - القوى والحركة',
+                          prefixIcon: Icon(Icons.title_rounded),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'يرجى إدخال عنوان الواجب';
                           }
+                          return null;
                         },
-                        child: Text(context.tr('Set')),
                       ),
-                    ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.lock_clock),
-                      title: Text(context.tr('Closes at')),
-                      subtitle: Text(dueAt.toLocal().toString()),
-                      trailing: TextButton(
-                        onPressed: () async {
-                          final picked = await pickDateTime(dueAt);
-                          if (picked != null) {
-                            setDialogState(() => dueAt = picked);
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: descCtrl,
+                        style: TextStyle(color: textColor),
+                        decoration: const InputDecoration(
+                          labelText: 'تعليمات وإرشادات للطلاب (اختياري)',
+                          hintText: 'اكتب أي ملاحظات للطلاب قبل البدء في حل الواجب...',
+                          prefixIcon: Icon(Icons.notes_rounded),
+                        ),
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: ptsCtrl,
+                        style: TextStyle(color: textColor),
+                        decoration: const InputDecoration(
+                          labelText: 'الدرجة الكلية للواجب *',
+                          hintText: 'مثال: 100',
+                          prefixIcon: Icon(Icons.grade_rounded),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'يرجى إدخال الدرجة الكلية للواجب';
                           }
+                          final val = double.tryParse(v);
+                          if (val == null || val <= 0) {
+                            return 'أدخل درجة صحيحة أكبر من صفر';
+                          }
+                          return null;
                         },
-                        child: Text(context.tr('Set')),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(
-                            context.tr('Cancel'),
-                            style: TextStyle(color: textColor),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.2),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () async {
-                            if (titleCtrl.text.trim().isEmpty) return;
-                            final nav = Navigator.of(ctx);
-                            try {
-                              await _homeworkRepo.createHomework(
-                                Homework(
-                                  id: '',
-                                  title: titleCtrl.text.trim(),
-                                  description: descCtrl.text.trim().isEmpty
-                                      ? null
-                                      : descCtrl.text.trim(),
-                                  subjectId: group.subjectId,
-                                  groupId: group.id,
-                                  availableFrom: availableFrom,
-                                  dueAt: dueAt,
-                                  maxScore:
-                                      double.tryParse(ptsCtrl.text) ?? 100.0,
-                                  status: 'published',
-                                ),
-                              );
-                              nav.pop();
-                              await _loadGroupsAndHomeworks();
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    context.tr('Homework published.'),
-                                  ),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            } catch (e) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    '${context.tr('Creation failed')}: $e',
-                                  ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          },
-                          child: Text(context.tr('Publish')),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.play_circle_outline_rounded,
+                                color: Colors.green,
+                              ),
+                              title: const Text('موعد إتاحة الواجب'),
+                              subtitle: Text(
+                                availableFrom == null
+                                    ? 'فور النشر مباشرة'
+                                    : _formatDateTime(availableFrom!),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              trailing: OutlinedButton(
+                                onPressed: () async {
+                                  final picked = await pickDateTime(
+                                    availableFrom ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => availableFrom = picked);
+                                  }
+                                },
+                                child: const Text('تحديد'),
+                              ),
+                            ),
+                            const Divider(height: 12),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.lock_clock_rounded,
+                                color: Colors.orange,
+                              ),
+                              title: const Text('آخر موعد للتسليم (الديدلاين)'),
+                              subtitle: Text(
+                                _formatDateTime(dueAt),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              trailing: OutlinedButton(
+                                onPressed: () async {
+                                  final picked = await pickDateTime(dueAt);
+                                  if (picked != null) {
+                                    setDialogState(() => dueAt = picked);
+                                  }
+                                },
+                                child: const Text('تعديل'),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                            child: Text(
+                              'إلغاء',
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                            ),
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
+                                    if (availableFrom != null &&
+                                        dueAt.isBefore(availableFrom!)) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'يجب أن يكون موعد التسليم بعد موعد إتاحة الواجب',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setDialogState(() => isSubmitting = true);
+                                    final nav = Navigator.of(ctx);
+                                    try {
+                                      await _homeworkRepo.createHomework(
+                                        Homework(
+                                          id: '',
+                                          title: titleCtrl.text.trim(),
+                                          description: descCtrl.text.trim().isEmpty
+                                              ? null
+                                              : descCtrl.text.trim(),
+                                          subjectId: group.subjectId,
+                                          groupId: group.id,
+                                          availableFrom: availableFrom,
+                                          dueAt: dueAt,
+                                          maxScore: double.tryParse(ptsCtrl.text) ?? 100.0,
+                                          status: 'published',
+                                        ),
+                                      );
+                                      nav.pop();
+                                      await _loadGroupsAndHomeworks();
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('تم نشر الواجب لطلاب المجموعة بنجاح 🚀'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      setDialogState(() => isSubmitting = false);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('تعذر إنشاء الواجب: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
+                            icon: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.check_circle_rounded),
+                            label: Text(isSubmitting ? 'جاري النشر...' : 'نشر الواجب للطلاب 🚀'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -283,6 +451,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
         .toSet();
     final Set<String> currentSelectedIds = Set<String>.from(initiallyLinkedIds);
     bool isSaving = false;
+    String filterQuery = '';
 
     showModalBottomSheet(
       context: context,
@@ -298,7 +467,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.8,
+              height: MediaQuery.of(context).size.height * 0.85,
               decoration: BoxDecoration(
                 color: bgColor,
                 borderRadius: const BorderRadius.vertical(
@@ -314,7 +483,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                   if (snapshot.hasError) {
                     return Center(
                       child: Text(
-                        'Error loading questions: ${snapshot.error}',
+                        'خطأ في تحميل الأسئلة: ${snapshot.error}',
                         style: const TextStyle(color: Colors.red),
                       ),
                     );
@@ -323,85 +492,247 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                   final allQuestions = snapshot.data ?? [];
                   if (allQuestions.isEmpty) {
                     return Center(
-                      child: Text(
-                        context.tr('No questions found in Question Bank.'),
-                        style: TextStyle(color: textColor),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.quiz_outlined,
+                              size: 48,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'لا توجد أسئلة مسجلة في بنك الأسئلة لهذه المادة بعد.',
+                              style: TextStyle(color: textColor, fontSize: 15),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'يمكنك إضافة الأسئلة من تبويب بنك الأسئلة ثم ربطها بالواجب.',
+                              style: TextStyle(color: Colors.grey, fontSize: 13),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
 
+                  final displayedQuestions = allQuestions.where((q) {
+                    if (filterQuery.trim().isEmpty) return true;
+                    return q.prompt.toLowerCase().contains(filterQuery.toLowerCase());
+                  }).toList();
+
                   return Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          '${context.tr('Manage Questions for')} ${homework.title}',
-                          style: AppTypography.displaySmall(textColor),
-                          textAlign: TextAlign.center,
+                      // Handle bar
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              'إدارة وتحديد أسئلة الواجب ❓',
+                              style: AppTypography.titleLarge(textColor).copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              homework.title,
+                              style: AppTypography.bodySmall(AppColors.primary),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'ابحث في الأسئلة...',
+                            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onChanged: (val) => setModalState(() => filterQuery = val),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '${currentSelectedIds.length} ${context.tr('Selected')}',
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.bold,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${currentSelectedIds.length} من أصل ${allQuestions.length} سؤال محدد',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
-                            TextButton(
+                            TextButton.icon(
+                              icon: Icon(
+                                currentSelectedIds.length == allQuestions.length
+                                    ? Icons.deselect_rounded
+                                    : Icons.select_all_rounded,
+                                size: 16,
+                              ),
                               onPressed: () {
                                 setModalState(() {
-                                  if (currentSelectedIds.length ==
-                                      allQuestions.length) {
+                                  if (currentSelectedIds.length == allQuestions.length) {
                                     currentSelectedIds.clear();
                                   } else {
-                                    currentSelectedIds.addAll(
-                                      allQuestions.map((q) => q.id),
-                                    );
+                                    currentSelectedIds.addAll(allQuestions.map((q) => q.id));
                                   }
                                 });
                               },
-                              child: Text(
+                              label: Text(
                                 currentSelectedIds.length == allQuestions.length
-                                    ? context.tr('Deselect All')
-                                    : context.tr('Select All'),
+                                    ? 'إلغاء تحديد الكل'
+                                    : 'تحديد الكل',
                               ),
                             ),
                           ],
                         ),
                       ),
+                      const Divider(height: 8),
                       Expanded(
-                        child: ListView.builder(
-                          itemCount: allQuestions.length,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: displayedQuestions.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final q = allQuestions[index];
+                            final q = displayedQuestions[index];
                             final isLinked = currentSelectedIds.contains(q.id);
 
-                            return ListTile(
-                              title: Text(
-                                q.prompt,
-                                style: TextStyle(color: textColor),
-                              ),
-                              subtitle: Text(
-                                '${context.tr(q.questionType.name)} | ${q.defaultPoints} ${context.tr('pts')}',
-                              ),
-                              trailing: Checkbox(
-                                value: isLinked,
-                                activeColor: AppColors.primary,
-                                onChanged: (val) {
-                                  if (val == null) return;
-                                  setModalState(() {
-                                    if (val) {
-                                      currentSelectedIds.add(q.id);
-                                    } else {
-                                      currentSelectedIds.remove(q.id);
-                                    }
-                                  });
-                                },
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                setModalState(() {
+                                  if (isLinked) {
+                                    currentSelectedIds.remove(q.id);
+                                  } else {
+                                    currentSelectedIds.add(q.id);
+                                  }
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isLinked
+                                        ? AppColors.primary
+                                        : Colors.grey.withValues(alpha: 0.2),
+                                    width: isLinked ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: isLinked,
+                                      activeColor: AppColors.primary,
+                                      onChanged: (val) {
+                                        if (val == null) return;
+                                        setModalState(() {
+                                          if (val) {
+                                            currentSelectedIds.add(q.id);
+                                          } else {
+                                            currentSelectedIds.remove(q.id);
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            q.prompt,
+                                            style: TextStyle(
+                                              color: textColor,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  _questionTypeName(q.questionType),
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.amber.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  '${q.defaultPoints.toStringAsFixed(0)} درجات',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.amber.shade900,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -409,7 +740,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                       ),
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: ElevatedButton(
+                        child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -444,11 +775,21 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
 
                                     await _loadGroupsAndHomeworks();
                                     if (ctx.mounted) Navigator.pop(ctx);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'تم تحديث أسئلة الواجب بنجاح (${currentSelectedIds.length} سؤال)',
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
                                   } catch (e) {
                                     if (ctx.mounted) {
                                       ScaffoldMessenger.of(ctx).showSnackBar(
                                         SnackBar(
-                                          content: Text('Error: $e'),
+                                          content: Text('حدث خطأ أثناء الحفظ: $e'),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -459,16 +800,21 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                     }
                                   }
                                 },
-                          child: isSaving
+                          icon: isSaving
                               ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
+                                  height: 20,
+                                  width: 20,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Text(context.tr('Save & Close')),
+                              : const Icon(Icons.check_rounded),
+                          label: Text(
+                            isSaving
+                                ? 'جاري حفظ الأسئلة...'
+                                : 'حفظ الأسئلة (${currentSelectedIds.length} سؤال)',
+                          ),
                         ),
                       ),
                     ],
@@ -486,16 +832,20 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Delete Homework')),
-        content: Text(context.tr('Delete this homework and its submissions?')),
+        title: const Text('حذف الواجب نهائياً 🗑️'),
+        content: Text(
+          'هل أنت متأكد من رغبتك في حذف واجب "${homework.title}"؟\n'
+          'سيتم حذف جميع إجابات وتسليمات الطلاب المرتبطة به نهائياً ولا يمكن التراجع.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('تراجع'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('Delete')),
+            child: const Text('تأكيد الحذف'),
           ),
         ],
       ),
@@ -505,10 +855,20 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
     try {
       await _homeworkRepo.deleteHomework(homework.id);
       await _loadGroupsAndHomeworks();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف الواجب وسجلاته بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Delete failed')}: $e')),
+        SnackBar(
+          content: Text('تعذر حذف الواجب: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -518,20 +878,20 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Close Homework')),
+        title: const Text('إغلاق موعد تسليم الواجب 🔒'),
         content: Text(
-          context.tr(
-            'Students will no longer be able to submit this homework.',
-          ),
+          'هل أنت متأكد من إغلاق موعد تسليم "${homework.title}"؟\n'
+          'لن يتمكن الطلاب من تقديم أي حلول أو تعديل إجاباتهم بعد الإغلاق.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('تراجع'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('Close')),
+            child: const Text('إغلاق الواجب الآن'),
           ),
         ],
       ),
@@ -540,10 +900,20 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
     try {
       await _homeworkRepo.closeHomework(homework.id);
       await _loadGroupsAndHomeworks();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إغلاق موعد تسليم الواجب بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Close failed')}: $e')),
+        SnackBar(
+          content: Text('تعذر إغلاق الواجب: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -616,13 +986,15 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            '${context.tr('Error')}: $_errorMessage',
+                            'حدث خطأ في تحميل البيانات: $_errorMessage',
                             style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
                             onPressed: _loadGroupsAndHomeworks,
-                            child: Text(context.tr('Retry')),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('إعادة المحاولة'),
                           ),
                         ],
                       ),
@@ -646,8 +1018,9 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                             dropdownColor: isDark
                                 ? AppColors.darkCard
                                 : AppColors.lightCard,
-                            decoration: InputDecoration(
-                              labelText: context.tr('Assigned group'),
+                            decoration: const InputDecoration(
+                              labelText: 'المجموعة الدراسية المختارة',
+                              prefixIcon: Icon(Icons.group_rounded, color: AppColors.primary),
                               border: InputBorder.none,
                             ),
                             items: _groups
@@ -672,7 +1045,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                         hasScrollBody: false,
                         child: Center(
                           child: Text(
-                            context.tr('No assigned groups found.'),
+                            'لا توجد مجموعات دراسية مسندة إليك حالياً.',
                             style: AppTypography.bodyMedium(subtitleColor),
                           ),
                         ),
@@ -681,11 +1054,31 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: Center(
-                          child: Text(
-                            context.tr(
-                              'No homework assignments published yet.',
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.assignment_outlined,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'لم تقم بنشر أي واجبات لهذه المجموعة بعد.',
+                                  style: AppTypography.titleMedium(textColor).copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'اضغط على زر "إضافة واجب جديد" بالأسفل لإنشاء أول واجب دراسي.',
+                                  style: AppTypography.bodySmall(subtitleColor),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
-                            style: AppTypography.bodyMedium(subtitleColor),
                           ),
                         ),
                       )
@@ -695,8 +1088,10 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate((ctx, i) {
                             final h = _homeworks[i];
+                            final isClosed = h.status.toLowerCase() == 'closed';
+
                             return FadeInSlide(
-                              duration: Duration(milliseconds: 300 + (i * 50)),
+                              duration: Duration(milliseconds: 250 + (i * 40)),
                               child: Padding(
                                 padding: const EdgeInsets.only(bottom: 12.0),
                                 child: InkWell(
@@ -710,53 +1105,66 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                         Row(
                                           children: [
                                             CircleAvatar(
-                                              backgroundColor: AppColors.primary
-                                                  .withValues(alpha: 0.2),
-                                              child: const Icon(
-                                                Icons.assignment,
-                                                color: AppColors.primary,
+                                              backgroundColor: (isClosed ? Colors.orange : AppColors.primary)
+                                                  .withValues(alpha: 0.15),
+                                              child: Icon(
+                                                isClosed
+                                                    ? Icons.assignment_late_rounded
+                                                    : Icons.assignment_rounded,
+                                                color: isClosed ? Colors.orange : AppColors.primary,
                                               ),
                                             ),
                                             const SizedBox(width: 12),
                                             Expanded(
                                               child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                                crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(
-                                                    h.title,
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style:
-                                                        AppTypography.titleMedium(
-                                                          textColor,
-                                                        ).copyWith(
-                                                          fontWeight: FontWeight.bold,
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          h.title,
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: AppTypography.titleMedium(textColor).copyWith(
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
                                                         ),
+                                                      ),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 2,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: _statusColor(h.status).withValues(alpha: 0.12),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Text(
+                                                          _statusArabic(h.status),
+                                                          style: TextStyle(
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: _statusColor(h.status),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                   const SizedBox(height: 4),
                                                   Text(
-                                                    '${context.tr('Due')}: ${h.dueAt.toLocal().toString().split(' ')[0]} | ${context.tr('Status')}: ${context.tr(h.status)}',
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: AppTypography.caption(
-                                                      subtitleColor,
-                                                    ),
+                                                    'آخر موعد للتسليم: ${_formatDateTime(h.dueAt)}',
+                                                    style: AppTypography.caption(subtitleColor),
                                                   ),
                                                 ],
                                               ),
                                             ),
                                             PopupMenuButton<String>(
-                                              tooltip: context.tr('Actions'),
-                                              icon: const Icon(
-                                                Icons.more_vert_rounded,
-                                              ),
+                                              tooltip: 'خيارات الواجب',
+                                              icon: const Icon(Icons.more_vert_rounded),
                                               onSelected: (value) {
                                                 switch (value) {
                                                   case 'submissions':
-                                                    _showHomeworkSubmissionsDialog(h);
-                                                    break;
-                                                  case 'print_roster':
                                                     _showHomeworkSubmissionsDialog(h);
                                                     break;
                                                   case 'print_sheet':
@@ -766,9 +1174,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                                     _showManageQuestionsBottomSheet(h);
                                                     break;
                                                   case 'close':
-                                                    if (h.status != 'closed') {
-                                                      _closeHomework(h);
-                                                    }
+                                                    _closeHomework(h);
                                                     break;
                                                   case 'delete':
                                                     _deleteHomework(h);
@@ -776,64 +1182,59 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                                 }
                                               },
                                               itemBuilder: (context) => [
-                                                PopupMenuItem(
+                                                const PopupMenuItem(
                                                   value: 'submissions',
                                                   child: ListTile(
-                                                    leading: const Icon(
+                                                    leading: Icon(
                                                       Icons.assignment_turned_in_rounded,
                                                       color: Colors.blue,
                                                     ),
-                                                    title: const Text('كشف التسليمات والتصحيح 📋'),
+                                                    title: Text('كشف التسليمات والتصحيح 📋'),
                                                     contentPadding: EdgeInsets.zero,
                                                   ),
                                                 ),
-                                                PopupMenuItem(
+                                                const PopupMenuItem(
                                                   value: 'print_sheet',
                                                   child: ListTile(
-                                                    leading: const Icon(
+                                                    leading: Icon(
                                                       Icons.print_rounded,
                                                       color: Colors.deepPurple,
                                                     ),
-                                                    title: const Text('طباعة شيت واجب ورقي (PDF) 🖨️'),
+                                                    title: Text('طباعة شيت واجب ورقي (PDF) 🖨️'),
                                                     contentPadding: EdgeInsets.zero,
                                                   ),
                                                 ),
-                                                PopupMenuItem(
+                                                const PopupMenuItem(
                                                   value: 'questions',
                                                   child: ListTile(
-                                                    leading: const Icon(
-                                                      Icons.edit_document,
+                                                    leading: Icon(
+                                                      Icons.quiz_rounded,
+                                                      color: AppColors.primary,
                                                     ),
-                                                    title: Text(
-                                                      context.tr('Manage Questions'),
-                                                    ),
+                                                    title: Text('إدارة وتحديد الأسئلة ❓'),
                                                     contentPadding: EdgeInsets.zero,
                                                   ),
                                                 ),
-                                                PopupMenuItem(
-                                                  value: 'close',
-                                                  enabled: h.status != 'closed',
-                                                  child: ListTile(
-                                                    leading: const Icon(
-                                                      Icons.lock_outline,
-                                                      color: AppColors.warning,
+                                                if (!isClosed)
+                                                  const PopupMenuItem(
+                                                    value: 'close',
+                                                    child: ListTile(
+                                                      leading: Icon(
+                                                        Icons.lock_outline_rounded,
+                                                        color: AppColors.warning,
+                                                      ),
+                                                      title: Text('إغلاق موعد التسليم 🔒'),
+                                                      contentPadding: EdgeInsets.zero,
                                                     ),
-                                                    title: Text(
-                                                      context.tr('Close Homework'),
-                                                    ),
-                                                    contentPadding: EdgeInsets.zero,
                                                   ),
-                                                ),
-                                                PopupMenuItem(
+                                                const PopupMenuItem(
                                                   value: 'delete',
                                                   child: ListTile(
-                                                    leading: const Icon(
-                                                      Icons.delete_outline,
+                                                    leading: Icon(
+                                                      Icons.delete_outline_rounded,
                                                       color: AppColors.error,
                                                     ),
-                                                    title: Text(
-                                                      context.tr('Delete Homework'),
-                                                    ),
+                                                    title: Text('حذف الواجب 🗑️'),
                                                     contentPadding: EdgeInsets.zero,
                                                   ),
                                                 ),
@@ -845,20 +1246,64 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(
-                                              '${h.questions.length} ${context.tr('Questions')} • الدرجة: ${h.maxScore.toStringAsFixed(0)}',
-                                              style: AppTypography.caption(
-                                                AppColors.primary,
-                                              ).copyWith(fontWeight: FontWeight.bold),
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(
+                                                    '${h.questions.length} سؤال',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: AppColors.primary,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.teal.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(
+                                                    'الدرجة: ${h.maxScore.toStringAsFixed(0)}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.teal,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                             FilledButton.tonalIcon(
                                               style: FilledButton.styleFrom(
                                                 visualDensity: VisualDensity.compact,
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 4,
+                                                ),
                                               ),
                                               onPressed: () => _showHomeworkSubmissionsDialog(h),
-                                              icon: const Icon(Icons.assignment_turned_in_rounded, size: 14),
-                                              label: const Text('التسليمات والتصحيح', style: TextStyle(fontSize: 11)),
+                                              icon: const Icon(
+                                                Icons.assignment_turned_in_rounded,
+                                                size: 15,
+                                              ),
+                                              label: const Text(
+                                                'كشف التسليمات والتصحيح',
+                                                style: TextStyle(fontSize: 11),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -882,8 +1327,8 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
               onPressed: _showCreateHomeworkDialog,
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              icon: const Icon(Icons.assignment),
-              label: Text(context.tr('Create Homework')),
+              icon: const Icon(Icons.assignment_add),
+              label: const Text('إضافة واجب جديد 📝'),
             ),
           ),
       ],

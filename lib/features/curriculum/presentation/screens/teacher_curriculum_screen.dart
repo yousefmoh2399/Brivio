@@ -144,332 +144,504 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     await _loadCurriculum();
   }
 
+  String _lessonTypeName(LessonType type) {
+    switch (type) {
+      case LessonType.video:
+        return 'فيديو مسجل (شرح تفصيلي)';
+      case LessonType.pdf:
+        return 'ملزمة ومذكرة PDF';
+      case LessonType.quiz:
+        return 'كويز واختبار تفاعلي';
+      case LessonType.programming:
+        return 'تحدي وتطبيق برمجي';
+      case LessonType.text:
+        return 'ملاحظات وشرح كتابي';
+    }
+  }
+
+  String _lessonStatusName(LessonStatus status) {
+    switch (status) {
+      case LessonStatus.draft:
+        return 'مسودة';
+      case LessonStatus.published:
+        return 'منشور ومتاح للطلاب';
+      case LessonStatus.archived:
+        return 'مؤرشف';
+    }
+  }
+
   void _showCreateSemesterDialog() {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Add Semester / Term')),
-        content: TextField(
-          controller: titleCtrl,
-          decoration: InputDecoration(
-            labelText: context.tr('Semester Title (e.g. Fall 2026)'),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty) return;
-              final nav = Navigator.of(ctx);
-              try {
-                if (_selectedGroup == null) return;
-                final sem = Semester(
-                  id: '',
-                  subjectId: _selectedGroup!.subjectId,
-                  name: titleCtrl.text.trim(),
-                  code: titleCtrl.text
-                      .trim()
-                      .replaceAll(' ', '_')
-                      .toLowerCase(),
-                  orderNumber: _semesters.length + 1,
-                  status: 'active',
-                  units: [],
-                );
-
-                await _semesterRepo.createSemester(sem);
-                nav.pop();
-                _loadCurriculum();
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(context.tr('Add')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCreateUnitDialog(Semester semester) {
-    final titleCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Add Unit to ${semester.name}')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: InputDecoration(labelText: context.tr('Unit Title')),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: descCtrl,
-              decoration: InputDecoration(labelText: context.tr('Description')),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty) return;
-              final nav = Navigator.of(ctx);
-              try {
-                if (_selectedGroup == null) return;
-                final unit = Unit(
-                  id: '',
-                  semesterId: semester.id,
-                  name: titleCtrl.text.trim(),
-                  code: titleCtrl.text
-                      .trim()
-                      .replaceAll(' ', '_')
-                      .toLowerCase(),
-                  orderNumber: semester.units.length + 1,
-                  status: 'active',
-                  lessons: [],
-                );
-
-                await _unitRepo.createUnit(unit);
-                nav.pop();
-                _loadCurriculum();
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(context.tr('Add')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditSemesterDialog(Semester semester) {
-    final titleCtrl = TextEditingController(text: semester.name);
-    final codeCtrl = TextEditingController(text: semester.code);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Edit Semester / Term')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: InputDecoration(labelText: context.tr('Name')),
-            ),
-            TextField(
-              controller: codeCtrl,
-              decoration: InputDecoration(labelText: context.tr('Code')),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty ||
-                  codeCtrl.text.trim().isEmpty) {
-                return;
-              }
-              final nav = Navigator.of(ctx);
-              try {
-                await _semesterRepo.updateSemester(
-                  Semester(
-                    id: semester.id,
-                    subjectId: semester.subjectId,
-                    name: titleCtrl.text.trim(),
-                    code: codeCtrl.text.trim(),
-                    orderNumber: semester.orderNumber,
-                    startDate: semester.startDate,
-                    endDate: semester.endDate,
-                    status: semester.status,
-                    units: semester.units,
-                  ),
-                );
-                nav.pop();
-                _loadCurriculum();
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
-              }
-            },
-            child: Text(context.tr('Save')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditUnitDialog(Unit unit) {
-    final titleCtrl = TextEditingController(text: unit.name);
-    final codeCtrl = TextEditingController(text: unit.code);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Edit Unit')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: InputDecoration(labelText: context.tr('Name')),
-            ),
-            TextField(
-              controller: codeCtrl,
-              decoration: InputDecoration(labelText: context.tr('Code')),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty ||
-                  codeCtrl.text.trim().isEmpty) {
-                return;
-              }
-              final nav = Navigator.of(ctx);
-              try {
-                await _unitRepo.updateUnit(
-                  Unit(
-                    id: unit.id,
-                    semesterId: unit.semesterId,
-                    name: titleCtrl.text.trim(),
-                    code: codeCtrl.text.trim(),
-                    orderNumber: unit.orderNumber,
-                    status: unit.status,
-                    lessons: unit.lessons,
-                  ),
-                );
-                nav.pop();
-                _loadCurriculum();
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
-              }
-            },
-            child: Text(context.tr('Save')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditLessonDialog(Lesson lesson) {
-    final titleCtrl = TextEditingController(text: lesson.title);
-    final durationCtrl = TextEditingController(
-      text: (lesson.estimatedDurationMinutes ?? 30).toString(),
-    );
-    String lessonTypeStr = lesson.lessonType.toDbValue();
+    bool isSaving = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(context.tr('Edit Lesson')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          title: const Row(
             children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(labelText: context.tr('Title')),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: lessonTypeStr,
-                decoration: InputDecoration(labelText: context.tr('Type')),
-                items: const [
-                  DropdownMenuItem(value: 'video', child: Text('Video')),
-                  DropdownMenuItem(value: 'pdf', child: Text('PDF')),
-                  DropdownMenuItem(value: 'text', child: Text('Text')),
-                  DropdownMenuItem(value: 'programming', child: Text('Code')),
-                  DropdownMenuItem(value: 'quiz', child: Text('Quiz')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() => lessonTypeStr = value);
-                  }
-                },
-              ),
-              TextField(
-                controller: durationCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: context.tr('Minutes')),
-              ),
+              Icon(Icons.school_rounded, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('إضافة ترم / فصل دراسي جديد'),
             ],
+          ),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(
+                labelText: 'اسم الترم أو الفصل الدراسي',
+                hintText: 'مثال: الترم الأول 2026/2027',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'يرجى إدخال اسم الترم الدراسي';
+                }
+                return null;
+              },
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                if (titleCtrl.text.trim().isEmpty) return;
-                final nav = Navigator.of(ctx);
-                try {
-                  await _lessonRepo.updateLesson(
-                    Lesson(
-                      id: lesson.id,
-                      unitId: lesson.unitId,
-                      title: titleCtrl.text.trim(),
-                      lessonType: LessonType.fromString(lessonTypeStr),
-                      orderNumber: lesson.orderNumber,
-                      status: lesson.status,
-                      publishedAt: lesson.publishedAt,
-                      estimatedDurationMinutes: int.tryParse(
-                        durationCtrl.text.trim(),
-                      ),
-                      resources: lesson.resources,
-                    ),
-                  );
-                  nav.pop();
-                  _loadCurriculum();
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
-                }
-              },
-              child: Text(context.tr('Save')),
+            FilledButton.icon(
+              icon: isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.add_rounded),
+              label: Text(isSaving ? 'جاري الإضافة...' : 'إضافة الترم'),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      if (_selectedGroup == null) return;
+                      setDialogState(() => isSaving = true);
+                      final nav = Navigator.of(ctx);
+                      try {
+                        final sem = Semester(
+                          id: '',
+                          subjectId: _selectedGroup!.subjectId,
+                          name: titleCtrl.text.trim(),
+                          code: titleCtrl.text
+                              .trim()
+                              .replaceAll(' ', '_')
+                              .toLowerCase(),
+                          orderNumber: _semesters.length + 1,
+                          status: 'active',
+                          units: [],
+                        );
+
+                        await _semesterRepo.createSemester(sem);
+                        nav.pop();
+                        _loadCurriculum();
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل إضافة الترم: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateUnitDialog(Semester semester) {
+    final formKey = GlobalKey<FormState>();
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.folder_open_rounded, color: AppColors.warning),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'إضافة وحدة جديدة إلى ${semester.name}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الوحدة الدراسية',
+                    hintText: 'مثال: الوحدة الأولى: الدوال والمصفوفات',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'يرجى إدخال اسم الوحدة';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'وصف ومحتوى الوحدة (اختياري)',
+                    hintText: 'أبرز المفاهيم التي يتم تغطيتها',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton.icon(
+              icon: isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.add_rounded),
+              label: Text(isSaving ? 'جاري الإضافة...' : 'إضافة الوحدة'),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      if (_selectedGroup == null) return;
+                      setDialogState(() => isSaving = true);
+                      final nav = Navigator.of(ctx);
+                      try {
+                        final unit = Unit(
+                          id: '',
+                          semesterId: semester.id,
+                          name: titleCtrl.text.trim(),
+                          code: titleCtrl.text
+                              .trim()
+                              .replaceAll(' ', '_')
+                              .toLowerCase(),
+                          orderNumber: semester.units.length + 1,
+                          status: 'active',
+                          lessons: [],
+                        );
+
+                        await _unitRepo.createUnit(unit);
+                        nav.pop();
+                        _loadCurriculum();
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل إضافة الوحدة: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditSemesterDialog(Semester semester) {
+    final formKey = GlobalKey<FormState>();
+    final titleCtrl = TextEditingController(text: semester.name);
+    final codeCtrl = TextEditingController(text: semester.code);
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تعديل الفصل الدراسي (الترم)'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الترم',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الترم' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'كود الترم',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'يرجى إدخال كود الترم' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isSaving = true);
+                      final nav = Navigator.of(ctx);
+                      try {
+                        await _semesterRepo.updateSemester(
+                          Semester(
+                            id: semester.id,
+                            subjectId: semester.subjectId,
+                            name: titleCtrl.text.trim(),
+                            code: codeCtrl.text.trim(),
+                            orderNumber: semester.orderNumber,
+                            startDate: semester.startDate,
+                            endDate: semester.endDate,
+                            status: semester.status,
+                            units: semester.units,
+                          ),
+                        );
+                        nav.pop();
+                        _loadCurriculum();
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('فشل التحديث: $e')),
+                        );
+                      }
+                    },
+              child: Text(isSaving ? 'جاري الحفظ...' : 'حفظ التعديل'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditUnitDialog(Unit unit) {
+    final formKey = GlobalKey<FormState>();
+    final titleCtrl = TextEditingController(text: unit.name);
+    final codeCtrl = TextEditingController(text: unit.code);
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تعديل بيانات الوحدة'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الوحدة',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الوحدة' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'كود الوحدة',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'يرجى إدخال كود الوحدة' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isSaving = true);
+                      final nav = Navigator.of(ctx);
+                      try {
+                        await _unitRepo.updateUnit(
+                          Unit(
+                            id: unit.id,
+                            semesterId: unit.semesterId,
+                            name: titleCtrl.text.trim(),
+                            code: codeCtrl.text.trim(),
+                            orderNumber: unit.orderNumber,
+                            status: unit.status,
+                            lessons: unit.lessons,
+                          ),
+                        );
+                        nav.pop();
+                        _loadCurriculum();
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('فشل التحديث: $e')),
+                        );
+                      }
+                    },
+              child: Text(isSaving ? 'جاري الحفظ...' : 'حفظ التعديل'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditLessonDialog(Lesson lesson) {
+    final formKey = GlobalKey<FormState>();
+    final titleCtrl = TextEditingController(text: lesson.title);
+    final durationCtrl = TextEditingController(
+      text: (lesson.estimatedDurationMinutes ?? 45).toString(),
+    );
+    String lessonTypeStr = lesson.lessonType.toDbValue();
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تعديل الحصة / الدرس'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'عنوان الحصة',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'يرجى إدخال عنوان الحصة' : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: lessonTypeStr,
+                  decoration: const InputDecoration(
+                    labelText: 'نوع المحتوى',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'video', child: Text('فيديو مسجل (شرح)')),
+                    DropdownMenuItem(value: 'pdf', child: Text('ملزمة ومذكرة PDF')),
+                    DropdownMenuItem(value: 'text', child: Text('ملاحظات وشرح كتابي')),
+                    DropdownMenuItem(value: 'programming', child: Text('تحدي وتطبيق برمجي')),
+                    DropdownMenuItem(value: 'quiz', child: Text('كويز واختبار تفاعلي')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => lessonTypeStr = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: durationCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'مدة الشرح المتوقعة (بالدقائق)',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'يرجى تحديد المدة';
+                    }
+                    final d = int.tryParse(v.trim());
+                    if (d == null || d <= 0) {
+                      return 'يرجى إدخال رقم صحيح أكبر من 0';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isSaving = true);
+                      final nav = Navigator.of(ctx);
+                      try {
+                        await _lessonRepo.updateLesson(
+                          Lesson(
+                            id: lesson.id,
+                            unitId: lesson.unitId,
+                            title: titleCtrl.text.trim(),
+                            lessonType: LessonType.fromString(lessonTypeStr),
+                            orderNumber: lesson.orderNumber,
+                            status: lesson.status,
+                            publishedAt: lesson.publishedAt,
+                            estimatedDurationMinutes: int.tryParse(
+                              durationCtrl.text.trim(),
+                            ),
+                            resources: lesson.resources,
+                          ),
+                        );
+                        nav.pop();
+                        _loadCurriculum();
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('فشل التحديث: $e')),
+                        );
+                      }
+                    },
+              child: Text(isSaving ? 'جاري الحفظ...' : 'حفظ التعديل'),
             ),
           ],
         ),
@@ -478,49 +650,65 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
   }
 
   void _showEditResourceDialog(LessonResource resource) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController(text: resource.title);
+    bool isSaving = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Edit Resource')),
-        content: TextField(
-          controller: titleCtrl,
-          decoration: InputDecoration(labelText: context.tr('Title')),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تعديل اسم المورد / الملزمة'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(
+                labelText: 'اسم الملف / الملزمة',
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'يرجى إدخال اسم المورد' : null,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isSaving = true);
+                      final nav = Navigator.of(ctx);
+                      try {
+                        await _resourceRepo.updateResource(
+                          LessonResource(
+                            id: resource.id,
+                            lessonId: resource.lessonId,
+                            resourceType: resource.resourceType,
+                            title: titleCtrl.text.trim(),
+                            bucket: resource.bucket,
+                            objectPath: resource.objectPath,
+                            orderNumber: resource.orderNumber,
+                          ),
+                        );
+                        nav.pop();
+                        _loadCurriculum();
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('فشل التحديث: $e')),
+                        );
+                      }
+                    },
+              child: Text(isSaving ? 'جاري الحفظ...' : 'حفظ'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Cancel')),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty) return;
-              final nav = Navigator.of(ctx);
-              try {
-                await _resourceRepo.updateResource(
-                  LessonResource(
-                    id: resource.id,
-                    lessonId: resource.lessonId,
-                    resourceType: resource.resourceType,
-                    title: titleCtrl.text.trim(),
-                    bucket: resource.bucket,
-                    objectPath: resource.objectPath,
-                    orderNumber: resource.orderNumber,
-                  ),
-                );
-                nav.pop();
-                _loadCurriculum();
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
-              }
-            },
-            child: Text(context.tr('Save')),
-          ),
-        ],
       ),
     );
   }
@@ -529,16 +717,23 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+            const SizedBox(width: 8),
+            Text(title),
+          ],
+        ),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
-          ElevatedButton(
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('Delete')),
+            child: const Text('تأكيد الحذف'),
           ),
         ],
       ),
@@ -547,85 +742,151 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
   }
 
   void _showCreateLessonDialog(Unit unit) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
+    final durationCtrl = TextEditingController(text: '45');
     String lessonTypeStr = 'video';
+    bool isSaving = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text('${context.tr('Create Lesson in')} ${unit.name}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+            title: Row(
               children: [
-                TextField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Lesson Title'),
+                const Icon(Icons.play_circle_outline_rounded, color: AppColors.success),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'إضافة حصة جديدة في ${unit.name}',
+                    style: const TextStyle(fontSize: 16),
                   ),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: lessonTypeStr,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Lesson Type'),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: 'video',
-                      child: Text(context.tr('Video')),
-                    ),
-                    DropdownMenuItem(
-                      value: 'pdf',
-                      child: Text(context.tr('PDF')),
-                    ),
-                    DropdownMenuItem(
-                      value: 'quiz',
-                      child: Text(context.tr('Interactive Quiz')),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => lessonTypeStr = v);
-                  },
                 ),
               ],
             ),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'عنوان الحصة أو الدرس',
+                      hintText: 'مثال: الحصة الأولى - الشرح التمهيدي',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'يرجى إدخال عنوان الحصة';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: lessonTypeStr,
+                    decoration: const InputDecoration(
+                      labelText: 'نوع المحتوى الرئيسي',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'video',
+                        child: Text('فيديو مسجل (شرح تفصيلي)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'pdf',
+                        child: Text('ملزمة ومذكرة PDF'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'quiz',
+                        child: Text('كويز واختبار تفاعلي'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'programming',
+                        child: Text('تحدي وتطبيق برمجي'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'text',
+                        child: Text('ملاحظات وشرح كتابي'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => lessonTypeStr = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: durationCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'مدة الشرح المتوقعة (بالدقائق)',
+                      hintText: 'مثال: 45',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'يرجى تحديد المدة';
+                      }
+                      final d = int.tryParse(v.trim());
+                      if (d == null || d <= 0) {
+                        return 'يرجى إدخال رقم صحيح أكبر من 0';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('Cancel')),
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (titleCtrl.text.trim().isEmpty) return;
-                  final nav = Navigator.of(ctx);
-                  try {
-                    final newLesson = Lesson(
-                      id: '',
-                      unitId: unit.id,
-                      title: titleCtrl.text.trim(),
-                      lessonType: LessonType.fromString(lessonTypeStr),
-                      orderNumber: unit.lessons.length + 1,
-                      status: LessonStatus.draft,
-                    );
+              FilledButton.icon(
+                icon: isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.add_rounded),
+                label: Text(isSaving ? 'جاري الإنشاء...' : 'إنشاء الحصة'),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setStateDialog(() => isSaving = true);
+                        final nav = Navigator.of(ctx);
+                        try {
+                          final newLesson = Lesson(
+                            id: '',
+                            unitId: unit.id,
+                            title: titleCtrl.text.trim(),
+                            lessonType: LessonType.fromString(lessonTypeStr),
+                            orderNumber: unit.lessons.length + 1,
+                            status: LessonStatus.draft,
+                            estimatedDurationMinutes:
+                                int.tryParse(durationCtrl.text.trim()) ?? 45,
+                          );
 
-                    await _lessonRepo.createLesson(newLesson);
-                    nav.pop();
-                    _loadCurriculum();
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${context.tr('Failed to create lesson')}: $e',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: Text(context.tr('Create Lesson')),
+                          await _lessonRepo.createLesson(newLesson);
+                          nav.pop();
+                          _loadCurriculum();
+                        } catch (e) {
+                          setStateDialog(() => isSaving = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل إنشاء الحصة: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
               ),
             ],
           );
@@ -635,85 +896,109 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
   }
 
   void _showUploadResourceDialog(Lesson lesson) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController(
-      text: '${lesson.title} PDF Resource',
+      text: 'شيت ملزمة ${lesson.title}',
     );
     XFile? selectedFile;
     bool isUploading = false;
     final messenger = ScaffoldMessenger.of(context);
-    final successStr = context.tr('PDF uploaded and attached.');
-    final failStr = context.tr('Upload failed');
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('${context.tr('Upload PDF')} (${lesson.title})'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          title: Row(
             children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Resource Title'),
+              const Icon(Icons.picture_as_pdf_rounded, color: AppColors.error),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'رفع ملزمة PDF (${lesson.title})',
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: isUploading
-                    ? null
-                    : () async {
-                        final file = await openFile(
-                          acceptedTypeGroups: const [
-                            XTypeGroup(
-                              label: 'PDF',
-                              extensions: ['pdf'],
-                              mimeTypes: ['application/pdf'],
-                            ),
-                          ],
-                        );
-                        if (file == null) return;
-                        setDialogState(() {
-                          selectedFile = file;
-                          if (titleCtrl.text.trim().isEmpty) {
-                            titleCtrl.text = file.name;
-                          }
-                        });
-                      },
-                icon: const Icon(Icons.picture_as_pdf),
-                label: Text(context.tr('Choose PDF')),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                selectedFile == null
-                    ? context.tr('No PDF selected.')
-                    : '${context.tr('Selected')}: ${selectedFile!.name}',
-                textAlign: TextAlign.center,
-              ),
-              if (isUploading) ...[
-                const SizedBox(height: 16),
-                const LinearProgressIndicator(),
-              ],
             ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'عنوان الشيت أو الملزمة',
+                    hintText: 'مثال: ملخص الدرس وأسئلة الواجب',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'يرجى كتابة عنوان الملزمة' : null,
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: isUploading
+                      ? null
+                      : () async {
+                          final file = await openFile(
+                            acceptedTypeGroups: const [
+                              XTypeGroup(
+                                label: 'PDF',
+                                extensions: ['pdf'],
+                                mimeTypes: ['application/pdf'],
+                              ),
+                            ],
+                          );
+                          if (file == null) return;
+                          setDialogState(() {
+                            selectedFile = file;
+                            if (titleCtrl.text.trim().isEmpty) {
+                              titleCtrl.text = file.name;
+                            }
+                          });
+                        },
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: const Text('اختر ملف PDF من الجهاز'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  selectedFile == null
+                      ? 'لم يتم اختيار ملف PDF بعد'
+                      : 'الملف المختار: ${selectedFile!.name}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: selectedFile == null ? Colors.grey : AppColors.primary,
+                    fontWeight: selectedFile == null ? FontWeight.normal : FontWeight.bold,
+                  ),
+                ),
+                if (isUploading) ...[
+                  const SizedBox(height: 16),
+                  const LinearProgressIndicator(),
+                ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: isUploading ? null : () => Navigator.pop(ctx),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.cloud_upload),
-              label: Text(context.tr('Upload & Attach')),
+            FilledButton.icon(
+              icon: const Icon(Icons.cloud_upload_rounded),
+              label: Text(isUploading ? 'جاري الرفع والإرفاق...' : 'رفع وإرفاق بالحصة'),
               onPressed: isUploading
                   ? null
                   : () async {
+                      if (!formKey.currentState!.validate()) return;
                       final file = selectedFile;
-                      final bytes = file == null
-                          ? null
-                          : await file.readAsBytes();
-                      if (titleCtrl.text.trim().isEmpty ||
-                          file == null ||
-                          bytes == null) {
+                      if (file == null) {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('يرجى اختيار ملف PDF أولاً من جهازك.'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
                         return;
                       }
 
@@ -754,8 +1039,8 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         await _loadCurriculum();
                         if (mounted) {
                           messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(successStr),
+                            const SnackBar(
+                              content: Text('تم رفع وإرفاق ملزمة PDF بنجاح! 📄'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -767,7 +1052,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                         if (mounted) {
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text('$failStr: $e'),
+                              content: Text('فشل الرفع: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -814,14 +1099,14 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          '${context.tr('Error')}: $_errorMessage',
+                          'حدث خطأ: $_errorMessage',
                           style: AppTypography.bodyMedium(AppColors.error),
                         ),
                         const SizedBox(height: 8),
                         ElevatedButton(
                           onPressed: _loadCurriculum,
                           child: Text(
-                            context.tr('Retry'),
+                            'إعادة المحاولة',
                             style: AppTypography.labelMedium(textColor),
                           ),
                         ),
@@ -847,10 +1132,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                           SliverFillRemaining(
                             child: Center(
                               child: Text(
-                                context.tr(
-                                  'No semesters found for your taught subjects.',
-                                ),
+                                'لا توجد فصول دراسية (تيرمات) مسجلة لمادتك حتى الآن. يمكنك إضافة تيرم جديد للبدء.',
                                 style: AppTypography.bodyMedium(subtitleColor),
+                                textAlign: TextAlign.center,
                               ),
                             ),
                           ),
@@ -867,9 +1151,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                       onPressed: _showCreateSemesterDialog,
                       backgroundColor: AppColors.primary,
                       icon: const Icon(Icons.add, color: Colors.white),
-                      label: Text(
-                        context.tr('Add Semester / Term'),
-                        style: const TextStyle(color: Colors.white),
+                      label: const Text(
+                        'إضافة ترم / فصل دراسي جديد',
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                   ),
@@ -897,39 +1181,41 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                             padding: EdgeInsets.zero,
                             child: ExpansionTile(
                               leading: const CircleIcon(
-                                icon: Icons.school,
+                                icon: Icons.school_rounded,
                                 color: AppColors.primary,
                               ),
                               title: Text(
                                 sem.name,
-                                style: AppTypography.titleMedium(textColor),
+                                style: AppTypography.titleMedium(textColor).copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               subtitle: Text(
-                                '${context.tr('Code')}: ${sem.code} | ${context.tr('Units')}: ${sem.units.length}',
+                                'الكود: ${sem.code} | الوحدات: ${sem.units.length} وحدة',
                                 style: AppTypography.bodySmall(subtitleColor),
                               ),
                               trailing: _CurriculumActionMenu(
                                 actions: [
                                   _CurriculumAction(
-                                    icon: Icons.edit,
-                                    label: context.tr('Edit Semester'),
+                                    icon: Icons.edit_rounded,
+                                    label: 'تعديل الترم',
                                     onPressed: () =>
                                         _showEditSemesterDialog(sem),
                                   ),
                                   _CurriculumAction(
-                                    icon: Icons.add_circle_outline,
+                                    icon: Icons.add_circle_outline_rounded,
                                     color: AppColors.primary,
-                                    label: context.tr('Add Unit'),
+                                    label: 'إضافة وحدة دراسية',
                                     onPressed: () => _showCreateUnitDialog(sem),
                                   ),
                                   _CurriculumAction(
-                                    icon: Icons.delete_outline,
+                                    icon: Icons.delete_outline_rounded,
                                     color: AppColors.error,
-                                    label: context.tr('Delete Semester'),
+                                    label: 'حذف الترم بالكامل',
                                     onPressed: () async {
                                       if (!await _confirmDelete(
-                                        'Delete Semester',
-                                        'Delete ${sem.name} and all its units?',
+                                        'حذف الترم الدراسي',
+                                        'هل أنت متأكد من حذف ${sem.name} وكافة الوحدات والحصص التابعة له؟',
                                       )) {
                                         return;
                                       }
@@ -943,20 +1229,20 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                               ),
                               children: sem.units.map((unit) {
                                 return Padding(
-                                  padding: const EdgeInsets.only(left: 16.0),
+                                  padding: const EdgeInsets.only(right: 16.0),
                                   child: ExpansionTile(
                                     leading: const CircleIcon(
-                                      icon: Icons.folder,
+                                      icon: Icons.folder_rounded,
                                       color: AppColors.warning,
                                     ),
                                     title: Text(
                                       unit.name,
                                       style: AppTypography.titleSmall(
                                         textColor,
-                                      ),
+                                      ).copyWith(fontWeight: FontWeight.bold),
                                     ),
                                     subtitle: Text(
-                                      '${context.tr('Lessons')}: ${unit.lessons.length}',
+                                      'الحصص: ${unit.lessons.length} حصة',
                                       style: AppTypography.bodySmall(
                                         subtitleColor,
                                       ),
@@ -964,26 +1250,26 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                     trailing: _CurriculumActionMenu(
                                       actions: [
                                         _CurriculumAction(
-                                          icon: Icons.edit,
-                                          label: context.tr('Edit Unit'),
+                                          icon: Icons.edit_rounded,
+                                          label: 'تعديل الوحدة',
                                           onPressed: () =>
                                               _showEditUnitDialog(unit),
                                         ),
                                         _CurriculumAction(
-                                          icon: Icons.add_circle_outline,
+                                          icon: Icons.add_circle_outline_rounded,
                                           color: AppColors.warning,
-                                          label: context.tr('Add Lesson'),
+                                          label: 'إضافة حصة / درس',
                                           onPressed: () =>
                                               _showCreateLessonDialog(unit),
                                         ),
                                         _CurriculumAction(
-                                          icon: Icons.delete_outline,
+                                          icon: Icons.delete_outline_rounded,
                                           color: AppColors.error,
-                                          label: context.tr('Delete Unit'),
+                                          label: 'حذف الوحدة',
                                           onPressed: () async {
                                             if (!await _confirmDelete(
-                                              'Delete Unit',
-                                              'Delete ${unit.name} and all its lessons?',
+                                              'حذف الوحدة الدراسية',
+                                              'هل أنت متأكد من حذف ${unit.name} وكافة الحصص التابعة لها؟',
                                             )) {
                                               return;
                                             }
@@ -1000,20 +1286,20 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
 
                                       return ExpansionTile(
                                         leading: const CircleIcon(
-                                          icon: Icons.play_circle_outline,
+                                          icon: Icons.play_circle_outline_rounded,
                                           color: AppColors.success,
                                         ),
                                         title: Text(
                                           lesson.title,
                                           style: AppTypography.bodyLarge(
                                             textColor,
-                                          ),
+                                          ).copyWith(fontWeight: FontWeight.w600),
                                         ),
                                         subtitle: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              '${context.tr('Type')}: ${context.tr(lesson.lessonType.name)} | ${context.tr('Status')}: ${context.tr(lesson.status.name)}',
+                                              'النوع: ${_lessonTypeName(lesson.lessonType)} | الحالة: ${_lessonStatusName(lesson.status)} | المدة: ${lesson.estimatedDurationMinutes ?? 45} دقيقة',
                                               style: AppTypography.bodySmall(
                                                 subtitleColor,
                                               ),
@@ -1025,9 +1311,9 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 size: 16,
                                                 color: AppColors.primary,
                                               ),
-                                              label: Text(
-                                                context.tr('سبورة شرح الدرس'),
-                                                style: const TextStyle(
+                                              label: const Text(
+                                                'سبورة شرح الدرس 🎨',
+                                                style: TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -1041,33 +1327,29 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                             _CurriculumAction(
                                               icon: Icons.draw_rounded,
                                               color: AppColors.primary,
-                                              label: context.tr('سبورة شرح الدرس'),
+                                              label: 'سبورة شرح الدرس',
                                               onPressed: () =>
                                                   _openLessonBoard(unit, lesson),
                                             ),
                                             _CurriculumAction(
-                                              icon: Icons.edit,
-                                              label: context.tr('Edit Lesson'),
+                                              icon: Icons.edit_rounded,
+                                              label: 'تعديل الحصة',
                                               onPressed: () =>
                                                   _showEditLessonDialog(lesson),
                                             ),
                                             _CurriculumAction(
-                                              icon: Icons.attach_file,
+                                              icon: Icons.attach_file_rounded,
                                               color: AppColors.purple,
-                                              label: context.tr(
-                                                'Upload Resource',
-                                              ),
+                                              label: 'رفع ملزمة / مذكرة PDF',
                                               onPressed: () =>
                                                   _showUploadResourceDialog(
                                                     lesson,
                                                   ),
                                             ),
                                             _CurriculumAction(
-                                              icon: Icons.code,
+                                              icon: Icons.code_rounded,
                                               color: AppColors.info,
-                                              label: context.tr(
-                                                'Code Challenges',
-                                              ),
+                                              label: 'التحديات البرمجية',
                                               onPressed: () =>
                                                   _showCodeChallengesDialog(
                                                     lesson,
@@ -1075,14 +1357,12 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                             ),
                                             _CurriculumAction(
                                               icon: isPublished
-                                                  ? Icons.visibility
-                                                  : Icons.visibility_off,
+                                                  ? Icons.visibility_rounded
+                                                  : Icons.visibility_off_rounded,
                                               color: isPublished
                                                   ? AppColors.success
                                                   : AppColors.darkTextSecondary,
-                                              label: context.tr(
-                                                'Toggle Publish',
-                                              ),
+                                              label: isPublished ? 'إلغاء النشر (تحويل لمسودة)' : 'نشر الحصة للطلاب',
                                               onPressed: () async {
                                                 await _lessonRepo.publishLesson(
                                                   lesson.id,
@@ -1092,15 +1372,13 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                               },
                                             ),
                                             _CurriculumAction(
-                                              icon: Icons.delete_outline,
+                                              icon: Icons.delete_outline_rounded,
                                               color: AppColors.error,
-                                              label: context.tr(
-                                                'Delete Lesson',
-                                              ),
+                                              label: 'حذف الحصة بالكامل',
                                               onPressed: () async {
                                                 if (!await _confirmDelete(
-                                                  'Delete Lesson',
-                                                  'Delete ${lesson.title} and its files?',
+                                                  'حذف الحصة',
+                                                  'هل تريد حذف ${lesson.title} ومرفقاتها؟',
                                                 )) {
                                                   return;
                                                 }
@@ -1121,7 +1399,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                             type: MaterialType.transparency,
                                             child: ListTile(
                                               leading: const Icon(
-                                                Icons.picture_as_pdf,
+                                                Icons.picture_as_pdf_rounded,
                                                 color: AppColors.error,
                                               ),
                                               title: Text(
@@ -1132,11 +1410,11 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                               ),
                                               subtitle: Text(
                                                 [
-                                                  res.bucket,
+                                                  'ملزمة مرفقة',
                                                   resourceFileName.isEmpty
                                                       ? res.resourceType
                                                       : resourceFileName,
-                                                ].join(' / '),
+                                                ].join(' • '),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: AppTypography.bodySmall(
@@ -1147,25 +1425,25 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                 children: [
                                                   IconButton(
                                                     icon: const Icon(
-                                                      Icons.edit,
+                                                      Icons.edit_rounded,
+                                                      size: 20,
                                                     ),
                                                     onPressed: () =>
                                                         _showEditResourceDialog(
                                                           res,
                                                         ),
-                                                    tooltip: context.tr(
-                                                      'Edit Resource',
-                                                    ),
+                                                    tooltip: 'تعديل اسم المورد',
                                                   ),
                                                   IconButton(
                                                     icon: const Icon(
-                                                      Icons.delete_outline,
+                                                      Icons.delete_outline_rounded,
                                                       color: AppColors.error,
+                                                      size: 20,
                                                     ),
                                                     onPressed: () async {
                                                       if (!await _confirmDelete(
-                                                        'Delete Resource',
-                                                        'Delete ${res.title}?',
+                                                        'حذف الملف المرفق',
+                                                        'هل أنت متأكد من حذف ${res.title}؟',
                                                       )) {
                                                         return;
                                                       }
@@ -1175,9 +1453,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                                                           );
                                                       _loadCurriculum();
                                                     },
-                                                    tooltip: context.tr(
-                                                      'Delete Resource',
-                                                    ),
+                                                    tooltip: 'حذف الملف',
                                                   ),
                                                 ],
                                               ),
@@ -1263,10 +1539,10 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     final summary = StudyLessonSummary(
       id: lesson.id,
       title: lesson.title,
-      pathName: 'Curriculum',
+      pathName: 'المنهج الدراسي',
       unitName: unit.name,
       progressPercentage: 0,
-      estimatedMinutes: 30,
+      estimatedMinutes: lesson.estimatedDurationMinutes ?? 45,
       lastPage: 1,
       totalPages: 0,
       xp: 0,
@@ -1288,6 +1564,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
     );
   }
 }
+
 
 class _CurriculumAction {
   final IconData icon;
@@ -1485,7 +1762,18 @@ class _LessonCodeChallengeDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('${context.tr('Code Challenges')} - ${widget.lesson.title}'),
+      title: Row(
+        children: [
+          const Icon(Icons.code_rounded, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'التحديات البرمجية - ${widget.lesson.title}',
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
       content: SizedBox(
         width: 760,
         child: SingleChildScrollView(
@@ -1499,17 +1787,16 @@ class _LessonCodeChallengeDialogState
               ],
               Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Text(
-                      context.tr(
-                        'Published challenges appear in the student code workspace.',
-                      ),
+                      'تظهر التحديات المنشورة مباشرة للطلاب في المختبر البرمجي لحلها واختبارها.',
+                      style: TextStyle(fontSize: 12),
                     ),
                   ),
                   IconButton(
-                    tooltip: context.tr('Refresh'),
+                    tooltip: 'تحديث القائمة',
                     onPressed: _isLoading ? null : _loadChallenges,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Icons.refresh_rounded),
                   ),
                 ],
               ),
@@ -1517,7 +1804,10 @@ class _LessonCodeChallengeDialogState
               if (_isLoading)
                 const LinearProgressIndicator()
               else if (_challenges.isEmpty)
-                Text(context.tr('No challenges created for this lesson yet.'))
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('لا توجد تحديات برمجية مضافة لهذه الحصة حتى الآن.'),
+                )
               else
                 ..._challenges.map(
                   (challenge) => Card(
@@ -1530,26 +1820,26 @@ class _LessonCodeChallengeDialogState
                             ? Colors.green
                             : Colors.grey,
                       ),
-                      title: Text(challenge.title),
+                      title: Text(challenge.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                        '${challenge.difficulty} | ${challenge.xpReward} XP | '
-                        '${challenge.testCaseCount} cases | '
-                        '${challenge.passedCount}/${challenge.attemptsCount} passed',
+                        'الصعوبة: ${challenge.difficulty == 'easy' ? 'سهل' : challenge.difficulty == 'medium' ? 'متوسط' : 'صعب'} | ${challenge.xpReward} نقطة XP | '
+                        '${challenge.testCaseCount} حالات اختبار | '
+                        '${challenge.passedCount}/${challenge.attemptsCount} اجتازوا التحدي',
                       ),
                       trailing: DropdownButton<String>(
                         value: challenge.status,
-                        items: [
+                        items: const [
                           DropdownMenuItem(
                             value: 'draft',
-                            child: Text(context.tr('draft')),
+                            child: Text('مسودة'),
                           ),
                           DropdownMenuItem(
                             value: 'published',
-                            child: Text(context.tr('published')),
+                            child: Text('منشور'),
                           ),
                           DropdownMenuItem(
                             value: 'archived',
-                            child: Text(context.tr('archived')),
+                            child: Text('مؤرشف'),
                           ),
                         ],
                         onChanged: (value) {
@@ -1563,22 +1853,29 @@ class _LessonCodeChallengeDialogState
                   ),
                 ),
               const Divider(height: 28),
-              Text(
-                context.tr('Create Challenge'),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              const Text(
+                'إضافة تحدي برمجي جديد',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
+              const SizedBox(height: 8),
               TextField(
                 controller: _titleCtrl,
-                decoration: InputDecoration(labelText: context.tr('Title')),
+                decoration: const InputDecoration(
+                  labelText: 'عنوان التحدي البرمجي',
+                  hintText: 'مثال: جمع عددين صحيحين',
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _descriptionCtrl,
-                decoration: InputDecoration(
-                  labelText: context.tr('Description'),
+                decoration: const InputDecoration(
+                  labelText: 'شرح ومسألة التحدي البرمجي بالتفصيل',
+                  border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -1587,21 +1884,22 @@ class _LessonCodeChallengeDialogState
                     width: 180,
                     child: DropdownButtonFormField<String>(
                       initialValue: _difficulty,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Difficulty'),
+                      decoration: const InputDecoration(
+                        labelText: 'مستوى الصعوبة',
+                        border: OutlineInputBorder(),
                       ),
-                      items: [
+                      items: const [
                         DropdownMenuItem(
                           value: 'easy',
-                          child: Text(context.tr('easy')),
+                          child: Text('سهل'),
                         ),
                         DropdownMenuItem(
                           value: 'medium',
-                          child: Text(context.tr('medium')),
+                          child: Text('متوسط'),
                         ),
                         DropdownMenuItem(
                           value: 'hard',
-                          child: Text(context.tr('hard')),
+                          child: Text('صعب'),
                         ),
                       ],
                       onChanged: (value) {
@@ -1616,24 +1914,28 @@ class _LessonCodeChallengeDialogState
                     child: TextField(
                       controller: _xpCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: InputDecoration(labelText: context.tr('XP')),
+                      decoration: const InputDecoration(
+                        labelText: 'مكافأة XP',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
                   SizedBox(
                     width: 180,
                     child: DropdownButtonFormField<String>(
                       initialValue: _status,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Status'),
+                      decoration: const InputDecoration(
+                        labelText: 'حالة التحدي',
+                        border: OutlineInputBorder(),
                       ),
-                      items: [
+                      items: const [
                         DropdownMenuItem(
                           value: 'draft',
-                          child: Text(context.tr('draft')),
+                          child: Text('مسودة'),
                         ),
                         DropdownMenuItem(
                           value: 'published',
-                          child: Text(context.tr('published')),
+                          child: Text('منشور ومتاح'),
                         ),
                       ],
                       onChanged: (value) {
@@ -1643,7 +1945,9 @@ class _LessonCodeChallengeDialogState
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              const Text('حالات الاختبار والتحقق (Test Cases):', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
               for (var i = 0; i < _caseDrafts.length; i++)
                 _ChallengeCaseEditor(
                   index: i,
@@ -1663,7 +1967,7 @@ class _LessonCodeChallengeDialogState
                   onPressed: () =>
                       setState(() => _caseDrafts.add(_ChallengeCaseDraft())),
                   icon: const Icon(Icons.add),
-                  label: Text(context.tr('Add Test Case')),
+                  label: const Text('إضافة حالة اختبار أخرى'),
                 ),
               ),
             ],
@@ -1673,18 +1977,18 @@ class _LessonCodeChallengeDialogState
       actions: [
         TextButton(
           onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: Text(context.tr('Close')),
+          child: const Text('إغلاق'),
         ),
-        ElevatedButton.icon(
+        FilledButton.icon(
           onPressed: _isSaving ? null : _createChallenge,
           icon: _isSaving
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Icon(Icons.save),
-          label: Text(context.tr('Create Challenge')),
+              : const Icon(Icons.save_rounded),
+          label: Text(_isSaving ? 'جاري الحفظ...' : 'حفظ التحدي البرمجي'),
         ),
       ],
     );
@@ -1718,7 +2022,7 @@ class _ChallengeCaseEditor extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${context.tr('Test Case')} ${index + 1}',
+                    'حالة الاختبار رقم ${index + 1}',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -1729,27 +2033,33 @@ class _ChallengeCaseEditor extends StatelessWidget {
                     onChanged();
                   },
                 ),
-                Text(context.tr('Hidden')),
+                const Text('مخفية عن الطالب'),
                 IconButton(
                   onPressed: canRemove ? onRemove : null,
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
                 ),
               ],
             ),
             TextField(
               controller: draft.nameCtrl,
-              decoration: InputDecoration(labelText: context.tr('Case Name')),
+              decoration: const InputDecoration(labelText: 'اسم الحالة (اختياري)'),
             ),
+            const SizedBox(height: 8),
             TextField(
               controller: draft.stdinCtrl,
-              decoration: InputDecoration(labelText: context.tr('Input stdin')),
+              decoration: const InputDecoration(
+                labelText: 'المدخلات (Input Stdin)',
+                border: OutlineInputBorder(),
+              ),
               minLines: 1,
               maxLines: 4,
             ),
+            const SizedBox(height: 8),
             TextField(
               controller: draft.expectedCtrl,
-              decoration: InputDecoration(
-                labelText: context.tr('Expected stdout'),
+              decoration: const InputDecoration(
+                labelText: 'المخرجات المتوقعة (Expected Output)',
+                border: OutlineInputBorder(),
               ),
               minLines: 1,
               maxLines: 4,
@@ -1827,9 +2137,9 @@ class _GroupPicker extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: DropdownButtonFormField<GroupEntity>(
         initialValue: selectedGroup,
-        decoration: InputDecoration(
-          labelText: context.tr('Assigned group'),
-          border: const OutlineInputBorder(),
+        decoration: const InputDecoration(
+          labelText: 'المجموعة الدراسية المسندة',
+          border: OutlineInputBorder(),
         ),
         items: groups
             .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))

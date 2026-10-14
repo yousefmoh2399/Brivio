@@ -76,6 +76,14 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     }
   }
 
+  String _formatDateTime(DateTime dt) {
+    final d = dt.toLocal();
+    final period = d.hour >= 12 ? 'م' : 'ص';
+    final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final min = d.minute.toString().padLeft(2, '0');
+    return '${d.year}/${d.month}/${d.day} $hour:$min $period';
+  }
+
   Future<List<Map<String, dynamic>>> _loadExamAttemptsForReview(
     String examId,
   ) async {
@@ -211,11 +219,13 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     final group = _selectedGroup;
     if (group == null) return;
 
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
     final durationCtrl = TextEditingController(text: '60');
     final passCtrl = TextEditingController(text: '60');
     DateTime? availableFrom;
     DateTime availableUntil = DateTime.now().add(const Duration(days: 7));
+    bool isSubmitting = false;
 
     Future<DateTime?> pickDateTime(DateTime initial) async {
       final date = await showDatePicker(
@@ -223,11 +233,15 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         initialDate: initial,
         firstDate: DateTime.now().subtract(const Duration(days: 1)),
         lastDate: DateTime.now().add(const Duration(days: 365)),
+        confirmText: 'تأكيد',
+        cancelText: 'إلغاء',
       );
       if (date == null || !mounted) return null;
       final time = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(initial),
+        confirmText: 'تأكيد',
+        cancelText: 'إلغاء',
       );
       if (time == null) return null;
       return DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -235,6 +249,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final textColor = isDark
@@ -244,147 +259,281 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) => Dialog(
             backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.all(16),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: GlassCard(
               padding: const EdgeInsets.all(24),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'إنشاء امتحان لمجموعة ${group.name}',
-                      style: AppTypography.titleLarge(textColor).copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: titleCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: const InputDecoration(
-                        labelText: 'عنوان الامتحان أو الاختبار',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: durationCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: const InputDecoration(
-                        labelText: 'مدة الامتحان (بالدقائق)',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: passCtrl,
-                      style: TextStyle(color: textColor),
-                      decoration: const InputDecoration(
-                        labelText: 'درجة النجاح المطلوبة',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.play_circle_outline),
-                      title: const Text('يبدأ في'),
-                      subtitle: Text(
-                        availableFrom == null
-                            ? 'متاح فوراً'
-                            : availableFrom!.toLocal().toString().substring(0, 16),
-                      ),
-                      trailing: TextButton(
-                        onPressed: () async {
-                          final picked = await pickDateTime(
-                            availableFrom ?? DateTime.now(),
-                          );
-                          if (picked != null) {
-                            setDialogState(() => availableFrom = picked);
-                          }
-                        },
-                        child: const Text('تحديد الموعد'),
-                      ),
-                    ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.lock_clock),
-                      title: const Text('ينتهي في'),
-                      subtitle: Text(availableUntil.toLocal().toString().substring(0, 16)),
-                      trailing: TextButton(
-                        onPressed: () async {
-                          final picked = await pickDateTime(availableUntil);
-                          if (picked != null) {
-                            setDialogState(() => availableUntil = picked);
-                          }
-                        },
-                        child: const Text('تحديد الموعد'),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(
-                            'إلغاء',
-                            style: TextStyle(color: textColor),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.quiz_rounded,
+                              color: AppColors.primary,
+                              size: 24,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () async {
-                            if (titleCtrl.text.trim().isEmpty) return;
-                            final nav = Navigator.of(ctx);
-                            try {
-                              await Supabase.instance.client.rpc(
-                                'create_exam_assignment',
-                                params: {
-                                  'p_title': titleCtrl.text.trim(),
-                                  'p_subject_id': group.subjectId,
-                                  'p_group_id': group.id,
-                                  'p_duration_minutes':
-                                      int.tryParse(durationCtrl.text) ?? 60,
-                                  'p_pass_score':
-                                      double.tryParse(passCtrl.text) ?? 60.0,
-                                  'p_status': 'published',
-                                  'p_available_from': availableFrom
-                                      ?.toIso8601String(),
-                                  'p_available_until': availableUntil
-                                      .toIso8601String(),
-                                },
-                              );
-                              nav.pop();
-                              await _loadGroupsAndExams();
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('تم نشر الامتحان بنجاح.'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            } catch (e) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'فشل إنشاء الامتحان: $e',
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'إنشاء امتحان جديد 📝',
+                                  style: AppTypography.titleLarge(textColor).copyWith(
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  backgroundColor: Colors.red,
                                 ),
-                              );
-                            }
-                          },
-                          child: const Text('نشر الامتحان'),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'المجموعة: ${group.name}',
+                                  style: AppTypography.caption(AppColors.primary).copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      TextFormField(
+                        controller: titleCtrl,
+                        style: TextStyle(color: textColor),
+                        decoration: const InputDecoration(
+                          labelText: 'عنوان الامتحان أو الاختبار *',
+                          hintText: 'مثال: امتحان منتصف الفصل - قوانين نيوتن',
+                          prefixIcon: Icon(Icons.title_rounded),
                         ),
-                      ],
-                    ),
-                  ],
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'يرجى إدخال عنوان الامتحان';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: durationCtrl,
+                              style: TextStyle(color: textColor),
+                              decoration: const InputDecoration(
+                                labelText: 'المدة (بالدقائق) *',
+                                hintText: '60',
+                                prefixIcon: Icon(Icons.timer_outlined),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'أدخل المدة';
+                                }
+                                final val = int.tryParse(v);
+                                if (val == null || val <= 0) {
+                                  return 'مدة غير صحيحة';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: passCtrl,
+                              style: TextStyle(color: textColor),
+                              decoration: const InputDecoration(
+                                labelText: 'درجة النجاح *',
+                                hintText: '60',
+                                prefixIcon: Icon(Icons.grade_outlined),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'أدخل درجة النجاح';
+                                }
+                                final val = double.tryParse(v);
+                                if (val == null || val <= 0) {
+                                  return 'درجة غير صحيحة';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.play_circle_outline_rounded,
+                                color: Colors.green,
+                              ),
+                              title: const Text('يبدأ الامتحان في'),
+                              subtitle: Text(
+                                availableFrom == null
+                                    ? 'متاح فور النشر مباشرة'
+                                    : _formatDateTime(availableFrom!),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              trailing: OutlinedButton(
+                                onPressed: () async {
+                                  final picked = await pickDateTime(
+                                    availableFrom ?? DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => availableFrom = picked);
+                                  }
+                                },
+                                child: const Text('تحديد'),
+                              ),
+                            ),
+                            const Divider(height: 12),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.lock_clock_rounded,
+                                color: Colors.orange,
+                              ),
+                              title: const Text('ينتهي الامتحان في'),
+                              subtitle: Text(
+                                _formatDateTime(availableUntil),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              trailing: OutlinedButton(
+                                onPressed: () async {
+                                  final picked = await pickDateTime(availableUntil);
+                                  if (picked != null) {
+                                    setDialogState(() => availableUntil = picked);
+                                  }
+                                },
+                                child: const Text('تعديل'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                            child: Text(
+                              'إلغاء',
+                              style: TextStyle(color: textColor),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                            ),
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
+                                    if (availableFrom != null &&
+                                        availableUntil.isBefore(availableFrom!)) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'يجب أن يكون موعد انتهاء الامتحان بعد موعد البدء',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setDialogState(() => isSubmitting = true);
+                                    final nav = Navigator.of(ctx);
+                                    try {
+                                      await Supabase.instance.client.rpc(
+                                        'create_exam_assignment',
+                                        params: {
+                                          'p_title': titleCtrl.text.trim(),
+                                          'p_subject_id': group.subjectId,
+                                          'p_group_id': group.id,
+                                          'p_duration_minutes':
+                                              int.tryParse(durationCtrl.text) ?? 60,
+                                          'p_pass_score':
+                                              double.tryParse(passCtrl.text) ?? 60.0,
+                                          'p_status': 'published',
+                                          'p_available_from': availableFrom
+                                              ?.toIso8601String(),
+                                          'p_available_until': availableUntil
+                                              .toIso8601String(),
+                                        },
+                                      );
+                                      nav.pop();
+                                      await _loadGroupsAndExams();
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('تم نشر الامتحان وتفعيله للطلاب بنجاح 🚀'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      setDialogState(() => isSubmitting = false);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('فشل إنشاء الامتحان: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
+                            icon: isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.check_circle_rounded),
+                            label: Text(isSubmitting ? 'جاري النشر...' : 'نشر الامتحان للطلاب 🚀'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -403,6 +552,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         .toSet();
     final Set<String> currentSelectedIds = Set<String>.from(initiallyLinkedIds);
     bool isSaving = false;
+    String filterQuery = '';
 
     showModalBottomSheet(
       context: context,
@@ -418,7 +568,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.8,
+              height: MediaQuery.of(context).size.height * 0.85,
               decoration: BoxDecoration(
                 color: bgColor,
                 borderRadius: const BorderRadius.vertical(
@@ -443,42 +593,122 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                   final allQuestions = snapshot.data ?? [];
                   if (allQuestions.isEmpty) {
                     return Center(
-                      child: Text(
-                        'لا توجد أسئلة مضافة في بنك الأسئلة.',
-                        style: TextStyle(color: textColor),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.quiz_outlined,
+                              size: 48,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'لا توجد أسئلة مضافة في بنك الأسئلة بعد.',
+                              style: TextStyle(color: textColor, fontSize: 15),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'يمكنك إضافة الأسئلة من تبويب بنك الأسئلة ثم ربطها بالامتحان.',
+                              style: TextStyle(color: Colors.grey, fontSize: 13),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
 
+                  final displayedQuestions = allQuestions.where((q) {
+                    if (filterQuery.trim().isEmpty) return true;
+                    return q.prompt.toLowerCase().contains(filterQuery.toLowerCase());
+                  }).toList();
+
                   return Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'إدارة أسئلة امتحان: ${exam.title}',
-                          style: AppTypography.titleLarge(textColor).copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              'إدارة وربط أسئلة الامتحان ❓',
+                              style: AppTypography.titleLarge(textColor).copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              exam.title,
+                              style: AppTypography.bodySmall(AppColors.primary),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'ابحث في الأسئلة المتاحة...',
+                            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onChanged: (val) => setModalState(() => filterQuery = val),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'تم تحديد ${currentSelectedIds.length} سؤال',
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.bold,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${currentSelectedIds.length} من أصل ${allQuestions.length} سؤال محدد',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
-                            TextButton(
+                            TextButton.icon(
+                              icon: Icon(
+                                currentSelectedIds.length == allQuestions.length
+                                    ? Icons.deselect_rounded
+                                    : Icons.select_all_rounded,
+                                size: 16,
+                              ),
                               onPressed: () {
                                 setModalState(() {
-                                  if (currentSelectedIds.length ==
-                                      allQuestions.length) {
+                                  if (currentSelectedIds.length == allQuestions.length) {
                                     currentSelectedIds.clear();
                                   } else {
                                     currentSelectedIds.addAll(
@@ -487,7 +717,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                   }
                                 });
                               },
-                              child: Text(
+                              label: Text(
                                 currentSelectedIds.length == allQuestions.length
                                     ? 'إلغاء تحديد الكل'
                                     : 'تحديد الكل',
@@ -496,34 +726,115 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                           ],
                         ),
                       ),
+                      const Divider(height: 8),
                       Expanded(
-                        child: ListView.builder(
-                          itemCount: allQuestions.length,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: displayedQuestions.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final q = allQuestions[index];
+                            final q = displayedQuestions[index];
                             final isLinked = currentSelectedIds.contains(q.id);
 
-                            return ListTile(
-                              title: Text(
-                                q.prompt,
-                                style: TextStyle(color: textColor),
-                              ),
-                              subtitle: Text(
-                                '${_questionTypeArabic(q.questionType)} | ${q.defaultPoints} درجات',
-                              ),
-                              trailing: Checkbox(
-                                value: isLinked,
-                                activeColor: AppColors.primary,
-                                onChanged: (val) {
-                                  if (val == null) return;
-                                  setModalState(() {
-                                    if (val) {
-                                      currentSelectedIds.add(q.id);
-                                    } else {
-                                      currentSelectedIds.remove(q.id);
-                                    }
-                                  });
-                                },
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                setModalState(() {
+                                  if (isLinked) {
+                                    currentSelectedIds.remove(q.id);
+                                  } else {
+                                    currentSelectedIds.add(q.id);
+                                  }
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.darkCard : AppColors.lightCard,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isLinked
+                                        ? AppColors.primary
+                                        : Colors.grey.withValues(alpha: 0.2),
+                                    width: isLinked ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: isLinked,
+                                      activeColor: AppColors.primary,
+                                      onChanged: (val) {
+                                        if (val == null) return;
+                                        setModalState(() {
+                                          if (val) {
+                                            currentSelectedIds.add(q.id);
+                                          } else {
+                                            currentSelectedIds.remove(q.id);
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            q.prompt,
+                                            style: TextStyle(
+                                              color: textColor,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  _questionTypeArabic(q.questionType),
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.amber.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  '${q.defaultPoints.toStringAsFixed(0)} درجات',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.amber.shade900,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -531,7 +842,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                       ),
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: ElevatedButton(
+                        child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -566,6 +877,16 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
 
                                     await _loadGroupsAndExams();
                                     if (ctx.mounted) Navigator.pop(ctx);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'تم تحديث أسئلة الامتحان بنجاح (${currentSelectedIds.length} سؤال)',
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
                                   } catch (e) {
                                     if (ctx.mounted) {
                                       ScaffoldMessenger.of(ctx).showSnackBar(
@@ -581,16 +902,21 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                     }
                                   }
                                 },
-                          child: isSaving
+                          icon: isSaving
                               ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
+                                  height: 20,
+                                  width: 20,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text('حفظ وإغلاق'),
+                              : const Icon(Icons.check_rounded),
+                          label: Text(
+                            isSaving
+                                ? 'جاري حفظ الأسئلة...'
+                                : 'حفظ الأسئلة (${currentSelectedIds.length} سؤال)',
+                          ),
                         ),
                       ),
                     ],
@@ -1132,16 +1458,20 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('حذف الامتحان'),
-        content: const Text('هل أنت متأكد من حذف هذا الامتحان وكافة المحاولات والدرجات المسجلة به؟'),
+        title: const Text('حذف الامتحان نهائياً 🗑️'),
+        content: Text(
+          'هل أنت متأكد من حذف امتحان "${exam.title}"؟\n'
+          'سيتم مسح كافة محاولات ودرجات الطلاب المسجلة به نهائياً ولا يمكن التراجع.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
+            child: const Text('تراجع'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف'),
+            child: const Text('تأكيد الحذف'),
           ),
         ],
       ),
@@ -1151,10 +1481,20 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     try {
       await _examRepo.deleteExam(exam.id);
       await _loadGroupsAndExams();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف الامتحان وسجلاته بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل الحذف: $e')),
+        SnackBar(
+          content: Text('فشل حذف الامتحان: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -1164,18 +1504,20 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('إغلاق الامتحان'),
-        content: const Text(
-          'لن يتمكن الطلاب من بدء أو تسليم هذا الامتحان بعد إغلاقه.',
+        title: const Text('إغلاق الامتحان 🔒'),
+        content: Text(
+          'هل أنت متأكد من إغلاق امتحان "${exam.title}"؟\n'
+          'لن يتمكن الطلاب من بدء محاولات جديدة أو تسليم إجاباتهم بعد الإغلاق.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
+            child: const Text('تراجع'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('إغلاق الامتحان'),
+            child: const Text('إغلاق الامتحان الآن'),
           ),
         ],
       ),
@@ -1184,10 +1526,20 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
     try {
       await _examRepo.closeExam(exam.id);
       await _loadGroupsAndExams();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إغلاق الامتحان بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل إغلاق الامتحان: $e')),
+        SnackBar(
+          content: Text('فشل إغلاق الامتحان: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -1327,85 +1679,128 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate((ctx, i) {
                             final exam = _exams[i];
+                            final isClosed = exam.status.toLowerCase() == 'closed';
+
                             return FadeInSlide(
-                              duration: Duration(milliseconds: 300 + (i * 50)),
+                              duration: Duration(milliseconds: 250 + (i * 40)),
                               child: Padding(
                                 padding: const EdgeInsets.only(bottom: 12.0),
                                 child: GlassCard(
-                                  padding: EdgeInsets.zero,
-                                  child: InkWell(
-                                    onTap: () => _showExamAttemptsDialog(exam),
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Row(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
                                         children: [
                                           CircleAvatar(
-                                            backgroundColor: AppColors.primary
-                                                .withValues(alpha: 0.2),
-                                            child: const Icon(
-                                              Icons.quiz,
-                                              color: AppColors.primary,
+                                            backgroundColor: (isClosed ? Colors.orange : AppColors.primary)
+                                                .withValues(alpha: 0.15),
+                                            child: Icon(
+                                              isClosed ? Icons.lock_clock_rounded : Icons.quiz_rounded,
+                                              color: isClosed ? Colors.orange : AppColors.primary,
                                             ),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  exam.title,
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style:
-                                                      AppTypography.titleMedium(
-                                                        textColor,
-                                                      ).copyWith(
-                                                        fontWeight:
-                                                            FontWeight.bold,
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        exam.title,
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: AppTypography.titleMedium(
+                                                          textColor,
+                                                        ).copyWith(
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
                                                       ),
+                                                    ),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: (isClosed ? Colors.orange : Colors.green)
+                                                            .withValues(alpha: 0.12),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        _examStatusArabic(exam.status),
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: isClosed ? Colors.orange : Colors.green,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  'المدة: ${exam.durationMinutes} دقيقة | درجة النجاح: ${exam.passScore} | الحالة: ${_examStatusArabic(exam.status)}',
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: AppTypography.caption(
-                                                    subtitleColor,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  '${exam.questions.length} سؤال مضاف',
-                                                  style: AppTypography.caption(
-                                                    AppColors.primary,
-                                                  ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue.withValues(alpha: 0.1),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        '⏱️ ${exam.durationMinutes} دقيقة',
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors.blue,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.teal.withValues(alpha: 0.1),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        'درجة النجاح: ${exam.passScore.toStringAsFixed(0)}',
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors.teal,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
                                             ),
                                           ),
                                           PopupMenuButton<String>(
-                                            tooltip: 'خيارات',
-                                            icon: const Icon(
-                                              Icons.more_vert_rounded,
-                                            ),
+                                            tooltip: 'خيارات الامتحان',
+                                            icon: const Icon(Icons.more_vert_rounded),
                                             onSelected: (value) {
                                               switch (value) {
+                                                case 'attempts':
+                                                  _showExamAttemptsDialog(exam);
+                                                  break;
                                                 case 'print_exam':
                                                   _exportPrintableExam(exam);
                                                   break;
                                                 case 'questions':
-                                                  _showManageQuestionsBottomSheet(
-                                                    exam,
-                                                  );
+                                                  _showManageQuestionsBottomSheet(exam);
                                                   break;
                                                 case 'close':
-                                                  if (exam.status != 'closed') {
-                                                    _closeExam(exam);
-                                                  }
+                                                  _closeExam(exam);
                                                   break;
                                                 case 'delete':
                                                   _deleteExam(exam);
@@ -1414,67 +1809,108 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                             },
                                             itemBuilder: (context) => [
                                               const PopupMenuItem(
+                                                value: 'attempts',
+                                                child: ListTile(
+                                                  leading: Icon(
+                                                    Icons.analytics_rounded,
+                                                    color: Colors.indigo,
+                                                  ),
+                                                  title: Text('كشف النتائج والمحاولات 📊'),
+                                                  contentPadding: EdgeInsets.zero,
+                                                ),
+                                              ),
+                                              const PopupMenuItem(
                                                 value: 'print_exam',
                                                 child: ListTile(
                                                   leading: Icon(
                                                     Icons.print_rounded,
                                                     color: Colors.teal,
                                                   ),
-                                                  title: Text(
-                                                    'طباعة امتحان ورقي (PDF)',
-                                                  ),
-                                                  contentPadding:
-                                                      EdgeInsets.zero,
+                                                  title: Text('طباعة امتحان ورقي (PDF) 🖨️'),
+                                                  contentPadding: EdgeInsets.zero,
                                                 ),
                                               ),
                                               const PopupMenuItem(
                                                 value: 'questions',
                                                 child: ListTile(
                                                   leading: Icon(
-                                                    Icons.edit_document,
+                                                    Icons.quiz_rounded,
+                                                    color: AppColors.primary,
                                                   ),
-                                                  title: Text(
-                                                    'إدارة وربط الأسئلة',
-                                                  ),
-                                                  contentPadding:
-                                                      EdgeInsets.zero,
+                                                  title: Text('إدارة وربط الأسئلة ❓'),
+                                                  contentPadding: EdgeInsets.zero,
                                                 ),
                                               ),
-                                              PopupMenuItem(
-                                                value: 'close',
-                                                enabled:
-                                                    exam.status != 'closed',
-                                                child: const ListTile(
-                                                  leading: Icon(
-                                                    Icons.lock_outline,
-                                                    color: AppColors.warning,
+                                              if (!isClosed)
+                                                const PopupMenuItem(
+                                                  value: 'close',
+                                                  child: ListTile(
+                                                    leading: Icon(
+                                                      Icons.lock_outline_rounded,
+                                                      color: AppColors.warning,
+                                                    ),
+                                                    title: Text('إغلاق الامتحان 🔒'),
+                                                    contentPadding: EdgeInsets.zero,
                                                   ),
-                                                  title: Text(
-                                                    'إغلاق الامتحان',
-                                                  ),
-                                                  contentPadding:
-                                                      EdgeInsets.zero,
                                                 ),
-                                              ),
                                               const PopupMenuItem(
                                                 value: 'delete',
                                                 child: ListTile(
                                                   leading: Icon(
-                                                    Icons.delete_outline,
+                                                    Icons.delete_outline_rounded,
                                                     color: AppColors.error,
                                                   ),
-                                                  title: Text(
-                                                    'حذف الامتحان',
-                                                  ),
-                                                  contentPadding:
-                                                      EdgeInsets.zero,
+                                                  title: Text('حذف الامتحان 🗑️'),
+                                                  contentPadding: EdgeInsets.zero,
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ],
                                       ),
-                                    ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '${exam.questions.length} سؤال مضاف',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          FilledButton.tonalIcon(
+                                            style: FilledButton.styleFrom(
+                                              visualDensity: VisualDensity.compact,
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 4,
+                                              ),
+                                            ),
+                                            onPressed: () => _showExamAttemptsDialog(exam),
+                                            icon: const Icon(
+                                              Icons.analytics_rounded,
+                                              size: 15,
+                                            ),
+                                            label: const Text(
+                                              'كشف النتائج والمحاولات',
+                                              style: TextStyle(fontSize: 11),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -1494,8 +1930,8 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
               onPressed: _showCreateExamDialog,
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              icon: const Icon(Icons.quiz),
-              label: const Text('إنشاء امتحان جديد'),
+              icon: const Icon(Icons.quiz_rounded),
+              label: const Text('إنشاء امتحان جديد 📝'),
             ),
           ),
       ],
