@@ -53,3 +53,5 @@ app.*.map.json
 .env
 .env.*
 *.local.ps1
+supabase/.temp/
+supabase/.branches/
