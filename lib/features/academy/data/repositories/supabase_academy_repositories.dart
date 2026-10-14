@@ -131,16 +131,38 @@ class SupabaseStudentRepository implements IStudentRepository {
 
   @override
   Future<List<Student>> fetchStudentsForGroup(String groupId) async {
-    try {
-      final response = await _wrapper.client.rpc(
-        'get_group_students',
-        params: {'p_group_id': groupId},
-      );
+    final isUuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(groupId);
+    if (!isUuid) {
+      return const [];
+    }
 
-      final rawList = response as List<dynamic>;
-      return rawList
-          .map((j) => Student.fromJson(Map<String, dynamic>.from(j as Map)))
-          .toList();
+    try {
+      try {
+        final response = await _wrapper.client.rpc(
+          'get_group_students',
+          params: {'p_group_id': groupId},
+        );
+
+        final rawList = response as List<dynamic>;
+        return rawList
+            .map((j) => Student.fromJson(Map<String, dynamic>.from(j as Map)))
+            .toList();
+      } catch (rpcErr) {
+        // Fallback to direct query from enrollments table join students
+        final enrollments = await _wrapper.client
+            .from('enrollments')
+            .select('student_id, students(*)')
+            .eq('group_id', groupId);
+        final list = <Student>[];
+        for (final item in enrollments as List) {
+          if (item['students'] != null) {
+            list.add(Student.fromJson(Map<String, dynamic>.from(item['students'] as Map)));
+          }
+        }
+        return list;
+      }
     } catch (e) {
       throw DatabaseFailure(
         message: 'Failed to fetch group roster: ${e.toString()}',

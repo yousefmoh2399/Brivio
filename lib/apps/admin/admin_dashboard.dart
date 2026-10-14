@@ -423,8 +423,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final enrollments = await _safeList(
       () => client
           .from('enrollments')
-          .select('id, status, enrolled_at, start_date')
-          .order('enrolled_at', ascending: false)
+          .select('id, status, start_date')
+          .order('start_date', ascending: false)
           .limit(6),
     );
     activity.addAll(
@@ -433,7 +433,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           row,
           title: 'تسجيل طالب في مجموعة',
           type: 'تسجيل',
-          dateKey: row['enrolled_at'] != null ? 'enrolled_at' : 'start_date',
+          dateKey: 'start_date',
         ),
       ),
     );

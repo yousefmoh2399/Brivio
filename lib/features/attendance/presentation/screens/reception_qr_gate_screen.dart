@@ -570,26 +570,52 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
     if (_selectedGroup == null) return;
 
     try {
-      final students = await _studentRepo.fetchStudentsForGroup(_selectedGroup!.id);
-      if (students.isEmpty) {
+      final isOfflineGroup = _selectedGroup!.id.startsWith('offline_') ||
+          !RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+              .hasMatch(_selectedGroup!.id);
+
+      List<Map<String, String>> studentsData = [];
+
+      if (isOfflineGroup) {
+        final offlineService = OfflineSyncService();
+        final cached = await offlineService.getCachedStudentsDirectory();
+        studentsData = cached
+            .map(
+              (s) => {
+                'name': (s['full_name'] ?? s['name'] ?? 'طالب سنتر').toString(),
+                'code': (s['student_code'] ?? s['code'] ?? 'STU-00').toString(),
+                'phone': (s['emergency_contact_phone'] ?? s['phone'] ?? '').toString(),
+                'grade': _selectedGroup!.name,
+              },
+            )
+            .toList();
+      } else {
+        final students =
+            await _studentRepo.fetchStudentsForGroup(_selectedGroup!.id);
+        studentsData = students
+            .map(
+              (s) => {
+                'name': s.fullName,
+                'code': s.studentCode,
+                'phone': s.phoneNumber ?? '',
+                'grade': _selectedGroup!.name,
+              },
+            )
+            .toList();
+      }
+
+      if (studentsData.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('لا يوجد طلاب مسجلون في هذه المجموعة لطباعة الكارنيهات.')),
+            const SnackBar(
+              content: Text(
+                'لا يوجد طلاب مسجلون في هذه المجموعة لطباعة الكارنيهات.',
+              ),
+            ),
           );
         }
         return;
       }
-
-      final studentsData = students
-          .map(
-            (s) => {
-              'name': s.fullName,
-              'code': s.studentCode,
-              'phone': s.phoneNumber ?? '',
-              'grade': _selectedGroup!.name,
-            },
-          )
-          .toList();
 
       await ReportGeneratorService().generateBulkStudentIdCardsPdf(
         students: studentsData,

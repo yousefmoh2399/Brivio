@@ -269,7 +269,7 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                       final code = codeCtrl.text.trim();
                       final capacity = int.tryParse(capacityCtrl.text.trim()) ?? 30;
 
-                      final nav = Navigator.of(ctx);
+                      bool success = false;
                       try {
                         if (isEditing) {
                           await Supabase.instance.client.rpc(
@@ -294,7 +294,25 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                             },
                           );
                         }
-                        nav.pop();
+                        success = true;
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          setDialogState(() => isSubmitting = false);
+                        }
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('تعذر حفظ المجموعة: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+
+                      if (success) {
+                        if (ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                        }
                         await _loadGroups();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -308,15 +326,6 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                             ),
                           );
                         }
-                      } catch (e) {
-                        if (!mounted) return;
-                        setDialogState(() => isSubmitting = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('تعذر حفظ المجموعة: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
                       }
                     },
             ),

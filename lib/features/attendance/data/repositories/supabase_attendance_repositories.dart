@@ -10,6 +10,13 @@ class SupabaseClassSessionRepository implements IClassSessionRepository {
 
   @override
   Future<List<ClassSession>> fetchSessionsForGroup(String groupId) async {
+    final isUuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(groupId);
+    if (!isUuid) {
+      return const [];
+    }
+
     try {
       final response = await _wrapper.client
           .from('class_sessions')

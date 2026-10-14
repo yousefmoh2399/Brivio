@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../localization/app_locale_controller.dart';
-import '../localization/app_localizations.dart';
 import '../notifications/push_notification_service.dart';
 import '../services/settings_service.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/components/glass_card.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/admin/domain/repositories/i_admin_repository.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/legal/presentation/screens/privacy_and_terms_screen.dart';
 
 class AppSettingsScreen extends StatelessWidget {
@@ -20,9 +19,9 @@ class AppSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const PortalPageShell(
-      title: 'إعدادات النظام والتطبيق',
-      subtitle: 'تخصيص المظهر، الإشعارات، الأمان، وتفضيلات السنتر.',
-      icon: Icons.settings_suggest,
+      title: 'إعدادات المنظومة والتطبيق',
+      subtitle: 'تخصيص المظهر العام، لغة العرض، الإشعارات، والأمان المتقدم.',
+      icon: Icons.settings_suggest_rounded,
       accentColor: AppColors.primary,
       child: Material(
         type: MaterialType.transparency,
@@ -109,13 +108,11 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
   Future<void> _updateSetting<T>(
     String key,
     T value,
-    void Function(T) updateLocalState, {
-    T? originalValue,
-  }) async {
+    void Function(T) updateLocalState,
+  ) async {
     setState(() => updateLocalState(value));
     await _persistLocalSetting(key, value);
 
-    // Device-specific hardware preferences should remain strictly local
     if (key == 'biometric_login' || key == 'animation_quality') {
       return;
     }
@@ -127,11 +124,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
           value.toString(),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم الحفظ محلياً على هذا الجهاز.'),
+            content: Text('تم حفظ التفضيل محلياً على هذا الجهاز بنجاح.'),
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -176,393 +174,441 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = AppColors.primary;
+
     return ListenableBuilder(
       listenable: settingsService,
       builder: (context, _) {
-        final compact = MediaQuery.sizeOf(context).width < 420;
-        return ListView(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 10 : 24,
-            vertical: compact ? 10 : 16,
-          ),
-          children: [
-            FadeInSlide(
-              delay: const Duration(milliseconds: 100),
-              child: _SettingsSection(
-                title: context.tr('Appearance'),
-                icon: Icons.palette_outlined,
-                accentColor: Colors.purple,
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            children: [
+              // 1. Appearance Section
+              _SettingsGroup(
+                title: 'المظهر وتنسيق الشاشة',
+                icon: Icons.palette_rounded,
+                accentColor: Colors.deepPurple,
                 children: [
-                  _SettingsTile(
-                    title: context.tr('Theme Mode'),
-                    subtitle: context.tr(
-                      'Choose between Light, Dark, or System theme.',
-                    ),
-                    icon: Icons.brightness_6_outlined,
-                    trailing: SegmentedButton<ThemeMode>(
-                      segments: [
-                        ButtonSegment(
-                          value: ThemeMode.system,
-                          label: Text(context.tr('Auto')),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'نمط العرض (السمة)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
-                        ButtonSegment(
-                          value: ThemeMode.light,
-                          label: Text(context.tr('Light')),
+                        const SizedBox(height: 6),
+                        Text(
+                          'اختر بين المظهر الفاتح المناسب للقاعات المضيئة أو الداكن المريح للعين.',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: isDark ? Colors.white70 : Colors.black54,
+                          ),
                         ),
-                        ButtonSegment(
-                          value: ThemeMode.dark,
-                          label: Text(context.tr('Dark')),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ThemeSelectCard(
+                                icon: Icons.brightness_auto_rounded,
+                                label: 'تلقائي',
+                                subtitle: 'حسب الجهاز',
+                                isSelected: settingsService.themeMode == ThemeMode.system,
+                                onTap: () => settingsService.updateThemeMode(ThemeMode.system),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _ThemeSelectCard(
+                                icon: Icons.light_mode_rounded,
+                                label: 'فاتح',
+                                subtitle: 'نهاري',
+                                isSelected: settingsService.themeMode == ThemeMode.light,
+                                onTap: () => settingsService.updateThemeMode(ThemeMode.light),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _ThemeSelectCard(
+                                icon: Icons.dark_mode_rounded,
+                                label: 'داكن',
+                                subtitle: 'ليلي',
+                                isSelected: settingsService.themeMode == ThemeMode.dark,
+                                onTap: () => settingsService.updateThemeMode(ThemeMode.dark),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                      selected: {settingsService.themeMode},
-                      onSelectionChanged: (selection) =>
-                          settingsService.updateThemeMode(selection.first),
-                      style: SegmentedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
                     ),
                   ),
-                  _SettingsTile(
-                    title: context.tr('Animation Quality'),
-                    subtitle: context.tr('Use 120fps fluid animations'),
-                    icon: Icons.animation,
-                    trailing: Switch.adaptive(
-                      value: _animationQuality,
-                      onChanged: (val) => _updateSetting(
-                        'animation_quality',
-                        val,
-                        (v) => _animationQuality = v,
-                      ),
-                      activeThumbColor: Colors.purple,
+                  const Divider(height: 1),
+                  _SettingsSwitchTile(
+                    icon: Icons.motion_photos_on_rounded,
+                    iconColor: Colors.purple,
+                    title: 'سلاسة المؤثرات الحركية (120Hz)',
+                    subtitle: 'تفعيل الانتقالات الفائقة وتأثيرات الواجهة السلسة',
+                    value: _animationQuality,
+                    onChanged: (val) => _updateSetting(
+                      'animation_quality',
+                      val,
+                      (v) => _animationQuality = v,
                     ),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: compact ? 14 : 24),
-            FadeInSlide(
-              delay: const Duration(milliseconds: 200),
-              child: _SettingsSection(
-                title: context.tr('Localization'),
-                icon: Icons.language,
+
+              const SizedBox(height: 18),
+
+              // 2. Localization & Language
+              _SettingsGroup(
+                title: 'اللغة والإعدادات الإقليمية',
+                icon: Icons.language_rounded,
                 accentColor: Colors.blue,
                 children: [
-                  _SettingsTile(
-                    title: context.tr('display_language'),
-                    subtitle: context.tr('display_language_subtitle'),
-                    icon: Icons.translate,
-                    trailing: SegmentedButton<AppLanguage>(
-                      segments: [
-                        ButtonSegment(
-                          value: AppLanguage.english,
-                          label: Text(context.tr('english')),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'لغة واجهة التطبيق',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
-                        ButtonSegment(
-                          value: AppLanguage.arabic,
-                          label: Text(context.tr('arabic')),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _LanguageCard(
+                                flag: '🇪🇬',
+                                name: 'اللغة العربية',
+                                isSelected: settingsService.language == AppLanguage.arabic,
+                                onTap: () => settingsService.updateLanguage(AppLanguage.arabic),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _LanguageCard(
+                                flag: '🇬🇧',
+                                name: 'English',
+                                isSelected: settingsService.language == AppLanguage.english,
+                                onTap: () => settingsService.updateLanguage(AppLanguage.english),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                      selected: {settingsService.language},
-                      onSelectionChanged: (selection) =>
-                          settingsService.updateLanguage(selection.first),
-                      style: SegmentedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
                     ),
                   ),
-                  _SettingsTile(
-                    title: context.tr('Time Zone'),
-                    subtitle: '${context.tr('Automatic')} ($_timeZone)',
-                    icon: Icons.access_time,
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey,
-                    ),
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        builder: (context) {
-                          final timezones = [
-                            'UTC-08:00',
-                            'UTC-05:00',
-                            'UTC+00:00',
-                            'UTC+01:00',
-                            'UTC+02:00',
-                            'UTC+03:00',
-                            'UTC+04:00',
-                            'UTC+05:30',
-                            'UTC+08:00',
-                            'UTC+09:00',
-                          ];
-                          return ListView.builder(
-                            itemCount: timezones.length,
-                            itemBuilder: (context, index) {
-                              final tz = timezones[index];
-                              return ListTile(
-                                title: Text(tz),
-                                onTap: () {
-                                  _updateSetting<String>(
-                                    'time_zone',
-                                    tz,
-                                    (v) => _timeZone = v,
-                                    originalValue: _timeZone,
-                                  );
-                                  Navigator.of(context).pop();
-                                },
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
+                  const Divider(height: 1),
+                  _SettingsActionTile(
+                    icon: Icons.schedule_rounded,
+                    iconColor: Colors.blue,
+                    title: 'المنطقة الزمنية',
+                    subtitle: 'التوقيت المحلي لحساب الحصص والمواعيد: $_timeZone',
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    onTap: () => _pickTimeZone(context),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: compact ? 14 : 24),
-            FadeInSlide(
-              delay: const Duration(milliseconds: 300),
-              child: _SettingsSection(
-                title: context.tr('Notifications & Alerts'),
-                icon: Icons.notifications_active_outlined,
+
+              const SizedBox(height: 18),
+
+              // 3. Notifications & Alerts
+              _SettingsGroup(
+                title: 'الإشعارات والتنبيهات',
+                icon: Icons.notifications_active_rounded,
                 accentColor: Colors.orange,
                 children: [
-                  _SettingsTile(
-                    title: context.tr('push_notifications'),
-                    subtitle: context.tr('push_notifications_subtitle'),
-                    icon: Icons.phonelink_ring,
-                    trailing: Switch.adaptive(
-                      value: _pushNotifications,
-                      onChanged: (val) {
-                        _updateSetting(
-                          'push_notifications',
-                          val,
-                          (v) => _pushNotifications = v,
-                        );
-                        if (val) {
-                          pushService?.syncCurrentToken();
-                        } else {
-                          pushService?.unregisterCurrentToken();
-                        }
-                      },
-                      activeThumbColor: Colors.orange,
-                    ),
-                  ),
-                  _SettingsTile(
-                    title: context.tr('Email Digest'),
-                    subtitle: context.tr('Receive daily summary of activities'),
-                    icon: Icons.email_outlined,
-                    trailing: Switch.adaptive(
-                      value: _emailDigest,
-                      onChanged: (val) => _updateSetting(
-                        'email_digest',
+                  _SettingsSwitchTile(
+                    icon: Icons.notifications_on_rounded,
+                    iconColor: Colors.orange,
+                    title: 'الإشعارات الفورية (Push)',
+                    subtitle: 'استلام تنبيهات فورية عند تسجيل الحضور أو إضافة درجات وامتحانات',
+                    value: _pushNotifications,
+                    onChanged: (val) {
+                      _updateSetting(
+                        'push_notifications',
                         val,
-                        (v) => _emailDigest = v,
-                      ),
-                      activeThumbColor: Colors.orange,
+                        (v) => _pushNotifications = v,
+                      );
+                      if (val) {
+                        pushService?.syncCurrentToken();
+                      } else {
+                        pushService?.unregisterCurrentToken();
+                      }
+                    },
+                  ),
+                  const Divider(height: 1),
+                  _SettingsSwitchTile(
+                    icon: Icons.mark_email_read_rounded,
+                    iconColor: Colors.amber.shade700,
+                    title: 'النشرة والملخص اليومي',
+                    subtitle: 'إرسال ملخص بالعمليات اليومية وحالات الغياب عبر البريد',
+                    value: _emailDigest,
+                    onChanged: (val) => _updateSetting(
+                      'email_digest',
+                      val,
+                      (v) => _emailDigest = v,
                     ),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: compact ? 14 : 24),
-            FadeInSlide(
-              delay: const Duration(milliseconds: 400),
-              child: _SettingsSection(
-                title: context.tr('Security & Privacy'),
-                icon: Icons.security,
+
+              const SizedBox(height: 18),
+
+              // 4. Security & Privacy
+              _SettingsGroup(
+                title: 'الأمان والخصوصية وحماية البيانات',
+                icon: Icons.security_rounded,
                 accentColor: AppColors.success,
                 children: [
-                  _SettingsTile(
-                    title: context.tr('Two-Factor Authentication'),
-                    subtitle: context.tr('Require 2FA for all admin logins'),
-                    icon: Icons.vpn_key_outlined,
-                    trailing: Switch.adaptive(
-                      value: _twoFactorAuth,
-                      onChanged: (val) => _updateSetting(
-                        'two_factor_auth',
-                        val,
-                        (v) => _twoFactorAuth = v,
-                      ),
-                      activeThumbColor: AppColors.success,
-                    ),
-                  ),
-                  _SettingsTile(
-                    title: context.tr('Data Collection'),
-                    titleTrailing: GestureDetector(
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            final isDark =
-                                Theme.of(context).brightness == Brightness.dark;
-                            return Dialog(
-                              backgroundColor: Colors.transparent,
-                              elevation: 0,
-                              child: GlassCard(
-                                color: isDark
-                                    ? AppColors.darkSurface
-                                    : AppColors.lightSurface,
-                                borderColor: isDark
-                                    ? AppColors.darkBorder
-                                    : AppColors.lightBorder,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24.0),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.info_outline,
-                                        size: 48,
-                                        color: Colors.blue,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        context.tr('Data Collection'),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        context.tr(
-                                          'Send anonymous usage data to improve the app',
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(),
-                                        child: Text(context.tr('Got it')),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                  _SettingsSwitchTile(
+                    icon: Icons.fingerprint_rounded,
+                    iconColor: AppColors.success,
+                    title: 'قفل التطبيق بالبصمة / Face ID',
+                    subtitle: 'طلب التحقق الحيوي عند فتح التطبيق لحماية الخصوصية',
+                    value: _biometricLogin,
+                    onChanged: (val) async {
+                      if (val) {
+                        final localAuth = LocalAuthentication();
+                        try {
+                          final canCheck = await localAuth.canCheckBiometrics;
+                          final isSupported = await localAuth.isDeviceSupported();
+                          if (canCheck || isSupported) {
+                            final didAuth = await localAuth.authenticate(
+                              localizedReason: 'يرجى تأكيد الهوية لتفعيل القفل بالبصمة',
                             );
-                          },
-                        );
-                      },
-                      child: const Icon(
-                        Icons.info_outline,
-                        size: 16,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    subtitle: context.tr(
-                      'Send anonymous usage data to improve the app',
-                    ),
-                    icon: Icons.data_usage,
-                    trailing: Switch.adaptive(
-                      value: _dataCollection,
-                      onChanged: (val) => _updateSetting(
-                        'data_collection',
-                        val,
-                        (v) => _dataCollection = v,
-                      ),
-                      activeThumbColor: AppColors.success,
-                    ),
-                  ),
-                  _SettingsTile(
-                    title: context.tr('Biometric Login'),
-                    subtitle: context.tr('Use FaceID/TouchID for quick access'),
-                    icon: Icons.fingerprint,
-                    trailing: Switch.adaptive(
-                      value: _biometricLogin,
-                      onChanged: (val) async {
-                        if (val) {
-                          final localAuth = LocalAuthentication();
-                          try {
-                            final bool canAuthenticateWithBiometrics =
-                                await localAuth.canCheckBiometrics;
-                            final bool canAuthenticate =
-                                canAuthenticateWithBiometrics ||
-                                await localAuth.isDeviceSupported();
-                            if (canAuthenticate) {
-                              final didAuthenticate = await localAuth.authenticate(
-                                localizedReason:
-                                    'يرجى تأكيد الهوية بالبصمة لتفعيل قفل التطبيق البيومتري',
-                              );
-                              if (didAuthenticate) {
-                                _updateSetting(
-                                  'biometric_login',
-                                  val,
-                                  (v) => _biometricLogin = v,
-                                );
-                              }
-                            } else {
-                              if (mounted) {
-                                _showBiometricUnavailableMessage(
-                                  'هذا الجهاز لا يدعم مستشعر البصمة أو المصادقة البيومترية.',
-                                );
-                              }
-                            }
-                          } on PlatformException {
-                            if (mounted) {
-                              _showBiometricUnavailableMessage(
-                                'خدمة البصمة غير جاهزة حالياً. يرجى إعادة تشغيل التطبيق والمحاولة مجدداً.',
+                            if (didAuth) {
+                              _updateSetting(
+                                'biometric_login',
+                                true,
+                                (v) => _biometricLogin = v,
                               );
                             }
-                          } catch (_) {
+                          } else {
                             if (mounted) {
-                              _showBiometricUnavailableMessage(
-                                'لم يتم إعداد بصمة أو رمز قفل على هذا الجهاز.',
+                              _showSnackBar(
+                                'جهازك لا يدعم مستشعر البصمة أو لم يتم تعيين قفل للجهاز.',
+                                isError: true,
                               );
                             }
                           }
-                        } else {
-                          _updateSetting(
-                            'biometric_login',
-                            val,
-                            (v) => _biometricLogin = v,
-                          );
+                        } on PlatformException {
+                          if (mounted) {
+                            _showSnackBar(
+                              'تعذر الوصول لخدمة البصمة. يرجى تفعيل رمز القفل في إعدادات الهاتف.',
+                              isError: true,
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            _showSnackBar('خطأ في البصمة: $e', isError: true);
+                          }
                         }
-                      },
-                      activeThumbColor: AppColors.success,
+                      } else {
+                        _updateSetting(
+                          'biometric_login',
+                          false,
+                          (v) => _biometricLogin = v,
+                        );
+                      }
+                    },
+                  ),
+                  const Divider(height: 1),
+                  _SettingsSwitchTile(
+                    icon: Icons.verified_user_rounded,
+                    iconColor: Colors.teal,
+                    title: 'المصادقة الثنائية (2FA)',
+                    subtitle: 'إلزام التحقق بخطوتين عند تسجيل الدخول لحسابات الإدارة والسنتر',
+                    value: _twoFactorAuth,
+                    onChanged: (val) => _updateSetting(
+                      'two_factor_auth',
+                      val,
+                      (v) => _twoFactorAuth = v,
                     ),
                   ),
-                  _SettingsTile(
-                    title: 'سياسة الخصوصية وشروط الخدمة',
-                    subtitle: 'الاطلاع على أمان البيانات وحقوق الخصوصية والشروط',
-                    icon: Icons.policy_rounded,
-                    trailing: const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Colors.grey,
+                  const Divider(height: 1),
+                  _SettingsSwitchTile(
+                    icon: Icons.analytics_outlined,
+                    iconColor: Colors.blueGrey,
+                    title: 'تحسين تجربة الاستخدام',
+                    subtitle: 'إرسال تقارير مجهولة لتحسين استقرار المنظومة وسرعتها',
+                    value: _dataCollection,
+                    onChanged: (val) => _updateSetting(
+                      'data_collection',
+                      val,
+                      (v) => _dataCollection = v,
                     ),
+                  ),
+                  const Divider(height: 1),
+                  _SettingsActionTile(
+                    icon: Icons.privacy_tip_rounded,
+                    iconColor: Colors.indigo,
+                    title: 'سياسة الخصوصية وشروط الخدمة',
+                    subtitle: 'الاطلاع على بنود حماية بيانات الطلاب والتراخيص الأكاديمية',
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                     onTap: () => PrivacyAndTermsScreen.show(context),
                   ),
-                  _SettingsTile(
-                    title: context.tr('Delete Account'),
-                    subtitle: context.tr(
-                      'Permanently delete your profile and personal data',
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // 5. System Info & Account Operations
+              _SettingsGroup(
+                title: 'معلومات الحساب والمنظومة',
+                icon: Icons.info_outline_rounded,
+                accentColor: primaryColor,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.school_rounded,
+                            color: AppColors.primary,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'منظومة بريفيو التعليمية • Brivio LMS',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.5,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'الإصدار 2.5.0 (Build 850) • متصل بالسحابة',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white60 : Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'مستقر ✔️',
+                            style: TextStyle(
+                              color: AppColors.success,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  const Divider(height: 1),
+                  _SettingsActionTile(
                     icon: Icons.delete_forever_rounded,
-                    trailing: TextButton(
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      onPressed: _confirmAccountDeletion,
-                      child: Text(context.tr('Delete')),
+                    iconColor: Colors.red,
+                    title: 'حذف الحساب نهائياً',
+                    subtitle: 'إزالة بيانات الدخول والملف الشخصي نهائياً من النظام',
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                    onTap: _confirmAccountDeletion,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 32),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  void _pickTimeZone(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final timezones = [
+      {'code': 'UTC+02:00', 'label': 'توقيت مصر والأردن (GMT+2)'},
+      {'code': 'UTC+03:00', 'label': 'توقيت مكة المكرمة والقاهرة صيفاً (GMT+3)'},
+      {'code': 'UTC+04:00', 'label': 'توقيت الإمارات وعُمان (GMT+4)'},
+      {'code': 'UTC+01:00', 'label': 'توقيت الجزائر والمغرب وتونس (GMT+1)'},
+      {'code': 'UTC+00:00', 'label': 'توقيت غرينتش العالمي (UTC+0)'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      'اختر المنطقة الزمنية للمنظومة',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    ),
+                  ),
+                  const Divider(),
+                  ...timezones.map(
+                    (tz) => ListTile(
+                      title: Text(tz['label']!),
+                      subtitle: Text(tz['code']!),
+                      trailing: _timeZone == tz['code']
+                          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                          : null,
+                      onTap: () {
+                        _updateSetting<String>(
+                          'time_zone',
+                          tz['code']!,
+                          (v) => _timeZone = v,
+                        );
+                        Navigator.pop(ctx);
+                      },
                     ),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: compact ? 24 : 48),
-            Center(
-              child: Text(
-                'Version 2.0.4 (Build 824)',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.color?.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
-            SizedBox(height: compact ? 12 : 24),
-          ],
+          ),
         );
       },
     );
@@ -575,13 +621,16 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: const [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
             SizedBox(width: 8),
-            Text('حذف الحساب نهائياً'),
+            Text(
+              'حذف الحساب نهائياً',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: const Text(
-          'هل أنت متأكد من رغبتك في حذف حسابك؟ سيتم إزالة جميع بياناتك الشخصية وسجل دخولك وفقاً لسياسة الخصوصية ومتطلبات المتاجر (Apple & Google Play). هذا الإجراء لا يمكن التراجع عنه.',
+          'هل أنت متأكد من رغبتك في حذف حسابك؟ سيتم إزالة جميع بياناتك الشخصية وسجل دخولك وفقاً لسياسة الخصوصية. هذا الإجراء لا يمكن التراجع عنه.',
         ),
         actions: [
           TextButton(
@@ -619,21 +668,15 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       ),
     );
   }
-
-  void _showBiometricUnavailableMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
 }
 
-class _SettingsSection extends StatelessWidget {
+class _SettingsGroup extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color accentColor;
   final List<Widget> children;
 
-  const _SettingsSection({
+  const _SettingsGroup({
     required this.title,
     required this.icon,
     required this.accentColor,
@@ -643,7 +686,6 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isCompact = MediaQuery.sizeOf(context).width < 420;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,46 +693,33 @@ class _SettingsSection extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: accentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(icon, color: accentColor, size: 20),
+              child: Icon(icon, color: accentColor, size: 18),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isCompact ? 18 : null,
-                ),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
           ],
         ),
-        SizedBox(height: isCompact ? 10 : 16),
+        const SizedBox(height: 10),
         GlassCard(
           padding: EdgeInsets.zero,
-          borderRadius: BorderRadius.circular(isCompact ? 14 : 18),
+          borderRadius: BorderRadius.circular(16),
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           child: Column(
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                children[i],
-                if (i < children.length - 1)
-                  Divider(
-                    height: 1,
-                    color: isDark
-                        ? AppColors.darkBorder
-                        : AppColors.lightBorder,
-                  ),
-              ],
-            ],
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
           ),
         ),
       ],
@@ -698,117 +727,263 @@ class _SettingsSection extends StatelessWidget {
   }
 }
 
-class _SettingsTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
+class _ThemeSelectCard extends StatelessWidget {
   final IconData icon;
-  final Widget trailing;
-  final VoidCallback? onTap;
-  final Widget? titleTrailing;
+  final String label;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-  const _SettingsTile({
-    required this.title,
-    required this.subtitle,
+  const _ThemeSelectCard({
     required this.icon,
-    required this.trailing,
-    this.onTap,
-    this.titleTrailing,
+    required this.label,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final useStackedLayout = constraints.maxWidth < 360;
-        final isCompact = MediaQuery.sizeOf(context).width < 420;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = AppColors.primary;
 
-        Widget trailingFor(double maxWidth) {
-          return ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerRight,
-              child: trailing,
-            ),
-          );
-        }
-
-        final leadingContent = Row(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primary.withValues(alpha: isDark ? 0.25 : 0.1)
+              : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? primary
+                : (isDark ? Colors.white12 : Colors.black12),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
           children: [
             Icon(
               icon,
-              color: Theme.of(context).iconTheme.color?.withValues(alpha: 0.7),
+              color: isSelected ? primary : (isDark ? Colors.white70 : Colors.black54),
+              size: 26,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 13,
+                color: isSelected ? primary : null,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 10.5,
+                color: isDark ? Colors.white54 : Colors.black45,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LanguageCard extends StatelessWidget {
+  final String flag;
+  final String name;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LanguageCard({
+    required this.flag,
+    required this.name,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = AppColors.primary;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primary.withValues(alpha: isDark ? 0.25 : 0.1)
+              : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? primary : (isDark ? Colors.white12 : Colors.black12),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            Text(
+              name,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                fontSize: 13.5,
+                color: isSelected ? primary : null,
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsSwitchTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SettingsSwitchTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: iconColor,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsActionTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final Widget trailing;
+  final VoidCallback onTap;
+
+  const _SettingsActionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      if (titleTrailing != null) ...[
-                        const SizedBox(width: 8),
-                        titleTrailing!,
-                      ],
-                    ],
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.white60 : Colors.black54,
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
+            trailing,
           ],
-        );
-
-        Widget child = Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 12 : 16,
-            vertical: isCompact ? 14 : 12,
-          ),
-          child: useStackedLayout
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    leadingContent,
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: trailingFor(
-                        (constraints.maxWidth - 32).clamp(0.0, double.infinity),
-                      ),
-                    ),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: leadingContent),
-                    const SizedBox(width: 16),
-                    trailingFor(
-                      (constraints.maxWidth * 0.48).clamp(0.0, double.infinity),
-                    ),
-                  ],
-                ),
-        );
-
-        if (onTap != null) {
-          return InkWell(onTap: onTap, child: child);
-        }
-        return child;
-      },
+        ),
+      ),
     );
   }
 }

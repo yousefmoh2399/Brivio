@@ -467,15 +467,22 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
             children: [
               Text(
                 widget.title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
               const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.lock_outline_rounded, size: 12, color: Colors.green),
                   SizedBox(width: 4),
-                  Text(
-                    'مسودة خاصة بك 100% • لا يراها أحد غيرك',
-                    style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600),
+                  Flexible(
+                    child: Text(
+                      'مسودة خاصة بك 100% • لا يراها أحد غيرك',
+                      style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
                 ],
               ),

@@ -10,6 +10,7 @@ import '../../../features/academy/presentation/widgets/center_switcher_widget.da
 import '../../../features/attendance/presentation/screens/reception_qr_gate_screen.dart';
 import '../../../features/payments/presentation/screens/teacher_settlement_screen.dart';
 import '../../../features/reports/presentation/screens/attendance_reports_screen.dart';
+import '../../../features/attendance/presentation/screens/teacher_session_board_screen.dart';
 import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 
 class HomeTab extends StatelessWidget {
@@ -253,6 +254,22 @@ class HomeTab extends StatelessWidget {
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final isWide = constraints.maxWidth >= 720;
+                          final cardBoard = _TeacherQuickActionCard(
+                            title: 'السبورة الذكية للشرح',
+                            subtitle: 'شروحات حية، رسم وتصدير PDF',
+                            icon: Icons.draw_rounded,
+                            color: Colors.teal,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TeacherSessionBoardScreen(
+                                    teacherId: user?.id ?? '',
+                                  ),
+                                ),
+                              );
+                            },
+                          );
                           final card1 = _TeacherQuickActionCard(
                             title: 'بوابة الحضور السريع',
                             subtitle: 'مسح QR وتحصيل المصاريف',
@@ -308,6 +325,8 @@ class HomeTab extends StatelessWidget {
                           if (isWide) {
                             return Row(
                               children: [
+                                Expanded(child: cardBoard),
+                                const SizedBox(width: 12),
                                 Expanded(child: card1),
                                 const SizedBox(width: 12),
                                 Expanded(child: card2),
@@ -323,16 +342,22 @@ class HomeTab extends StatelessWidget {
                             children: [
                               Row(
                                 children: [
-                                  Expanded(child: card1),
+                                  Expanded(child: cardBoard),
                                   const SizedBox(width: 12),
-                                  Expanded(child: card2),
+                                  Expanded(child: card1),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  Expanded(child: card3),
+                                  Expanded(child: card2),
                                   const SizedBox(width: 12),
+                                  Expanded(child: card3),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
                                   Expanded(child: card4),
                                 ],
                               ),
