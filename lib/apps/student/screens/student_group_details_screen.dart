@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../core/network/supabase_client_wrapper.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/components/buttons.dart';
@@ -192,11 +191,11 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             labelColor: AppColors.primary,
             unselectedLabelColor: textSecondary,
             labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-            tabs: [
-              Tab(text: context.tr('Files & Lectures')),
-              Tab(text: context.tr('Homework')),
-              Tab(text: context.tr('Exams')),
-              Tab(text: context.tr('Attendance')),
+            tabs: const [
+              Tab(text: 'الملفات والشروحات'),
+              Tab(text: 'الواجبات المنزلية'),
+              Tab(text: 'الاختبارات والتقييمات'),
+              Tab(text: 'سجل الحضور'),
             ],
           ),
         ),
@@ -258,13 +257,13 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.tr('Homework submitted.'))),
+                    const SnackBar(content: Text('تم تسليم الواجب بنجاح ✅')),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Submission failed: $e')),
+                    SnackBar(content: Text('فشل تسليم الواجب: $e')),
                   );
                 }
               }
@@ -298,7 +297,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم تسليم الواجب وصور الكشكول بنجاح للأستاذ ✅'),
+          content: Text('تم تسليم الواجب بنجاح للأستاذ ✅'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -306,7 +305,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('فشل تسليم الواجب: $e')));
     }
   }
 
@@ -327,14 +326,14 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              context.tr('No Homework'),
+              'لا توجد واجبات حالياً',
               style: AppTypography.titleLarge(
                 textPrimary,
               ).copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr('You have no pending assignments here.'),
+              'ليس لديك أي واجبات مطلوبة في هذه المجموعة.',
               style: AppTypography.bodyMedium(textSecondary),
             ),
           ],
@@ -379,7 +378,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${context.tr("Max Score")}: ${hw.homework.maxScore}',
+                      'الدرجة القصوى: ${hw.homework.maxScore}',
                       style: AppTypography.caption(
                         textSecondary,
                       ).copyWith(fontWeight: FontWeight.w600),
@@ -391,8 +390,8 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 width: 120,
                 child: PrimaryButton(
                   text: hw.isSubmitted
-                      ? context.tr('Retry / Edit')
-                      : context.tr('Start'),
+                      ? 'تعديل الحل'
+                      : 'بدء الحل',
                   color: hw.isSubmitted ? AppColors.info : AppColors.primary,
                   onPressed: () => _submitHomework(hw),
                 ),
@@ -417,14 +416,14 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              context.tr('No Group Files'),
+              'لا توجد ملفات أو مناهج حالياً',
               style: AppTypography.titleLarge(
                 textPrimary,
               ).copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr('Lectures and materials will appear here.'),
+              'ستظهر المحاضرات والمذكرات هنا بمجرد رفعها من قِبل المعلم.',
               style: AppTypography.bodyMedium(textSecondary),
             ),
           ],
@@ -464,7 +463,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
               ).copyWith(fontWeight: FontWeight.w800),
             ),
             subtitle: Text(
-              '${semester.units.length} ${context.tr("Units")}',
+              '${semester.units.length} وحدات دراسية',
               style: AppTypography.caption(
                 textSecondary,
               ).copyWith(fontWeight: FontWeight.w600),
@@ -531,7 +530,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not open file: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر فتح الملف: $e')));
     }
   }
 
@@ -582,7 +581,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not open board: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر فتح السبورة: $e')));
     }
   }
 
@@ -601,8 +600,6 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       final attempt = await repo.startExam(exam.id);
       if (!mounted) return;
 
-      // We push the ExamRunnerScreen from assessment_screens.dart
-      // Import missing? We need to import assessment_screens.dart at top.
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ExamRunnerScreen(
@@ -625,16 +622,16 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر بدء الاختبار: $e')));
     }
   }
 
   void _showAssessmentLockedMessage(String status) {
     final message = switch (status) {
-      'not_started' => context.tr('This assessment has not started yet.'),
-      'expired' => context.tr('The assessment time is over.'),
-      'closed' => context.tr('This assessment has been closed.'),
-      _ => context.tr('This assessment is not available.'),
+      'not_started' => 'هذا الاختبار لم يبدأ بعد.',
+      'expired' => 'انتهى الوقت المحدد للاختبار.',
+      'closed' => 'تم إغلاق الاختبار.',
+      _ => 'هذا الاختبار غير متاح حالياً.',
     };
     ScaffoldMessenger.of(
       context,
@@ -646,19 +643,17 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
     final submitted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(context.tr('Request Exam Reset')),
+        title: const Text('طلب إعادة محاولة الاختبار'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              context.tr(
-                'If you encountered an issue, explain why you need a reset.',
-              ),
+            const Text(
+              'إذا واجهتك مشكلة تقنية أو طارئة، يرجى كتابة السبب لطلب فرصة جديدة من المعلم.',
             ),
             const SizedBox(height: 12),
             TextField(
               controller: reasonCtrl,
-              decoration: InputDecoration(labelText: context.tr('Reason')),
+              decoration: const InputDecoration(labelText: 'سبب طلب الإعادة'),
               maxLines: 3,
             ),
           ],
@@ -666,11 +661,11 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.tr('Cancel')),
+            child: const Text('إلغاء'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('Submit Request')),
+            child: const Text('إرسال الطلب'),
           ),
         ],
       ),
@@ -691,8 +686,8 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr('Reset request submitted.')),
+        const SnackBar(
+          content: Text('تم إرسال طلب إعادة الاختبار بنجاح للمعلم ✅'),
           backgroundColor: Colors.green,
         ),
       );
@@ -701,7 +696,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${context.tr("Failed to submit request")}: $e'),
+          content: Text('فشل في إرسال طلب الإعادة: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -721,14 +716,14 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              context.tr('No Exams'),
+              'لا توجد اختبارات حالياً',
               style: AppTypography.titleLarge(
                 textPrimary,
               ).copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr('No exams are currently active for this group.'),
+              'لا توجد اختبارات منشورة لهذه المجموعة في الوقت الحالي.',
               style: AppTypography.bodyMedium(textSecondary),
             ),
           ],
@@ -748,7 +743,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             builder: (context) {
               if (exam.canStart) {
                 return PrimaryButton(
-                  text: context.tr('Start Exam'),
+                  text: 'بدء الاختبار',
                   onPressed: () => _startExam(exam),
                   color: AppColors.primary,
                 );
@@ -765,10 +760,10 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                       color: Colors.orange.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Text(
-                      context.tr('Waiting for Approval'),
-                      style: const TextStyle(
+                      'بانتظار موافقة المعلم',
+                      style: TextStyle(
                         color: Colors.orange,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -790,10 +785,10 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                       color: Colors.red.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Text(
-                      context.tr('Reset Rejected'),
-                      style: const TextStyle(
+                      'تم رفض طلب الإعادة',
+                      style: TextStyle(
                         color: Colors.red,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -816,10 +811,10 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                       color: Colors.grey.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Text(
-                      context.tr('Attempts Exhausted'),
-                      style: const TextStyle(
+                      'استنفدت جميع المحاولات',
+                      style: TextStyle(
                         color: Colors.grey,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -830,7 +825,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 );
               } else {
                 return PrimaryButton(
-                  text: context.tr('Request Reset'),
+                  text: 'طلب إعادة محاولة',
                   onPressed: () => _requestExamReset(exam),
                   color: AppColors.error,
                 );
@@ -873,7 +868,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${context.tr("Duration")}: ${exam.exam.durationMinutes} ${context.tr("min")}',
+                          'المدة: ${exam.exam.durationMinutes} دقيقة',
                           style: AppTypography.caption(
                             textSecondary,
                           ).copyWith(fontWeight: FontWeight.w600),
@@ -929,14 +924,14 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              context.tr('No Sessions'),
+              'لا توجد حصص مسجلة حالياً',
               style: AppTypography.titleLarge(
                 textPrimary,
               ).copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr('No attendance records found.'),
+              'لا توجد سجلات حضور مسجلة لهذه المجموعة بعد.',
               style: AppTypography.bodyMedium(textSecondary),
             ),
           ],
@@ -950,6 +945,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final session = _sessionList[index];
+        final isDone = session.status == SessionStatus.completed;
         return GlassCard(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
@@ -959,12 +955,15 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.12),
+                  color: (isDone ? AppColors.success : AppColors.warning)
+                      .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.event_note_rounded,
-                  color: AppColors.warning,
+                child: Icon(
+                  isDone
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.event_note_rounded,
+                  color: isDone ? AppColors.success : AppColors.warning,
                   size: 22,
                 ),
               ),
@@ -974,7 +973,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${context.tr("Session")} - ${session.location ?? ""}',
+                      'حصة دراسية ${session.location != null && session.location!.isNotEmpty ? "· ${session.location}" : ""}',
                       style: AppTypography.titleMedium(
                         textPrimary,
                       ).copyWith(fontWeight: FontWeight.w700),
@@ -995,19 +994,14 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color:
-                      (session.status == SessionStatus.completed
-                              ? AppColors.success
-                              : AppColors.info)
-                          .withValues(alpha: 0.1),
+                  color: (isDone ? AppColors.success : AppColors.info)
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  session.status.name.toUpperCase(),
+                  isDone ? 'مكتملة' : 'مجدولة',
                   style: AppTypography.caption(
-                    session.status == SessionStatus.completed
-                        ? AppColors.success
-                        : AppColors.info,
+                    isDone ? AppColors.success : AppColors.info,
                   ).copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -1077,7 +1071,7 @@ class _StudentUnitSection extends StatelessWidget {
           ).copyWith(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(
-          '${unit.lessons.length} ${context.tr("Lessons")}',
+          '${unit.lessons.length} دروس',
           style: AppTypography.caption(textSecondary),
         ),
         children: [
@@ -1159,8 +1153,8 @@ class _StudentLessonRow extends StatelessWidget {
                 Text(
                   [
                     if (lesson.estimatedDurationMinutes != null)
-                      '${lesson.estimatedDurationMinutes} mins',
-                    '${resources.length} ${context.tr("Files")}',
+                      '${lesson.estimatedDurationMinutes} دقيقة',
+                    '${resources.length} ملفات',
                   ].join(' · '),
                   style: AppTypography.caption(textSecondary),
                 ),
@@ -1176,9 +1170,9 @@ class _StudentLessonRow extends StatelessWidget {
                         color: AppColors.primary,
                       ),
                       backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                      label: Text(
-                        context.tr('سبورة شرح المدرس ومذاكرتي'),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      label: const Text(
+                        'سبورة شرح المعلم ومذاكرتي',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                       onPressed: () => onOpenLessonBoard(
                         semester: semester,

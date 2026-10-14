@@ -44,9 +44,8 @@ class _StudentAppState extends State<StudentApp> {
           if (state.status == AuthStatus.initial ||
               state.status == AuthStatus.loading) {
             return const AuthLoadingScreen(
-              title: 'Opening student portal',
-              subtitle:
-                  'Checking your session, preferences, and secure access.',
+              title: 'جاري فتح بوابة الطالب',
+              subtitle: 'التحقق من جلسة الدخول وتأمين الاتصال...',
               icon: Icons.school_rounded,
               accentColor: AppColors.studentRole,
             );
@@ -59,7 +58,7 @@ class _StudentAppState extends State<StudentApp> {
             }
             return PortalDeniedScreen(
               currentRole: role,
-              targetPortalName: 'Student Learning Portal',
+              targetPortalName: 'بوابة الطالب الدراسية',
               onSignOut: () => _viewModel.signOut(),
             );
           }

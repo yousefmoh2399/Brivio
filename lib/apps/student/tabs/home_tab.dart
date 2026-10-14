@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
-import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
@@ -21,8 +20,12 @@ import '../../../features/assessment/presentation/widgets/group_leaderboard_widg
 import '../student_dashboard_models.dart';
 
 String _formatMoney(int amountMinor, String currency) {
-  final format = NumberFormat.currency(symbol: '$currency ', decimalDigits: 2);
-  return format.format(amountMinor / 100);
+  final value = amountMinor / 100;
+  final clean = value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
+  final curr = (currency.toUpperCase() == 'EGP' || currency.isEmpty) ? 'ج.م' : currency;
+  return '$clean $curr';
 }
 
 class HomeTab extends StatelessWidget {
@@ -162,7 +165,7 @@ class HomeTab extends StatelessWidget {
                   FadeInSlide(
                     duration: const Duration(milliseconds: 500),
                     child: Text(
-                      context.tr('Good morning,'),
+                      'أهلاً بك،',
                       style: AppTypography.caption(
                         textSecondary,
                       ).copyWith(fontSize: 12, fontWeight: FontWeight.w600),
@@ -173,8 +176,10 @@ class HomeTab extends StatelessWidget {
                     delay: const Duration(milliseconds: 100),
                     child: Text(
                       userName.split(' ').first,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.displayMedium(textPrimary).copyWith(
-                        fontSize: 28,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
                       ),
@@ -248,7 +253,7 @@ class HomeTab extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  context.tr('Code Playground'),
+                                  'منصة التجارب التفاعلية (Playground)',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.titleMedium(
@@ -257,9 +262,7 @@ class HomeTab extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  context.tr(
-                                    'Run code and watch step-by-step visual explanations',
-                                  ),
+                                  'شغّل الأكواد وشاهد الشرح التفاعلي خطوة بخطوة',
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTypography.caption(textSecondary),
@@ -268,9 +271,9 @@ class HomeTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Tooltip(
-                            message: context.tr('Open code playground'),
-                            child: const Icon(
+                          const Tooltip(
+                            message: 'فتح منصة التجارب',
+                            child: Icon(
                               Icons.play_circle_fill_rounded,
                               color: AppColors.primary,
                             ),
@@ -389,7 +392,7 @@ class HomeTab extends StatelessWidget {
                   duration: const Duration(milliseconds: 500),
                   delay: const Duration(milliseconds: 200),
                   child: Text(
-                    context.tr('Overview'),
+                    'نظرة عامة',
                     style: AppTypography.titleLarge(textPrimary).copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.4,
@@ -423,7 +426,7 @@ class HomeTab extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          context.tr('Due Soon'),
+                          'واجبات تستحق قريباً',
                           style: AppTypography.titleLarge(textPrimary).copyWith(
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.4,
@@ -434,7 +437,7 @@ class HomeTab extends StatelessWidget {
                           style: TextButton.styleFrom(
                             foregroundColor: AppColors.primary,
                           ),
-                          child: Text(context.tr('See All')),
+                          child: const Text('عرض الكل'),
                         ),
                       ],
                     ),
@@ -457,7 +460,7 @@ class HomeTab extends StatelessWidget {
                     duration: const Duration(milliseconds: 500),
                     delay: const Duration(milliseconds: 300),
                     child: Text(
-                      context.tr('Learning progress'),
+                      'مستوى تقدمك الأكاديمي',
                       style: AppTypography.titleLarge(textPrimary).copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
@@ -479,7 +482,7 @@ class HomeTab extends StatelessWidget {
                     duration: const Duration(milliseconds: 500),
                     delay: const Duration(milliseconds: 350),
                     child: Text(
-                      context.tr('Study Metrics'),
+                      'مؤشرات المذاكرة',
                       style: AppTypography.titleLarge(textPrimary).copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
@@ -504,7 +507,7 @@ class HomeTab extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          context.tr('Enrolled Groups'),
+                          'مجموعاتي الدراسية',
                           style: AppTypography.titleLarge(textPrimary).copyWith(
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.4,
@@ -523,7 +526,7 @@ class HomeTab extends StatelessWidget {
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: Text(
-                            context.tr('See all'),
+                            'عرض الكل',
                             style: AppTypography.labelLarge(AppColors.primary)
                                 .copyWith(
                                   fontSize: 12,
@@ -651,8 +654,8 @@ class _NextLessonHero extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               isLoading
-                  ? context.tr('Loading…')
-                  : (lesson?.title ?? context.tr('No lesson available')),
+                  ? 'جاري التحميل...'
+                  : (lesson?.title ?? 'لا توجد دروس متاحة حالياً'),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -666,10 +669,8 @@ class _NextLessonHero extends StatelessWidget {
               isLoading
                   ? ''
                   : lesson == null
-                  ? context.tr(
-                      'Enroll in a group and wait for a published lesson.',
-                    )
-                  : '${lesson!.unitName}  ·  ${lesson!.estimatedMinutes} min',
+                  ? 'انضم لمجموعة وانتظر نشر الدروس الجديدة من معلمك.'
+                  : '${lesson!.unitName}  ·  ${lesson!.estimatedMinutes} دقيقة',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 13,
@@ -696,7 +697,7 @@ class _NextLessonHero extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
-                          BoxShadow(
+                           BoxShadow(
                             color: Colors.white.withValues(alpha: 0.4),
                             blurRadius: 6,
                           ),
@@ -708,7 +709,7 @@ class _NextLessonHero extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '${lesson!.progressPercentage}% ${context.tr("Completed Lessons")}',
+                'تم إنجاز ${lesson!.progressPercentage}% من الدرس',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 12,
@@ -733,8 +734,8 @@ class _NextLessonHero extends StatelessWidget {
                 icon: const Icon(Icons.play_arrow_rounded, size: 20),
                 label: Text(
                   onOpen == null
-                      ? context.tr('No lesson ready')
-                      : context.tr('Start Lesson'),
+                      ? 'لا يوجد درس متاح'
+                      : 'ابدأ مذاكرة الدرس',
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
@@ -777,28 +778,28 @@ class _QuickStatsGrid extends StatelessWidget {
     return PortalMetricGrid(
       children: [
         PortalMetricCard(
-          label: context.tr('Lessons'),
+          label: 'الدروس',
           value: '$availableLessons',
           icon: Icons.menu_book_rounded,
           accentColor: AppColors.studentRole,
           onTap: onLessons,
         ),
         PortalMetricCard(
-          label: context.tr('Courses'),
+          label: 'المجموعات',
           value: '$activeCourses',
           icon: Icons.grid_view_rounded,
           accentColor: AppColors.info,
           onTap: onCourses,
         ),
         PortalMetricCard(
-          label: context.tr('Notifications'),
+          label: 'الإشعارات',
           value: '$unreadCount',
           icon: Icons.notifications_rounded,
           accentColor: AppColors.warning,
           onTap: onNotifications,
         ),
         PortalMetricCard(
-          label: context.tr('Balance'),
+          label: 'الرصيد المتبقي',
           value: _formatMoney(balance, currency),
           icon: Icons.wallet_rounded,
           accentColor: AppColors.error,
@@ -909,7 +910,7 @@ class _GamificationCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${summary.xpToNextLevel} XP ${context.tr("to next level")}',
+                '${summary.xpToNextLevel} XP متبقية للمستوى التالي',
                 style: AppTypography.caption(
                   textSecondary,
                 ).copyWith(fontWeight: FontWeight.w600),
@@ -1058,7 +1059,7 @@ class _PendingHomeworkCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${context.tr("Due")}: ${DateFormat.yMMMd().format(homework.homework.dueAt)}',
+                    'تاريخ التسليم: ${DateFormat.yMMMd().format(homework.homework.dueAt)}',
                     style: AppTypography.caption(
                       textSecondary,
                     ).copyWith(color: AppColors.warning),

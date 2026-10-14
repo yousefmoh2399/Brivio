@@ -3,10 +3,28 @@ import 'package:flutter/material.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/tokens/colors.dart';
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../features/helpdesk/data/repositories/helpdesk_repository.dart';
 import '../../../../features/helpdesk/data/models/support_ticket.dart';
 import '../../../../features/helpdesk/data/models/ticket_reply.dart';
+
+String _statusArabic(String status) {
+  return switch (status.toLowerCase()) {
+    'open' => 'مفتوحة',
+    'in_progress' => 'قيد المتابعة',
+    'closed' => 'مغلقة',
+    _ => status,
+  };
+}
+
+String _priorityArabic(String priority) {
+  return switch (priority.toLowerCase()) {
+    'low' => 'منخفضة',
+    'normal' => 'عادية',
+    'high' => 'عالية',
+    'urgent' => 'عاجلة',
+    _ => priority,
+  };
+}
 
 class StudentHelpdeskScreen extends StatefulWidget {
   const StudentHelpdeskScreen({super.key});
@@ -65,14 +83,14 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: context.tr('Helpdesk'),
-      subtitle: context.tr('Manage your support tickets and requests'),
+      title: 'الدعم الفني والشكاوى',
+      subtitle: 'متابعة تذاكر الدعم والطلبات والاستفسارات الفنية',
       icon: Icons.headset_mic,
       accentColor: AppColors.primary,
       actions: [
         PortalAction(
           icon: Icons.add,
-          label: context.tr('Create Ticket'),
+          label: 'تذكرة جديدة',
           onPressed: _showCreateDialog,
         ),
       ],
@@ -96,20 +114,18 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
             iconSize: 32,
           ),
           const SizedBox(height: 16),
-          Text(
-            context.tr('No tickets yet'),
-            style: const TextStyle(
+          const Text(
+            'لا توجد تذاكر دعم مسجلة حالياً',
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppColors.darkTextPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            context.tr(
-              'Create a ticket to get help with your courses or account.',
-            ),
-            style: const TextStyle(color: AppColors.darkTextSecondary),
+          const Text(
+            'أنشئ تذكرة للتواصل مع الإدارة أو الدعم الفني بشأن دوراتك أو حسابك.',
+            style: TextStyle(color: AppColors.darkTextSecondary),
           ),
         ],
       ),
@@ -151,7 +167,7 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
                           ),
                         ),
                         StatusChip(
-                          label: ticket.status.toUpperCase(),
+                          label: _statusArabic(ticket.status),
                           status: _getChipStatus(ticket.status),
                           small: true,
                         ),
@@ -169,7 +185,7 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${context.tr('Priority')}: ${context.tr(ticket.priority)} \u2022 ${_formatDate(ticket.createdAt)}',
+                      'الأولوية: ${_priorityArabic(ticket.priority)} \u2022 ${_formatDate(ticket.createdAt)}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.darkTextTertiary,
@@ -273,18 +289,18 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SectionHeader(title: context.tr('Create Support Ticket')),
+                const SectionHeader(title: 'إنشاء تذكرة دعم فني'),
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller: _subjectCtrl,
-                  label: context.tr('Subject'),
-                  hint: context.tr('Briefly describe the issue'),
+                  label: 'عنوان التذكرة',
+                  hint: 'وصف مختصر للمشكلة أو الاستفسار',
                 ),
                 const SizedBox(height: 12),
                 _buildTextField(
                   controller: _descCtrl,
-                  label: context.tr('Description'),
-                  hint: context.tr('Provide details...'),
+                  label: 'تفاصيل المشكلة',
+                  hint: 'يرجى كتابة التفاصيل بدقة لمساعدتك بشكل أسرع...',
                   maxLines: 4,
                 ),
                 const SizedBox(height: 12),
@@ -300,13 +316,13 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                       isExpanded: true,
                       dropdownColor: AppColors.darkSurface,
                       decoration: _inputDecoration(
-                        context.tr('Related Group/Class'),
+                        'المجموعة أو الدورة المرتبطة',
                       ),
                       style: const TextStyle(color: AppColors.darkTextPrimary),
                       items: [
-                        DropdownMenuItem(
+                        const DropdownMenuItem(
                           value: null,
-                          child: Text(context.tr('General Support')),
+                          child: Text('دعم عام (غير مرتبط بمجموعة)'),
                         ),
                         ...groups.map(
                           (g) => DropdownMenuItem(
@@ -327,14 +343,14 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                   initialValue: _selectedPriority,
                   isExpanded: true,
                   dropdownColor: AppColors.darkSurface,
-                  decoration: _inputDecoration(context.tr('Priority')),
+                  decoration: _inputDecoration('درجة الأهمية'),
                   style: const TextStyle(color: AppColors.darkTextPrimary),
-                  items: ['Low', 'Normal', 'High', 'Urgent'].map((p) {
-                    return DropdownMenuItem(
-                      value: p,
-                      child: Text(context.tr(p)),
-                    );
-                  }).toList(),
+                  items: const [
+                    DropdownMenuItem(value: 'Low', child: Text('منخفضة')),
+                    DropdownMenuItem(value: 'Normal', child: Text('عادية')),
+                    DropdownMenuItem(value: 'High', child: Text('عالية')),
+                    DropdownMenuItem(value: 'Urgent', child: Text('عاجلة')),
+                  ],
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedPriority = val);
                   },
@@ -359,9 +375,9 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
                             color: Colors.white,
                           ),
                         )
-                      : Text(
-                          context.tr('Submit Ticket'),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                      : const Text(
+                          'إرسال التذكرة',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                 ),
               ],
@@ -522,7 +538,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                 ),
               ),
               StatusChip(
-                label: t.status.toUpperCase(),
+                label: _statusArabic(t.status),
                 status: _getChipStatus(t.status),
               ),
             ],
@@ -543,10 +559,10 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
 
   Widget _buildRepliesList() {
     if (_replies.isEmpty) {
-      return Center(
+      return const Center(
         child: Text(
-          context.tr('No replies yet'),
-          style: const TextStyle(color: AppColors.darkTextSecondary),
+          'لا توجد ردود مسجلة بعد على هذه التذكرة.',
+          style: TextStyle(color: AppColors.darkTextSecondary),
         ),
       );
     }
@@ -615,7 +631,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
               controller: _replyCtrl,
               style: const TextStyle(color: AppColors.darkTextPrimary),
               decoration: InputDecoration(
-                hintText: context.tr('Type your reply...'),
+                hintText: 'اكتب ردك هنا...',
                 hintStyle: const TextStyle(color: AppColors.darkTextTertiary),
                 filled: true,
                 fillColor: Colors.white.withValues(alpha: 0.05),

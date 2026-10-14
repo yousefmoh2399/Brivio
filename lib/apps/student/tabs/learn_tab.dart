@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
@@ -49,7 +48,7 @@ class LearnTab extends StatelessWidget {
           surfaceTintColor: Colors.transparent,
           pinned: true,
           title: Text(
-            context.tr('Learn'),
+            'الدروس والمناهج',
             style: AppTypography.displaySmall(
               textPrimary,
             ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
@@ -92,16 +91,14 @@ class LearnTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    context.tr('No content yet'),
+                    'لا يوجد محتوى دراسي حتى الآن',
                     style: AppTypography.titleLarge(
                       textPrimary,
                     ).copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    context.tr(
-                      'Lessons appear here after your teacher publishes them.',
-                    ),
+                    'ستظهر الدروس والمذكرات هنا فور نشرها من قبل المعلم.',
                     style: AppTypography.bodyMedium(
                       isDark
                           ? AppColors.darkTextSecondary
@@ -123,7 +120,7 @@ class LearnTab extends StatelessWidget {
                   FadeInSlide(
                     duration: const Duration(milliseconds: 500),
                     child: Text(
-                      context.tr('Learning Paths'),
+                      'مسارات التعلم والمناهج',
                       style: AppTypography.titleLarge(textPrimary).copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
@@ -152,7 +149,7 @@ class LearnTab extends StatelessWidget {
                     duration: const Duration(milliseconds: 500),
                     delay: const Duration(milliseconds: 300),
                     child: Text(
-                      context.tr('My Groups'),
+                      'مجموعاتي الدراسية',
                       style: AppTypography.titleLarge(textPrimary).copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
@@ -267,7 +264,7 @@ class _LearningPathSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$complete/${lessons.length} ${context.tr("Completed Lessons")}',
+                  '$complete/${lessons.length} درس مكتمل',
                   style: AppTypography.caption(
                     textSecondary,
                   ).copyWith(fontWeight: FontWeight.w600),
@@ -344,7 +341,7 @@ class _LessonRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${lesson.unitName}  ·  ${lesson.estimatedMinutes} min  ·  ${lesson.progressPercentage}%',
+                      '${lesson.unitName}  ·  ${lesson.estimatedMinutes} دقيقة  ·  ${lesson.progressPercentage}%',
                       style: AppTypography.caption(
                         textSecondary,
                       ).copyWith(fontWeight: FontWeight.w500),

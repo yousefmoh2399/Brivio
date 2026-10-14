@@ -34,7 +34,7 @@ class StudentHomeworkItem {
     final json = Map<String, dynamic>.from(raw);
     return StudentHomeworkItem(
       homework: Homework.fromJson(json),
-      groupName: json['group_name'] as String? ?? 'Group',
+      groupName: json['group_name'] as String? ?? 'مجموعة',
       submissionStatus: json['submission_status'] as String?,
       submissionScore: (json['submission_score'] as num?)?.toDouble(),
       teacherFeedback: json['teacher_feedback'] as String?,
@@ -89,7 +89,7 @@ class StudentExamItem {
     final json = Map<String, dynamic>.from(raw);
     return StudentExamItem(
       exam: Exam.fromJson(json),
-      groupName: json['group_name'] as String? ?? 'Group',
+      groupName: json['group_name'] as String? ?? 'مجموعة',
       attemptCount: json['attempt_count'] as int? ?? 0,
       lastAttemptStatus: json['last_attempt_status'] as String?,
       lastScore: (json['last_score'] as num?)?.toDouble(),
@@ -124,7 +124,7 @@ class StudentAttendanceItem {
   factory StudentAttendanceItem.fromJson(Map<dynamic, dynamic> raw) {
     final json = Map<String, dynamic>.from(raw);
     final groupName = [
-      json['group_name'] as String? ?? 'Group',
+      json['group_name'] as String? ?? 'مجموعة',
       json['group_code'] as String? ?? '',
     ].where((p) => p.trim().isNotEmpty).join(' ');
     return StudentAttendanceItem(
@@ -182,7 +182,7 @@ class StudentLeaveItem {
           DateTime.now(),
       reviewerNote: json['reviewer_note'] as String?,
       sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
-      groupName: json['group_name'] as String? ?? 'General',
+      groupName: json['group_name'] as String? ?? 'عام',
     );
   }
 }
@@ -210,9 +210,9 @@ class PublishedSessionBoard {
     return PublishedSessionBoard(
       id: json['id'] as String? ?? '',
       title: title == null || title.trim().isEmpty
-          ? 'Published session board'
+          ? 'سبورة الحصة المنشورة'
           : title,
-      groupName: json['group_name'] as String? ?? 'Group',
+      groupName: json['group_name'] as String? ?? 'مجموعة',
       sessionDate:
           DateTime.tryParse(json['session_date']?.toString() ?? '') ??
           DateTime.tryParse(json['updated_at']?.toString() ?? '') ??

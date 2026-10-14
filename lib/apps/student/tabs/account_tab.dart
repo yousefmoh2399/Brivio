@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../core/localization/app_localizations.dart';
 import '../../../core/network/supabase_client_wrapper.dart';
 import '../../../core/settings/app_settings_screen.dart';
 import '../../../design_system/components/glass_card.dart';
@@ -23,7 +22,7 @@ String _formatMoney(int minor, String currency) {
   final clean = value == value.roundToDouble()
       ? value.toStringAsFixed(0)
       : value.toStringAsFixed(2);
-  return '$clean $currency';
+  return '$clean ج.م';
 }
 
 class AccountTab extends StatelessWidget {
@@ -83,7 +82,7 @@ class AccountTab extends StatelessWidget {
           surfaceTintColor: Colors.transparent,
           pinned: true,
           title: Text(
-            context.tr('Account'),
+            'حسابي',
             style: AppTypography.displaySmall(
               textPrimary,
             ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
@@ -109,9 +108,9 @@ class AccountTab extends StatelessWidget {
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 100),
                 child: _AccountSectionHeader(
-                  text: context.tr('Notifications'),
+                  text: 'الإشعارات والتنبيهات',
                   badge: unreadCount > 0 ? '$unreadCount' : null,
-                  action: unreadCount > 0 ? context.tr('Mark all read') : null,
+                  action: unreadCount > 0 ? 'تحديد الكل كمقروء' : null,
                   onAction: onMarkAllRead,
                 ),
               ),
@@ -130,7 +129,7 @@ class AccountTab extends StatelessWidget {
               FadeInSlide(
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 200),
-                child: _AccountSectionHeader(text: context.tr('Announcements')),
+                child: const _AccountSectionHeader(text: 'الإعلانات والتعميمات'),
               ),
               const SizedBox(height: 12),
               FadeInSlide(
@@ -147,7 +146,7 @@ class AccountTab extends StatelessWidget {
               FadeInSlide(
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 300),
-                child: _AccountSectionHeader(text: context.tr('Billing')),
+                child: const _AccountSectionHeader(text: 'الرسوم والمدفوعات'),
               ),
               const SizedBox(height: 12),
               FadeInSlide(
@@ -165,7 +164,7 @@ class AccountTab extends StatelessWidget {
               FadeInSlide(
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 400),
-                child: _AccountSectionHeader(text: context.tr('Profile')),
+                child: const _AccountSectionHeader(text: 'الملف الشخصي'),
               ),
               const SizedBox(height: 12),
               FadeInSlide(
@@ -182,7 +181,7 @@ class AccountTab extends StatelessWidget {
               FadeInSlide(
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 475),
-                child: _AccountSectionHeader(text: context.tr('Support')),
+                child: const _AccountSectionHeader(text: 'الدعم والمساعدة'),
               ),
               const SizedBox(height: 12),
               FadeInSlide(
@@ -193,10 +192,8 @@ class AccountTab extends StatelessWidget {
                     _AccountActionRow(
                       icon: Icons.support_agent_rounded,
                       color: AppColors.success,
-                      title: context.tr('Help Desk'),
-                      subtitle: context.tr(
-                        'Send a support request and follow replies.',
-                      ),
+                      title: 'الدعم الفني والشكاوى',
+                      subtitle: 'إرسال تذكرة ومتابعة ردود الإدارة والدعم الفني.',
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const StudentHelpdeskScreen(),
@@ -210,7 +207,7 @@ class AccountTab extends StatelessWidget {
               FadeInSlide(
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 525),
-                child: _AccountSectionHeader(text: context.tr('Settings')),
+                child: const _AccountSectionHeader(text: 'إعدادات التطبيق والنظام'),
               ),
               const SizedBox(height: 12),
               FadeInSlide(
@@ -249,7 +246,7 @@ class AccountTab extends StatelessWidget {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Text(
-                                  context.tr('App Settings'),
+                                  'إعدادات التطبيق',
                                   style: AppTypography.bodyMedium(
                                     textPrimary,
                                   ).copyWith(fontWeight: FontWeight.w600),
@@ -356,7 +353,7 @@ class AccountTab extends StatelessWidget {
                               ),
                               const SizedBox(width: 16),
                               Text(
-                                context.tr('Sign Out'),
+                                'تسجيل الخروج',
                                 style: AppTypography.bodyMedium(
                                   AppColors.error,
                                 ).copyWith(fontWeight: FontWeight.w700),
@@ -476,7 +473,7 @@ class _ProfileHeroCard extends StatelessWidget {
     final textSecondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
-    final name = profile?.fullName ?? 'Student';
+    final name = profile?.fullName ?? 'طالب';
     final email = profile?.email ?? '';
     final avatarUrl = profile?.avatarUrl;
 
@@ -504,7 +501,7 @@ class _ProfileHeroCard extends StatelessWidget {
                   : null,
               child: avatarUrl == null || avatarUrl.isEmpty
                   ? Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                      name.isNotEmpty ? name[0].toUpperCase() : 'ط',
                       style: AppTypography.displaySmall(
                         AppColors.primary,
                       ).copyWith(fontWeight: FontWeight.w800),
@@ -546,7 +543,7 @@ class _ProfileHeroCard extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    role,
+                    role == 'student' ? 'طالب' : role,
                     style: AppTypography.caption(AppColors.primary).copyWith(
                       fontWeight: FontWeight.w700,
                       fontSize: 11,
@@ -583,7 +580,7 @@ class _NotificationsGroup extends StatelessWidget {
         : AppColors.lightTextSecondary;
 
     if (notifications.isEmpty) {
-      return _InlinePlaceholder(text: context.tr('No notifications yet.'));
+      return const _InlinePlaceholder(text: 'لا توجد إشعارات حالياً.');
     }
 
     final recent = notifications.take(5).toList();
@@ -687,12 +684,17 @@ class _AnnouncementsGroup extends StatelessWidget {
         : AppColors.lightTextSecondary;
 
     if (announcements.isEmpty) {
-      return _InlinePlaceholder(text: context.tr('No announcements yet.'));
+      return const _InlinePlaceholder(text: 'لا توجد إعلانات منشورة حالياً.');
     }
 
     return Column(
       children: announcements.map((a) {
         final urgent = a.priority == AnnouncementPriority.urgent;
+        final priorityLabel = switch (a.priority) {
+          AnnouncementPriority.urgent => 'عاجل',
+          AnnouncementPriority.important => 'مهم',
+          _ => 'عام',
+        };
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: GlassCard(
@@ -724,7 +726,7 @@ class _AnnouncementsGroup extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    PortalStatusChip(status: a.priority.name),
+                    PortalStatusChip(status: priorityLabel),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -747,7 +749,7 @@ class _AnnouncementsGroup extends StatelessWidget {
                     ),
                     if (a.requiresAcknowledgement)
                       a.isAcknowledged
-                          ? PortalStatusChip(status: context.tr('Acknowledged'))
+                          ? const PortalStatusChip(status: 'تم الاطلاع')
                           : FilledButton.icon(
                               style: FilledButton.styleFrom(
                                 visualDensity: VisualDensity.compact,
@@ -761,9 +763,9 @@ class _AnnouncementsGroup extends StatelessWidget {
                               ),
                               onPressed: () => onAcknowledge(a),
                               icon: const Icon(Icons.check_rounded, size: 16),
-                              label: Text(
-                                context.tr('Acknowledge'),
-                                style: const TextStyle(
+                              label: const Text(
+                                'تأكيد الاطلاع',
+                                style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -802,7 +804,7 @@ class _BillingGroup extends StatelessWidget {
         : AppColors.lightTextSecondary;
 
     if (summary == null && invoices.isEmpty && receipts.isEmpty) {
-      return _InlinePlaceholder(text: context.tr('No billing records.'));
+      return const _InlinePlaceholder(text: 'لا توجد سجلات مالية أو فواتير مسجلة.');
     }
 
     return Column(
@@ -812,19 +814,19 @@ class _BillingGroup extends StatelessWidget {
           PortalMetricGrid(
             children: [
               PortalMetricCard(
-                label: context.tr('Total Invoiced'),
+                label: 'إجمالي الفواتير',
                 value: _formatMoney(summary!.totalDueMinor, summary!.currency),
                 icon: Icons.payments_rounded,
                 accentColor: AppColors.warning,
               ),
               PortalMetricCard(
-                label: context.tr('Paid'),
+                label: 'المدفوع',
                 value: _formatMoney(summary!.totalPaidMinor, summary!.currency),
                 icon: Icons.check_circle_rounded,
                 accentColor: AppColors.success,
               ),
               PortalMetricCard(
-                label: context.tr('Balance'),
+                label: 'المتبقي',
                 value: _formatMoney(
                   summary!.remainingBalanceMinor,
                   summary!.currency,
@@ -833,7 +835,7 @@ class _BillingGroup extends StatelessWidget {
                 accentColor: AppColors.error,
               ),
               PortalMetricCard(
-                label: context.tr('Invoices'),
+                label: 'عدد الفواتير',
                 value: '${summary!.invoiceCount}',
                 icon: Icons.receipt_long_rounded,
                 accentColor: AppColors.info,
@@ -847,7 +849,7 @@ class _BillingGroup extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
-              context.tr('Invoices'),
+              'الفواتير المستحقة',
               style: AppTypography.caption(
                 textSecondary,
               ).copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5),
@@ -895,7 +897,7 @@ class _BillingGroup extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${_formatMoney(inv.totalMinor, inv.currency)}  ·  Due ${_formatDate(inv.dueAt)}',
+                                '${_formatMoney(inv.totalMinor, inv.currency)}  ·  موعد الاستحقاق: ${_formatDate(inv.dueAt)}',
                                 style: AppTypography.caption(
                                   textSecondary,
                                 ).copyWith(fontWeight: FontWeight.w500),
@@ -918,7 +920,7 @@ class _BillingGroup extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
-              context.tr('Receipts'),
+              'إيصالات السداد الإلكترونية',
               style: AppTypography.caption(
                 textSecondary,
               ).copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5),
@@ -956,7 +958,7 @@ class _BillingGroup extends StatelessWidget {
                               children: [
                                 Text(
                                   r.receiptNumber.isEmpty
-                                      ? '${context.tr('Receipt')} ${_shortId(r.id)}'
+                                      ? 'إيصال دفع #${_shortId(r.id)}'
                                       : r.receiptNumber,
                                   style: AppTypography.bodyMedium(
                                     textPrimary,
@@ -994,7 +996,7 @@ class _BillingGroup extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: Text(
           receipt.receiptNumber.isEmpty
-              ? context.tr('Electronic Receipt')
+              ? 'إيصال سداد إلكتروني'
               : receipt.receiptNumber,
         ),
         content: Column(
@@ -1007,19 +1009,19 @@ class _BillingGroup extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             _ReceiptDetailLine(
-              label: context.tr('Amount Paid'),
+              label: 'المبلغ المسدد',
               value: _formatMoney(receipt.amountMinor, receipt.currency),
             ),
             _ReceiptDetailLine(
-              label: context.tr('Issued'),
+              label: 'تاريخ الإصدار',
               value: _formatDate(receipt.issuedAt),
             ),
             _ReceiptDetailLine(
-              label: context.tr('Invoice'),
+              label: 'رقم الفاتورة',
               value: _shortId(receipt.invoiceId),
             ),
             _ReceiptDetailLine(
-              label: context.tr('Reference'),
+              label: 'الرقم المرجعي',
               value: _shortId(receipt.transactionId),
             ),
           ],
@@ -1027,7 +1029,7 @@ class _BillingGroup extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('Close')),
+            child: const Text('إغلاق'),
           ),
         ],
       ),
@@ -1153,7 +1155,7 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
       if (!mounted) return;
       setState(() {
         _savingProfile = false;
-        _msg = 'Profile updated successfully.';
+        _msg = 'تم تحديث بيانات الملف الشخصي بنجاح.';
       });
     } catch (e) {
       if (!mounted) return;
@@ -1168,7 +1170,7 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
     final pw = _passwordCtrl.text.trim();
     if (pw.length < 6) {
       setState(() {
-        _err = 'Password must be at least 6 characters.';
+        _err = 'كلمة المرور يجب أن تتكون من 6 أحرف على الأقل.';
       });
       return;
     }
@@ -1186,7 +1188,7 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
       if (!mounted) return;
       setState(() {
         _changingPw = false;
-        _msg = 'Password updated successfully.';
+        _msg = 'تم تغيير كلمة المرور بنجاح.';
       });
     } catch (e) {
       if (!mounted) return;
@@ -1228,29 +1230,29 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
                 children: [
                   TextFormField(
                     controller: _nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Full name'),
-                      prefixIcon: const Icon(Icons.person_outline),
+                    decoration: const InputDecoration(
+                      labelText: 'الاسم بالكامل',
+                      prefixIcon: Icon(Icons.person_outline),
                     ),
                     validator: (v) => v == null || v.trim().isEmpty
-                        ? context.tr('Name is required')
+                        ? 'يرجى إدخال الاسم بالكامل'
                         : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _phoneCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Phone number'),
-                      prefixIcon: const Icon(Icons.phone_outlined),
+                    decoration: const InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      prefixIcon: Icon(Icons.phone_outlined),
                     ),
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _avatarCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('Avatar URL'),
-                      prefixIcon: const Icon(Icons.image_outlined),
+                    decoration: const InputDecoration(
+                      labelText: 'رابط الصورة الشخصية (اختياري)',
+                      prefixIcon: Icon(Icons.image_outlined),
                     ),
                     keyboardType: TextInputType.url,
                   ),
@@ -1275,9 +1277,9 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
                               ),
                             )
                           : const Icon(Icons.save_rounded, size: 20),
-                      label: Text(
-                        context.tr('Save Profile'),
-                        style: const TextStyle(
+                      label: const Text(
+                        'حفظ التعديلات',
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
@@ -1293,9 +1295,9 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
                   const SizedBox(height: 24),
                   TextField(
                     controller: _passwordCtrl,
-                    decoration: InputDecoration(
-                      labelText: context.tr('New password'),
-                      prefixIcon: const Icon(Icons.key_outlined),
+                    decoration: const InputDecoration(
+                      labelText: 'كلمة المرور الجديدة',
+                      prefixIcon: Icon(Icons.key_outlined),
                     ),
                     obscureText: true,
                   ),
@@ -1319,9 +1321,9 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
                               ),
                             )
                           : const Icon(Icons.key_rounded, size: 20),
-                      label: Text(
-                        context.tr('Update Password'),
-                        style: const TextStyle(
+                      label: const Text(
+                        'تحديث كلمة المرور',
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),

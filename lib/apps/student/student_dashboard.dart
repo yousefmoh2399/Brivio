@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 
 import '../../core/di/injection.dart';
 import '../../core/error/supabase_error_handler.dart';
-import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
@@ -311,7 +310,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(context.tr('Request Leave')),
+          title: const Text('طلب إذن غياب'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -319,14 +318,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 DropdownButtonFormField<String?>(
                   isExpanded: true,
                   initialValue: selectedSessionId,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Session'),
-                    prefixIcon: const Icon(Icons.event),
+                  decoration: const InputDecoration(
+                    labelText: 'الحصة / المحاضرة',
+                    prefixIcon: Icon(Icons.event),
                   ),
                   items: [
-                    DropdownMenuItem<String?>(
+                    const DropdownMenuItem<String?>(
                       value: null,
-                      child: Text(context.tr('General leave request')),
+                      child: Text('إذن غياب عام (بدون تحديد حصة)'),
                     ),
                     for (final item in _attendanceItems.take(30))
                       DropdownMenuItem<String?>(
@@ -342,8 +341,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: reasonController,
-                  decoration: InputDecoration(
-                    labelText: context.tr('Reason'),
+                  decoration: const InputDecoration(
+                    labelText: 'سبب الغياب',
                     alignLabelWithHint: true,
                   ),
                   minLines: 3,
@@ -355,12 +354,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text(context.tr('Cancel')),
+              child: const Text('إلغاء'),
             ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.send),
-              label: Text(context.tr('Send')),
+              label: const Text('إرسال الطلب'),
             ),
           ],
         ),
@@ -383,13 +382,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
       await _loadAll();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Leave request sent.'))),
+        const SnackBar(content: Text('تم إرسال طلب إذن الغياب بنجاح')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Leave request failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر إرسال طلب الغياب: $e')));
     } finally {
       reasonController.dispose();
     }
@@ -437,14 +436,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.tr('Homework submitted.'))),
+                    const SnackBar(content: Text('تم تسليم الواجب بنجاح')),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${context.tr('Submission failed')}: $e'),
+                      content: Text('فشل تسليم الواجب: $e'),
                     ),
                   );
                 }
@@ -486,7 +485,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Submission failed')}: $e')),
+        SnackBar(content: Text('فشل تسليم الواجب: $e')),
       );
     }
   }
@@ -527,16 +526,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Exam failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر بدء الاختبار: $e')));
     }
   }
 
   void _showAssessmentLockedMessage(String status) {
     final message = switch (status) {
-      'not_started' => context.tr('This assessment has not started yet.'),
-      'expired' => context.tr('The assessment time is over.'),
-      'closed' => context.tr('This assessment has been closed.'),
-      _ => context.tr('This assessment is not available.'),
+      'not_started' => 'هذا التقييم لم يبدأ بعد.',
+      'expired' => 'انتهى موعد تسليم هذا التقييم.',
+      'closed' => 'تم إغلاق هذا التقييم.',
+      _ => 'هذا التقييم غير متاح حالياً.',
     };
     ScaffoldMessenger.of(
       context,
@@ -559,7 +558,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Notification update failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر تحديث حالة الإشعار: $e')));
     }
   }
 
@@ -630,7 +629,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Notification update failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر تحديث الإشعارات: $e')));
     }
   }
 
@@ -658,7 +657,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Acknowledgement failed: $e')));
+      ).showSnackBar(SnackBar(content: Text('تعذر تأكيد قراءة الإعلان: $e')));
     }
   }
 
@@ -679,7 +678,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
     final tabs = [
       HomeTab(
-        userName: user?.fullName ?? 'Student',
+        userName: user?.fullName ?? 'طالب',
         isLoading: _isLoading,
         errorMessage: _loadError,
         snapshot: _snapshot,
@@ -720,7 +719,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
       AccountTab(
         profile: user,
-        role: widget.authViewModel.userRole?.displayName ?? 'Student',
+        role: widget.authViewModel.userRole?.displayName ?? 'طالب',
         studentId: widget.authViewModel.bootstrap?.studentId,
         financialSummary: _financialSummary,
         invoices: _invoices,
@@ -770,20 +769,20 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     color: AppColors.primary,
                   ),
                   destinations: [
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.house_outlined),
-                      selectedIcon: const Icon(Icons.house_rounded),
-                      label: Text(context.tr('Home')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.house_outlined),
+                      selectedIcon: Icon(Icons.house_rounded),
+                      label: Text('الرئيسية'),
                     ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.menu_book_outlined),
-                      selectedIcon: const Icon(Icons.menu_book_rounded),
-                      label: Text(context.tr('Learn')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.menu_book_outlined),
+                      selectedIcon: Icon(Icons.menu_book_rounded),
+                      label: Text('الدروس والمناهج'),
                     ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.bolt_outlined),
-                      selectedIcon: const Icon(Icons.bolt_rounded),
-                      label: Text(context.tr('Activity')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.bolt_outlined),
+                      selectedIcon: Icon(Icons.bolt_rounded),
+                      label: Text('الأنشطة والمهام'),
                     ),
                     NavigationRailDestination(
                       icon: Badge(
@@ -792,12 +791,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         child: const Icon(Icons.notifications_none_rounded),
                       ),
                       selectedIcon: const Icon(Icons.notifications_rounded),
-                      label: Text(context.tr('Notifications')),
+                      label: const Text('الإشعارات'),
                     ),
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.person_outline_rounded),
-                      selectedIcon: const Icon(Icons.person_rounded),
-                      label: Text(context.tr('Account')),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.person_outline_rounded),
+                      selectedIcon: Icon(Icons.person_rounded),
+                      label: Text('حسابي'),
                     ),
                   ],
                 ),
@@ -827,29 +826,29 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     setState(() => _selectedIndex = i),
                 labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                 destinations: [
-                  NavigationDestination(
-                    icon: const Icon(Icons.house_outlined),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.house_outlined),
+                    selectedIcon: Icon(
                       Icons.house_rounded,
                       color: AppColors.primary,
                     ),
-                    label: context.tr('Home'),
+                    label: 'الرئيسية',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.menu_book_outlined),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.menu_book_outlined),
+                    selectedIcon: Icon(
                       Icons.menu_book_rounded,
                       color: AppColors.primary,
                     ),
-                    label: context.tr('Learn'),
+                    label: 'الدروس والمناهج',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.bolt_outlined),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.bolt_outlined),
+                    selectedIcon: Icon(
                       Icons.bolt_rounded,
                       color: AppColors.primary,
                     ),
-                    label: context.tr('Activity'),
+                    label: 'الأنشطة والمهام',
                   ),
                   NavigationDestination(
                     icon: Badge(
@@ -861,15 +860,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       Icons.notifications_rounded,
                       color: AppColors.primary,
                     ),
-                    label: context.tr('Notifications'),
+                    label: 'الإشعارات',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(Icons.person_outline_rounded),
-                    selectedIcon: const Icon(
+                  const NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(
                       Icons.person_rounded,
                       color: AppColors.primary,
                     ),
-                    label: context.tr('Account'),
+                    label: 'حسابي',
                   ),
                 ],
               ),
@@ -978,19 +977,19 @@ class _SessionBoardScreenState extends State<_SessionBoardScreen> {
           IconButton(
             icon: Icon(_isDrawingMode ? Icons.pan_tool : Icons.edit),
             tooltip: _isDrawingMode
-                ? context.tr('Switch to Pan/Zoom')
-                : context.tr('Switch to Draw'),
+                ? 'التحريك والتكبير'
+                : 'الرسم بالقلم',
             onPressed: () => setState(() => _isDrawingMode = !_isDrawingMode),
           ),
           if (_isDrawingMode) ...[
             IconButton(
               icon: Icon(_eraser ? Icons.edit : Icons.auto_fix_high),
-              tooltip: context.tr('Toggle Eraser'),
+              tooltip: 'الممحاة',
               onPressed: () => setState(() => _eraser = !_eraser),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: context.tr('Clear my drawing'),
+              tooltip: 'مسح رسمي',
               onPressed: () {
                 setState(() => _studentStrokes.clear());
                 _saveStrokes();

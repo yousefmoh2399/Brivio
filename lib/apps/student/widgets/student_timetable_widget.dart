@@ -6,10 +6,12 @@ import '../../../../design_system/tokens/typography.dart';
 
 class StudentTimetableWidget extends StatefulWidget {
   final VoidCallback? onViewFullSchedule;
+  final Map<int, List<Map<String, dynamic>>>? schedule;
 
   const StudentTimetableWidget({
     super.key,
     this.onViewFullSchedule,
+    this.schedule,
   });
 
   @override
@@ -21,63 +23,8 @@ class _StudentTimetableWidgetState extends State<StudentTimetableWidget> {
 
   final List<String> _daysOfWeek = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 
-  final Map<int, List<Map<String, dynamic>>> _weeklySchedule = {
-    0: [
-      {
-        'subject': 'فيزياء ثانوية عامة',
-        'teacher': 'أ. محمد عبد الله',
-        'hall': 'قاعة 1 (المسرح الكبير)',
-        'time': '10:00 ص - 12:00 م',
-        'is_next': true,
-        'countdown': 'تبدأ بعد ساعة و20 دقيقة ⏰',
-      },
-      {
-        'subject': 'كيمياء عضوية',
-        'teacher': 'أ. محمود رضوان',
-        'hall': 'قاعة 3 (المعمل)',
-        'time': '02:00 م - 04:00 م',
-        'is_next': false,
-      },
-    ],
-    1: [
-      {
-        'subject': 'لغة عربية (نحو وبلاغة)',
-        'teacher': 'أ. طارق عبد العزيز',
-        'hall': 'قاعة 2 (الدور الثاني)',
-        'time': '11:00 ص - 01:00 م',
-        'is_next': false,
-      },
-    ],
-    2: [
-      {
-        'subject': 'رياضيات (تفاضل وتكامل)',
-        'teacher': 'أ. أحمد الشناوي',
-        'hall': 'قاعة 1 (المسرح الكبير)',
-        'time': '04:00 م - 06:00 م',
-        'is_next': false,
-      },
-    ],
-    3: [
-      {
-        'subject': 'لغة إنجليزية',
-        'teacher': 'Miss Sarah Smith',
-        'hall': 'قاعة 4 (لغات)',
-        'time': '12:00 م - 02:00 م',
-        'is_next': false,
-      },
-    ],
-    4: [
-      {
-        'subject': 'مراجعة فيزياء وحل شيتات',
-        'teacher': 'أ. محمد عبد الله',
-        'hall': 'قاعة 2',
-        'time': '01:00 م - 03:00 م',
-        'is_next': false,
-      },
-    ],
-    5: [],
-    6: [],
-  };
+  Map<int, List<Map<String, dynamic>>> get _weeklySchedule =>
+      widget.schedule ?? const {};
 
   @override
   Widget build(BuildContext context) {

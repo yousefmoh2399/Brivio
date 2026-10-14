@@ -15,9 +15,12 @@ String _formatTime(DateTime? dt) =>
 
 String _availabilityLabel(BuildContext context, String status) {
   return switch (status) {
-    'not_started' => context.tr('Not started yet'),
-    'expired' => context.tr('Time is over'),
-    'closed' => context.tr('Closed'),
+    'not_started' => 'لم تبدأ بعد',
+    'expired' => 'انتهى الوقت المحدد',
+    'closed' => 'مغلق',
+    'available' => 'متاح الآن',
+    'submitted' => 'تم التسليم',
+    'graded' => 'تم التصحيح',
     _ => context.tr(status),
   };
 }
@@ -137,9 +140,9 @@ class _ActivityTabState extends State<ActivityTab>
               FadeInSlide(
                 duration: const Duration(milliseconds: 400),
                 child: Text(
-                  context.tr('Activity'),
+                  'الأنشطة والمهام',
                   style: AppTypography.displaySmall(textPrimary).copyWith(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                   ),
@@ -193,12 +196,10 @@ class _ActivityTabState extends State<ActivityTab>
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                     ),
-                    tabs: [
-                      Tab(
-                        text: context.tr('Homework & Exams'),
-                      ),
-                      Tab(text: context.tr('Attendance')),
-                      Tab(text: context.tr('Boards')),
+                    tabs: const [
+                      Tab(text: 'الواجبات والاختبارات'),
+                      Tab(text: 'سجل الحضور'),
+                      Tab(text: 'سبورات الحصص'),
                     ],
                   ),
                 ),
@@ -390,14 +391,14 @@ Future<void> _showAssessmentReviewDialog(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      review['title']?.toString() ?? context.tr('Review'),
+                      review['title']?.toString() ?? 'مراجعة التقييم',
                       style: AppTypography.titleLarge(
                         textPrimary,
                       ).copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${context.tr('Score')}: ${review['score'] ?? 0} / ${review['max_score'] ?? 0}',
+                      'الدرجة: ${review['score'] ?? 0} / ${review['max_score'] ?? 0}',
                       style: AppTypography.titleMedium(
                         AppColors.primary,
                       ).copyWith(fontWeight: FontWeight.w800),
@@ -407,7 +408,7 @@ Future<void> _showAssessmentReviewDialog(
                         .isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        '${context.tr('Teacher Feedback')}: ${review['teacher_feedback']}',
+                        'ملاحظات المعلم: ${review['teacher_feedback']}',
                         style: AppTypography.bodyMedium(textSecondary),
                       ),
                     ],
@@ -417,7 +418,7 @@ Future<void> _showAssessmentReviewDialog(
                       child: answers.isEmpty
                           ? Center(
                               child: Text(
-                                context.tr('No answers provided.'),
+                                'لا توجد إجابات مسجلة لهذا التقييم.',
                                 style: AppTypography.bodyMedium(textSecondary),
                               ),
                             )
@@ -472,14 +473,14 @@ Future<void> _showAssessmentReviewDialog(
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          '${context.tr('Your Answer')}: ${answer['student_answer'] ?? context.tr('No Answer')}',
+                                          'إجابتك: ${answer['student_answer'] ?? 'لم تتم الإجابة'}',
                                           style: AppTypography.bodyMedium(
                                             textPrimary,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          '${context.tr('Correct Answer')}: ${answer['correct_answer'] ?? 'N/A'}',
+                                          'الإجابة النموذجية: ${answer['correct_answer'] ?? 'غير متوفرة'}',
                                           style:
                                               AppTypography.bodyMedium(
                                                 AppColors.success,
@@ -494,7 +495,7 @@ Future<void> _showAssessmentReviewDialog(
                                             .isNotEmpty) ...[
                                           const SizedBox(height: 4),
                                           Text(
-                                            '${context.tr('Explanation')}: ${answer['explanation']}',
+                                            'التوضيح والشرح: ${answer['explanation']}',
                                             style: AppTypography.caption(
                                               textSecondary,
                                             ),
@@ -502,7 +503,7 @@ Future<void> _showAssessmentReviewDialog(
                                         ],
                                         const SizedBox(height: 6),
                                         Text(
-                                          '${context.tr('Points')}: ${answer['points_awarded'] ?? 0} / ${answer['max_points'] ?? 0}',
+                                          'الدرجة المستحقة: ${answer['points_awarded'] ?? 0} / ${answer['max_points'] ?? 0}',
                                           style:
                                               AppTypography.caption(
                                                 textSecondary,
@@ -522,7 +523,7 @@ Future<void> _showAssessmentReviewDialog(
                       alignment: Alignment.centerRight,
                       child: FilledButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: Text(context.tr('Close')),
+                        child: const Text('إغلاق'),
                       ),
                     ),
                   ],
@@ -534,14 +535,14 @@ Future<void> _showAssessmentReviewDialog(
                     const SizedBox(height: 12),
                     Text(
                       review['message']?.toString() ??
-                          context.tr('Results are not released yet'),
+                          'لم يتم إعلان تفاصيل النتيجة ونموذج الإجابة بعد من قِبل المعلم.',
                       textAlign: TextAlign.center,
                       style: AppTypography.bodyMedium(textPrimary),
                     ),
                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: Text(context.tr('Close')),
+                      child: const Text('إغلاق'),
                     ),
                   ],
                 ),
@@ -590,14 +591,14 @@ class _HomeworkAndExamsView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              context.tr('All clear!'),
+              'لا توجد مهام حالياً',
               style: AppTypography.titleLarge(
                 textPrimary,
               ).copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr('Published homework and exams will appear here.'),
+              'الواجبات والاختبارات المنشورة ستظهر هنا فور إتاحتها.',
               style: AppTypography.bodyMedium(
                 isDark
                     ? AppColors.darkTextSecondary
@@ -617,7 +618,7 @@ class _HomeworkAndExamsView extends StatelessWidget {
           FadeInSlide(
             duration: const Duration(milliseconds: 500),
             child: _SectionLabel(
-              text: context.tr('Homework'),
+              text: 'الواجبات المنزلية',
               color: textPrimary,
             ),
           ),
@@ -642,7 +643,7 @@ class _HomeworkAndExamsView extends StatelessWidget {
             duration: const Duration(milliseconds: 500),
             delay: const Duration(milliseconds: 200),
             child: _SectionLabel(
-              text: context.tr('Exams & Quizzes'),
+              text: 'الاختبارات والتقييمات',
               color: textPrimary,
             ),
           ),
@@ -683,7 +684,7 @@ class _HomeworkTile extends StatelessWidget {
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Failed to load review')}: $e')),
+        SnackBar(content: Text('فشل في تحميل المراجعة: $e')),
       );
     }
   }
@@ -747,7 +748,7 @@ class _HomeworkTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.groupName}  ·  Due ${_formatDate(item.homework.dueAt)}',
+                      '${item.groupName}  ·  موعد التسليم: ${_formatDate(item.homework.dueAt)}',
                       style: AppTypography.caption(
                         textSecondary,
                       ).copyWith(fontWeight: FontWeight.w500),
@@ -763,7 +764,7 @@ class _HomeworkTile extends StatelessWidget {
                   if (item.isSubmitted || item.isGraded) ...[
                     const SizedBox(height: 6),
                     Text(
-                      context.tr('Review'),
+                      'مراجعة',
                       style: AppTypography.caption(
                         AppColors.primary,
                       ).copyWith(fontWeight: FontWeight.w700),
@@ -771,7 +772,7 @@ class _HomeworkTile extends StatelessWidget {
                   ] else if (item.canSubmit) ...[
                     const SizedBox(height: 6),
                     Text(
-                      context.tr('Submit'),
+                      'تسليم الحل',
                       style: AppTypography.caption(
                         AppColors.primary,
                       ).copyWith(fontWeight: FontWeight.w700),
@@ -811,7 +812,7 @@ class _ExamTile extends StatelessWidget {
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('Failed to load review')}: $e')),
+        SnackBar(content: Text('فشل في تحميل المراجعة: $e')),
       );
     }
   }
@@ -863,7 +864,7 @@ class _ExamTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.groupName}  ·  ${item.exam.durationMinutes} min  ·  ${item.attemptCount}/${item.exam.maxAttempts} attempts',
+                      '${item.groupName}  ·  ${item.exam.durationMinutes} دقيقة  ·  المحاولات: ${item.attemptCount}/${item.exam.maxAttempts}',
                       style: AppTypography.caption(
                         textSecondary,
                       ).copyWith(fontWeight: FontWeight.w500),
@@ -879,7 +880,7 @@ class _ExamTile extends StatelessWidget {
                   if (item.canStart) ...[
                     const SizedBox(height: 6),
                     Text(
-                      context.tr('Start'),
+                      'بدء الاختبار',
                       style: AppTypography.caption(
                         AppColors.primary,
                       ).copyWith(fontWeight: FontWeight.w700),
@@ -887,7 +888,7 @@ class _ExamTile extends StatelessWidget {
                   ] else if (item.canReview) ...[
                     const SizedBox(height: 6),
                     Text(
-                      context.tr('Review'),
+                      'مراجعة',
                       style: AppTypography.caption(
                         AppColors.primary,
                       ).copyWith(fontWeight: FontWeight.w700),
@@ -964,9 +965,9 @@ class _AttendanceView extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onScanQr,
                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                  label: Text(
-                    context.tr('Scan QR'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  label: const Text(
+                    'مسح QR الحضور',
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -981,9 +982,9 @@ class _AttendanceView extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onCreateLeaveRequest,
                   icon: const Icon(Icons.event_busy_rounded, size: 20),
-                  label: Text(
-                    context.tr('Request Leave'),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  label: const Text(
+                    'طلب إذن غياب',
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1005,25 +1006,25 @@ class _AttendanceView extends StatelessWidget {
           child: PortalMetricGrid(
             children: [
               PortalMetricCard(
-                label: context.tr('Rate'),
+                label: 'نسبة الالتزام',
                 value: '$rate%',
                 icon: Icons.insights_rounded,
                 accentColor: AppColors.studentRole,
               ),
               PortalMetricCard(
-                label: context.tr('Present'),
+                label: 'حضور',
                 value: '$present',
                 icon: Icons.check_circle_rounded,
                 accentColor: AppColors.success,
               ),
               PortalMetricCard(
-                label: context.tr('Late'),
+                label: 'تأخير',
                 value: '$late',
                 icon: Icons.schedule_rounded,
                 accentColor: AppColors.warning,
               ),
               PortalMetricCard(
-                label: context.tr('Absent'),
+                label: 'غياب',
                 value: '$absent',
                 icon: Icons.cancel_rounded,
                 accentColor: AppColors.error,
@@ -1039,7 +1040,7 @@ class _AttendanceView extends StatelessWidget {
             duration: const Duration(milliseconds: 500),
             delay: const Duration(milliseconds: 200),
             child: _SectionLabel(
-              text: context.tr('Attendance History'),
+              text: 'سجل الحضور والانصراف',
               color: textPrimary,
             ),
           ),
@@ -1111,8 +1112,7 @@ class _AttendanceView extends StatelessWidget {
           duration: const Duration(milliseconds: 500),
           delay: const Duration(milliseconds: 400),
           child: _SectionLabel(
-            text:
-                '${context.tr("Leave Requests")}  ·  $excused ${context.tr("Excused")}',
+            text: 'طلبات إذن الغياب  ·  $excused معذور',
             color: textPrimary,
           ),
         ),
@@ -1120,8 +1120,8 @@ class _AttendanceView extends StatelessWidget {
           duration: const Duration(milliseconds: 600),
           delay: const Duration(milliseconds: 500),
           child: leaveItems.isEmpty
-              ? _InlinePlaceholder(
-                  text: context.tr('No leave requests submitted yet.'),
+              ? const _InlinePlaceholder(
+                  text: 'لا توجد طلبات إذن غياب مسجلة حالياً.',
                 )
               : _AppleGroupedList(
                   children: leaveItems
@@ -1155,7 +1155,7 @@ class _AttendanceView extends StatelessWidget {
                                   children: [
                                     Text(
                                       item.classSessionId == null
-                                          ? context.tr('General leave request')
+                                          ? 'طلب إذن غياب عام'
                                           : '${_formatDate(item.sessionDate ?? item.submittedAt)}  ·  ${item.groupName}',
                                       style: AppTypography.bodyMedium(
                                         textPrimary,
@@ -1227,16 +1227,14 @@ class _SessionBoardsSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              context.tr('No boards yet'),
+              'لا توجد سبورات منشورة حالياً',
               style: AppTypography.titleLarge(
                 textPrimary,
               ).copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr(
-                'Boards appear after your teacher publishes a session board.',
-              ),
+              'ستظهر سبورات الحصص هنا بعد أن ينشر المعلم سبورة الحصة.',
               style: AppTypography.bodyMedium(
                 isDark
                     ? AppColors.darkTextSecondary
