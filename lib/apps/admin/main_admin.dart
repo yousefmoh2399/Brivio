@@ -44,9 +44,9 @@ class _AdminAppState extends State<AdminApp> {
           if (state.status == AuthStatus.initial ||
               state.status == AuthStatus.loading) {
             return const AuthLoadingScreen(
-              title: 'Opening admin dashboard',
+              title: 'فتح لوحة تحكم الإدارة',
               subtitle:
-                  'Loading management tools, permissions, and secure access.',
+                  'جاري تحميل أدوات الإدارة والصلاحيات والوصول الآمن...',
               icon: Icons.admin_panel_settings_rounded,
               accentColor: AppColors.adminRole,
             );
@@ -59,7 +59,7 @@ class _AdminAppState extends State<AdminApp> {
             }
             return PortalDeniedScreen(
               currentRole: role,
-              targetPortalName: 'Admin Web Dashboard',
+              targetPortalName: 'لوحة تحكم الإدارة',
               onSignOut: () => _viewModel.signOut(),
             );
           }

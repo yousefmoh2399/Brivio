@@ -14,7 +14,7 @@ class SupabaseQuestionBankRepository implements IQuestionBankRepository {
       final response = await _wrapper.withFreshSession(
         (client) => client
             .from('questions')
-            .select('*, student_question_options(*)')
+            .select('*, question_options(*), student_question_options(*)')
             .eq('subject_id', subjectId)
             .order('created_at', ascending: false),
       );
@@ -22,7 +22,9 @@ class SupabaseQuestionBankRepository implements IQuestionBankRepository {
       return (response as List).map((j) {
         final item = Map<String, dynamic>.from(j as Map);
         final rawOpts =
-            item['student_question_options'] as List<dynamic>? ?? [];
+            item['question_options'] as List<dynamic>? ??
+            item['student_question_options'] as List<dynamic>? ??
+            [];
         final opts = rawOpts
             .map(
               (o) =>

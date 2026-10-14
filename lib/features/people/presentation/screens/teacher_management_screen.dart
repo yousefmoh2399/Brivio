@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
@@ -69,8 +70,10 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   }
 
   void _showEditTeacherDialog(Teacher teacher) {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController(text: teacher.fullName);
     final specCtrl = TextEditingController(text: teacher.specialization ?? '');
+    final phoneCtrl = TextEditingController(text: teacher.phoneNumber ?? '');
     String? selectedBranchId = teacher.primaryBranchId.isEmpty
         ? null
         : teacher.primaryBranchId;
@@ -78,38 +81,76 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         !_branches.any((b) => b.id == selectedBranchId)) {
       selectedBranchId = null;
     }
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('تعديل بيانات المعلم'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'الاسم الكامل للمعلم',
-                  ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.teacherRole.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: specCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'المادة والتخصص الأكاديمي',
-                  ),
+                child: const Icon(Icons.edit, color: AppColors.teacherRole),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'تعديل بيانات المعلم',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                if (_branches.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedBranchId,
-                    decoration: const InputDecoration(
-                      labelText: 'الفرع التابع له',
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الاسم الكامل للمعلم *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم المعلم' : null,
                     ),
-                    items:
-                        _branches
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: specCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'المادة والتخصص الأكاديمي',
+                        hintText: 'مثال: فيزياء للثانوية العامة',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'رقم الهاتف / واتساب',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 12),
+                    if (_branches.isNotEmpty)
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedBranchId,
+                        decoration: const InputDecoration(
+                          labelText: 'الفرع التابع له',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _branches
                             .map(
                               (b) => DropdownMenuItem<String>(
                                 value: b.id,
@@ -124,60 +165,78 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                               child: Text('بدون فرع محدد'),
                             ),
                           ),
-                    onChanged: (v) =>
-                        setStateDialog(() => selectedBranchId = v),
-                  ),
-              ],
+                        onChanged: (v) =>
+                            setStateDialog(() => selectedBranchId = v),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty) return;
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.teacherRole,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => isSubmitting = true);
 
-                final nav = Navigator.of(ctx);
-                try {
-                  await Supabase.instance.client
-                      .from('profiles')
-                      .update({'full_name': nameCtrl.text.trim()})
-                      .eq('id', teacher.profileId);
+                      final nav = Navigator.of(ctx);
+                      try {
+                        await Supabase.instance.client
+                            .from('profiles')
+                            .update({
+                              'full_name': nameCtrl.text.trim(),
+                              'phone_number': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                            })
+                            .eq('id', teacher.profileId);
 
-                  await Supabase.instance.client
-                      .from('teachers')
-                      .update({
-                        'specialization': specCtrl.text.trim().isEmpty
-                            ? null
-                            : specCtrl.text.trim(),
-                        'primary_branch_id': selectedBranchId,
-                      })
-                      .eq('id', teacher.id);
+                        await Supabase.instance.client
+                            .from('teachers')
+                            .update({
+                              'specialization': specCtrl.text.trim().isEmpty ? null : specCtrl.text.trim(),
+                              'primary_branch_id': selectedBranchId,
+                            })
+                            .eq('id', teacher.id);
 
-                  nav.pop();
-                  _loadTeachers();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم تحديث بيانات المعلم بنجاح!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل التحديث: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('حفظ التعديلات'),
+                        nav.pop();
+                        _loadTeachers();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم حفظ تعديلات بيانات المعلم بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isSubmitting = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل التحديث: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'),
             ),
           ],
         ),
@@ -186,158 +245,229 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   }
 
   void _showProvisionTeacherDialog() {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final specCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
     bool obscurePassword = true;
     String? selectedBranchId;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('تسجيل وقيد معلم جديد'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'الاسم الكامل للمعلم',
-                  ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.teacherRole.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: emailCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'البريد الإلكتروني',
-                  ),
-                  keyboardType: TextInputType.emailAddress,
+                child: const Icon(Icons.person_add, color: AppColors.teacherRole),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'تسجيل وقيد معلم جديد',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: specCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'المادة والتخصص (مثال: فيزياء ثانوية عامة)',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: passwordCtrl,
-                  obscureText: obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'كلمة المرور (اختياري)',
-                    helperText: 'اتركها فارغة إذا كان المعلم سيسجل دخول برمز QR.',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      onPressed: () => setStateDialog(
-                        () => obscurePassword = !obscurePassword,
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الاسم الكامل للمعلم *',
+                        border: OutlineInputBorder(),
                       ),
-                      icon: Icon(
-                        obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم المعلم' : null,
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (_branches.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedBranchId,
-                    decoration: const InputDecoration(
-                      labelText: 'الفرع التابع له',
-                    ),
-                    items: _branches
-                        .map(
-                          (b) => DropdownMenuItem(
-                            value: b.id,
-                            child: Text(b.name),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: emailCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'البريد الإلكتروني *',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'يرجى إدخال البريد';
+                              if (!v.contains('@')) return 'بريد غير صالح';
+                              return null;
+                            },
                           ),
-                        )
-                        .toList(),
-                    onChanged: (v) =>
-                        setStateDialog(() => selectedBranchId = v),
-                  ),
-              ],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: phoneCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'رقم الهاتف / واتساب',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: specCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'المادة والتخصص الأكاديمي',
+                        hintText: 'مثال: فيزياء، لغة عربية، رياضيات...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: passwordCtrl,
+                      obscureText: obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'كلمة المرور (اختياري)',
+                        helperText: 'اتركها فارغة إذا كان المعلم سيسجل برمز QR.',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: () => setStateDialog(
+                            () => obscurePassword = !obscurePassword,
+                          ),
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_branches.isNotEmpty)
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedBranchId,
+                        decoration: const InputDecoration(
+                          labelText: 'الفرع التابع له',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _branches
+                            .map(
+                              (b) => DropdownMenuItem(
+                                value: b.id,
+                                child: Text(b.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setStateDialog(() => selectedBranchId = v),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty ||
-                    emailCtrl.text.trim().isEmpty) {
-                  return;
-                }
-                if (passwordCtrl.text.isNotEmpty &&
-                    passwordCtrl.text.length < 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('كلمة المرور لا تقل عن 6 أحرف.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.teacherRole,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
 
-                final nav = Navigator.of(ctx);
-                try {
-                  final response = await Supabase.instance.client.functions
-                      .invoke(
-                        'provision-user',
-                        body: {
-                          'email': emailCtrl.text.trim(),
-                          'fullName': nameCtrl.text.trim(),
-                          'role': 'teacher',
-                          'branchId': selectedBranchId,
-                          'specialization': specCtrl.text.trim().isEmpty
-                              ? null
-                              : specCtrl.text.trim(),
-                          if (passwordCtrl.text.isNotEmpty)
-                            'password': passwordCtrl.text,
-                        },
-                      );
+                      if (passwordCtrl.text.isNotEmpty &&
+                          passwordCtrl.text.length < 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('يجب ألا تقل كلمة المرور عن 6 أحرف.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
 
-                  if (response.status < 200 || response.status >= 300) {
-                    final data = response.data;
-                    final message = data is Map
-                        ? data['error']?.toString()
-                        : null;
-                    throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
-                  }
-                  final data = Map<String, dynamic>.from(response.data as Map);
-                  if (data['success'] != true) {
-                    throw Exception('فشلت عملية إنشاء الحساب.');
-                  }
+                      setStateDialog(() => isSubmitting = true);
+                      final nav = Navigator.of(ctx);
 
-                  nav.pop();
-                  _loadTeachers();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم إنشاء وقيد حساب المعلم بنجاح!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('خطأ في القيد: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('تأكيد القيد'),
+                      try {
+                        final response = await Supabase.instance.client.functions
+                            .invoke(
+                              'provision-user',
+                              body: {
+                                'email': emailCtrl.text.trim(),
+                                'fullName': nameCtrl.text.trim(),
+                                'role': 'teacher',
+                                'branchId': selectedBranchId,
+                                'phoneNumber': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                                'specialization': specCtrl.text.trim().isEmpty ? null : specCtrl.text.trim(),
+                                if (passwordCtrl.text.isNotEmpty)
+                                  'password': passwordCtrl.text,
+                              },
+                            );
+
+                        if (response.status < 200 || response.status >= 300) {
+                          final data = response.data;
+                          final message = data is Map
+                              ? data['error']?.toString()
+                              : null;
+                          throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
+                        }
+                        final data = Map<String, dynamic>.from(response.data as Map);
+                        if (data['success'] != true) {
+                          throw Exception('فشلت عملية إنشاء الحساب.');
+                        }
+
+                        nav.pop();
+                        _loadTeachers();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم إنشاء وقيد حساب المعلم بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isSubmitting = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('خطأ في القيد: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: Text(isSubmitting ? 'جاري القيد...' : 'تأكيد القيد'),
             ),
           ],
         ),
@@ -370,18 +500,18 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   Future<void> _exportTeacherData() async {
     try {
       final service = ReportGeneratorService();
-      final rosterData = _teachers
+      final teachersData = _teachers
           .map(
             (t) => {
               'name': t.fullName,
               'email': t.email,
               'specialization': t.specialization ?? 'عام',
-              'status': t.status,
+              'status': t.status ?? 'active',
             },
           )
           .toList();
 
-      await service.generateTeacherRosterReport(teachersData: rosterData);
+      await service.generateTeacherRosterReport(teachersData: teachersData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -397,6 +527,288 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     }
   }
 
+  Widget _buildTeacherCard(BuildContext context, Teacher t) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    final branchName = _branches
+        .where((b) => b.id == t.primaryBranchId)
+        .map((b) => b.name)
+        .firstOrNull;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.teacherRole.withValues(alpha: 0.12),
+            child: const Icon(Icons.person, color: AppColors.teacherRole, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.fullName,
+                  style: AppTypography.titleMedium(textPrimary).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  t.email,
+                  style: AppTypography.caption(textSecondary),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (t.specialization != null && t.specialization!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.teacherRole.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'التخصص: ${t.specialization}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.teacherRole, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (branchName != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'فرع: $branchName',
+                          style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    if (t.phoneNumber != null && t.phoneNumber!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'هاتف: ${t.phoneNumber}',
+                          style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              PortalStatusChip(status: t.status ?? 'active'),
+              const SizedBox(height: 4),
+              PopupMenuButton<String>(
+                tooltip: 'خيارات المعلم',
+                icon: const Icon(Icons.more_vert_rounded),
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'qr':
+                      _showLoginQr(t);
+                      break;
+                    case 'password':
+                      _showPasswordDialog(t);
+                      break;
+                    case 'edit':
+                      _showEditTeacherDialog(t);
+                      break;
+                    case 'activate':
+                      try {
+                        await Supabase.instance.client.rpc(
+                          'activate_user',
+                          params: {'user_uid': t.profileId},
+                        );
+                        _loadTeachers();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('تم تنشيط حساب المعلم')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('خطأ: $e')),
+                          );
+                        }
+                      }
+                      break;
+                    case 'suspend':
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('إيقاف حساب المعلم'),
+                          content: const Text(
+                            'هل أنت متأكد من رغبتك في إيقاف حساب المعلم مؤقتاً؟',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('إلغاء'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('إيقاف مؤقت'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await Supabase.instance.client.rpc(
+                            'suspend_user',
+                            params: {'user_uid': t.profileId},
+                          );
+                          _loadTeachers();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم إيقاف حساب المعلم')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('خطأ: $e')),
+                            );
+                          }
+                        }
+                      }
+                      break;
+                    case 'delete':
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('حذف المعلم نهائياً'),
+                          content: const Text(
+                            'هل أنت متأكد من حذف حساب المعلم وسجلاته نهائياً من النظام؟ لا يمكن التراجع عن هذا الإجراء.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('إلغاء'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('حذف نهائي'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await Supabase.instance.client.rpc(
+                            'hard_delete_user',
+                            params: {'target_user_id': t.profileId},
+                          );
+                          _loadTeachers();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم حذف حساب المعلم نهائياً')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('خطأ: $e')),
+                            );
+                          }
+                        }
+                      }
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'qr',
+                    child: ListTile(
+                      leading: Icon(Icons.qr_code_2, size: 20),
+                      title: Text('رمز الدخول السريع (QR)'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'password',
+                    child: ListTile(
+                      leading: Icon(Icons.password, size: 20),
+                      title: Text('تعيين كلمة المرور'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: ListTile(
+                      leading: Icon(Icons.edit, size: 20, color: Colors.blue),
+                      title: Text('تعديل البيانات'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  if (t.status == 'suspended')
+                    const PopupMenuItem(
+                      value: 'activate',
+                      child: ListTile(
+                        leading: Icon(Icons.check_circle, size: 20, color: Colors.green),
+                        title: Text('تنشيط الحساب'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    )
+                  else
+                    const PopupMenuItem(
+                      value: 'suspend',
+                      child: ListTile(
+                        leading: Icon(Icons.block, size: 20, color: Colors.orange),
+                        title: Text('إيقاف الحساب مؤقتاً'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      leading: Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                      title: Text('حذف المعلم نهائياً', style: TextStyle(color: Colors.red)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _teachers.where((t) {
@@ -407,8 +819,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     }).toList();
 
     return PortalPageShell(
-      title: 'إدارة شؤون المعلمين',
-      subtitle: 'قيد وتسجيل المعلمين، متابعة التخصصات والمواد، وإدارة الحسابات.',
+      title: 'إدارة المعلمين',
+      subtitle: 'تسجيل وقيد المعلمين، تحديد التخصصات، وإدارة الصلاحيات والفروع.',
       icon: Icons.person,
       accentColor: AppColors.teacherRole,
       actions: [
@@ -448,164 +860,10 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
               emptyIcon: Icons.person,
               onRetry: _loadTeachers,
               child: ListView.separated(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.only(bottom: 24),
                 itemCount: filtered.length,
-                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final t = filtered[i];
-                  return PortalListCard(
-                    icon: Icons.person,
-                    accentColor: AppColors.teacherRole,
-                    title: t.fullName,
-                    subtitle:
-                        'البريد: ${t.email} | التخصص: ${t.specialization ?? "عام"}',
-                    trailing: [
-                      IconButton(
-                        tooltip: 'رمز الاستجابة السريعة (QR)',
-                        onPressed: () => _showLoginQr(t),
-                        icon: const Icon(Icons.qr_code_2),
-                      ),
-                      IconButton(
-                        tooltip: 'تعيين كلمة المرور',
-                        onPressed: () => _showPasswordDialog(t),
-                        icon: const Icon(Icons.password),
-                      ),
-                      if (t.status == 'suspended')
-                        IconButton(
-                          tooltip: 'تنشيط الحساب',
-                          onPressed: () async {
-                            try {
-                              await Supabase.instance.client.rpc(
-                                'activate_user',
-                                params: {'user_uid': t.profileId},
-                              );
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('تم تنشيط حساب المعلم'),
-                                  ),
-                                );
-                                _loadTeachers();
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('خطأ: $e')),
-                                );
-                              }
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                          ),
-                        )
-                      else
-                        IconButton(
-                          tooltip: 'إيقاف الحساب مؤقتاً',
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('إيقاف حساب المعلم'),
-                                content: const Text(
-                                  'هل أنت متأكد من رغبتك في إيقاف حساب هذا المعلم مؤقتاً؟',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('إلغاء'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text(
-                                      'إيقاف مؤقت',
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirm == true) {
-                              try {
-                                await Supabase.instance.client.rpc(
-                                  'suspend_user',
-                                  params: {'user_uid': t.profileId},
-                                );
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('تم إيقاف حساب المعلم'),
-                                    ),
-                                  );
-                                  _loadTeachers();
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('خطأ: $e')),
-                                  );
-                                }
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.block, color: Colors.red),
-                        ),
-                      IconButton(
-                        tooltip: 'تعديل البيانات',
-                        onPressed: () => _showEditTeacherDialog(t),
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                      ),
-                      IconButton(
-                        tooltip: 'حذف المعلم',
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('حذف المعلم نهائياً'),
-                              content: const Text(
-                                'هل أنت متأكد من رغبتك في حذف حساب هذا المعلم نهائياً؟',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('إلغاء'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text(
-                                    'حذف نهائي',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await Supabase.instance.client.rpc(
-                                'hard_delete_user',
-                                params: {'target_user_id': t.profileId},
-                              );
-                              _loadTeachers();
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('خطأ: $e')),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
-                      ),
-                      PortalStatusChip(status: t.status ?? 'active'),
-                    ],
-                  );
-                },
+                separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                itemBuilder: (ctx, i) => _buildTeacherCard(context, filtered[i]),
               ),
             ),
           ),

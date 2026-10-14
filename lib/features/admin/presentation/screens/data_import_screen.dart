@@ -58,7 +58,7 @@ class _DataImportScreenState extends State<DataImportScreen> {
           ? _parseXlsx(bytes)
           : _parseDelimited(utf8.decode(bytes, allowMalformed: true));
       if (rows.isEmpty) {
-        throw const FormatException('The selected file is empty.');
+        throw const FormatException('الملف المحدد فارغ تماماً.');
       }
 
       final headers = rows.first.map(_normalizeHeader).toList();
@@ -121,7 +121,7 @@ class _DataImportScreenState extends State<DataImportScreen> {
         }
         nextRows[index] = row.copyWith(
           status: _ImportStatus.success,
-          resultMessage: 'Imported',
+          resultMessage: 'تم الاستيراد بنجاح',
         );
       } catch (e) {
         nextRows[index] = row.copyWith(

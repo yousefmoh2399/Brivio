@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
@@ -61,206 +62,422 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
   }
 
   void _showCreateBranchDialog() {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
     final addrCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة مقر / فرع جديد للسنتر'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Row(
             children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'اسم الفرع (مثال: فرع مدينة نصر)',
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.adminRole.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: const Icon(Icons.domain, color: AppColors.adminRole),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'كود الفرع (مثال: NASR-01)',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: addrCtrl,
-                decoration: const InputDecoration(labelText: 'العنوان بالتفصيل'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: phoneCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'رقم الهاتف للتواصل',
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'إضافة مقر / فرع جديد',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'اسم الفرع *',
+                        hintText: 'مثال: فرع مدينة نصر',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الفرع' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: codeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'كود الفرع *',
+                        hintText: 'مثال: NASR-01',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال كود الفرع' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: addrCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'العنوان بالتفصيل',
+                        hintText: 'الشارع، الحي، أقرب علامة مميزة...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'رقم هاتف الفرع للتواصل',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.adminRole,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => isSubmitting = true);
+
+                      final nav = Navigator.of(ctx);
+                      try {
+                        final b = Branch(
+                          id: '',
+                          code: codeCtrl.text.trim(),
+                          name: nameCtrl.text.trim(),
+                          address: addrCtrl.text.trim().isEmpty
+                              ? null
+                              : addrCtrl.text.trim(),
+                          phoneNumber: phoneCtrl.text.trim().isEmpty
+                              ? null
+                              : phoneCtrl.text.trim(),
+                          status: 'active',
+                        );
+
+                        await _branchRepo.createBranch(b);
+                        nav.pop();
+                        _loadBranches();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم إنشاء الفرع بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isSubmitting = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل إنشاء الفرع: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ الفرع'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty ||
-                  codeCtrl.text.trim().isEmpty) {
-                return;
-              }
-
-              final nav = Navigator.of(ctx);
-              try {
-                final b = Branch(
-                  id: '',
-                  code: codeCtrl.text.trim(),
-                  name: nameCtrl.text.trim(),
-                  address: addrCtrl.text.trim().isEmpty
-                      ? null
-                      : addrCtrl.text.trim(),
-                  phoneNumber: phoneCtrl.text.trim().isEmpty
-                      ? null
-                      : phoneCtrl.text.trim(),
-                  status: 'active',
-                );
-
-                await _branchRepo.createBranch(b);
-                nav.pop();
-                _loadBranches();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم إنشاء الفرع بنجاح!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('فشل إنشاء الفرع: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('حفظ الفرع'),
-          ),
-        ],
       ),
     );
   }
 
   void _showEditBranchDialog(Branch branch) {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController(text: branch.name);
     final codeCtrl = TextEditingController(text: branch.code);
     final addrCtrl = TextEditingController(text: branch.address ?? '');
     final phoneCtrl = TextEditingController(text: branch.phoneNumber ?? '');
     String status = branch.status;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('تعديل بيانات الفرع'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'اسم الفرع'),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.adminRole.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: codeCtrl,
-                  decoration: const InputDecoration(labelText: 'كود الفرع'),
+                child: const Icon(Icons.edit, color: AppColors.adminRole),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'تعديل بيانات الفرع',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: addrCtrl,
-                  decoration: const InputDecoration(labelText: 'العنوان'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'رقم الهاتف'),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: 'الحالة التشغيلية'),
-                  items: const [
-                    DropdownMenuItem(value: 'active', child: Text('نشط (Active)')),
-                    DropdownMenuItem(value: 'archived', child: Text('مؤرشف (Archived)')),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'اسم الفرع *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الفرع' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: codeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'كود الفرع *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال كود الفرع' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: addrCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'العنوان بالتفصيل',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'رقم الهاتف للتواصل',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: status,
+                      decoration: const InputDecoration(
+                        labelText: 'الحالة التشغيلية',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'active', child: Text('نشط (Active)')),
+                        DropdownMenuItem(value: 'archived', child: Text('مؤرشف (Archived)')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setStateDialog(() => status = v);
+                      },
+                    ),
                   ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => status = v);
-                  },
                 ),
-              ],
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty ||
-                    codeCtrl.text.trim().isEmpty) {
-                  return;
-                }
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.adminRole,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => isSubmitting = true);
 
-                final nav = Navigator.of(ctx);
-                try {
-                  final updated = Branch(
-                    id: branch.id,
-                    code: codeCtrl.text.trim(),
-                    name: nameCtrl.text.trim(),
-                    address: addrCtrl.text.trim().isEmpty
-                        ? null
-                        : addrCtrl.text.trim(),
-                    phoneNumber: phoneCtrl.text.trim().isEmpty
-                        ? null
-                        : phoneCtrl.text.trim(),
-                    status: status,
-                  );
+                      final nav = Navigator.of(ctx);
+                      try {
+                        final updated = Branch(
+                          id: branch.id,
+                          code: codeCtrl.text.trim(),
+                          name: nameCtrl.text.trim(),
+                          address: addrCtrl.text.trim().isEmpty
+                              ? null
+                              : addrCtrl.text.trim(),
+                          phoneNumber: phoneCtrl.text.trim().isEmpty
+                              ? null
+                              : phoneCtrl.text.trim(),
+                          status: status,
+                        );
 
-                  await _branchRepo.updateBranch(updated);
-                  nav.pop();
-                  _loadBranches();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم تحديث بيانات الفرع بنجاح!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل التحديث: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('حفظ التعديلات'),
+                        await _branchRepo.updateBranch(updated);
+                        nav.pop();
+                        _loadBranches();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم حفظ تعديلات بيانات الفرع بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isSubmitting = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل التحديث: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBranchCard(BuildContext context, Branch b) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.adminRole.withValues(alpha: 0.12),
+            child: const Icon(Icons.domain, color: AppColors.adminRole, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  b.name,
+                  style: AppTypography.titleMedium(textPrimary).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (b.address != null && b.address!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          b.address!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption(textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.adminRole.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'كود: ${b.code}',
+                        style: const TextStyle(fontSize: 12, color: AppColors.adminRole, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (b.phoneNumber != null && b.phoneNumber!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'هاتف: ${b.phoneNumber}',
+                          style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              PortalStatusChip(status: b.status),
+              const SizedBox(height: 4),
+              IconButton(
+                tooltip: 'تعديل بيانات الفرع',
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                onPressed: () => _showEditBranchDialog(b),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -309,27 +526,10 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
               emptyIcon: Icons.domain,
               onRetry: _loadBranches,
               child: ListView.separated(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.only(bottom: 24),
                 itemCount: filtered.length,
-                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final b = filtered[i];
-                  return PortalListCard(
-                    icon: Icons.domain,
-                    accentColor: AppColors.adminRole,
-                    title: b.name,
-                    subtitle:
-                        'الكود: ${b.code} | الهاتف: ${b.phoneNumber ?? "غير محدد"}\nالعنوان: ${b.address ?? "غير محدد"}',
-                    trailing: [
-                      IconButton(
-                        tooltip: 'تعديل الفرع',
-                        onPressed: () => _showEditBranchDialog(b),
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                      ),
-                      PortalStatusChip(status: b.status),
-                    ],
-                  );
-                },
+                separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                itemBuilder: (ctx, i) => _buildBranchCard(context, filtered[i]),
               ),
             ),
           ),

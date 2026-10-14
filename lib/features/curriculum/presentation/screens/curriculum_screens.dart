@@ -17,6 +17,14 @@ class CurriculumHierarchyWidget extends StatelessWidget {
     this.onLessonSelected,
   });
 
+  String _lessonTypeName(LessonType type) => switch (type) {
+    LessonType.video => 'فيديو شرح',
+    LessonType.pdf => 'مستند PDF',
+    LessonType.quiz => 'اختبار تفاعلي',
+    LessonType.text => 'محتوى نصي',
+    LessonType.programming => 'تطبيق عملي',
+  };
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -27,7 +35,7 @@ class CurriculumHierarchyWidget extends StatelessWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: Text('No curriculum semesters found.'),
+          child: Text('لا توجد فصول دراسية مضافة في هذا المنهج.'),
         ),
       );
     }
@@ -44,7 +52,7 @@ class CurriculumHierarchyWidget extends StatelessWidget {
                 '${sem.name} (${sem.code})',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              subtitle: Text('Status: ${sem.status}'),
+              subtitle: Text('الحالة: ${sem.status == "active" ? "نشط" : sem.status}'),
             ),
           ),
           const SizedBox(height: 8),
@@ -87,15 +95,19 @@ class CurriculumHierarchyWidget extends StatelessWidget {
                         runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Text(l.lessonType.name.toUpperCase()),
+                          Text(_lessonTypeName(l.lessonType)),
                           Text(
-                            'Duration: ${l.estimatedDurationMinutes ?? 10} min',
+                            'المدة: ${l.estimatedDurationMinutes ?? 15} دقيقة',
                           ),
                           Chip(
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
-                            label: Text(l.status.name),
+                            label: Text(
+                              l.status == LessonStatus.published
+                                  ? 'منشور'
+                                  : 'مسودة',
+                            ),
                             backgroundColor: l.status == LessonStatus.published
                                 ? Colors.green.shade100
                                 : Colors.grey.shade200,
@@ -179,7 +191,7 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
                   ),
                 ),
                 subtitle: Text(
-                  'Type: ${lesson.lessonType.name.toUpperCase()} | Status: ${lesson.status.name}',
+                  'النوع: ${_lessonTypeName(lesson.lessonType)} | الحالة: ${lesson.status == LessonStatus.published ? "منشور للطلاب" : "مسودة"}',
                 ),
               ),
             ),
@@ -200,10 +212,13 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Progress: ${progress?.progressPercentage ?? 0}%'),
+                Text(
+                  'نسبة الإنجاز: ${progress?.progressPercentage ?? 0}%',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.check_circle),
-                  label: const Text('Mark Complete'),
+                  label: const Text('تم الإكمال والمشاهدة'),
                   onPressed: () {
                     if (widget.onProgressUpdate != null) {
                       widget.onProgressUpdate!(100);
@@ -218,6 +233,14 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
     );
   }
 
+  String _lessonTypeName(LessonType type) => switch (type) {
+    LessonType.video => 'فيديو شرح',
+    LessonType.pdf => 'مستند PDF',
+    LessonType.quiz => 'اختبار تفاعلي',
+    LessonType.text => 'محتوى نصي',
+    LessonType.programming => 'تطبيق عملي',
+  };
+
   Widget _buildLessonContent(BuildContext context) {
     final lesson = widget.lesson;
 
@@ -230,7 +253,8 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
             const Icon(Icons.video_library, size: 64, color: Colors.deepPurple),
             const SizedBox(height: 12),
             Text(
-              'Video Stream: ${lesson.resources.isNotEmpty ? lesson.resources.first.objectPath : "cs101/intro.mp4"}',
+              'رابط المشاهدة: ${lesson.resources.isNotEmpty ? lesson.resources.first.objectPath : "دروس/شرح_الحصة.mp4"}',
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             Row(
@@ -260,14 +284,14 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
               },
             ),
             Text(
-              'Position: ${_currentPositionSeconds.toInt()}s / ${totalDuration}s',
+              'التقديم: ${_currentPositionSeconds.toInt()} ثانية / $totalDuration ثانية',
             ),
           ],
         );
       case LessonType.pdf:
         final objectPath = lesson.resources.isNotEmpty
             ? lesson.resources.first.objectPath
-            : 'cs101/guide.pdf';
+            : 'مذكرات/ملزمة_الشرح.pdf';
         final fileName = objectPath.split('/').last;
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -293,7 +317,7 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      fileName.isEmpty ? 'lecture.pdf' : fileName,
+                      fileName.isEmpty ? 'ملزمة_الشرح.pdf' : fileName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600),
@@ -313,14 +337,14 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
                       : null,
                 ),
                 Text(
-                  'Page $_pdfCurrentPage of $_pdfTotalPages',
+                  'صفحة $_pdfCurrentPage من $_pdfTotalPages',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 IconButton(
                   icon: const Icon(Icons.navigate_next),
                   onPressed: _pdfCurrentPage < _pdfTotalPages
-                      ? () => setState(() => _pdfCurrentPage++)
-                      : null,
+                  ? () => setState(() => _pdfCurrentPage++)
+                  : null,
                 ),
               ],
             ),
@@ -328,18 +352,18 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
         );
       case LessonType.text:
       default:
-        return const SingleChildScrollView(
-          child: Text(
-            'Welcome to Big O Notation & Algorithm Complexity.\n\n'
-            'An algorithm is a step-by-step procedure for solving a problem or accomplishing a task. '
-            'Time complexity measures the execution time of an algorithm relative to the input size N.\n\n'
-            'Key Complexity Classes:\n'
-            '• O(1) Constant Time\n'
-            '• O(log N) Logarithmic Time\n'
-            '• O(N) Linear Time\n'
-            '• O(N log N) Linearithmic Time\n'
-            '• O(N^2) Quadratic Time',
-            style: TextStyle(fontSize: 16, height: 1.5),
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'ملخص وتلخيص الدرس:\n\n'
+              'أهم المفاهيم والنقاط الرئيسية التي تم شرحها في هذه الحصة.\n\n'
+              '• تعريف المصطلحات والقوانين الهامة في الدرس.\n'
+              '• خطوات حل المسائل النموذجية والتمارين التطبيقية.\n'
+              '• الملاحظات والتحذيرات لتفادي الأخطاء الشائعة في الامتحانات.\n\n'
+              'يرجى التأكد من حل تدريبات الواجب المرتبطة بالدرس قبل موعد الحصة القادمة.',
+              style: const TextStyle(fontSize: 16, height: 1.6),
+            ),
           ),
         );
     }

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
@@ -62,190 +63,423 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
   }
 
   void _showCreateSubjectDialog() {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
     final descCtrl = TextEditingController();
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة مادة دراسية جديدة'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Row(
             children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'اسم المادة (مثال: الرياضيات البحتة)',
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.adminRole.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: const Icon(Icons.book, color: AppColors.adminRole),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'كود المادة (مثال: MATH-01)',
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'إضافة مادة دراسية جديدة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'الوصف أو الملاحظات',
-                ),
-                maxLines: 2,
               ),
             ],
           ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'اسم المادة *',
+                        hintText: 'مثال: الرياضيات البحتة، الكيمياء، الفيزياء',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم المادة' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: codeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'كود المادة *',
+                        hintText: 'مثال: MATH-01',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال كود المادة' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الوصف أو الملاحظات الأكاديمية',
+                        hintText: 'وصف محتوى المادة أو المراحل المستهدفة...',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.adminRole,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => isSubmitting = true);
+
+                      final nav = Navigator.of(ctx);
+                      try {
+                        final s = SubjectEntity(
+                          id: '',
+                          code: codeCtrl.text.trim(),
+                          name: nameCtrl.text.trim(),
+                          description: descCtrl.text.trim().isEmpty
+                              ? null
+                              : descCtrl.text.trim(),
+                          status: 'active',
+                        );
+
+                        await _subjectRepo.createSubject(s);
+                        nav.pop();
+                        _loadSubjects();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تمت إضافة المادة بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isSubmitting = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل إضافة المادة: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ المادة'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty ||
-                  codeCtrl.text.trim().isEmpty) {
-                return;
-              }
-
-              final nav = Navigator.of(ctx);
-              try {
-                final s = SubjectEntity(
-                  id: '',
-                  code: codeCtrl.text.trim(),
-                  name: nameCtrl.text.trim(),
-                  description: descCtrl.text.trim().isEmpty
-                      ? null
-                      : descCtrl.text.trim(),
-                  status: 'active',
-                );
-
-                await _subjectRepo.createSubject(s);
-                nav.pop();
-                _loadSubjects();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تمت إضافة المادة بنجاح!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('فشل إضافة المادة: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('حفظ المادة'),
-          ),
-        ],
       ),
     );
   }
 
   void _showEditSubjectDialog(SubjectEntity subject) {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController(text: subject.name);
     final codeCtrl = TextEditingController(text: subject.code);
     final descCtrl = TextEditingController(text: subject.description ?? '');
     String status = subject.status;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('تعديل بيانات المادة الدراسية'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'اسم المادة'),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.adminRole.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: codeCtrl,
-                  decoration: const InputDecoration(labelText: 'كود المادة'),
+                child: const Icon(Icons.edit, color: AppColors.adminRole),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'تعديل بيانات المادة الدراسية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: descCtrl,
-                  decoration: const InputDecoration(labelText: 'الوصف'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  decoration: const InputDecoration(labelText: 'الحالة'),
-                  items: const [
-                    DropdownMenuItem(value: 'active', child: Text('نشطة (Active)')),
-                    DropdownMenuItem(value: 'archived', child: Text('مؤرشفة (Archived)')),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'اسم المادة *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم المادة' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: codeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'كود المادة *',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال كود المادة' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الوصف أو الملاحظات',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: status,
+                      decoration: const InputDecoration(
+                        labelText: 'حالة المادة',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'active', child: Text('نشطة ومتاحة (Active)')),
+                        DropdownMenuItem(value: 'archived', child: Text('مؤرشفة (Archived)')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setStateDialog(() => status = v);
+                      },
+                    ),
                   ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => status = v);
-                  },
                 ),
-              ],
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty ||
-                    codeCtrl.text.trim().isEmpty) {
-                  return;
-                }
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.adminRole,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => isSubmitting = true);
 
-                final nav = Navigator.of(ctx);
-                try {
-                  final updated = SubjectEntity(
-                    id: subject.id,
-                    code: codeCtrl.text.trim(),
-                    name: nameCtrl.text.trim(),
-                    description: descCtrl.text.trim().isEmpty
-                        ? null
-                        : descCtrl.text.trim(),
-                    status: status,
-                  );
+                      final nav = Navigator.of(ctx);
+                      try {
+                        final updated = SubjectEntity(
+                          id: subject.id,
+                          code: codeCtrl.text.trim(),
+                          name: nameCtrl.text.trim(),
+                          description: descCtrl.text.trim().isEmpty
+                              ? null
+                              : descCtrl.text.trim(),
+                          status: status,
+                        );
 
-                  await _subjectRepo.updateSubject(updated);
-                  nav.pop();
-                  _loadSubjects();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم تحديث المادة بنجاح!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل التحديث: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('حفظ التعديلات'),
+                        await _subjectRepo.updateSubject(updated);
+                        nav.pop();
+                        _loadSubjects();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم تحديث بيانات المادة بنجاح!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isSubmitting = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل التحديث: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              icon: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check, size: 18),
+              label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSubjectCard(BuildContext context, SubjectEntity s) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.adminRole.withValues(alpha: 0.12),
+            child: const Icon(Icons.book, color: AppColors.adminRole, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s.name,
+                  style: AppTypography.titleMedium(textPrimary).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (s.description != null && s.description!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    s.description!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.caption(textSecondary),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.adminRole.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'كود: ${s.code}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.adminRole, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              PortalStatusChip(status: s.status),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                    onPressed: () => _showEditSubjectDialog(s),
+                    tooltip: 'تعديل المادة',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('حذف المادة الدراسية'),
+                          content: const Text(
+                            'هل أنت متأكد من رغبتك في حذف هذه المادة؟ قد يؤثر ذلك على المجموعات والأسئلة المرتبطة بها.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('إلغاء'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('حذف'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await _subjectRepo.deleteSubject(s.id);
+                          _loadSubjects();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم حذف المادة بنجاح')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل الحذف: $e')),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    tooltip: 'حذف المادة',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -294,66 +528,10 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
               emptyIcon: Icons.book,
               onRetry: _loadSubjects,
               child: ListView.separated(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.only(bottom: 24),
                 itemCount: filtered.length,
-                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final s = filtered[i];
-                  return PortalListCard(
-                    icon: Icons.book,
-                    accentColor: AppColors.adminRole,
-                    title: s.name,
-                    subtitle:
-                        'الكود: ${s.code} | الوصف: ${s.description ?? "بدون وصف"}',
-                    trailing: [
-                      PortalStatusChip(status: s.status),
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showEditSubjectDialog(s),
-                        tooltip: 'تعديل المادة',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('حذف المادة الدراسية'),
-                              content: const Text(
-                                'هل أنت متأكد من رغبتك في حذف هذه المادة؟',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('إلغاء'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('حذف'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await _subjectRepo.deleteSubject(s.id);
-                              _loadSubjects();
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('فشل الحذف: $e'),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        tooltip: 'حذف المادة',
-                      ),
-                    ],
-                  );
-                },
+                separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                itemBuilder: (ctx, i) => _buildSubjectCard(context, filtered[i]),
               ),
             ),
           ),

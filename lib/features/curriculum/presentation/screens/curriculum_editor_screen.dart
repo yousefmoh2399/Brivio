@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -39,7 +38,7 @@ class _CurriculumActionMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<int>(
-      tooltip: context.tr('Actions'),
+      tooltip: 'خيارات',
       icon: const Icon(Icons.more_vert_rounded),
       onSelected: (index) => actions[index].onPressed(),
       itemBuilder: (context) => [
@@ -160,6 +159,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
       );
       return;
     }
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
 
@@ -167,23 +167,28 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إضافة فصل دراسي جديد'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'اسم الفصل الدراسي (مثال: الفصل الدراسي الأول)',
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'اسم الفصل الدراسي (مثال: الفصل الدراسي الأول)',
+                ),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال اسم الفصل الدراسي' : null,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: codeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'كود الفصل (مثال: TERM-1)',
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'كود الفصل (مثال: TERM-1)',
+                ),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال كود الفصل' : null,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -192,10 +197,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty ||
-                  codeCtrl.text.trim().isEmpty) {
-                return;
-              }
+              if (!(formKey.currentState?.validate() ?? false)) return;
               final nav = Navigator.of(ctx);
               try {
                 final newSem = Semester(
@@ -230,31 +232,33 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     );
   }
 
-  void _showCreateUnitDialog(Semester semester) {
-    final nameCtrl = TextEditingController();
-    final codeCtrl = TextEditingController();
+  void _showEditSemesterDialog(Semester semester) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(text: semester.name);
+    final codeCtrl = TextEditingController(text: semester.code);
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('إضافة وحدة في ${semester.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'اسم الوحدة (مثال: الوحدة الأولى: الحركة والقوى)',
+        title: const Text('تعديل الفصل الدراسي'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'اسم الفصل الدراسي'),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال اسم الفصل' : null,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: codeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'كود الوحدة (مثال: U1)',
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(labelText: 'كود الفصل'),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال كود الفصل' : null,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -263,10 +267,78 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty ||
-                  codeCtrl.text.trim().isEmpty) {
-                return;
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              final nav = Navigator.of(ctx);
+              try {
+                final updated = Semester(
+                  id: semester.id,
+                  subjectId: semester.subjectId,
+                  name: nameCtrl.text.trim(),
+                  code: codeCtrl.text.trim(),
+                  orderNumber: semester.orderNumber,
+                  startDate: semester.startDate,
+                  endDate: semester.endDate,
+                  status: semester.status,
+                  units: semester.units,
+                );
+                await _semesterRepo.updateSemester(updated);
+                nav.pop();
+                _loadCurriculum();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('فشل تعديل الفصل: $e'), backgroundColor: Colors.red),
+                  );
+                }
               }
+            },
+            child: const Text('حفظ التعديلات'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateUnitDialog(Semester semester) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('إضافة وحدة في ${semester.name}'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'اسم الوحدة (مثال: الوحدة الأولى: الحركة والقوى)',
+                ),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال اسم الوحدة' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'كود الوحدة (مثال: U1)',
+                ),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال كود الوحدة' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!(formKey.currentState?.validate() ?? false)) return;
               final nav = Navigator.of(ctx);
               try {
                 final newUnit = Unit(
@@ -299,8 +371,75 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
     );
   }
 
+  void _showEditUnitDialog(Unit unit) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(text: unit.name);
+    final codeCtrl = TextEditingController(text: unit.code);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تعديل الوحدة'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'اسم الوحدة'),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال اسم الوحدة' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(labelText: 'كود الوحدة'),
+                validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال كود الوحدة' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              final nav = Navigator.of(ctx);
+              try {
+                final updated = Unit(
+                  id: unit.id,
+                  semesterId: unit.semesterId,
+                  name: nameCtrl.text.trim(),
+                  code: codeCtrl.text.trim(),
+                  orderNumber: unit.orderNumber,
+                  status: unit.status,
+                  lessons: unit.lessons,
+                );
+                await _unitRepo.updateUnit(updated);
+                nav.pop();
+                _loadCurriculum();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('فشل تعديل الوحدة: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('حفظ التعديلات'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCreateLessonDialog(Unit unit) {
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController();
+    final durationCtrl = TextEditingController(text: '45');
     String lessonTypeStr = 'video';
 
     showDialog(
@@ -309,40 +448,58 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         builder: (context, setStateDialog) {
           return AlertDialog(
             title: Text('إضافة درس في ${unit.name}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'عنوان الدرس',
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'عنوان الدرس',
+                      hintText: 'مثال: شرح قانون أوم والدائرة الكهربية',
+                    ),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال عنوان الدرس' : null,
                   ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: lessonTypeStr,
-                  decoration: const InputDecoration(
-                    labelText: 'نوع الدرس والمحتوى',
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: lessonTypeStr,
+                    decoration: const InputDecoration(
+                      labelText: 'نوع الدرس والمحتوى',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'video',
+                        child: Text('فيديو شرح'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'pdf',
+                        child: Text('مستند / مذكرة PDF'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'quiz',
+                        child: Text('اختبار تفاعلي'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'text',
+                        child: Text('محتوى نصي وملخص'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => lessonTypeStr = v);
+                    },
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'video',
-                      child: Text('فيديو شرح'),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: durationCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'المدة التقديرية بالدقائق',
+                      suffixText: 'دقيقة',
                     ),
-                    DropdownMenuItem(
-                      value: 'pdf',
-                      child: Text('مستند / مذكرة PDF'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'quiz',
-                      child: Text('اختبار تفاعلي'),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => lessonTypeStr = v);
-                  },
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -351,7 +508,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  if (titleCtrl.text.trim().isEmpty) return;
+                  if (!(formKey.currentState?.validate() ?? false)) return;
                   final nav = Navigator.of(ctx);
                   try {
                     final newLesson = Lesson(
@@ -361,6 +518,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                       lessonType: LessonType.fromString(lessonTypeStr),
                       orderNumber: unit.lessons.length + 1,
                       status: LessonStatus.draft,
+                      estimatedDurationMinutes: int.tryParse(durationCtrl.text.trim()) ?? 45,
                     );
 
                     await _lessonRepo.createLesson(newLesson);
@@ -378,6 +536,97 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                   }
                 },
                 child: const Text('إضافة الدرس'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditLessonDialog(Lesson lesson) {
+    final formKey = GlobalKey<FormState>();
+    final titleCtrl = TextEditingController(text: lesson.title);
+    final durationCtrl = TextEditingController(
+      text: (lesson.estimatedDurationMinutes ?? 45).toString(),
+    );
+    String lessonTypeStr = lesson.lessonType.toDbValue();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text('تعديل بيانات الدرس'),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'عنوان الدرس'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'يرجى إدخال عنوان الدرس' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: lessonTypeStr,
+                    decoration: const InputDecoration(labelText: 'نوع المحتوى'),
+                    items: const [
+                      DropdownMenuItem(value: 'video', child: Text('فيديو شرح')),
+                      DropdownMenuItem(value: 'pdf', child: Text('مستند / مذكرة PDF')),
+                      DropdownMenuItem(value: 'quiz', child: Text('اختبار تفاعلي')),
+                      DropdownMenuItem(value: 'text', child: Text('محتوى نصي وملخص')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => lessonTypeStr = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: durationCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'المدة التقديرية بالدقائق',
+                      suffixText: 'دقيقة',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  final nav = Navigator.of(ctx);
+                  try {
+                    final updated = Lesson(
+                      id: lesson.id,
+                      unitId: lesson.unitId,
+                      title: titleCtrl.text.trim(),
+                      lessonType: LessonType.fromString(lessonTypeStr),
+                      orderNumber: lesson.orderNumber,
+                      status: lesson.status,
+                      publishedAt: lesson.publishedAt,
+                      estimatedDurationMinutes: int.tryParse(durationCtrl.text.trim()) ?? lesson.estimatedDurationMinutes,
+                      resources: lesson.resources,
+                    );
+                    await _lessonRepo.updateLesson(updated);
+                    nav.pop();
+                    _loadCurriculum();
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('فشل تعديل الدرس: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+                child: const Text('حفظ التعديلات'),
               ),
             ],
           );
@@ -469,6 +718,50 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteResource(LessonResource res) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف المرفق'),
+        content: Text('هل أنت متأكد من حذف المرفق "${res.title}"؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('تأكيد الحذف', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await _resourceRepo.deleteResource(res.id);
+        _loadCurriculum();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم حذف المرفق بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل حذف المرفق: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   String _lessonTypeLabel(LessonType type) {
@@ -581,6 +874,12 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                   onPressed: () => _showCreateUnitDialog(sem),
                                 ),
                                 _CurriculumAction(
+                                  icon: Icons.edit,
+                                  color: Colors.indigo,
+                                  label: 'تعديل الفصل الدراسي',
+                                  onPressed: () => _showEditSemesterDialog(sem),
+                                ),
+                                _CurriculumAction(
                                   icon: Icons.delete,
                                   color: Colors.red,
                                   label: 'حذف الفصل الدراسي',
@@ -641,6 +940,13 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                         label: 'إضافة درس',
                                         onPressed: () =>
                                             _showCreateLessonDialog(unit),
+                                      ),
+                                      _CurriculumAction(
+                                        icon: Icons.edit,
+                                        color: Colors.amber.shade800,
+                                        label: 'تعديل الوحدة',
+                                        onPressed: () =>
+                                            _showEditUnitDialog(unit),
                                       ),
                                       _CurriculumAction(
                                         icon: Icons.delete,
@@ -710,6 +1016,15 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                             label: 'إرفاق مذكرة / ملف PDF',
                                             onPressed: () =>
                                                 _showUploadResourceDialog(
+                                                  lesson,
+                                                ),
+                                          ),
+                                          _CurriculumAction(
+                                            icon: Icons.edit,
+                                            color: Colors.teal,
+                                            label: 'تعديل بيانات الدرس',
+                                            onPressed: () =>
+                                                _showEditLessonDialog(
                                                   lesson,
                                                 ),
                                           ),
@@ -800,6 +1115,15 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                             ].join(' / '),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
+                                          ),
+                                          trailing: IconButton(
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.red,
+                                            ),
+                                            tooltip: 'حذف المرفق',
+                                            onPressed: () =>
+                                                _deleteResource(res),
                                           ),
                                         );
                                       }).toList(),

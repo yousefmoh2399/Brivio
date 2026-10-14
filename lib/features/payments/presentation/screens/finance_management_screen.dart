@@ -37,6 +37,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Invoice filtering
+  String _invoiceStatusFilter = 'all';
+  String _invoiceSearchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -106,11 +110,40 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     }
   }
 
+  Future<void> _onStudentChanged(Student? student) async {
+    if (student == null) return;
+    setState(() {
+      _selectedStudent = student;
+      _isLoading = true;
+    });
+
+    try {
+      final inv = await _invoiceRepo.fetchInvoicesForStudent(student.id);
+      final rec = await _receiptRepo.fetchReceiptsForStudent(student.id);
+      if (mounted) {
+        setState(() {
+          _invoices = inv;
+          _receipts = rec;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   void _showCreatePlanDialog() {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     String billingType = 'installment';
+    bool isSaving = false;
 
     showDialog(
       context: context,
@@ -118,102 +151,137 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         builder: (context, setStateDialog) {
           return AlertDialog(
             title: const Text('إنشاء خطة اشتراك جديدة'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم الخطة (مثال: الترم الأول رياضيات)',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: descCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'الوصف أو الملاحظات',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    initialValue: billingType,
-                    decoration: const InputDecoration(
-                      labelText: 'طريقة المحاسبة',
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'installment',
-                        child: Text('أقساط مجدولة'),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'اسم الخطة (مثال: الترم الأول رياضيات)',
+                        prefixIcon: Icon(Icons.title_rounded),
                       ),
-                      DropdownMenuItem(
-                        value: 'one_time',
-                        child: Text('دفعة واحدة كاملة'),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setStateDialog(() => billingType = v);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: amountCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'المبلغ الإجمالي (ج.م)',
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'يرجى إدخال اسم الخطة.';
+                        }
+                        if (v.trim().length < 3) {
+                          return 'يجب أن يكون الاسم 3 أحرف على الأقل.';
+                        }
+                        return null;
+                      },
                     ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الوصف أو الملاحظات',
+                        prefixIcon: Icon(Icons.description_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: billingType,
+                      decoration: const InputDecoration(
+                        labelText: 'طريقة المحاسبة',
+                        prefixIcon: Icon(Icons.payment_rounded),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'installment',
+                          child: Text('أقساط مجدولة (3 أقساط)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'one_time',
+                          child: Text('دفعة واحدة كاملة'),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setStateDialog(() => billingType = v);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: amountCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'المبلغ الإجمالي (ج.م)',
+                        prefixIcon: Icon(Icons.attach_money_rounded),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'يرجى إدخال المبلغ الإجمالي.';
+                        }
+                        final amt = int.tryParse(v.trim());
+                        if (amt == null || amt <= 0) {
+                          return 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: () async {
-                  if (nameCtrl.text.trim().isEmpty) return;
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
 
-                  final nav = Navigator.of(ctx);
-                  final amtEgp = int.tryParse(amountCtrl.text);
-                  if (amtEgp == null || amtEgp <= 0) return;
-                  try {
-                    await Supabase.instance.client
-                        .from('subscription_plans')
-                        .insert({
-                          'name': nameCtrl.text.trim(),
-                          'description': descCtrl.text.trim(),
-                          'billing_type': billingType,
-                          'total_amount_minor': amtEgp * 100,
-                          'currency': 'EGP',
-                          'installment_count': billingType == 'installment'
-                              ? 3
-                              : 1,
-                          'status': 'active',
-                        });
-                    nav.pop();
-                    _loadFinanceData();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم إنشاء خطة الاشتراك بنجاح!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('فشل إنشاء الخطة: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('حفظ الخطة'),
+                        setStateDialog(() => isSaving = true);
+                        final nav = Navigator.of(ctx);
+                        final amtEgp = int.parse(amountCtrl.text.trim());
+
+                        try {
+                          await Supabase.instance.client
+                              .from('subscription_plans')
+                              .insert({
+                                'name': nameCtrl.text.trim(),
+                                'description': descCtrl.text.trim(),
+                                'billing_type': billingType,
+                                'total_amount_minor': amtEgp * 100,
+                                'currency': 'EGP',
+                                'installment_count':
+                                    billingType == 'installment' ? 3 : 1,
+                                'status': 'active',
+                              });
+                          nav.pop();
+                          _loadFinanceData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم إنشاء خطة الاشتراك بنجاح!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSaving = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل إنشاء الخطة: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('حفظ الخطة'),
               ),
             ],
           );
@@ -226,80 +294,145 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     final selectedStudent = _selectedStudent;
     if (selectedStudent == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى اختيار طالب نشط أولاً.')),
+        const SnackBar(
+          content: Text('يرجى اختيار طالب أولاً.'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
-    String? selectedPlanId = _plans.isNotEmpty ? _plans.first.id : null;
+    if (_plans.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد خطط اشتراك متاحة. قم بإنشاء خطة أولاً.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    String selectedPlanId = _plans.first.id;
+    bool isSaving = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
+          final currentPlan =
+              _plans.firstWhere((p) => p.id == selectedPlanId);
+
           return AlertDialog(
             title: const Text('تسكين اشتراك لطالب'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_plans.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedPlanId,
-                    decoration: const InputDecoration(
-                      labelText: 'اختر خطة الاشتراك',
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.adminRole.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.adminRole.withValues(alpha: 0.2),
                     ),
-                    items: _plans
-                        .map(
-                          (p) => DropdownMenuItem(
-                            value: p.id,
-                            child: Text(p.name),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setStateDialog(() => selectedPlanId = v),
                   ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'الطالب: ${selectedStudent.fullName}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'كود الطالب: ${selectedStudent.studentCode}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedPlanId,
+                  decoration: const InputDecoration(
+                    labelText: 'اختر خطة الاشتراك',
+                    prefixIcon: Icon(Icons.card_membership_rounded),
+                  ),
+                  items: _plans
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p.id,
+                          child: Text(
+                            '${p.name} (${(p.totalAmountMinor / 100).toStringAsFixed(0)} ج.م)',
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setStateDialog(() => selectedPlanId = v);
+                  },
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'طريقة السداد: ${currentPlan.billingType == "installment" ? "أقساط مجدولة" : "دفعة كاملة"}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: () async {
-                  if (selectedPlanId == null) return;
-                  final nav = Navigator.of(ctx);
-                  try {
-                    await Supabase.instance.client.rpc(
-                      'assign_student_subscription',
-                      params: {
-                        'p_student_id': selectedStudent.id,
-                        'p_plan_id': selectedPlanId,
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        setStateDialog(() => isSaving = true);
+                        final nav = Navigator.of(ctx);
+                        try {
+                          await Supabase.instance.client.rpc(
+                            'assign_student_subscription',
+                            params: {
+                              'p_student_id': selectedStudent.id,
+                              'p_plan_id': selectedPlanId,
+                            },
+                          );
+                          nav.pop();
+                          _loadFinanceData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'تم تسكين الاشتراك وتوليد الفاتورة بنجاح!',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSaving = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل تسكين الاشتراك: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       },
-                    );
-                    nav.pop();
-                    _loadFinanceData();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'تم تسكين الاشتراك وتوليد الفاتورة بنجاح!',
-                          ),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('فشل تسكين الاشتراك: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('تأكيد التسكين'),
+                child: isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('تأكيد التسكين'),
               ),
             ],
           );
@@ -309,77 +442,169 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   }
 
   void _showRecordPaymentDialog(Invoice inv) {
+    final formKey = GlobalKey<FormState>();
+    final remainingAmount =
+        ((inv.totalMinor - inv.amountPaidMinor) / 100).clamp(0, double.infinity);
     final amountCtrl = TextEditingController(
-      text: (inv.totalMinor / 100).toStringAsFixed(0),
+      text: remainingAmount.toStringAsFixed(0),
     );
     final notesCtrl = TextEditingController();
+    String paymentMethod = 'cash';
+    bool isSaving = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'تسجيل سداد نقدي يدوي (${inv.invoiceNumber})',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountCtrl,
-              decoration: const InputDecoration(
-                labelText: 'مبلغ التحصيل (ج.م)',
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text('تسجيل سداد (${inv.invoiceNumber})'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'المبلغ المتبقي للتحصيل:',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        Text(
+                          '${remainingAmount.toStringAsFixed(0)} ج.م',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: amountCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'مبلغ التحصيل (ج.م)',
+                      prefixIcon: Icon(Icons.money_rounded),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'يرجى إدخال مبلغ التحصيل.';
+                      }
+                      final amt = double.tryParse(v.trim());
+                      if (amt == null || amt <= 0) {
+                        return 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: paymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'طريقة الدفع',
+                      prefixIcon: Icon(Icons.credit_card_rounded),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'cash',
+                        child: Text('نقدي (خزينة السنتر)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'vodafone_cash',
+                        child: Text('محفظة إلكترونية (فودافون كاش)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'instapay',
+                        child: Text('تحويل إنستاباي (InstaPay)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'pos_card',
+                        child: Text('بطاقة بنكية / فيزا (POS)'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => paymentMethod = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'ملاحظات أو رقم مرجعي للمعاملة',
+                      prefixIcon: Icon(Icons.note_alt_rounded),
+                    ),
+                  ),
+                ],
               ),
-              keyboardType: TextInputType.number,
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: notesCtrl,
-              decoration: const InputDecoration(
-                labelText: 'ملاحظات أو رقم مرجعي',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => isSaving = true);
+                      final nav = Navigator.of(ctx);
+                      final amtEgp = double.parse(amountCtrl.text.trim());
+
+                      try {
+                        await _paymentRepo.recordManualPayment(
+                          invoiceId: inv.id,
+                          amountMinor: (amtEgp * 100).round(),
+                          paymentMethod: paymentMethod,
+                          notes: notesCtrl.text.trim(),
+                        );
+                        nav.pop();
+                        _loadFinanceData();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'تم تسجيل السداد النقدي وإصدار الإيصال بنجاح!',
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('فشل تسجيل السداد: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('تأكيد التحصيل'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final nav = Navigator.of(ctx);
-              final amtEgp =
-                  double.tryParse(amountCtrl.text) ?? (inv.totalMinor / 100);
-              try {
-                await _paymentRepo.recordManualPayment(
-                  invoiceId: inv.id,
-                  amountMinor: (amtEgp * 100).round(),
-                  paymentMethod: 'cash',
-                  notes: notesCtrl.text.trim(),
-                );
-                nav.pop();
-                _loadFinanceData();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم تسجيل السداد النقدي وإصدار الإيصال بنجاح!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('فشل تسجيل السداد: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('تأكيد التحصيل'),
-          ),
-        ],
       ),
     );
   }
@@ -434,7 +659,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           'description': 'فاتورة #${inv.invoiceNumber}',
           'type': 'فاتورة مستحقة',
           'amount': (inv.totalMinor / 100).toStringAsFixed(2),
-          'notes': inv.status,
+          'notes': _statusInArabic(inv.status),
         });
       }
       for (var rec in _receipts) {
@@ -466,11 +691,31 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredInvoices = _invoices.where((inv) {
+      if (_invoiceStatusFilter != 'all') {
+        if (_invoiceStatusFilter == 'unpaid' && inv.status == 'paid') {
+          return false;
+        }
+        if (_invoiceStatusFilter == 'paid' && inv.status != 'paid') {
+          return false;
+        }
+        if (_invoiceStatusFilter == 'overdue' && inv.status != 'overdue') {
+          return false;
+        }
+      }
+      if (_invoiceSearchQuery.isNotEmpty) {
+        final q = _invoiceSearchQuery.toLowerCase();
+        return inv.invoiceNumber.toLowerCase().contains(q);
+      }
+      return true;
+    }).toList();
+
     return DefaultTabController(
       length: 6,
       child: PortalPageShell(
         title: 'الإدارة المالية والاشتراكات',
-        subtitle: 'إدارة خطط الاشتراكات، الفواتير، التحصيلات، وإيصالات السداد.',
+        subtitle:
+            'إدارة خطط الاشتراكات، الفواتير، التحصيلات، وإيصالات السداد.',
         icon: Icons.monetization_on,
         accentColor: AppColors.adminRole,
         actions: [
@@ -554,11 +799,13 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 errorMessage: _errorMessage,
                 isEmpty: false,
                 emptyTitle: 'لا توجد بيانات مالية',
-                emptySubtitle: 'قم بإنشاء خطط اشتراك وتسجيل طلاب للبدء في المعاملات المالية.',
+                emptySubtitle:
+                    'قم بإنشاء خطط اشتراك وتسجيل طلاب للبدء في المعاملات المالية.',
                 emptyIcon: Icons.monetization_on,
                 onRetry: _loadFinanceData,
                 child: TabBarView(
                   children: [
+                    // Tab 1: System Financial Summary
                     _systemSummary == null
                         ? const SizedBox.shrink()
                         : SingleChildScrollView(
@@ -600,11 +847,32 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               ],
                             ),
                           ),
+                    // Tab 2: Subscription Plans
                     _plans.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'لا توجد خطط اشتراك مسجلة حالياً.',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.card_membership_rounded,
+                                  size: 48,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'لا توجد خطط اشتراك مسجلة حالياً.',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  onPressed: _showCreatePlanDialog,
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('إضافة أول خطة اشتراك'),
+                                ),
+                              ],
                             ),
                           )
                         : ListView.separated(
@@ -614,7 +882,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                                 const SizedBox(height: 8),
                             itemBuilder: (ctx, i) {
                               final p = _plans[i];
-                              final billingTypeLabel = p.billingType == 'installment' ? 'أقساط مجدولة' : 'دفعة واحدة';
+                              final billingTypeLabel =
+                                  p.billingType == 'installment'
+                                      ? 'أقساط مجدولة'
+                                      : 'دفعة واحدة';
                               return PortalListCard(
                                 icon: Icons.card_membership_rounded,
                                 accentColor: AppColors.adminRole,
@@ -625,138 +896,278 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               );
                             },
                           ),
+                    // Tab 3: Assign Subscription
                     Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (_students.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 8,
-                              ),
-                              child: DropdownButtonFormField<Student>(
-                                initialValue: _selectedStudent,
-                                decoration: const InputDecoration(
-                                  labelText: 'اختر الطالب',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: _students
-                                    .map(
-                                      (s) => DropdownMenuItem(
-                                        value: s,
-                                        child: Text(
-                                          '${s.fullName} (${s.studentCode})',
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_students.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 20),
+                                child: DropdownButtonFormField<Student>(
+                                  initialValue: _selectedStudent,
+                                  decoration: const InputDecoration(
+                                    labelText: 'اختر الطالب المستهدف',
+                                    prefixIcon: Icon(Icons.person_search_rounded),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  items: _students
+                                      .map(
+                                        (s) => DropdownMenuItem(
+                                          value: s,
+                                          child: Text(
+                                            '${s.fullName} (${s.studentCode})',
+                                          ),
                                         ),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (student) {
-                                  if (student == null) return;
-                                  setState(() => _selectedStudent = student);
-                                  _loadFinanceData();
-                                },
+                                      )
+                                      .toList(),
+                                  onChanged: _onStudentChanged,
+                                ),
+                              ),
+                            const Icon(
+                              Icons.assignment_ind_rounded,
+                              size: 54,
+                              color: Colors.blue,
+                            ),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'تسكين خطط الاشتراكات والمصروفات للطلاب',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          const Icon(
-                            Icons.assignment_ind_rounded,
-                            size: 54,
-                            color: Colors.blue,
-                          ),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'تسكين خطط الاشتراكات والمصروفات للطلاب',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                            const SizedBox(height: 6),
+                            const Text(
+                              'اختر الطالب وخطة الاشتراك لإصدار الفاتورة وجدول الأقساط تلقائياً.',
+                              style: TextStyle(fontSize: 13, color: Colors.grey),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed:
-                                _selectedStudent == null || _plans.isEmpty
-                                ? null
-                                : _showAssignSubscriptionDialog,
-                            icon: const Icon(Icons.add),
-                            label: const Text('تسكين اشتراك للطالب المحدد'),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed:
+                                  _selectedStudent == null || _plans.isEmpty
+                                      ? null
+                                      : _showAssignSubscriptionDialog,
+                              icon: const Icon(Icons.add),
+                              label: const Text('تسكين اشتراك للطالب المحدد'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    // Tab 3: Invoices
-                    _invoices.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'لا توجد فواتير مسجلة لهذا الطالب.',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                    // Tab 4: Invoices
+                    Column(
+                      children: [
+                        // Student Switcher & Filters
+                        if (_students.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: DropdownButtonFormField<Student>(
+                                        initialValue: _selectedStudent,
+                                        decoration: const InputDecoration(
+                                          labelText: 'عرض فواتير الطالب',
+                                          prefixIcon: Icon(Icons.person_rounded),
+                                          isDense: true,
+                                        ),
+                                        items: _students
+                                            .map(
+                                              (s) => DropdownMenuItem(
+                                                value: s,
+                                                child: Text(
+                                                  '${s.fullName} (${s.studentCode})',
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: _onStudentChanged,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: DropdownButtonFormField<String>(
+                                        initialValue: _invoiceStatusFilter,
+                                        decoration: const InputDecoration(
+                                          labelText: 'الحالة',
+                                          isDense: true,
+                                        ),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'all',
+                                            child: Text('الكل'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'unpaid',
+                                            child: Text('غير مسدد'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'paid',
+                                            child: Text('مسدد بالكامل'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'overdue',
+                                            child: Text('متأخر'),
+                                          ),
+                                        ],
+                                        onChanged: (v) {
+                                          if (v != null) {
+                                            setState(() => _invoiceStatusFilter = v);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  decoration: const InputDecoration(
+                                    hintText: 'بحث برقم الفاتورة...',
+                                    prefixIcon: Icon(Icons.search_rounded, size: 20),
+                                    isDense: true,
+                                  ),
+                                  onChanged: (v) =>
+                                      setState(() => _invoiceSearchQuery = v.trim()),
+                                ),
+                              ],
                             ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _invoices.length,
-                            separatorBuilder: (ctx, i) =>
-                                const Divider(height: 1),
-                            itemBuilder: (ctx, i) {
-                              final inv = _invoices[i];
-                              final isUnpaid = inv.status != 'paid';
+                          ),
+                        Expanded(
+                          child: filteredInvoices.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'لا توجد فواتير مسجلة لهذا الطالب تطابق الفلتر.',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: filteredInvoices.length,
+                                  separatorBuilder: (ctx, i) =>
+                                      const SizedBox(height: 8),
+                                  itemBuilder: (ctx, i) {
+                                    final inv = filteredInvoices[i];
+                                    final isUnpaid = inv.status != 'paid';
+                                    final remaining = ((inv.totalMinor -
+                                                inv.amountPaidMinor) /
+                                            100)
+                                        .clamp(0, double.infinity);
 
-                              return PortalListCard(
-                                icon: Icons.receipt_long_rounded,
-                                accentColor: isUnpaid
-                                    ? Colors.orange
-                                    : Colors.green,
-                                title: 'فاتورة #${inv.invoiceNumber}',
-                                subtitle:
-                                    'الإجمالي: ${(inv.totalMinor / 100).toStringAsFixed(0)} ج.م | المسدد: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} ج.م\nالحالة: ${_statusInArabic(inv.status)}',
-                                trailing: [
-                                  if (isUnpaid)
-                                    ElevatedButton(
-                                      onPressed: () =>
-                                          _showRecordPaymentDialog(inv),
-                                      child: const Text('تسجيل سداد'),
-                                    )
-                                  else
-                                    PortalStatusChip(status: 'settled'),
-                                ],
-                              );
-                            },
-                          ),
-                    // Tab 4: Receipts
-                    _receipts.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'لم يتم إصدار إيصالات دفع حتى الآن.',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                                    return PortalListCard(
+                                      icon: Icons.receipt_long_rounded,
+                                      accentColor: isUnpaid
+                                          ? Colors.orange
+                                          : Colors.green,
+                                      title: 'فاتورة #${inv.invoiceNumber}',
+                                      subtitle:
+                                          'الإجمالي: ${(inv.totalMinor / 100).toStringAsFixed(0)} ج.م | المسدد: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} ج.م\nالمتبقي: ${remaining.toStringAsFixed(0)} ج.م | الحالة: ${_statusInArabic(inv.status)}',
+                                      trailing: [
+                                        if (isUnpaid)
+                                          ElevatedButton.icon(
+                                            onPressed: () =>
+                                                _showRecordPaymentDialog(inv),
+                                            icon: const Icon(
+                                              Icons.payments_rounded,
+                                              size: 16,
+                                            ),
+                                            label: const Text('تحصيل سداد'),
+                                          )
+                                        else
+                                          const PortalStatusChip(
+                                            status: 'settled',
+                                          ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                    // Tab 5: Receipts
+                    Column(
+                      children: [
+                        if (_students.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: DropdownButtonFormField<Student>(
+                              initialValue: _selectedStudent,
+                              decoration: const InputDecoration(
+                                labelText: 'عرض إيصالات الطالب',
+                                prefixIcon: Icon(Icons.person_rounded),
+                                isDense: true,
+                              ),
+                              items: _students
+                                  .map(
+                                    (s) => DropdownMenuItem(
+                                      value: s,
+                                      child: Text(
+                                        '${s.fullName} (${s.studentCode})',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: _onStudentChanged,
                             ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _receipts.length,
-                            separatorBuilder: (ctx, i) =>
-                                const Divider(height: 1),
-                            itemBuilder: (ctx, i) {
-                              final rec = _receipts[i];
-                              final receiptLabel = rec.receiptNumber.isEmpty
-                                  ? '#${_shortId(rec.id)}'
-                                  : rec.receiptNumber;
-                              return PortalListCard(
-                                icon: Icons.receipt_rounded,
-                                accentColor: AppColors.adminRole,
-                                title: 'إيصال تحصيل $receiptLabel',
-                                subtitle:
-                                    'المبلغ المسدد: ${(rec.amountMinor / 100).toStringAsFixed(0)} ج.م\nتاريخ السداد: ${rec.issuedAt.year}/${rec.issuedAt.month}/${rec.issuedAt.day}',
-                              );
-                            },
                           ),
+                        Expanded(
+                          child: _receipts.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'لم يتم إصدار إيصالات دفع لهذا الطالب حتى الآن.',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _receipts.length,
+                                  separatorBuilder: (ctx, i) =>
+                                      const SizedBox(height: 8),
+                                  itemBuilder: (ctx, i) {
+                                    final rec = _receipts[i];
+                                    final receiptLabel =
+                                        rec.receiptNumber.isEmpty
+                                            ? '#${_shortId(rec.id)}'
+                                            : rec.receiptNumber;
+                                    return PortalListCard(
+                                      icon: Icons.receipt_rounded,
+                                      accentColor: AppColors.adminRole,
+                                      title: 'إيصال تحصيل $receiptLabel',
+                                      subtitle:
+                                          'المبلغ المسدد: ${(rec.amountMinor / 100).toStringAsFixed(0)} ج.م\nتاريخ السداد: ${rec.issuedAt.year}/${rec.issuedAt.month.toString().padLeft(2, "0")}/${rec.issuedAt.day.toString().padLeft(2, "0")}',
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                    // Tab 6: Adjustment Requests
                     _adjustmentRequests.isEmpty
                         ? const Center(
                             child: Text(
-                              'لا توجد طلبات خصم أو إعفاء معلقة.',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                              'لا توجد طلبات خصم أو إعفاء معلقة حالياً.',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                              ),
                             ),
                           )
                         : ListView.separated(
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.zero,
                             itemCount: _adjustmentRequests.length,
                             separatorBuilder: (ctx, i) =>
                                 const SizedBox(height: 8),
@@ -817,6 +1228,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       case 'overdue':
         return 'متأخر';
       case 'pending':
+      case 'issued':
         return 'مستحق';
       default:
         return status;

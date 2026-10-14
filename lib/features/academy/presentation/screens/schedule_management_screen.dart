@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
@@ -65,152 +66,237 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     }
   }
 
+  String _dayLabel(int day) {
+    return switch (day) {
+      6 => 'السبت',
+      7 => 'الأحد',
+      1 => 'الإثنين',
+      2 => 'الثلاثاء',
+      3 => 'الأربعاء',
+      4 => 'الخميس',
+      5 => 'الجمعة',
+      _ => 'يوم $day',
+    };
+  }
+
+  String _formatTimeStr(String timeStr) {
+    final parts = timeStr.split(':');
+    if (parts.isEmpty) return timeStr;
+    final h = int.tryParse(parts[0]) ?? 0;
+    final m = parts.length > 1 ? parts[1] : '00';
+    final isPm = h >= 12;
+    final displayH = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '${displayH.toString().padLeft(2, '0')}:$m ${isPm ? "م" : "ص"}';
+  }
+
   void _showCreateScheduleDialog() {
+    final formKey = GlobalKey<FormState>();
     String? selectedGroupId = _groups.isNotEmpty ? _groups.first.id : null;
-    int selectedDay = 6; // Saturday by default for Egyptian centers
+    int selectedDay = 6;
     TimeOfDay startTime = const TimeOfDay(hour: 16, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 18, minute: 0);
     final roomCtrl = TextEditingController(text: 'قاعة 1');
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('إضافة موعد حصة جديد'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_groups.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: selectedGroupId,
-                      decoration: const InputDecoration(
-                        labelText: 'اختر المجموعة الدراسية',
-                      ),
-                      items: _groups
-                          .map(
-                            (g) => DropdownMenuItem(
-                              value: g.id,
-                              child: Text(g.name, overflow: TextOverflow.ellipsis),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) =>
-                          setStateDialog(() => selectedGroupId = v),
-                    ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<int>(
-                    isExpanded: true,
-                    initialValue: selectedDay,
-                    decoration: const InputDecoration(labelText: 'يوم الحصة'),
-                    items: const [
-                      DropdownMenuItem(value: 6, child: Text('السبت')),
-                      DropdownMenuItem(value: 7, child: Text('الأحد')),
-                      DropdownMenuItem(value: 1, child: Text('الإثنين')),
-                      DropdownMenuItem(value: 2, child: Text('الثلاثاء')),
-                      DropdownMenuItem(value: 3, child: Text('الأربعاء')),
-                      DropdownMenuItem(value: 4, child: Text('الخميس')),
-                      DropdownMenuItem(value: 5, child: Text('الجمعة')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setStateDialog(() => selectedDay = v);
-                    },
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.adminRole.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: roomCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم / رقم القاعة الدراسية',
-                    ),
+                  child: const Icon(Icons.schedule, color: AppColors.adminRole),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'إضافة موعد حصة جديد',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.access_time_rounded, size: 16),
-                          label: Text('البداية ${startTime.format(context)}', style: const TextStyle(fontSize: 11)),
-                          onPressed: () async {
-                            final picked = await showTimePicker(
-                              context: context,
-                              initialTime: startTime,
-                            );
-                            if (picked != null) {
-                              setStateDialog(() => startTime = picked);
-                            }
-                          },
+                      if (_groups.isNotEmpty)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedGroupId,
+                          decoration: const InputDecoration(
+                            labelText: 'المجموعة الدراسية *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _groups
+                              .map(
+                                (g) => DropdownMenuItem(
+                                  value: g.id,
+                                  child: Text(g.name, overflow: TextOverflow.ellipsis),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setStateDialog(() => selectedGroupId = v),
                         ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        initialValue: selectedDay,
+                        decoration: const InputDecoration(
+                          labelText: 'يوم الحصة الأسبوعي',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 6, child: Text('السبت')),
+                          DropdownMenuItem(value: 7, child: Text('الأحد')),
+                          DropdownMenuItem(value: 1, child: Text('الإثنين')),
+                          DropdownMenuItem(value: 2, child: Text('الثلاثاء')),
+                          DropdownMenuItem(value: 3, child: Text('الأربعاء')),
+                          DropdownMenuItem(value: 4, child: Text('الخميس')),
+                          DropdownMenuItem(value: 5, child: Text('الجمعة')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setStateDialog(() => selectedDay = v);
+                        },
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.access_time_rounded, size: 16),
-                          label: Text('النهاية ${endTime.format(context)}', style: const TextStyle(fontSize: 11)),
-                          onPressed: () async {
-                            final picked = await showTimePicker(
-                              context: context,
-                              initialTime: endTime,
-                            );
-                            if (picked != null) {
-                              setStateDialog(() => endTime = picked);
-                            }
-                          },
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: roomCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم / رقم القاعة الدراسية *',
+                          hintText: 'مثال: قاعة 1، معمل الفيزياء',
+                          border: OutlineInputBorder(),
                         ),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم القاعة' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.access_time_rounded, size: 16),
+                              label: Text('البداية: ${startTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              onPressed: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: startTime,
+                                );
+                                if (picked != null) {
+                                  setStateDialog(() => startTime = picked);
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.access_time_rounded, size: 16),
+                              label: Text('النهاية: ${endTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              onPressed: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: endTime,
+                                );
+                                if (picked != null) {
+                                  setStateDialog(() => endTime = picked);
+                                }
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (selectedGroupId == null || roomCtrl.text.trim().isEmpty) {
-                    return;
-                  }
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.adminRole,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        if (selectedGroupId == null) return;
 
-                  final nav = Navigator.of(ctx);
-                  try {
-                    final startStr =
-                        '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00';
-                    final endStr =
-                        '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00';
+                        final startMinutes = startTime.hour * 60 + startTime.minute;
+                        final endMinutes = endTime.hour * 60 + endTime.minute;
+                        if (endMinutes <= startMinutes) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('وقت نهاية الحصة يجب أن يكون بعد وقت البداية'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
 
-                    await _scheduleRepo.createSchedule(
-                      groupId: selectedGroupId!,
-                      dayOfWeek: selectedDay,
-                      startTime: startStr,
-                      endTime: endStr,
-                      roomLocation: roomCtrl.text.trim(),
-                    );
-                    nav.pop();
-                    _loadSchedules();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تمت إضافة موعد الحصة بنجاح!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('تعارض أو خطأ في الجدول: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('حفظ الموعد'),
+                        setStateDialog(() => isSubmitting = true);
+                        final nav = Navigator.of(ctx);
+
+                        try {
+                          final startStr =
+                              '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00';
+                          final endStr =
+                              '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00';
+
+                          await _scheduleRepo.createSchedule(
+                            groupId: selectedGroupId!,
+                            dayOfWeek: selectedDay,
+                            startTime: startStr,
+                            endTime: endStr,
+                            roomLocation: roomCtrl.text.trim(),
+                          );
+                          nav.pop();
+                          _loadSchedules();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تمت إضافة موعد الحصة بنجاح!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSubmitting = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('تعارض أو خطأ في الموعد: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check, size: 18),
+                label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ الموعد'),
               ),
             ],
           );
@@ -220,6 +306,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
   }
 
   void _showEditScheduleDialog(ScheduleEntity s) {
+    final formKey = GlobalKey<FormState>();
     int selectedDay = s.dayOfWeek;
     final startParts = s.startTime.split(':');
     final endParts = s.endTime.split(':');
@@ -232,125 +319,185 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
       minute: int.tryParse(endParts.length > 1 ? endParts[1] : '0') ?? 0,
     );
     final roomCtrl = TextEditingController(text: s.roomLocation ?? '');
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('تعديل موعد الحصة'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<int>(
-                    isExpanded: true,
-                    initialValue: selectedDay,
-                    decoration: const InputDecoration(labelText: 'يوم الحصة'),
-                    items: const [
-                      DropdownMenuItem(value: 6, child: Text('السبت')),
-                      DropdownMenuItem(value: 7, child: Text('الأحد')),
-                      DropdownMenuItem(value: 1, child: Text('الإثنين')),
-                      DropdownMenuItem(value: 2, child: Text('الثلاثاء')),
-                      DropdownMenuItem(value: 3, child: Text('الأربعاء')),
-                      DropdownMenuItem(value: 4, child: Text('الخميس')),
-                      DropdownMenuItem(value: 5, child: Text('الجمعة')),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setStateDialog(() => selectedDay = v);
-                    },
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.adminRole.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: roomCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم / رقم القاعة الدراسية',
-                    ),
+                  child: const Icon(Icons.edit, color: AppColors.adminRole),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'تعديل موعد الحصة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.access_time_rounded, size: 16),
-                          label: Text('البداية ${startTime.format(context)}', style: const TextStyle(fontSize: 11)),
-                          onPressed: () async {
-                            final picked = await showTimePicker(
-                              context: context,
-                              initialTime: startTime,
-                            );
-                            if (picked != null) {
-                              setStateDialog(() => startTime = picked);
-                            }
-                          },
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        initialValue: selectedDay,
+                        decoration: const InputDecoration(
+                          labelText: 'يوم الحصة',
+                          border: OutlineInputBorder(),
                         ),
+                        items: const [
+                          DropdownMenuItem(value: 6, child: Text('السبت')),
+                          DropdownMenuItem(value: 7, child: Text('الأحد')),
+                          DropdownMenuItem(value: 1, child: Text('الإثنين')),
+                          DropdownMenuItem(value: 2, child: Text('الثلاثاء')),
+                          DropdownMenuItem(value: 3, child: Text('الأربعاء')),
+                          DropdownMenuItem(value: 4, child: Text('الخميس')),
+                          DropdownMenuItem(value: 5, child: Text('الجمعة')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setStateDialog(() => selectedDay = v);
+                        },
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.access_time_rounded, size: 16),
-                          label: Text('النهاية ${endTime.format(context)}', style: const TextStyle(fontSize: 11)),
-                          onPressed: () async {
-                            final picked = await showTimePicker(
-                              context: context,
-                              initialTime: endTime,
-                            );
-                            if (picked != null) {
-                              setStateDialog(() => endTime = picked);
-                            }
-                          },
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: roomCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم / رقم القاعة الدراسية *',
+                          border: OutlineInputBorder(),
                         ),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم القاعة' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.access_time_rounded, size: 16),
+                              label: Text('البداية: ${startTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              onPressed: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: startTime,
+                                );
+                                if (picked != null) {
+                                  setStateDialog(() => startTime = picked);
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.access_time_rounded, size: 16),
+                              label: Text('النهاية: ${endTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              onPressed: () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: endTime,
+                                );
+                                if (picked != null) {
+                                  setStateDialog(() => endTime = picked);
+                                }
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (roomCtrl.text.trim().isEmpty) return;
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.adminRole,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
 
-                  final nav = Navigator.of(ctx);
-                  try {
-                    final startStr =
-                        '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00';
-                    final endStr =
-                        '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00';
+                        final startMinutes = startTime.hour * 60 + startTime.minute;
+                        final endMinutes = endTime.hour * 60 + endTime.minute;
+                        if (endMinutes <= startMinutes) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('وقت نهاية الحصة يجب أن يكون بعد وقت البداية'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
 
-                    await _scheduleRepo.updateSchedule(
-                      scheduleId: s.id,
-                      dayOfWeek: selectedDay,
-                      startTime: startStr,
-                      endTime: endStr,
-                      roomLocation: roomCtrl.text.trim(),
-                    );
-                    nav.pop();
-                    _loadSchedules();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم تحديث موعد الحصة بنجاح!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('تعارض في الجدول: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('حفظ التعديلات'),
+                        setStateDialog(() => isSubmitting = true);
+                        final nav = Navigator.of(ctx);
+
+                        try {
+                          final startStr =
+                              '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00';
+                          final endStr =
+                              '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00';
+
+                          await _scheduleRepo.updateSchedule(
+                            scheduleId: s.id,
+                            dayOfWeek: selectedDay,
+                            startTime: startStr,
+                            endTime: endStr,
+                            roomLocation: roomCtrl.text.trim().isEmpty ? null : roomCtrl.text.trim(),
+                          );
+                          nav.pop();
+                          _loadSchedules();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم تحديث موعد الحصة بنجاح!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSubmitting = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل تحديث الموعد: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check, size: 18),
+                label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'),
               ),
             ],
           );
@@ -359,43 +506,170 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     );
   }
 
-  Future<void> _deleteSchedule(ScheduleEntity s) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('حذف موعد الحصة'),
-        content: const Text('هل أنت متأكد من رغبتك في حذف هذا الموعد من الجدول؟'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف')),
+  Widget _buildScheduleCard(BuildContext context, ScheduleEntity s) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    final groupName = _groups
+        .where((g) => g.id == s.groupId)
+        .map((g) => g.name)
+        .firstOrNull ?? 'مجموعة دراسية';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.adminRole.withValues(alpha: 0.12),
+            child: const Icon(Icons.access_time_rounded, color: AppColors.adminRole, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  groupName,
+                  style: AppTypography.titleMedium(textPrimary).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _dayLabel(s.dayOfWeek),
+                        style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule, size: 14, color: Colors.teal),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_formatTimeStr(s.startTime)} - ${_formatTimeStr(s.endTime)}',
+                            style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (s.roomLocation != null && s.roomLocation!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.meeting_room_outlined, size: 14, color: Colors.blue),
+                            const SizedBox(width: 4),
+                            Text(
+                              s.roomLocation!,
+                              style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'تعديل موعد الحصة',
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                onPressed: () => _showEditScheduleDialog(s),
+              ),
+              IconButton(
+                tooltip: 'حذف الموعد',
+                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('حذف موعد الحصة'),
+                      content: const Text(
+                        'هل أنت متأكد من رغبتك في حذف موعد هذه الحصة من الجدول الأسبوعي؟',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('إلغاء'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('حذف'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    try {
+                      await _scheduleRepo.deleteSchedule(s.id);
+                      _loadSchedules();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم حذف موعد الحصة بنجاح')),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('فشل الحذف: $e')),
+                        );
+                      }
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
         ],
       ),
     );
-    if (confirm == true) {
-      try {
-        await _scheduleRepo.deleteSchedule(s.id);
-        _loadSchedules();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم حذف الموعد من الجدول')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('فشل الحذف: $e')),
-          );
-        }
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return PortalPageShell(
-      title: 'إدارة الجداول والمواعيد',
-      subtitle: 'تنظيم مواعيد الحصص الأسبوعية، توزيع القاعات، ومنع تعارض المواعيد.',
-      icon: Icons.schedule,
+      title: 'جدول الحصص الأسبوعي',
+      subtitle: 'تنظيم المواعيد الأسبوعية والقاعات الدراسية، ومنع تعارض الفترات.',
+      icon: Icons.calendar_today,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
@@ -405,7 +679,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
         ),
         PortalAction(
           icon: Icons.add,
-          label: 'إضافة موعد جديد',
+          label: 'إضافة موعد حصة',
           onPressed: _showCreateScheduleDialog,
           primary: true,
         ),
@@ -414,79 +688,17 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: _schedules.isEmpty,
-        emptyTitle: 'لا توجد مواعيد مسجلة',
-        emptySubtitle: 'قم بإنشاء مجموعة دراسية أولاً ثم أضف مواعيد الحصص والقاعات.',
-        emptyIcon: Icons.schedule,
+        emptyTitle: 'لا توجد مواعيد حصص في الجدول',
+        emptySubtitle: 'قم بإضافة مواعيد الحصص والقاعات عبر زر (إضافة موعد حصة) بالأعلى.',
+        emptyIcon: Icons.calendar_today,
         onRetry: _loadSchedules,
         child: ListView.separated(
-          padding: EdgeInsets.zero,
+          padding: const EdgeInsets.only(bottom: 24),
           itemCount: _schedules.length,
-          separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-          itemBuilder: (ctx, i) {
-            final s = _schedules[i];
-            String? groupName;
-            for (final group in _groups) {
-              if (group.id == s.groupId) {
-                groupName = group.name;
-                break;
-              }
-            }
-            return PortalListCard(
-              icon: Icons.schedule,
-              accentColor: AppColors.adminRole,
-              title:
-                  '${groupName ?? "مجموعة"} • ${_dayNameArabic(s.dayOfWeek)}: ${_formatTime(s.startTime)} - ${_formatTime(s.endTime)}',
-              subtitle: 'القاعة الدراسية: ${s.roomLocation ?? "غير محددة"}',
-              trailing: [
-                PortalStatusChip(status: s.status),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () => _showEditScheduleDialog(s),
-                  tooltip: 'تعديل الموعد',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _deleteSchedule(s),
-                  tooltip: 'حذف الموعد',
-                ),
-              ],
-            );
-          },
+          separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+          itemBuilder: (ctx, i) => _buildScheduleCard(context, _schedules[i]),
         ),
       ),
     );
-  }
-
-  static String _dayNameArabic(int day) {
-    switch (day) {
-      case 6:
-        return 'السبت';
-      case 7:
-        return 'الأحد';
-      case 1:
-        return 'الإثنين';
-      case 2:
-        return 'الثلاثاء';
-      case 3:
-        return 'الأربعاء';
-      case 4:
-        return 'الخميس';
-      case 5:
-        return 'الجمعة';
-      default:
-        return 'يوم $day';
-    }
-  }
-
-  static String _formatTime(String timeStr) {
-    final parts = timeStr.split(':');
-    if (parts.length >= 2) {
-      final h = int.tryParse(parts[0]) ?? 0;
-      final m = parts[1];
-      final period = h >= 12 ? 'م' : 'ص';
-      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      return '$h12:$m $period';
-    }
-    return timeStr;
   }
 }

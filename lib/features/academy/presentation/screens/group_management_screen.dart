@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
@@ -82,6 +83,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   }
 
   void _showCreateGroupDialog() {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
     final capacityCtrl = TextEditingController(text: '20');
@@ -89,129 +91,372 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
         ? _subjects.first.id
         : null;
     String? selectedBranchId = _branches.isNotEmpty ? _branches.first.id : null;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('إضافة مجموعة دراسية جديدة'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم المجموعة (مثال: مجموعة الفيزياء - الأحد)',
-                    ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.adminRole.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: codeCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'كود المجموعة (مثال: PHY-G1)',
-                    ),
+                  child: const Icon(Icons.group_work, color: AppColors.adminRole),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'إضافة مجموعة دراسية جديدة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: capacityCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'السعة القصوى للطلاب',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 10),
-                  if (_subjects.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: selectedSubjectId,
-                      decoration: const InputDecoration(
-                        labelText: 'المادة الدراسية',
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم المجموعة *',
+                          hintText: 'مثال: فيزياء 3 ثانوى - مجموعة الأحد',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم المجموعة' : null,
                       ),
-                      items: _subjects
-                          .map(
-                            (s) => DropdownMenuItem(
-                              value: s.id,
-                              child: _dropdownText(s.name),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: codeCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'كود المجموعة *',
+                                hintText: 'مثال: PHY-G1',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (v) =>
+                                  v == null || v.trim().isEmpty ? 'يرجى إدخال كود المجموعة' : null,
                             ),
-                          )
-                          .toList(),
-                      onChanged: (v) =>
-                          setStateDialog(() => selectedSubjectId = v),
-                    ),
-                  const SizedBox(height: 10),
-                  if (_branches.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: selectedBranchId,
-                      decoration: const InputDecoration(
-                        labelText: 'الفرع التابع له',
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: capacityCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'السعة القصوى للطلاب *',
+                                hintText: '20',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'أدخل السعة';
+                                final num = int.tryParse(v.trim());
+                                if (num == null || num <= 0) return 'أدخل رقم أكبر من صفر';
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                      items: _branches
-                          .map(
-                            (b) => DropdownMenuItem(
-                              value: b.id,
-                              child: _dropdownText(b.name),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) =>
-                          setStateDialog(() => selectedBranchId = v),
-                    ),
-                ],
+                      const SizedBox(height: 12),
+                      if (_subjects.isNotEmpty)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedSubjectId,
+                          decoration: const InputDecoration(
+                            labelText: 'المادة الدراسية *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _subjects
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s.id,
+                                  child: _dropdownText('${s.name} (${s.code})'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setStateDialog(() => selectedSubjectId = v),
+                        ),
+                      const SizedBox(height: 12),
+                      if (_branches.isNotEmpty)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedBranchId,
+                          decoration: const InputDecoration(
+                            labelText: 'الفرع التابع له *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _branches
+                              .map(
+                                (b) => DropdownMenuItem(
+                                  value: b.id,
+                                  child: _dropdownText(b.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setStateDialog(() => selectedBranchId = v),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (nameCtrl.text.trim().isEmpty ||
-                      codeCtrl.text.trim().isEmpty ||
-                      selectedSubjectId == null ||
-                      selectedBranchId == null) {
-                    return;
-                  }
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.adminRole,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        if (selectedSubjectId == null || selectedBranchId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('يرجى اختيار المادة والفرع')),
+                          );
+                          return;
+                        }
 
-                  final nav = Navigator.of(ctx);
-                  try {
-                    final cap = int.tryParse(capacityCtrl.text.trim());
-                    final g = GroupEntity(
-                      id: '',
-                      code: codeCtrl.text.trim(),
-                      name: nameCtrl.text.trim(),
-                      subjectId: selectedSubjectId!,
-                      branchId: selectedBranchId!,
-                      maxCapacity: cap,
-                      status: 'active',
-                    );
+                        setStateDialog(() => isSubmitting = true);
+                        final nav = Navigator.of(ctx);
 
-                    await _groupRepo.createGroup(g);
-                    nav.pop();
-                    _loadData();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم إنشاء المجموعة بنجاح!'),
-                          backgroundColor: Colors.green,
+                        try {
+                          final cap = int.tryParse(capacityCtrl.text.trim()) ?? 20;
+                          final g = GroupEntity(
+                            id: '',
+                            code: codeCtrl.text.trim(),
+                            name: nameCtrl.text.trim(),
+                            subjectId: selectedSubjectId!,
+                            branchId: selectedBranchId!,
+                            maxCapacity: cap,
+                            status: 'active',
+                          );
+
+                          await _groupRepo.createGroup(g);
+                          nav.pop();
+                          _loadData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم إنشاء المجموعة بنجاح!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSubmitting = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل إنشاء المجموعة: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check, size: 18),
+                label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ المجموعة'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditGroupDialog(GroupEntity group) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(text: group.name);
+    final codeCtrl = TextEditingController(text: group.code);
+    final capacityCtrl = TextEditingController(text: group.maxCapacity?.toString() ?? '20');
+    String selectedSubjectId = group.subjectId;
+    String selectedBranchId = group.branchId;
+    String status = group.status;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.adminRole.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.edit, color: AppColors.adminRole),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'تعديل بيانات المجموعة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم المجموعة *',
+                          border: OutlineInputBorder(),
                         ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('فشل إنشاء المجموعة: $e'),
-                          backgroundColor: Colors.red,
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم المجموعة' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: codeCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'كود المجموعة *',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (v) =>
+                                  v == null || v.trim().isEmpty ? 'يرجى إدخال كود المجموعة' : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: capacityCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'السعة القصوى *',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return 'أدخل السعة';
+                                final num = int.tryParse(v.trim());
+                                if (num == null || num <= 0) return 'أدخل رقم أكبر من صفر';
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: status,
+                        decoration: const InputDecoration(
+                          labelText: 'الحالة التشغيلية',
+                          border: OutlineInputBorder(),
                         ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('حفظ المجموعة'),
+                        items: const [
+                          DropdownMenuItem(value: 'active', child: Text('نشطة ومتاحة (Active)')),
+                          DropdownMenuItem(value: 'archived', child: Text('مؤرشفة ومغلقة (Archived)')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setStateDialog(() => status = v);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.adminRole,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setStateDialog(() => isSubmitting = true);
+                        final nav = Navigator.of(ctx);
+
+                        try {
+                          final cap = int.tryParse(capacityCtrl.text.trim()) ?? 20;
+                          final updated = GroupEntity(
+                            id: group.id,
+                            code: codeCtrl.text.trim(),
+                            name: nameCtrl.text.trim(),
+                            subjectId: selectedSubjectId,
+                            branchId: selectedBranchId,
+                            maxCapacity: cap,
+                            status: status,
+                          );
+
+                          await _groupRepo.updateGroup(updated);
+                          nav.pop();
+                          _loadData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم تحديث بيانات المجموعة بنجاح!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSubmitting = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل التحديث: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check, size: 18),
+                label: Text(isSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'),
               ),
             ],
           );
@@ -229,6 +474,204 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
           teacherRepo: _teacherRepo,
           enrollmentRepo: _enrollmentRepo,
         ),
+      ),
+    );
+  }
+
+  Widget _buildGroupCard(BuildContext context, GroupEntity g) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    final subjectName = _subjects
+        .where((s) => s.id == g.subjectId)
+        .map((s) => s.name)
+        .firstOrNull;
+
+    final branchName = _branches
+        .where((b) => b.id == g.branchId)
+        .map((b) => b.name)
+        .firstOrNull;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.adminRole.withValues(alpha: 0.12),
+            child: const Icon(Icons.group_work, color: AppColors.adminRole, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: InkWell(
+              onTap: () => _openGroupDetails(g),
+              borderRadius: BorderRadius.circular(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    g.name,
+                    style: AppTypography.titleMedium(textPrimary).copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.adminRole.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'كود: ${g.code}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.adminRole, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (subjectName != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            subjectName,
+                            style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      if (branchName != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            branchName,
+                            style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'السعة: ${g.maxCapacity ?? "مفتوحة"}',
+                          style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              PortalStatusChip(status: g.status),
+              const SizedBox(height: 4),
+              PopupMenuButton<String>(
+                tooltip: 'خيارات المجموعة',
+                icon: const Icon(Icons.more_vert_rounded),
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'details':
+                      _openGroupDetails(g);
+                      break;
+                    case 'edit':
+                      _showEditGroupDialog(g);
+                      break;
+                    case 'delete':
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('حذف المجموعة الدراسية'),
+                          content: const Text(
+                            'هل أنت متأكد من رغبتك في حذف هذه المجموعة نهائياً؟',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('إلغاء'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('حذف'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await _groupRepo.deleteGroup(g.id);
+                          _loadData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم حذف المجموعة بنجاح')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل الحذف: $e')),
+                            );
+                          }
+                        }
+                      }
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'details',
+                    child: ListTile(
+                      leading: Icon(Icons.open_in_new, size: 20),
+                      title: Text('عرض التفاصيل والطلاب'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: ListTile(
+                      leading: Icon(Icons.edit, size: 20, color: Colors.blue),
+                      title: Text('تعديل المجموعة'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      leading: Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                      title: Text('حذف المجموعة', style: TextStyle(color: Colors.red)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -277,63 +720,10 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
               emptyIcon: Icons.group_work,
               onRetry: _loadData,
               child: ListView.separated(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.only(bottom: 24),
                 itemCount: filtered.length,
-                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                itemBuilder: (ctx, i) {
-                  final g = filtered[i];
-                  return PortalListCard(
-                    icon: Icons.group_work,
-                    accentColor: AppColors.adminRole,
-                    title: g.name,
-                    subtitle:
-                        'الكود: ${g.code} | السعة: ${g.maxCapacity ?? "غير محدودة"}',
-                    trailing: [
-                      PortalStatusChip(status: g.status),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('حذف المجموعة الدراسية'),
-                              content: const Text(
-                                'هل أنت متأكد من رغبتك في حذف هذه المجموعة نهائياً؟',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('إلغاء'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('حذف'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await _groupRepo.deleteGroup(g.id);
-                              _loadData();
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('فشل الحذف: $e'),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        tooltip: 'حذف المجموعة',
-                      ),
-                      const Icon(Icons.chevron_left_rounded),
-                    ],
-                    onTap: () => _openGroupDetails(g),
-                  );
-                },
+                separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                itemBuilder: (ctx, i) => _buildGroupCard(context, filtered[i]),
               ),
             ),
           ),
@@ -441,102 +831,153 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
   }
 
   void _showEnrollStudentDialog() {
+    final formKey = GlobalKey<FormState>();
     String? selectedStudentId = _allStudents.isNotEmpty
         ? _allStudents.first.id
         : null;
-    final priceCtrl = TextEditingController();
+    final priceCtrl = TextEditingController(text: '0');
     final discountCtrl = TextEditingController(text: '0');
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('تسكين وقيد طالب في المجموعة'),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.studentRole.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.person_add, color: AppColors.studentRole),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'تسكين وقيد طالب في المجموعة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
             content: SizedBox(
-              width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_allStudents.isNotEmpty)
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: selectedStudentId,
-                      decoration: const InputDecoration(
-                        labelText: 'اختر الطالب من القائمة',
-                      ),
-                      items: _allStudents
-                          .map(
-                            (s) => DropdownMenuItem(
-                              value: s.id,
-                              child: _dropdownText(
-                                '${s.fullName} (${s.studentCode})',
+              width: 440,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_allStudents.isNotEmpty)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedStudentId,
+                          decoration: const InputDecoration(
+                            labelText: 'اختر الطالب من القائمة *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _allStudents
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s.id,
+                                  child: _dropdownText(
+                                    '${s.fullName} (${s.studentCode})',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setStateDialog(() => selectedStudentId = v),
+                        ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: priceCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'السعر النهائي / الحصة (ج.م)',
+                                border: OutlineInputBorder(),
                               ),
+                              keyboardType: TextInputType.number,
                             ),
-                          )
-                          .toList(),
-                      onChanged: (v) =>
-                          setStateDialog(() => selectedStudentId = v),
-                    ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: priceCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'السعر النهائي / الحصة (ج.م)',
-                    ),
-                    keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: discountCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'قيمة الخصم إن وُجد (ج.م)',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: discountCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'قيمة الخصم إن وُجد (ج.م)',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
+                ),
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
                 child: const Text('إلغاء'),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (selectedStudentId == null) return;
-                  final nav = Navigator.of(ctx);
-                  try {
-                    final price = int.tryParse(priceCtrl.text) ?? 0;
-                    final discount = int.tryParse(discountCtrl.text) ?? 0;
-                    await widget.enrollmentRepo.enrollStudentInGroup(
-                      studentId: selectedStudentId!,
-                      groupId: widget.group.id,
-                      totalMinor: price * 100,
-                      discountMinor: discount * 100,
-                    );
-                    nav.pop();
-                    _loadTabResources();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم قيد وتسكين الطالب بنجاح!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('فشل قيد الطالب: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('تأكيد القيد'),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.studentRole,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: (selectedStudentId == null || isSubmitting)
+                    ? null
+                    : () async {
+                        setStateDialog(() => isSubmitting = true);
+                        final nav = Navigator.of(ctx);
+                        try {
+                          final price = int.tryParse(priceCtrl.text.trim()) ?? 0;
+                          final discount = int.tryParse(discountCtrl.text.trim()) ?? 0;
+                          await widget.enrollmentRepo.enrollStudentInGroup(
+                            studentId: selectedStudentId!,
+                            groupId: widget.group.id,
+                            totalMinor: price * 100,
+                            discountMinor: discount * 100,
+                          );
+                          nav.pop();
+                          _loadTabResources();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم قيد وتسكين الطالب بنجاح!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSubmitting = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل قيد الطالب: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check, size: 18),
+                label: Text(isSubmitting ? 'جاري القيد...' : 'تأكيد القيد'),
               ),
             ],
           );
@@ -550,102 +991,143 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
         ? _allTeachers.first.id
         : null;
     String role = 'primary';
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('تعيين معلم للمجموعة'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+            title: Row(
               children: [
-                if (_allTeachers.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: selectedTeacherId,
-                    decoration: const InputDecoration(
-                      labelText: 'اختر المعلم من القائمة',
-                    ),
-                    items: _allTeachers
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t.id,
-                            child: _dropdownText(t.fullName),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) =>
-                        setStateDialog(() => selectedTeacherId = v),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.teacherRole.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: role,
-                  decoration: const InputDecoration(labelText: 'الدور في المجموعة'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'primary',
-                      child: Text('معلم أساسي (Primary)'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'assistant',
-                      child: Text('معلم مساعد (Assistant)'),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => role = v);
-                  },
+                  child: const Icon(Icons.person_add, color: AppColors.teacherRole),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'تعيين معلم للمجموعة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),
-            actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedTeacherId == null) return;
-                final nav = Navigator.of(ctx);
-                try {
-                  await Supabase.instance.client.rpc(
-                    'assign_teacher_to_group',
-                    params: {
-                      'p_teacher_id': selectedTeacherId,
-                      'p_group_id': widget.group.id,
-                      'p_role': role,
+            content: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_allTeachers.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: selectedTeacherId,
+                      decoration: const InputDecoration(
+                        labelText: 'اختر المعلم من القائمة *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _allTeachers
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t.id,
+                              child: _dropdownText(t.fullName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setStateDialog(() => selectedTeacherId = v),
+                    ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: role,
+                    decoration: const InputDecoration(
+                      labelText: 'الدور في المجموعة',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'primary',
+                        child: Text('معلم أساسي (Primary)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'assistant',
+                        child: Text('معلم مساعد (Assistant)'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setStateDialog(() => role = v);
                     },
-                  );
-                  nav.pop();
-                  _loadTabResources();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم تعيين المعلم للمجموعة بنجاح!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل تعيين المعلم: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('تأكيد التعيين'),
+                  ),
+                ],
+              ),
             ),
-          ],
-        );
-      },
-    ),
-  );
-}
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.teacherRole,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: (selectedTeacherId == null || isSubmitting)
+                    ? null
+                    : () async {
+                        setStateDialog(() => isSubmitting = true);
+                        final nav = Navigator.of(ctx);
+                        try {
+                          await Supabase.instance.client.rpc(
+                            'assign_teacher_to_group',
+                            params: {
+                              'p_teacher_id': selectedTeacherId,
+                              'p_group_id': widget.group.id,
+                              'p_role': role,
+                            },
+                          );
+                          nav.pop();
+                          _loadTabResources();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم تعيين المعلم للمجموعة بنجاح!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSubmitting = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('فشل تعيين المعلم: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check, size: 18),
+                label: Text(isSubmitting ? 'جاري التعيين...' : 'تأكيد التعيين'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   Future<void> _printGroupCards() async {
     if (_enrolledStudents.isEmpty) {
@@ -780,7 +1262,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             ),
                             PortalMetricCard(
                               label: 'الحالة التشغيلية',
-                              value: widget.group.status == 'active' ? 'نشطة' : widget.group.status,
+                              value: widget.group.status == 'active' ? 'نشطة' : 'مؤرشفة',
                               icon: Icons.verified_rounded,
                               accentColor: AppColors.success,
                             ),
@@ -811,6 +1293,48 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     subtitle:
                                         'الكود: ${s.studentCode} | البريد: ${s.email}',
                                     trailing: [
+                                      IconButton(
+                                        icon: const Icon(Icons.person_remove_outlined, color: Colors.red, size: 20),
+                                        tooltip: 'إلغاء قيد الطالب من المجموعة',
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: const Text('إلغاء قيد الطالب'),
+                                              content: Text('هل أنت متأكد من إلغاء قيد الطالب ${s.fullName} من هذه المجموعة؟'),
+                                              actions: [
+                                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                                                ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                                  onPressed: () => Navigator.pop(ctx, true),
+                                                  child: const Text('إلغاء القيد'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm == true) {
+                                            try {
+                                              await Supabase.instance.client
+                                                  .from('enrollments')
+                                                  .delete()
+                                                  .eq('group_id', widget.group.id)
+                                                  .eq('student_id', s.id);
+                                              _loadTabResources();
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('تم إلغاء قيد الطالب بنجاح')),
+                                                );
+                                              }
+                                            } catch (err) {
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('فشل إلغاء القيد: $err')),
+                                                );
+                                              }
+                                            }
+                                          }
+                                        },
+                                      ),
                                       PortalStatusChip(status: s.status),
                                     ],
                                   );
@@ -820,6 +1344,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           left: 0,
                           bottom: 0,
                           child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.studentRole,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: _showEnrollStudentDialog,
                             icon: const Icon(Icons.person_add),
                             label: const Text('تسكين طالب بالمجموعة'),
@@ -849,6 +1377,50 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                                     title: t.fullName,
                                     subtitle:
                                         'البريد: ${t.email} | التخصص: ${t.specialization ?? "عام"}',
+                                    trailing: [
+                                      IconButton(
+                                        icon: const Icon(Icons.person_remove_outlined, color: Colors.red, size: 20),
+                                        tooltip: 'إلغاء إسناد المعلم من المجموعة',
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: const Text('إلغاء إسناد المعلم'),
+                                              content: Text('هل أنت متأكد من إلغاء إسناد المعلم ${t.fullName} من هذه المجموعة؟'),
+                                              actions: [
+                                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                                                ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                                  onPressed: () => Navigator.pop(ctx, true),
+                                                  child: const Text('إلغاء الإسناد'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm == true) {
+                                            try {
+                                              await Supabase.instance.client
+                                                  .from('group_teachers')
+                                                  .delete()
+                                                  .eq('group_id', widget.group.id)
+                                                  .eq('teacher_id', t.id);
+                                              _loadTabResources();
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('تم إلغاء إسناد المعلم بنجاح')),
+                                                );
+                                              }
+                                            } catch (err) {
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('فشل إلغاء الإسناد: $err')),
+                                                );
+                                              }
+                                            }
+                                          }
+                                        },
+                                      ),
+                                    ],
                                   );
                                 },
                               ),
@@ -856,6 +1428,10 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           left: 0,
                           bottom: 0,
                           child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.teacherRole,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: _showAssignTeacherDialog,
                             icon: const Icon(Icons.person_add),
                             label: const Text('تعيين معلم للمجموعة'),
