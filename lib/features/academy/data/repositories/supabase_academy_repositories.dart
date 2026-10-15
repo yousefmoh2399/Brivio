@@ -201,9 +201,57 @@ class SupabaseParentRepository implements IParentRepository {
         data: parents,
       );
     } catch (e) {
-      throw DatabaseFailure(
-        message: 'Failed to fetch parents: ${e.toString()}',
-      );
+      // Direct query fallback if RPC fails
+      try {
+        final from = (page - 1) * pageSize;
+        final to = from + pageSize - 1;
+        final rawRows = await _wrapper.client
+            .from('parents')
+            .select('id, profile_id, occupation, status, profiles(full_name, email, avatar_url, phone_number)')
+            .range(from, to);
+
+        final List<Parent> parents = [];
+        for (final row in (rawRows as List)) {
+          final rowMap = Map<String, dynamic>.from(row as Map);
+          final prof = rowMap['profiles'] != null && rowMap['profiles'] is Map
+              ? Map<String, dynamic>.from(rowMap['profiles'] as Map)
+              : <String, dynamic>{};
+
+          final fullName = prof['full_name'] as String? ?? '';
+          final email = prof['email'] as String? ?? '';
+          final phone = prof['phone_number'] as String?;
+
+          if (search != null && search.trim().isNotEmpty) {
+            final term = search.trim().toLowerCase();
+            final matches = fullName.toLowerCase().contains(term) ||
+                email.toLowerCase().contains(term) ||
+                (phone != null && phone.contains(term));
+            if (!matches) continue;
+          }
+
+          parents.add(Parent.fromJson({
+            'id': rowMap['id'] ?? '',
+            'profile_id': rowMap['profile_id'] ?? '',
+            'occupation': rowMap['occupation'],
+            'status': rowMap['status'] ?? 'active',
+            'full_name': fullName,
+            'email': email,
+            'avatar_url': prof['avatar_url'],
+            'phone_number': phone,
+          }));
+        }
+
+        return PaginatedResult<Parent>(
+          total: parents.length,
+          page: page,
+          pageSize: pageSize,
+          data: parents,
+        );
+      } catch (fallbackError) {
+        throw DatabaseFailure(
+          message: 'Failed to fetch parents: ${e.toString()}',
+        );
+      }
     }
   }
 

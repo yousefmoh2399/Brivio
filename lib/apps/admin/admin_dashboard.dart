@@ -91,6 +91,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   void initState() {
     super.initState();
+    _selectedBranchId = widget.authViewModel.currentUser?.branchId;
     _subscribeToNotifications();
     _loadSummaryData();
   }
@@ -152,6 +153,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     });
 
     try {
+      final activeBranch = _selectedBranchId;
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
       final studentRepo = SupabaseStudentRepository(wrapper);
       final parentRepo = SupabaseParentRepository(wrapper);
@@ -164,7 +166,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final notificationRepo = getIt<INotificationRepository>();
 
       final results = await Future.wait([
-        studentRepo.fetchStudents().catchError(
+        studentRepo.fetchStudents(branchId: activeBranch, pageSize: 500).catchError(
           (_) => const PaginatedResult<Student>(
             total: 0,
             page: 1,
@@ -172,7 +174,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             data: [],
           ),
         ),
-        parentRepo.fetchParents().catchError(
+        parentRepo.fetchParents(pageSize: 500).catchError(
           (_) => const PaginatedResult<Parent>(
             total: 0,
             page: 1,
@@ -180,7 +182,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             data: [],
           ),
         ),
-        teacherRepo.fetchTeachers().catchError(
+        teacherRepo.fetchTeachers(branchId: activeBranch, pageSize: 500).catchError(
           (_) => const PaginatedResult<Teacher>(
             total: 0,
             page: 1,
@@ -190,7 +192,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
         branchRepo.fetchBranches().catchError((_) => <Branch>[]),
         subjectRepo.fetchSubjects().catchError((_) => <SubjectEntity>[]),
-        groupRepo.fetchGroups().catchError((_) => <GroupEntity>[]),
+        groupRepo.fetchGroups(branchId: activeBranch).catchError((_) => <GroupEntity>[]),
         summaryRepo.fetchSummary().catchError(
           (_) => const AcademyCoreSummary(
             activeBranches: 0,
@@ -278,7 +280,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString();
+        final errStr = e.toString().toLowerCase();
+        if (errStr.contains('socketexception') ||
+            errStr.contains('failed host lookup') ||
+            errStr.contains('clientexception') ||
+            errStr.contains('network') ||
+            errStr.contains('connection')) {
+          _errorMessage = 'تعذر الاتصال بالسيرفر. يرجى التحقق من اتصالك بالإنترنت والضغط على إعادة المحاولة.';
+        } else {
+          _errorMessage = e.toString();
+        }
       });
     }
   }
@@ -492,7 +503,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         teachers: _teachers,
         branches: _branches,
         selectedBranchId: _selectedBranchId,
-        onBranchChanged: (branchId) => setState(() => _selectedBranchId = branchId),
+        onBranchChanged: (branchId) {
+          setState(() => _selectedBranchId = branchId);
+          _loadSummaryData();
+        },
         subjects: _subjects,
         groups: _groups,
         summary: _summary,
@@ -646,17 +660,21 @@ class _AdminOverview extends StatelessWidget {
     final scopedGroups = selectedBranchId == null
         ? groups
         : groups.where((g) => g.branchId == selectedBranchId).toList();
-    final studentCount = summary?.activeStudents != null && summary!.activeStudents > 0
-        ? summary!.activeStudents
-        : (studentTotal > 0 ? studentTotal : students.length);
-    final teacherCount = summary?.activeTeachers != null && summary!.activeTeachers > 0
-        ? summary!.activeTeachers
-        : (teacherTotal > 0 ? teacherTotal : teachers.length);
-    final groupCount = selectedBranchId == null
-        ? (summary?.activeGroups != null && summary!.activeGroups > 0
-            ? summary!.activeGroups
-            : groups.length)
-        : scopedGroups.length;
+    final scopedStudents = selectedBranchId == null
+        ? students
+        : students.where((s) => s.primaryBranchId == selectedBranchId).toList();
+    final scopedTeachers = selectedBranchId == null
+        ? teachers
+        : teachers.where((t) => t.primaryBranchId == selectedBranchId).toList();
+
+    // The count strictly represents the active center and selected branch, NEVER global database totals
+    final studentCount = selectedBranchId != null
+        ? scopedStudents.length
+        : (studentTotal > 0 ? studentTotal : scopedStudents.length);
+    final teacherCount = selectedBranchId != null
+        ? scopedTeachers.length
+        : (teacherTotal > 0 ? teacherTotal : scopedTeachers.length);
+    final groupCount = scopedGroups.length;
     final parentCount = parentTotal > 0 ? parentTotal : parents.length;
 
     final treasuryValue = '${_formatMoney(treasuryTotalCollected)} ج.م';

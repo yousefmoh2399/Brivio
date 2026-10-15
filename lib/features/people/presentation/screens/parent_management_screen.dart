@@ -73,8 +73,19 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errStr = e.toString().toLowerCase();
+        final String friendlyMsg;
+        if (errStr.contains('socketexception') ||
+            errStr.contains('failed host lookup') ||
+            errStr.contains('clientexception') ||
+            errStr.contains('network') ||
+            errStr.contains('connection')) {
+          friendlyMsg = 'تعذر الاتصال بالسيرفر. يرجى التحقق من اتصالك بالإنترنت والمحاولة مجدداً.';
+        } else {
+          friendlyMsg = 'حدث خطأ أثناء تحميل بيانات أولياء الأمور: ${e.toString()}';
+        }
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = friendlyMsg;
           _isLoading = false;
         });
       }
