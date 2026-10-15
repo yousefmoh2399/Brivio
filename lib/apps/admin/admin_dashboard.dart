@@ -2235,10 +2235,14 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'حالة القاعات الدراسية في الوقت الحقيقي الآن:',
-                style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'حالة القاعات الدراسية في الوقت الحقيقي الآن:',
+                  style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: () {
                   Navigator.of(context).push(
@@ -2266,48 +2270,72 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
               ),
             )
           else if (_rooms.isEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.meeting_room_outlined, color: Colors.blueGrey, size: 24),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'لم يتم إضافة قاعات دراسية بالسنتر بعد',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'أضف قاعات السنتر ومقاعدها لتتبع نسب الإشغال والحصص الحية فورياً',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                      ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 450;
+                final info = Row(
+                  children: [
+                    const Icon(Icons.meeting_room_outlined, color: Colors.blueGrey, size: 24),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'لم يتم إضافة قاعات دراسية بالسنتر بعد',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'أضف قاعات السنتر ومقاعدها لتتبع نسب الإشغال والحصص الحية فورياً',
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                );
+
+                final addBtn = OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ClassroomCapacityScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.add_rounded, size: 16),
-                    label: const Text('إضافة قاعة', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ClassroomCapacityScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('إضافة قاعة', style: TextStyle(fontSize: 11)),
+                );
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
                   ),
-                ],
-              ),
+                  child: isNarrow
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            info,
+                            const SizedBox(height: 8),
+                            Align(alignment: Alignment.centerLeft, child: addBtn),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: info),
+                            const SizedBox(width: 8),
+                            addBtn,
+                          ],
+                        ),
+                );
+              },
             )
           else
             LayoutBuilder(
