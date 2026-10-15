@@ -13,6 +13,8 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../../payments/presentation/screens/daily_cash_register_screen.dart';
 import '../../../payments/presentation/widgets/digital_cash_receipt_dialog.dart';
+import '../../../payments/presentation/widgets/express_cashier_dialog.dart';
+import '../../../people/presentation/widgets/express_student_registration_dialog.dart';
 import '../../data/repositories/supabase_attendance_repositories.dart';
 import '../../domain/models/attendance_models.dart';
 
@@ -36,6 +38,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
   bool _isLoading = true;
   bool _isProcessingScan = false;
   bool _isTorchOn = false;
+  bool _voiceBeeperEnabled = true;
 
   // Real-time scan result
   _ScanResultInfo? _lastResult;
@@ -416,12 +419,14 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
       }
 
       final hasDue = totalDue > 0;
-      if (hasDue) {
-        HapticFeedback.heavyImpact();
-        SystemSound.play(SystemSoundType.alert);
-      } else {
-        HapticFeedback.mediumImpact();
-        SystemSound.play(SystemSoundType.click);
+      if (_voiceBeeperEnabled) {
+        if (hasDue) {
+          HapticFeedback.heavyImpact();
+          SystemSound.play(SystemSoundType.alert);
+        } else {
+          HapticFeedback.mediumImpact();
+          SystemSound.play(SystemSoundType.click);
+        }
       }
 
       final result = _ScanResultInfo(
@@ -539,6 +544,19 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
           paymentPurpose: 'سداد مصاريف دراسية متأخرة - نقداً بالخزينة',
           parentOrTeacherPhone: result.parentPhone,
         );
+
+        if (result.parentPhone.isNotEmpty) {
+          WhatsAppService.sendCashReceiptToParent(
+            parentPhone: result.parentPhone,
+            studentName: result.name,
+            studentCode: result.code,
+            receiptNo: receiptNumber,
+            amountPaid: result.totalDue.toDouble(),
+            purpose: 'سداد مصاريف دراسية متأخرة بالبوابة',
+            centerName: _centerName,
+            cashierName: 'موظف الاستقبال',
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -731,9 +749,59 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
               },
             ),
             IconButton(
+              icon: Icon(
+                _voiceBeeperEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                color: _voiceBeeperEnabled ? Colors.greenAccent : Colors.grey,
+              ),
+              tooltip: _voiceBeeperEnabled ? 'بوابة الاستقبال الصوتية الذكية (مفعلة) 🔊' : 'بوابة الاستقبال الصوتية (صامت) 🔇',
+              onPressed: () {
+                setState(() => _voiceBeeperEnabled = !_voiceBeeperEnabled);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(_voiceBeeperEnabled ? 'تم تفعيل المنبه الصوتي للبوابة 🔊' : 'تم كتم المنبه الصوتي للبوابة 🔇'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFFF59E0B)),
+              tooltip: 'تسجيل طالب جديد في 30 ثانية ⚡',
+              onPressed: () {
+                ExpressStudentRegistrationDialog.show(
+                  context: context,
+                  availableGroups: _groups,
+                  onRegistered: (newStudent) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('تم تسجيل الطالب ${newStudent.fullName} بنجاح')),
+                    );
+                  },
+                );
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.badge_outlined, color: Colors.white),
               tooltip: 'طباعة كارنيهات هذه المجموعة (PDF)',
               onPressed: _printGroupCards,
+            ),
+            IconButton(
+              icon: const Icon(Icons.attach_money_rounded, color: Colors.greenAccent),
+              tooltip: 'كاشير الاستقبال السريع وإصدار الإيصالات 💵',
+              onPressed: () {
+                ExpressCashierDialog.show(
+                  context: context,
+                  students: _attendees.map((a) => Student(
+                    id: a.studentId,
+                    profileId: '',
+                    studentCode: a.code,
+                    primaryBranchId: '',
+                    status: 'active',
+                    fullName: a.name,
+                    email: '',
+                    phoneNumber: a.parentPhone,
+                  )).toList(),
+                );
+              },
             ),
             IconButton(
               icon: const Icon(Icons.point_of_sale_rounded, color: Colors.tealAccent),

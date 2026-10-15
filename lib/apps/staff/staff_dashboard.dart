@@ -31,6 +31,9 @@ import '../../features/academy/presentation/screens/classroom_capacity_screen.da
 import '../../features/attendance/presentation/screens/reception_live_tv_kiosk_screen.dart';
 import '../../features/academy/presentation/widgets/center_switcher_widget.dart';
 import '../../features/academy/presentation/widgets/join_center_dialog.dart';
+import '../../features/people/presentation/widgets/express_student_registration_dialog.dart';
+import '../../features/payments/presentation/widgets/express_cashier_dialog.dart';
+import '../../core/services/report_generator_service.dart';
 
 class StaffDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -749,6 +752,22 @@ class _StaffDashboardState extends State<StaffDashboard> {
         // Staff Front Desk & Instant Student Lookup HUD
         _StaffFrontDeskHud(
           students: _students,
+          onOpenExpressRegister: () {
+            ExpressStudentRegistrationDialog.show(
+              context: context,
+              availableGroups: _groups,
+              onRegistered: (newStudent) {
+                _loadStaffData();
+              },
+            );
+          },
+          onOpenExpressCashier: () {
+            ExpressCashierDialog.show(
+              context: context,
+              students: _students,
+              onSuccess: () => _loadStaffData(),
+            );
+          },
           onOpenQrGate: () {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -1574,6 +1593,8 @@ int _asInt(Object? value) {
 
 class _StaffFrontDeskHud extends StatefulWidget {
   final List<Student> students;
+  final VoidCallback onOpenExpressRegister;
+  final VoidCallback onOpenExpressCashier;
   final VoidCallback onOpenQrGate;
   final VoidCallback onOpenTvKiosk;
   final VoidCallback onOpenBookstorePos;
@@ -1582,6 +1603,8 @@ class _StaffFrontDeskHud extends StatefulWidget {
 
   const _StaffFrontDeskHud({
     required this.students,
+    required this.onOpenExpressRegister,
+    required this.onOpenExpressCashier,
     required this.onOpenQrGate,
     required this.onOpenTvKiosk,
     required this.onOpenBookstorePos,
@@ -1841,17 +1864,46 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green.shade700,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          icon: const Icon(Icons.point_of_sale_rounded, size: 16, color: AppColors.primary),
-                          label: const Text('تحصيل رسوم 💵', style: TextStyle(fontSize: 11)),
-                          onPressed: widget.onOpenCashRegister,
+                          icon: const Icon(Icons.point_of_sale_rounded, size: 16),
+                          label: const Text('تحصيل + إيصال واتساب 💵', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          onPressed: () {
+                            ExpressCashierDialog.show(
+                              context: context,
+                              students: widget.students,
+                              initialStudent: _matchedStudent,
+                              initialAmount: 350.0,
+                              initialPurpose: 'اشتراك شهري في المادة',
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'طباعة الكارنيه الرقمي بالباركود',
+                        icon: const Icon(Icons.badge_rounded, color: AppColors.primary),
+                        onPressed: () {
+                          ReportGeneratorService().generateBulkStudentIdCardsPdf(
+                            students: [
+                              {
+                                'id': _matchedStudent!.id,
+                                'full_name': _matchedStudent!.fullName,
+                                'student_code': _matchedStudent!.studentCode,
+                                'grade_level': _matchedStudent!.gradeLevel ?? 'المرحلة التعليمية',
+                                'emergency_contact_phone': _matchedStudent!.phoneNumber ?? '',
+                              },
+                            ],
+                            centerName: 'سنتر الأوائل التعليمي',
+                            printDirectly: true,
+                          );
+                        },
+                      ),
                       IconButton(
                         tooltip: 'مراسلة ولي الأمر واتساب',
                         icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
@@ -1881,7 +1933,19 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
             runSpacing: 8,
             children: [
               _buildStaffDockPill(
-                label: 'بوابة الاستقبال QR 🪪',
+                label: 'تسجيل طالب في 30 ثانية ⚡',
+                color: const Color(0xFFF59E0B),
+                icon: Icons.person_add_alt_1_rounded,
+                onTap: widget.onOpenExpressRegister,
+              ),
+              _buildStaffDockPill(
+                label: 'كاشير الاستقبال السريع 💵',
+                color: Colors.green.shade700,
+                icon: Icons.point_of_sale_rounded,
+                onTap: widget.onOpenExpressCashier,
+              ),
+              _buildStaffDockPill(
+                label: 'بوابة الاستقبال الصوتية QR 🔊',
                 color: AppColors.primary,
                 icon: Icons.qr_code_scanner_rounded,
                 onTap: widget.onOpenQrGate,
@@ -1894,8 +1958,8 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
               ),
               _buildStaffDockPill(
                 label: 'تقفيل الخزينة اليومية 💵',
-                color: Colors.green.shade700,
-                icon: Icons.point_of_sale_rounded,
+                color: Colors.teal.shade700,
+                icon: Icons.receipt_long_rounded,
                 onTap: widget.onOpenCashRegister,
               ),
               _buildStaffDockPill(

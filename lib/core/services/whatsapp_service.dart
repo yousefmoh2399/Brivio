@@ -268,6 +268,71 @@ ${contactPhone != null && contactPhone.isNotEmpty ? '\n📞 للتواصل مع 
 
     return sendMessage(phoneNumber: parentPhone, message: buffer.toString().trim());
   }
+
+  /// Dispatches an official digital cash receipt to the parent via WhatsApp
+  static Future<bool> sendCashReceiptToParent({
+    required String parentPhone,
+    required String studentName,
+    required String studentCode,
+    required String receiptNo,
+    required double amountPaid,
+    required String purpose,
+    required String centerName,
+    String? cashierName,
+    double? remainingBalance,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('🏛️ *$centerName*');
+    buffer.writeln('🧾 *إيصال سداد إلكتروني معتمد #$receiptNo*');
+    buffer.writeln('───────────────────');
+    buffer.writeln('👤 *الطالب:* $studentName (كود: $studentCode)');
+    buffer.writeln('💵 *المبلغ المسدد:* ${amountPaid.toStringAsFixed(2)} ج.م');
+    buffer.writeln('📌 *بند السداد:* $purpose');
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    buffer.writeln('📅 *التاريخ:* $dateStr');
+    if (cashierName != null && cashierName.isNotEmpty) {
+      buffer.writeln('✍️ *المستلم:* $cashierName');
+    }
+    if (remainingBalance != null && remainingBalance > 0) {
+      buffer.writeln('⚠️ *المتبقي على الحساب:* ${remainingBalance.toStringAsFixed(2)} ج.م');
+    } else {
+      buffer.writeln('🟢 *حالة الحساب:* تم السداد بالكامل - لا توجد متأخرات ✔️');
+    }
+    buffer.writeln('───────────────────');
+    buffer.writeln('شكراً لثقتكم بنا، ونتمنى لنجلكم التوفيق والتميز دائماً! 🌟');
+
+    return sendMessage(phoneNumber: parentPhone, message: buffer.toString().trim());
+  }
+
+  /// Dispatches a welcome and registration card message with barcode code to new student
+  static Future<bool> sendStudentWelcomeRegistrationCard({
+    required String parentPhone,
+    required String studentName,
+    required String studentCode,
+    required String centerName,
+    required String gradeLevel,
+    required List<String> enrolledGroups,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('🎉 *أهلاً بك في أسرة $centerName!* 🏫');
+    buffer.writeln('تم تسجيل الطالب بنجاح في المنظومة التعليمية.');
+    buffer.writeln('───────────────────');
+    buffer.writeln('👤 *اسم الطالب:* $studentName');
+    buffer.writeln('🪪 *كود الطالب المعتمد:* *$studentCode*');
+    buffer.writeln('📚 *المرحلة:* $gradeLevel');
+    if (enrolledGroups.isNotEmpty) {
+      buffer.writeln('👥 *المجموعات المسجلة:*');
+      for (final g in enrolledGroups) {
+        buffer.writeln('   • $g');
+      }
+    }
+    buffer.writeln('───────────────────');
+    buffer.writeln('📱 *تنبيه هام:* يرجى الاحتفاظ بكود الطالب ($studentCode) لإبرازه عند بوابات الدخول وتسجيل الحضور بالباركود.');
+    buffer.writeln('مع أطيب تمنياتنا بعام دراسي حافل بالتفوق والنجاح! 🌟');
+
+    return sendMessage(phoneNumber: parentPhone, message: buffer.toString().trim());
+  }
 }
 
 
