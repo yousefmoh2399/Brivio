@@ -15,6 +15,8 @@ import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 import '../../../features/assessment/presentation/widgets/live_blitz_quiz_dialog.dart';
 import '../../../features/communication/presentation/screens/class_broadcast_dialog.dart';
 import '../../../features/assessment/presentation/widgets/smart_grading_studio.dart';
+import '../../../features/attendance/presentation/screens/live_class_focus_mode_screen.dart';
+import '../../../features/analytics/presentation/widgets/at_risk_students_card.dart';
 
 class HomeTab extends StatelessWidget {
   final UserProfile? user;
@@ -380,6 +382,17 @@ class HomeTab extends StatelessWidget {
                         },
                       ),
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // At-Risk Students Alert & Predictive Academic Intervention Radar
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 500),
+                  delay: const Duration(milliseconds: 190),
+                  child: AtRiskStudentsAlertWidget(
+                    teacherName: user?.fullName ?? 'معلمنا الفاضل',
                   ),
                 ),
 
@@ -940,24 +953,62 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
 
           const SizedBox(height: 16),
 
-          // 1-Tap Absence Alert Broadcast Button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 2,
+          // Dual Action Buttons: Live Class Focus Mode / Projector + Absence Alert
+          Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D9488),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 2,
+                  ),
+                  icon: const Icon(Icons.co_present_rounded, size: 20),
+                  label: const Text(
+                    'بدء وضع الحصة والبروجيكتور 📽️',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LiveClassFocusModeScreen(
+                          teacherId: widget.teacherId,
+                          teacherName: widget.teacherName,
+                          groupName: _currentGroup,
+                          roomName: _roomName,
+                          totalStudents: _totalEnrolled,
+                          initialPresent: _presentCount,
+                          initialAbsent: _absentCount,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-              icon: const Icon(Icons.campaign_rounded, size: 20),
-              label: Text(
-                'إرسال إنذار غياب فوري لأولياء الأمور ($_absentCount طلاب متغيبين) 🚨',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 4,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 2,
+                  ),
+                  icon: const Icon(Icons.campaign_rounded, size: 18),
+                  label: Text(
+                    'إنذار الغياب ($_absentCount) 🚨',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  onPressed: _openAbsenceBroadcastDialog,
+                ),
               ),
-              onPressed: _openAbsenceBroadcastDialog,
-            ),
+            ],
           ),
 
           const SizedBox(height: 16),
@@ -982,6 +1033,26 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    _buildCockpitPill(
+                      label: 'شاشة البروجيكتور 📽️',
+                      color: const Color(0xFF0D9488),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => LiveClassFocusModeScreen(
+                              teacherId: widget.teacherId,
+                              teacherName: widget.teacherName,
+                              groupName: _currentGroup,
+                              roomName: _roomName,
+                              totalStudents: _totalEnrolled,
+                              initialPresent: _presentCount,
+                              initialAbsent: _absentCount,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     _buildCockpitPill(
                       label: 'السبورة الذكية للشرح 🎨',
                       color: Colors.teal,

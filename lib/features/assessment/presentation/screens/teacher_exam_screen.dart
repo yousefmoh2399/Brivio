@@ -1031,12 +1031,13 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         passScore: exam.passScore,
         questions: questionsData,
         groupName: _selectedGroup?.name,
+        includeBubbleSheet: true,
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم توليد ورقة امتحان (${exam.title}) مع نموذج الإجابة بنجاح 📄'),
+            content: Text('تم توليد ورقة امتحان (${exam.title}) مع نموذج الإجابة والبابل شيت بنجاح 📄'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1045,6 +1046,33 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('فشل توليد الامتحان المطبوع: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportStandaloneBubbleSheet(Exam exam) async {
+    try {
+      await ReportGeneratorService().generateStandaloneBubbleSheetPdf(
+        centerName: 'سنتر الأوائل التعليمي',
+        teacherName: 'الأستاذ المشرف',
+        examTitle: exam.title,
+        groupName: _selectedGroup?.name,
+        subjectName: _selectedGroup?.name ?? 'المادة الدراسية',
+        questionCount: exam.questions.isNotEmpty ? exam.questions.length : 30,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم توليد ورقة إجابة البابل شيت الرسمية (${exam.title}) بنجاح 📑'),
+            backgroundColor: Colors.teal,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل توليد البابل شيت: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -1796,6 +1824,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                 case 'print_exam':
                                                   _exportPrintableExam(exam);
                                                   break;
+                                                case 'print_bubble_sheet':
+                                                  _exportStandaloneBubbleSheet(exam);
+                                                  break;
                                                 case 'questions':
                                                   _showManageQuestionsBottomSheet(exam);
                                                   break;
@@ -1826,7 +1857,18 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                     Icons.print_rounded,
                                                     color: Colors.teal,
                                                   ),
-                                                  title: Text('طباعة امتحان ورقي (PDF) 🖨️'),
+                                                  title: Text('طباعة الامتحان + البابل شيت (PDF) 📄'),
+                                                  contentPadding: EdgeInsets.zero,
+                                                ),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'print_bubble_sheet',
+                                                child: ListTile(
+                                                  leading: Icon(
+                                                    Icons.fact_check_outlined,
+                                                    color: Colors.purple,
+                                                  ),
+                                                  title: Text('طباعة نموذج بابل شيت فارغ 📑'),
                                                   contentPadding: EdgeInsets.zero,
                                                 ),
                                               ),

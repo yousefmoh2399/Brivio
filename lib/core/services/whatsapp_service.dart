@@ -231,5 +231,43 @@ ${contactPhone != null && contactPhone.isNotEmpty ? '\n📞 للتواصل مع 
 
     return sendMessage(phoneNumber: parentPhone, message: buffer.toString().trim());
   }
+
+  /// Dispatches an urgent predictive academic intervention alert to the parent
+  /// when a student shows declining exam trajectories or is at risk of falling behind.
+  static Future<bool> sendAcademicInterventionAlertToParent({
+    required String parentPhone,
+    required String studentName,
+    required String centerName,
+    required String teacherName,
+    required String subjectName,
+    required String riskLevel,
+    required List<String> recentScores,
+    required String reason,
+    String? recommendedAction,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('السلام عليكم ورحمة الله وبركاته،');
+    buffer.writeln('تحية طيبة لحضرتك من الأستاذ *$teacherName* وإدارة سنتر: *$centerName* 🏫');
+    buffer.writeln('');
+    buffer.writeln('⚠️ *تقرير متابعة أكاديمية عاجل لنجلكم/ابنتكم:*');
+    buffer.writeln('👤 الطالب: *$studentName*');
+    buffer.writeln('📚 المادة: *$subjectName*');
+    buffer.writeln('📊 حالة التقييم: *$riskLevel*');
+    buffer.writeln('📉 ملاحظة المستوى: $reason');
+    buffer.writeln('');
+    buffer.writeln('📋 *نتائج آخر الاختبارات والواجبات:*');
+    for (final score in recentScores) {
+      buffer.writeln('• $score');
+    }
+    buffer.writeln('');
+    buffer.writeln('💡 *خطة الدعم والمقترحات:*');
+    buffer.writeln(recommendedAction ?? '1. التنسيق لحضور جلسة مراجعة مجانية مع المساعد الأكاديمي.\n2. إعادة اختبار النقاط الصعبة لرفع التحصيل.\n3. التأكيد على أداء الواجبات بانتظام.');
+    buffer.writeln('');
+    buffer.writeln('حرصنا الدائم على مصلحة ومستقبل الطالب هو دافعنا، نرجو التكرم بالتواصل معنا لتنسيق خطة الدعم.');
+    buffer.writeln('مع أطيب التمنيات بالتوفيق والنجاح الدائم 🌟');
+
+    return sendMessage(phoneNumber: parentPhone, message: buffer.toString().trim());
+  }
 }
+
 

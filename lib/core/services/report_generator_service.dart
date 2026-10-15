@@ -1550,6 +1550,7 @@ class ReportGeneratorService {
     String? groupName,
     String academicYear = '2025 / 2026',
     String instructions = 'أجب عن جميع الأسئلة الآتية - ممنوع استخدام الهاتف المحمول - زمن الاختبار محدد بالأعلى',
+    bool includeBubbleSheet = true,
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
@@ -2012,11 +2013,462 @@ class ReportGeneratorService {
       ),
     );
 
+    // Page: Printable Bubble Sheet (ورقة إجابة البابل شيت القياسية للسنتر وتصحيح الـ OMR)
+    if (includeBubbleSheet) {
+      pdf.addPage(
+        _buildBubbleSheetPage(
+          centerName: centerName,
+          examTitle: examTitle,
+          subjectName: subjectName,
+          teacherName: teacherName,
+          groupName: groupName,
+          questionCount: questions.isNotEmpty ? questions.length : 30,
+          boldStyle: boldStyle,
+          regularStyle: regularStyle,
+          questions: questions,
+        ),
+      );
+    }
+
     if (printDirectly) {
       await Printing.layoutPdf(onLayout: (format) => pdf.save());
     } else {
       await _saveAndSharePdf(pdf, 'Printable_Exam_${examTitle.replaceAll(' ', '_')}.pdf');
     }
+  }
+
+  /// Generates a standalone high-precision Bubble Sheet (OMR) PDF for printing in Egyptian Educational Centers
+  Future<void> generateStandaloneBubbleSheetPdf({
+    required String centerName,
+    required String teacherName,
+    required String examTitle,
+    String? groupName,
+    String? subjectName,
+    int questionCount = 30,
+    bool printDirectly = false,
+  }) async {
+    final pdf = await createDocument();
+
+    pw.Font? cairoBold;
+    pw.Font? cairoRegular;
+    try {
+      cairoBold = await PdfGoogleFonts.cairoBold();
+      cairoRegular = await PdfGoogleFonts.cairoRegular();
+    } catch (_) {}
+
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+
+    pdf.addPage(
+      _buildBubbleSheetPage(
+        centerName: centerName,
+        examTitle: examTitle,
+        subjectName: subjectName ?? 'المادة الدراسية',
+        teacherName: teacherName,
+        groupName: groupName,
+        questionCount: questionCount,
+        boldStyle: boldStyle,
+        regularStyle: regularStyle,
+      ),
+    );
+
+    if (printDirectly) {
+      await Printing.layoutPdf(onLayout: (format) => pdf.save());
+    } else {
+      await _saveAndSharePdf(pdf, 'Bubble_Sheet_${examTitle.replaceAll(' ', '_')}.pdf');
+    }
+  }
+
+  pw.Page _buildBubbleSheetPage({
+    required String centerName,
+    required String examTitle,
+    required String subjectName,
+    required String teacherName,
+    String? groupName,
+    required int questionCount,
+    required pw.TextStyle boldStyle,
+    required pw.TextStyle regularStyle,
+    List<Map<String, dynamic>>? questions,
+    bool isAnswerKey = false,
+  }) {
+    final effectiveCount = questionCount.clamp(10, 45);
+    final columnsCount = effectiveCount > 30 ? 3 : 2;
+    final questionsPerCol = (effectiveCount / columnsCount).ceil();
+
+    return pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      build: (context) {
+        return pw.Column(
+          children: [
+            // Top OMR Alignment Marks (solid black squares)
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Container(width: 14, height: 14, color: PdfColors.black),
+                pw.Text(
+                  'نظام التصحيح الإلكتروني والماسح الضوئي (OMR) • معتمد لدى السنتر',
+                  style: regularStyle.copyWith(fontSize: 7.5, color: PdfColors.grey700),
+                  textDirection: pw.TextDirection.rtl,
+                ),
+                pw.Container(width: 14, height: 14, color: PdfColors.black),
+              ],
+            ),
+            pw.SizedBox(height: 6),
+
+            // Top Header: Center & Exam Info
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.black, width: 1.2),
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        centerName,
+                        style: boldStyle.copyWith(fontSize: 12, color: PdfColors.black),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                      pw.Text(
+                        'المادة: $subjectName • الأستاذ: $teacherName',
+                        style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey900),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                    ],
+                  ),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.black,
+                      borderRadius: pw.BorderRadius.circular(3),
+                    ),
+                    child: pw.Text(
+                      'ورقة إجابة البابل شيت (Bubble Sheet)',
+                      style: boldStyle.copyWith(fontSize: 10, color: PdfColors.white),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'اختبار: $examTitle',
+                        style: boldStyle.copyWith(fontSize: 9, color: PdfColors.black),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                      pw.Text(
+                        groupName != null && groupName.isNotEmpty ? 'المجموعة: $groupName' : 'العام: 2025/2026',
+                        style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey800),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 6),
+
+            // Mid Row: Student Details + Form Selector + Student Code Matrix
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Student Text Details Box
+                pw.Expanded(
+                  flex: 5,
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('اسم الطالب: ..............................................................', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                        pw.SizedBox(height: 6),
+                        pw.Text('المدرسة / الإدارة: .....................................................', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                        pw.SizedBox(height: 6),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('رقم القاعة: ...........', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                            pw.Text('رقم المقعد: ...........', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                          ],
+                        ),
+                        pw.SizedBox(height: 8),
+                        // Exam Form Selector (A B C D)
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey100,
+                            borderRadius: pw.BorderRadius.circular(3),
+                            border: pw.Border.all(color: PdfColors.grey400),
+                          ),
+                          child: pw.Row(
+                            children: [
+                              pw.Text('نموذج الاختبار:', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                              pw.SizedBox(width: 8),
+                              ...['أ', 'ب', 'ج', 'د'].map((formLetter) {
+                                return pw.Padding(
+                                  padding: const pw.EdgeInsets.symmetric(horizontal: 4),
+                                  child: pw.Row(
+                                    children: [
+                                      pw.Container(
+                                        width: 11,
+                                        height: 11,
+                                        decoration: pw.BoxDecoration(
+                                          shape: pw.BoxShape.circle,
+                                          border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                                        ),
+                                        child: pw.Center(
+                                          child: pw.Text(formLetter, style: boldStyle.copyWith(fontSize: 6.5)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+
+                // Student Code Shading Grid (5 Digits x 0..9)
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Text('رقم الجلوس / كود الطالب', style: boldStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
+                      pw.SizedBox(height: 3),
+                      // Top Row: Digits Write Boxes
+                      pw.Row(
+                        children: List.generate(5, (_) => pw.Container(
+                          width: 14,
+                          height: 14,
+                          margin: const pw.EdgeInsets.symmetric(horizontal: 1.5),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                          ),
+                        )),
+                      ),
+                      pw.SizedBox(height: 3),
+                      // 0..9 Circles Grid
+                      ...List.generate(10, (digit) {
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 0.5),
+                          child: pw.Row(
+                            children: List.generate(5, (_) => pw.Container(
+                              width: 12,
+                              height: 11,
+                              margin: const pw.EdgeInsets.symmetric(horizontal: 2.5),
+                              decoration: pw.BoxDecoration(
+                                shape: pw.BoxShape.circle,
+                                border: pw.Border.all(color: PdfColors.grey800, width: 0.6),
+                              ),
+                              child: pw.Center(
+                                child: pw.Text('$digit', style: regularStyle.copyWith(fontSize: 6)),
+                              ),
+                            )),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 6),
+
+            // Instructions Bar
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: const pw.BoxDecoration(
+                color: PdfColors.grey200,
+              ),
+              child: pw.Text(
+                'تعليمات التظليل: استخدم قلم جاف أزرق أو أسود • ظلل الدائرة بالكامل هكذا • تجنب علامات (X) والتظليل الجزئي • ممنوع استخدام الكوريكتور',
+                textAlign: pw.TextAlign.center,
+                style: boldStyle.copyWith(fontSize: 7, color: PdfColors.black),
+                textDirection: pw.TextDirection.rtl,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+
+            // Main Answer Matrix (Columns of Questions)
+            pw.Expanded(
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: List.generate(columnsCount, (colIdx) {
+                  final startQ = (colIdx * questionsPerCol) + 1;
+                  final endQ = (startQ + questionsPerCol - 1) < effectiveCount
+                      ? (startQ + questionsPerCol - 1)
+                      : effectiveCount;
+
+                  return pw.Expanded(
+                    child: pw.Container(
+                      margin: pw.EdgeInsets.only(left: colIdx == 0 ? 0 : 6),
+                      padding: const pw.EdgeInsets.all(6),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                        borderRadius: pw.BorderRadius.circular(4),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          // Col Header
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                            color: PdfColors.grey100,
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                              children: [
+                                pw.Text('رقم', style: boldStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                                pw.Text('أ', style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('ب', style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('ج', style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('د', style: boldStyle.copyWith(fontSize: 7)),
+                              ],
+                            ),
+                          ),
+                          pw.Divider(thickness: 0.5, height: 4, color: PdfColors.grey400),
+                          // Question Rows
+                          ...List.generate(endQ - startQ + 1, (rowIdx) {
+                            final qNum = startQ + rowIdx;
+                            final qData = (questions != null && qNum - 1 < questions.length)
+                                ? questions[qNum - 1]
+                                : null;
+                            final opts = (qData?['options'] as List<dynamic>?) ?? [];
+                            int? correctIdx;
+                            if (opts.isNotEmpty) {
+                              for (int oi = 0; oi < opts.length; oi++) {
+                                final opt = opts[oi];
+                                if (opt is Map && (opt['is_correct'] == true || opt['isCorrect'] == true)) {
+                                  correctIdx = oi;
+                                  break;
+                                }
+                              }
+                            }
+
+                            return pw.Container(
+                              height: 17,
+                              margin: const pw.EdgeInsets.symmetric(vertical: 1.5),
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 4),
+                              decoration: pw.BoxDecoration(
+                                color: (rowIdx % 2 == 1) ? PdfColors.grey50 : PdfColors.white,
+                                borderRadius: pw.BorderRadius.circular(2),
+                              ),
+                              child: pw.Row(
+                                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                children: [
+                                  // Q Number box
+                                  pw.Container(
+                                    width: 18,
+                                    height: 14,
+                                    decoration: pw.BoxDecoration(
+                                      color: PdfColors.grey200,
+                                      borderRadius: pw.BorderRadius.circular(2),
+                                    ),
+                                    child: pw.Center(
+                                      child: pw.Text(
+                                        qNum.toString().padLeft(2, '0'),
+                                        style: boldStyle.copyWith(fontSize: 6.5),
+                                      ),
+                                    ),
+                                  ),
+                                  // 4 Option Bubbles: أ ب ج د
+                                  ...List.generate(4, (optIdx) {
+                                    final isThisCorrect = isAnswerKey && (correctIdx == optIdx);
+                                    final letters = ['أ', 'ب', 'ج', 'د'];
+                                    return pw.Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: pw.BoxDecoration(
+                                        shape: pw.BoxShape.circle,
+                                        color: isThisCorrect ? PdfColors.black : PdfColors.white,
+                                        border: pw.Border.all(
+                                          color: isThisCorrect ? PdfColors.black : PdfColors.grey700,
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                      child: pw.Center(
+                                        child: pw.Text(
+                                          letters[optIdx],
+                                          style: boldStyle.copyWith(
+                                            fontSize: 6.5,
+                                            color: isThisCorrect ? PdfColors.white : PdfColors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            pw.SizedBox(height: 8),
+
+            // Bottom OMR Score Summary & Stamp Box
+            pw.Container(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.black, width: 1.0),
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('خاص بلجنة التصحيح والكنترول:', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                  pw.Text('الإجابات الصحيحة: [       ]', style: regularStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
+                  pw.Text('الخاطئة: [       ]', style: regularStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                    ),
+                    child: pw.Text('الدرجة النهائية: [       / $effectiveCount ]', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                  ),
+                  pw.Text('توقيع المصحح: ...................', style: regularStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 6),
+
+            // Bottom Alignment Marks
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Container(width: 14, height: 14, color: PdfColors.black),
+                pw.Text(
+                  'Brivio Assessment Engine • كود النموذج: B-OMR-${effectiveCount}Q',
+                  style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
+                ),
+                pw.Container(width: 14, height: 14, color: PdfColors.black),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Generates a Homework Submissions & Grade Roster PDF (كشف تسليمات ودرجات الواجب الرسمي للسنتر)

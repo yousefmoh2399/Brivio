@@ -12,6 +12,7 @@ import '../../../features/study_workspace/presentation/screens/study_replay_scre
 import '../../../features/academy/presentation/screens/teacher_assistants_screen.dart';
 import '../../../features/assessment/presentation/screens/smart_exam_generator_dialog.dart';
 import '../../../features/communication/presentation/screens/class_broadcast_dialog.dart';
+import '../../../core/services/report_generator_service.dart';
 
 class WorkspaceTab extends StatefulWidget {
   final String teacherId;
@@ -119,6 +120,37 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                               context,
                               subjectName: 'المادة الدراسية',
                             );
+                          },
+                        ),
+                        IconButton(
+                          tooltip: 'طباعة نموذج بابل شيت فارغ 📑',
+                          icon: const Icon(Icons.fact_check_outlined, color: Colors.teal),
+                          onPressed: () async {
+                            try {
+                              await ReportGeneratorService().generateStandaloneBubbleSheetPdf(
+                                centerName: 'المركز التعليمي',
+                                teacherName: 'معلم المادة',
+                                examTitle: 'نموذج إجابة بابل شيت عام',
+                                questionCount: 30,
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('تم توليد نموذج البابل شيت بنجاح 📑'),
+                                    backgroundColor: Colors.teal,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('فشل توليد البابل شيت: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                         ),
                       ],

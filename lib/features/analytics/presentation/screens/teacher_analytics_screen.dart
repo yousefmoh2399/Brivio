@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/components/cards.dart';
+import '../widgets/at_risk_students_card.dart';
 
 class TeacherAnalyticsScreen extends StatefulWidget {
   final String profileId;
@@ -120,20 +121,30 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
     }
 
     if (_exams.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      return RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Icon(Icons.analytics_outlined, size: 64, color: subtitleColor),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد إحصائيات متاحة حالياً',
-              style: AppTypography.titleLarge(textColor),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'لم تقم بإنشاء أي امتحانات أو تقييمات حتى الآن.',
-              style: AppTypography.bodyMedium(subtitleColor),
+            const AtRiskStudentsAlertWidget(),
+            const SizedBox(height: 24),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.analytics_outlined, size: 64, color: subtitleColor),
+                  const SizedBox(height: 16),
+                  Text(
+                    'لا توجد امتحانات إضافية مسجلة حالياً',
+                    style: AppTypography.titleLarge(textColor),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'قم بإنشاء اختبارات لربط درجات الطلاب تلقائياً بمنظومة التحليلات.',
+                    style: AppTypography.bodyMedium(subtitleColor),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -144,12 +155,18 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
       onRefresh: _loadData,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _exams.length + 1,
+        itemCount: _exams.length + 2,
         itemBuilder: (context, index) {
           if (index == 0) {
             return _buildOverviewCard(textColor, subtitleColor);
           }
-          final exam = _exams[index - 1];
+          if (index == 1) {
+            return const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: AtRiskStudentsAlertWidget(),
+            );
+          }
+          final exam = _exams[index - 2];
           return _buildExamCard(exam, textColor, subtitleColor);
         },
       ),
