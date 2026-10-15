@@ -5,6 +5,7 @@ import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../study_workspace/data/repositories/supabase_study_workspace_repository.dart';
 import '../../../study_workspace/domain/models/study_workspace_models.dart';
 import '../../../study_workspace/presentation/screens/study_workspace_screen.dart';
+import '../../../attendance/presentation/screens/teacher_session_board_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/localization/app_localizations.dart';
@@ -1524,41 +1525,12 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
   }
 
   Future<void> _openLessonBoard(Unit unit, Lesson lesson) async {
-    String? pdfUrl;
-    final pdfResource =
-        lesson.resources.where((r) => r.resourceType == 'pdf').firstOrNull;
-    if (pdfResource != null) {
-      try {
-        pdfUrl = await Supabase.instance.client.storage
-            .from(pdfResource.bucket)
-            .createSignedUrl(pdfResource.objectPath, 3600);
-      } catch (_) {}
-    }
-
-    if (!mounted) return;
-    final summary = StudyLessonSummary(
-      id: lesson.id,
-      title: lesson.title,
-      pathName: 'المنهج الدراسي',
-      unitName: unit.name,
-      progressPercentage: 0,
-      estimatedMinutes: lesson.estimatedDurationMinutes ?? 45,
-      lastPage: 1,
-      totalPages: 0,
-      xp: 0,
-      hasPdf: pdfUrl != null,
-      hasCodePlayground: false,
-      pdfUrl: pdfUrl,
-    );
-
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => StudyWorkspaceScreen(
-          lesson: summary,
+        builder: (_) => TeacherSessionBoardScreen(
           teacherId: widget.teacherId,
-          repository: SupabaseStudyWorkspaceRepository(
-            GetIt.I<SupabaseClientWrapper>(),
-          ),
+          groupName: _selectedGroup?.name ?? unit.name,
+          lessonTitle: lesson.title,
         ),
       ),
     );

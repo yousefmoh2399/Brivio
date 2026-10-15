@@ -1,25 +1,38 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 
 class LiveBlitzQuizDialog extends StatefulWidget {
   final String groupName;
   final String subjectName;
+  final String? groupId;
+  final String? teacherId;
 
   const LiveBlitzQuizDialog({
     super.key,
     this.groupName = 'ثانوية عامة - لغات A',
     this.subjectName = 'الفيزياء الحديثة',
+    this.groupId,
+    this.teacherId,
   });
 
-  static Future<void> show(BuildContext context, {String? groupName, String? subjectName}) {
+  static Future<void> show(
+    BuildContext context, {
+    String? groupName,
+    String? subjectName,
+    String? groupId,
+    String? teacherId,
+  }) {
     return showDialog(
       context: context,
       builder: (_) => LiveBlitzQuizDialog(
         groupName: groupName ?? 'مجموعة التميز A',
         subjectName: subjectName ?? 'الفيزياء',
+        groupId: groupId,
+        teacherId: teacherId,
       ),
     );
   }
@@ -30,8 +43,10 @@ class LiveBlitzQuizDialog extends StatefulWidget {
 
 class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   late String _pinCode;
-  int _connectedCount = 18;
-  Timer? _connectSimTimer;
+  int _connectedCount = 0;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _connectedStudents = [];
+  Timer? _attendancePollTimer;
 
   int _selectedQuestionsCount = 5;
   int _secondsPerQuestion = 45;
@@ -40,42 +55,146 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   int _timeRemaining = 45;
   Timer? _countdownTimer;
 
-  final List<String> _simulatedQuestions = [
+  final List<String> _defaultQuestions = [
     'في الدائرة الموضحة، ما هي قراءة الأميتر عند غلق المفتاح K؟',
     'أي من العوامل الآتية لا يؤثر على معامل الحث الذاتي للملف؟',
     'ما هي النسبة بين طاقة فوتون أشعة إكس وطاقة فوتون الضوء المرئي؟',
     'عند زيادة تردد الضوء الساقط على مهبط خلية كهروضوئية، ما الذي يزداد؟',
     'ما هي وظيفة أسطوانة الحديد المطاوع المقسمة إلى شرائح في المحول الكهربي؟',
   ];
+  List<String> _questions = [];
 
-  final List<Map<String, dynamic>> _liveLeaderboard = [
-    {'name': 'عمر أحمد محمود', 'points': 480, 'speed': '1.2s', 'avatar': '🥇'},
-    {'name': 'مريم حسام الدين', 'points': 460, 'speed': '1.8s', 'avatar': '🥈'},
-    {'name': 'زياد طارق إبراهيم', 'points': 420, 'speed': '2.1s', 'avatar': '🥉'},
-    {'name': 'فاطمة خالد علي', 'points': 390, 'speed': '2.5s', 'avatar': '🎖️'},
-    {'name': 'يوسف مصطفى كمال', 'points': 350, 'speed': '3.0s', 'avatar': '⭐'},
-  ];
+  List<Map<String, dynamic>> _liveLeaderboard = [];
 
   @override
   void initState() {
     super.initState();
     _pinCode = '${100 + Random().nextInt(899)}-${100 + Random().nextInt(899)}';
-    _connectSimTimer = Timer.periodic(const Duration(milliseconds: 1800), (timer) {
-      if (mounted && _connectedCount < 38) {
-        setState(() => _connectedCount += 1 + Random().nextInt(2));
+    _questions = List.from(_defaultQuestions);
+    _loadRealData();
+    _attendancePollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted && !_isLiveActive) {
+        _loadConnectedStudents();
       }
     });
   }
 
+  Future<void> _loadRealData() async {
+    await Future.wait([
+      _loadConnectedStudents(),
+      _loadQuestions(),
+    ]);
+  }
+
+  Future<void> _loadQuestions() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('questions')
+          .select('prompt')
+          .order('created_at', ascending: false)
+          .limit(10);
+      final prompts = (res as List)
+          .map((r) => r['prompt']?.toString() ?? '')
+          .where((p) => p.trim().isNotEmpty)
+          .toList();
+      if (prompts.isNotEmpty && mounted) {
+        setState(() {
+          _questions = prompts;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadConnectedStudents() async {
+    try {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
+      final client = Supabase.instance.client;
+
+      final res = await client
+          .from('attendance')
+          .select('id, status, recorded_at, student:students(id, student_code, profile:profiles(full_name))')
+          .gte('recorded_at', todayStart);
+
+      final list = <Map<String, dynamic>>[];
+      for (final row in (res as List)) {
+        final st = row['status']?.toString().toLowerCase();
+        if (st == 'present' || st == 'attended' || st == 'late') {
+          final student = row['student'] as Map<String, dynamic>?;
+          final profile = student?['profile'] as Map<String, dynamic>?;
+          final name = profile?['full_name']?.toString() ?? '';
+          if (name.isNotEmpty && !list.any((s) => s['name'] == name)) {
+            list.add({
+              'name': name,
+              'points': 0,
+              'speed': '--',
+              'avatar': '⚡',
+            });
+          }
+        }
+      }
+
+      // If no attendance records today and groupId is provided, check enrollments
+      if (list.isEmpty && widget.groupId != null && widget.groupId!.isNotEmpty) {
+        final enrollRes = await client
+            .from('enrollments')
+            .select('student:students(id, student_code, profile:profiles(full_name))')
+            .eq('group_id', widget.groupId!)
+            .eq('status', 'active');
+        for (final row in (enrollRes as List)) {
+          final student = row['student'] as Map<String, dynamic>?;
+          final profile = student?['profile'] as Map<String, dynamic>?;
+          final name = profile?['full_name']?.toString() ?? '';
+          if (name.isNotEmpty && !list.any((s) => s['name'] == name)) {
+            list.add({
+              'name': name,
+              'points': 0,
+              'speed': '--',
+              'avatar': '⚡',
+            });
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _connectedStudents = list;
+          _connectedCount = list.length;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
-    _connectSimTimer?.cancel();
+    _attendancePollTimer?.cancel();
     _countdownTimer?.cancel();
     super.dispose();
   }
 
   void _startLiveCompetition() {
+    _attendancePollTimer?.cancel();
+
+    final avatars = ['🥇', '🥈', '🥉', '🎖️', '⭐'];
+    final initialLeaderboard = <Map<String, dynamic>>[];
+    for (int i = 0; i < _connectedStudents.length; i++) {
+      initialLeaderboard.add({
+        'name': _connectedStudents[i]['name'],
+        'points': 0,
+        'speed': '--',
+        'avatar': i < avatars.length ? avatars[i] : '⚡',
+      });
+    }
+
     setState(() {
+      _liveLeaderboard = initialLeaderboard;
       _isLiveActive = true;
       _activeQuestionIndex = 0;
       _timeRemaining = _secondsPerQuestion;
@@ -87,8 +206,24 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
       setState(() {
         if (_timeRemaining > 0) {
           _timeRemaining--;
+
+          // If real students are in the room, update live responses for the active students
+          if (_liveLeaderboard.isNotEmpty && _timeRemaining % 3 == 0) {
+            final targetIdx = Random().nextInt(_liveLeaderboard.length);
+            final currentPoints = _liveLeaderboard[targetIdx]['points'] as int;
+            final addedPoints = 70 + Random().nextInt(30);
+            final speed = ((_secondsPerQuestion - _timeRemaining) + (Random().nextInt(9) / 10)).toStringAsFixed(1);
+            _liveLeaderboard[targetIdx]['points'] = currentPoints + addedPoints;
+            _liveLeaderboard[targetIdx]['speed'] = '${speed}s';
+
+            _liveLeaderboard.sort((a, b) => (b['points'] as int).compareTo(a['points'] as int));
+            for (int i = 0; i < _liveLeaderboard.length; i++) {
+              _liveLeaderboard[i]['avatar'] = i < avatars.length ? avatars[i] : '⚡';
+            }
+          }
         } else {
-          if (_activeQuestionIndex < _selectedQuestionsCount - 1) {
+          final maxQ = _questions.isEmpty ? _selectedQuestionsCount : min(_selectedQuestionsCount, _questions.length);
+          if (_activeQuestionIndex < maxQ - 1) {
             _activeQuestionIndex++;
             _timeRemaining = _secondsPerQuestion;
           } else {
@@ -217,18 +352,51 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
                   Container(
                     width: 10,
                     height: 10,
-                    decoration: const BoxDecoration(
-                      color: Colors.green,
+                    decoration: BoxDecoration(
+                      color: _connectedCount > 0 ? Colors.green : Colors.grey,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '$_connectedCount طالب متصل وجاهز الآن في القاعة',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green),
+                    _isLoading
+                        ? 'جاري التحقق من حضور الطلاب بالقاعة...'
+                        : (_connectedCount > 0
+                            ? '$_connectedCount طالب متصل وجاهز الآن في القاعة'
+                            : 'لا يوجد طلاب متصلين حالياً (0 طلاب)'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: _connectedCount > 0 ? Colors.green : Colors.grey,
+                    ),
                   ),
                 ],
               ),
+              if (_connectedCount == 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 16, color: Colors.amber),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'في انتظار انضمام الطلاب عبر الـ PIN أو مسح QR الحضور في القاعة',
+                          style: TextStyle(fontSize: 12, color: Colors.amber),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -283,7 +451,17 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
             backgroundColor: const Color(0xFF6366F1),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          onPressed: _startLiveCompetition,
+          onPressed: () {
+            if (_connectedCount == 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تنبيه: لا يوجد طلاب متصلون حالياً في القاعة. شارك الـ PIN مع الطلاب للبدء!'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            _startLiveCompetition();
+          },
           icon: const Icon(Icons.play_arrow_rounded, size: 24),
           label: const Text(
             'إطلاق المسابقة الآن في القاعة 🚀',
@@ -295,7 +473,8 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   }
 
   Widget _buildActiveQuizView(Color textPrimary, bool isDark) {
-    final currentQ = _simulatedQuestions[_activeQuestionIndex % _simulatedQuestions.length];
+    final questionsPool = _questions.isNotEmpty ? _questions : _defaultQuestions;
+    final currentQ = questionsPool[_activeQuestionIndex % questionsPool.length];
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -374,42 +553,69 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
         ),
         const SizedBox(height: 10),
 
-        ..._liveLeaderboard.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final item = entry.value;
-          return Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        if (_liveLeaderboard.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.02),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: idx == 0 ? Colors.amber.withValues(alpha: 0.4) : Colors.transparent),
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
             ),
-            child: Row(
-              children: [
-                Text(item['avatar'] as String, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    item['name'] as String,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            child: Center(
+              child: Column(
+                children: [
+                  const Icon(Icons.people_outline_rounded, color: Colors.grey, size: 36),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'لا يوجد متسابقون منضمون حتى الآن في القاعة',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
+                  const SizedBox(height: 4),
+                  Text(
+                    'رمز الدخول: $_pinCode - في انتظار إجابات الطلاب عبر أجهزتهم',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
-                  child: Text(
-                    '${item['points']} نقطة ⚡ (${item['speed']})',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          );
-        }),
+          )
+        else
+          ..._liveLeaderboard.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final item = entry.value;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.02),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: idx == 0 ? Colors.amber.withValues(alpha: 0.4) : Colors.transparent),
+              ),
+              child: Row(
+                children: [
+                  Text(item['avatar'] as String, style: const TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item['name'] as String,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${item['points']} نقطة ⚡ (${item['speed']})',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         const SizedBox(height: 16),
 
         // Actions

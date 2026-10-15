@@ -156,12 +156,10 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
         setState(() {
           _recentCheckIns = list;
           _isLoadingAttendance = false;
-          if (present > 0) {
-            _presentCount = present;
-            _lateCount = lateCount;
-            if (widget.totalStudents > 0) {
-              _absentCount = math.max(0, widget.totalStudents - _presentCount);
-            }
+          _presentCount = present;
+          _lateCount = lateCount;
+          if (widget.totalStudents > 0) {
+            _absentCount = math.max(0, widget.totalStudents - _presentCount);
           }
         });
       }
@@ -883,6 +881,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
                             context,
                             groupName: widget.groupName,
                             subjectName: 'الفيزياء',
+                            teacherId: widget.teacherId,
                           );
                         },
                       ),

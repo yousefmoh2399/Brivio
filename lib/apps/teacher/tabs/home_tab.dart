@@ -16,7 +16,7 @@ import '../../../features/attendance/presentation/screens/teacher_session_board_
 import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 import '../../../features/assessment/presentation/widgets/live_blitz_quiz_dialog.dart';
 import '../../../features/communication/presentation/screens/class_broadcast_dialog.dart';
-import '../../../features/assessment/presentation/widgets/smart_grading_studio.dart';
+import '../../../features/assessment/presentation/screens/teacher_grading_screen.dart';
 import '../../../features/attendance/presentation/screens/live_class_focus_mode_screen.dart';
 import '../../../features/analytics/presentation/widgets/at_risk_students_card.dart';
 
@@ -1182,6 +1182,7 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                           context,
                           groupName: _currentGroup,
                           subjectName: 'الفيزياء',
+                          teacherId: widget.teacherId,
                         );
                       },
                     ),
@@ -1189,14 +1190,16 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                       label: 'استوديو التصحيح بالقلم ✍️',
                       color: Colors.deepOrange,
                       onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => const SmartGradingStudioDialog(
-                            studentName: 'عمر أحمد محمود',
-                            submissionId: 'live_preview',
-                            initialScore: 18.5,
-                            maxScore: 20.0,
-                            initialFeedback: 'ممتاز ومنظم يا بطل 🌟',
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => Scaffold(
+                              appBar: AppBar(
+                                title: const Text('طابور التصحيح واستوديو القلم الرقمي ✍️'),
+                                elevation: 0,
+                              ),
+                              body: TeacherGradingScreen(teacherId: widget.teacherId),
+                            ),
                           ),
                         );
                       },
