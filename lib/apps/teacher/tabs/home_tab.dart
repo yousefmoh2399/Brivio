@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/whatsapp_service.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
@@ -127,6 +129,7 @@ class HomeTab extends StatelessWidget {
                   child: _LiveSessionCockpitCard(
                     teacherId: user?.id ?? '',
                     teacherName: user?.fullName ?? 'معلمنا الفاضل',
+                    groupAnalytics: groupAnalytics,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -720,10 +723,12 @@ class _TeacherQuickActionCard extends StatelessWidget {
 class _LiveSessionCockpitCard extends StatefulWidget {
   final String teacherId;
   final String teacherName;
+  final List<TeacherGroupAnalytics> groupAnalytics;
 
   const _LiveSessionCockpitCard({
     required this.teacherId,
     required this.teacherName,
+    this.groupAnalytics = const [],
   });
 
   @override
@@ -734,11 +739,13 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
 
-  final String _currentGroup = 'فيزياء 3 ثانوي - مجموعة التميز واللغات (A)';
-  final String _roomName = 'قاعة نيوتن 1 (الفرع الرئيسي)';
-  final int _totalEnrolled = 42;
-  final int _presentCount = 38;
-  final int _absentCount = 4;
+  String _currentGroup = '';
+  String _roomName = 'القاعة الدراسية';
+  int _totalEnrolled = 0;
+  int _presentCount = 0;
+  int _absentCount = 0;
+  bool _hasActiveSession = false;
+  List<Map<String, String>> _absentStudents = [];
 
   @override
   void initState() {
@@ -747,6 +754,87 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+    _populateInitialGroup();
+    _loadLiveSessionFromSupabase();
+  }
+
+  void _populateInitialGroup() {
+    if (widget.groupAnalytics.isNotEmpty) {
+      final first = widget.groupAnalytics.first;
+      _currentGroup = first.groupName;
+      _totalEnrolled = first.studentCount;
+      _absentCount = first.absentCount;
+      _presentCount = (first.studentCount - first.absentCount).clamp(0, first.studentCount);
+    } else {
+      _currentGroup = 'لا توجد مجموعات مسندة بعد';
+      _totalEnrolled = 0;
+      _presentCount = 0;
+      _absentCount = 0;
+    }
+  }
+
+  Future<void> _loadLiveSessionFromSupabase() async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T').first;
+      final sessions = await Supabase.instance.client
+          .from('class_sessions')
+          .select('id, group_id, status, scheduled_start_at, scheduled_end_at, groups(name, code), rooms(name)')
+          .eq('session_date', today)
+          .limit(5);
+
+      if (sessions.isNotEmpty) {
+        final inProgress = (sessions as List).firstWhere(
+          (s) => s['status'] == 'in_progress',
+          orElse: () => sessions.first,
+        );
+
+        final sessId = inProgress['id']?.toString();
+        final grp = inProgress['groups'] as Map<String, dynamic>?;
+        final rm = inProgress['rooms'] as Map<String, dynamic>?;
+
+        if (sessId == null) return;
+
+        final attendanceRows = await Supabase.instance.client
+            .from('attendance')
+            .select('student_id, status, students(student_code, profiles(full_name, phone_number))')
+            .eq('session_id', sessId);
+
+        final absentList = <Map<String, String>>[];
+        int present = 0;
+        for (final att in (attendanceRows as List)) {
+          final st = att['status']?.toString();
+          if (st == 'present' || st == 'late') {
+            present++;
+          } else if (st == 'absent') {
+            final stu = att['students'] as Map<String, dynamic>?;
+            final prof = stu?['profiles'] as Map<String, dynamic>?;
+            absentList.add({
+              'name': prof?['full_name']?.toString() ?? 'طالب',
+              'code': stu?['student_code']?.toString() ?? '',
+              'phone': prof?['phone_number']?.toString() ?? '',
+            });
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _hasActiveSession = inProgress['status'] == 'in_progress';
+            if (grp != null && grp['name'] != null) {
+              _currentGroup = grp['name'].toString();
+            }
+            if (rm != null && rm['name'] != null) {
+              _roomName = rm['name'].toString();
+            }
+            _presentCount = present;
+            _absentCount = absentList.length;
+            _absentStudents = absentList;
+            if (present + absentList.length > 0) {
+              _totalEnrolled = present + absentList.length;
+            }
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -756,17 +844,21 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
   }
 
   void _openAbsenceBroadcastDialog() {
+    if (_absentStudents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ممتاز! لا يوجد غياب مسجل لهذه الحصة حالياً 👏'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (_) => _AbsenceAlertBroadcastDialog(
         groupName: _currentGroup,
         teacherName: widget.teacherName,
-        absentStudents: const [
-          {'name': 'عمر أحمد محمود', 'code': 'STU-101', 'phone': '01012345678'},
-          {'name': 'مريم حسام الدين', 'code': 'STU-105', 'phone': '01198765432'},
-          {'name': 'زياد طارق إبراهيم', 'code': 'STU-108', 'phone': '01234567890'},
-          {'name': 'فاطمة خالد علي', 'code': 'STU-112', 'phone': '01055566778'},
-        ],
+        absentStudents: _absentStudents,
       ),
     );
   }
@@ -776,7 +868,9 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
-    final attendancePercentage = (_presentCount / _totalEnrolled * 100).toStringAsFixed(1);
+    final attendancePercentage = _totalEnrolled > 0
+        ? (_presentCount / _totalEnrolled * 100).toStringAsFixed(1)
+        : '0.0';
 
     return Container(
       decoration: BoxDecoration(
@@ -819,7 +913,10 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text(
                           'غرفة التحكم الحية للحصة المباشرة 🔴',
@@ -829,19 +926,19 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                             color: Color(0xFF0D9488),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.redAccent.withValues(alpha: 0.15),
+                            color: (_hasActiveSession ? Colors.redAccent : const Color(0xFF0D9488))
+                                .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            'جارية الآن ⏱️',
+                          child: Text(
+                            _hasActiveSession ? 'جارية الآن ⏱️' : 'في الانتظار ⏸️',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Colors.redAccent,
+                              color: _hasActiveSession ? Colors.redAccent : const Color(0xFF0D9488),
                             ),
                           ),
                         ),
@@ -869,9 +966,15 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: const [
-                    Text('04:00 - 06:00 م', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                    Text('مضى 42 دقيقة ⏳', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  children: [
+                    Text(
+                      _hasActiveSession ? 'حصة جارية' : 'اليوم',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    ),
+                    Text(
+                      _hasActiveSession ? 'مباشر 🔴' : 'بانتظار البدء',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
                   ],
                 ),
               ),
@@ -923,26 +1026,30 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                       borderRadius: BorderRadius.circular(8),
                       child: SizedBox(
                         height: 10,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: _presentCount,
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
-                                  ),
-                                ),
+                        child: (_totalEnrolled == 0 || (_presentCount == 0 && _absentCount == 0))
+                            ? Container(color: Colors.grey.withValues(alpha: 0.2))
+                            : Row(
+                                children: [
+                                  if (_presentCount > 0)
+                                    Expanded(
+                                      flex: _presentCount,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  if (_absentCount > 0)
+                                    Expanded(
+                                      flex: _absentCount,
+                                      child: Container(
+                                        color: Colors.redAccent.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                ],
                               ),
-                            ),
-                            Expanded(
-                              flex: _absentCount,
-                              child: Container(
-                                color: Colors.redAccent.withValues(alpha: 0.8),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
@@ -1226,14 +1333,39 @@ class _AbsenceAlertBroadcastDialogState extends State<_AbsenceAlertBroadcastDial
   Future<void> _broadcastAbsenceAlerts() async {
     setState(() => _isBroadcasting = true);
 
-    await Future.delayed(const Duration(milliseconds: 1200));
+    try {
+      final client = Supabase.instance.client;
+      for (final s in widget.absentStudents) {
+        if (_sendAppNotification) {
+          try {
+            await client.from('notifications').insert({
+              'title': 'تنبيه غياب: ${widget.groupName}',
+              'body': 'نحيطكم علماً بعدم تسجيل حضور الطالب ${s['name']} (${s['code']}) في حصة اليوم مع الأستاذ ${widget.teacherName}.',
+              'type': 'absence_alert',
+              'created_at': DateTime.now().toIso8601String(),
+            });
+          } catch (_) {}
+        }
+        if (_sendWhatsAppAlert) {
+          final phone = s['phone'];
+          if (phone != null && phone.isNotEmpty) {
+            await WhatsAppService.sendAbsenceNotice(
+              parentPhone: phone,
+              studentName: s['name'] ?? 'الطالب',
+              subjectName: widget.groupName,
+              centerName: 'السنتر التعليمي',
+            );
+          }
+        }
+      }
+    } catch (_) {}
 
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'تم إرسال إنذار الغياب الفوري لـ ${widget.absentStudents.length} أولياء أمور بنجاح عبر التطبيق والواتساب 📲',
+            'تم إرسال إنذار الغياب الفوري لـ ${widget.absentStudents.length} أولياء أمور بنجاح 📲',
           ),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 4),

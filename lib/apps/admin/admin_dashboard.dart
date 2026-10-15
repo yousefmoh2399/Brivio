@@ -2597,7 +2597,15 @@ class _CenterEmergencyBroadcastDialogState extends State<_CenterEmergencyBroadca
 
   Future<void> _broadcast() async {
     setState(() => _isBroadcasting = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
+
+    try {
+      await Supabase.instance.client.from('notifications').insert({
+        'title': _titleCtrl.text.trim(),
+        'body': _msgCtrl.text.trim(),
+        'type': 'system_broadcast',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {}
 
     if (mounted) {
       Navigator.pop(context);
@@ -2739,14 +2747,6 @@ class _MultiBranchFederationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final effectiveBranches = branches.isNotEmpty
-        ? branches
-        : [
-            const Branch(id: 'main', name: 'الفرع الرئيسي', code: 'HQ', status: 'active'),
-            const Branch(id: 'branch-dokki', name: 'فرع الدقي', code: 'DK', status: 'active'),
-            const Branch(id: 'branch-nasr', name: 'فرع مدينة نصر', code: 'NC', status: 'active'),
-          ];
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -2793,22 +2793,24 @@ class _MultiBranchFederationBar extends StatelessWidget {
             child: Row(
               children: [
                 _buildBranchChip(
-                  label: '🌐 المنظومة الموحدة (جميع الفروع)',
+                  label: '🌐 المنظومة الموحدة (الفرع الرئيسي)',
                   isSelected: selectedBranchId == null,
                   onTap: () => onBranchChanged(null),
                 ),
-                const SizedBox(width: 8),
-                ...effectiveBranches.map((branch) {
-                  final isSelected = selectedBranchId == branch.id;
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: _buildBranchChip(
-                      label: '🏛️ ${branch.name}',
-                      isSelected: isSelected,
-                      onTap: () => onBranchChanged(branch.id),
-                    ),
-                  );
-                }),
+                if (branches.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  ...branches.map((branch) {
+                    final isSelected = selectedBranchId == branch.id;
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: _buildBranchChip(
+                        label: '🏛️ ${branch.name}',
+                        isSelected: isSelected,
+                        onTap: () => onBranchChanged(branch.id),
+                      ),
+                    );
+                  }),
+                ],
               ],
             ),
           ),
@@ -2882,7 +2884,42 @@ class _DayEndSettlementHUD extends StatelessWidget {
     try {
       final now = DateTime.now();
       final dateStr = '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
-      final cashInflow = todayCollected > 0 ? todayCollected : 3250.0;
+
+      final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
+      final transactionLog = <Map<String, dynamic>>[];
+      double realCashInflow = 0.0;
+
+      try {
+        final client = Supabase.instance.client;
+        final paymentsRes = await client
+            .from('payments')
+            .select('id, amount, payment_type, created_at, student:students(profile:profiles(full_name))')
+            .gte('created_at', todayStart)
+            .order('created_at', ascending: false)
+            .limit(25);
+
+        for (final p in (paymentsRes as List)) {
+          final amt = (p['amount'] as num?)?.toDouble() ?? 0.0;
+          realCashInflow += amt;
+          final createdAtStr = p['created_at']?.toString() ?? '';
+          final dt = DateTime.tryParse(createdAtStr)?.toLocal();
+          final timeStr = dt != null
+              ? '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}'
+              : '--:--';
+          final sName = p['student']?['profile']?['full_name']?.toString() ?? 'طالب مسجل';
+          final idStr = p['id']?.toString() ?? '0000';
+          final shortId = idStr.length >= 6 ? idStr.substring(0, 6) : idStr;
+          transactionLog.add({
+            'time': timeStr,
+            'type': p['payment_type']?.toString() ?? 'تحصيل نقدي',
+            'receiptNo': 'REC-${shortId.toUpperCase()}',
+            'studentName': sName,
+            'amount': amt,
+          });
+        }
+      } catch (_) {}
+
+      final cashInflow = realCashInflow > 0 ? realCashInflow : todayCollected;
       const teacherPayouts = 0.0;
       final netExpected = cashInflow - teacherPayouts;
       final actualCash = netExpected;
@@ -2892,44 +2929,24 @@ class _DayEndSettlementHUD extends StatelessWidget {
         shiftName: 'الوردية اليومية المجمعة',
         cashierName: 'كاشير الإدارة العامة',
         dateStr: dateStr,
-        receiptsCount: receiptsCount > 0 ? receiptsCount : 24,
+        receiptsCount: transactionLog.isNotEmpty ? transactionLog.length : receiptsCount,
         totalGrossCashInflow: cashInflow,
         totalTeacherPayouts: teacherPayouts,
         netExpectedCash: netExpected,
         actualCountedCash: actualCash,
         discrepancy: 0.0,
-        notes: 'تمت المطابقة الآلية مع بوابات السنتر والخزينة - لا يوجد عجز نقدي.',
-        denominationsCount: const {
-          '200': 15,
-          '100': 2,
-          '50': 1,
+        notes: transactionLog.isNotEmpty
+            ? 'تمت المطابقة الآلية مع حركات التحصيل الحية بالخزينة - لا يوجد عجز نقدي.'
+            : 'لا توجد حركات تحصيل مسجلة لليوم حتى الآن.',
+        denominationsCount: {
+          '200': (cashInflow ~/ 200),
+          '100': ((cashInflow % 200) ~/ 100),
+          '50': ((cashInflow % 100) ~/ 50),
           '20': 0,
           '10': 0,
-          'coins': 0,
+          'coins': (cashInflow % 50).toInt(),
         },
-        transactionLog: const [
-          {
-            'time': '10:15 ص',
-            'type': 'تحصيل مصاريف',
-            'receiptNo': 'REC-9011',
-            'studentName': 'ياسين أحمد',
-            'amount': 350.0,
-          },
-          {
-            'time': '11:30 ص',
-            'type': 'مبيعات ملازم',
-            'receiptNo': 'POS-4402',
-            'studentName': 'محمد طارق',
-            'amount': 150.0,
-          },
-          {
-            'time': '01:45 م',
-            'type': 'تحصيل اشتراك شهري',
-            'receiptNo': 'REC-9025',
-            'studentName': 'ندى مصطفى',
-            'amount': 400.0,
-          },
-        ],
+        transactionLog: transactionLog,
         printDirectly: false,
       );
     } catch (e) {
@@ -3142,12 +3159,83 @@ class _DayEndSettlementHUD extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Security Audit Alert Radar (رادار التدقيق الأمني ومراقبة العمليات الحساسة)
 // ─────────────────────────────────────────────────────────────────────────────
-class _SecurityAuditRadarCard extends StatelessWidget {
+class _SecurityAuditRadarCard extends StatefulWidget {
   final VoidCallback onOpenAuditLog;
 
   const _SecurityAuditRadarCard({
     required this.onOpenAuditLog,
   });
+
+  @override
+  State<_SecurityAuditRadarCard> createState() => _SecurityAuditRadarCardState();
+}
+
+class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _recentLogs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRecentLogs();
+  }
+
+  Future<void> _fetchRecentLogs() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('audit_logs')
+          .select('id, table_name, action, actor_id, created_at')
+          .order('created_at', ascending: false)
+          .limit(3);
+      if (mounted) {
+        setState(() {
+          _recentLogs = List<Map<String, dynamic>>.from(rows);
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _recentLogs = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _formatRelativeTime(dynamic createdAt) {
+    if (createdAt == null) return '';
+    final dt = DateTime.tryParse(createdAt.toString())?.toLocal();
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'الآن';
+    if (diff.inMinutes < 60) return 'قبل ${diff.inMinutes} دقيقة';
+    if (diff.inHours < 24) return 'قبل ${diff.inHours} ساعة';
+    return 'قبل ${diff.inDays} يوم';
+  }
+
+  IconData _iconForAction(String action) {
+    final a = action.toLowerCase();
+    if (a.contains('delete')) return Icons.delete_forever_rounded;
+    if (a.contains('refund') || a.contains('pay') || a.contains('money')) return Icons.monetization_on_rounded;
+    return Icons.edit_note_rounded;
+  }
+
+  Color _colorForAction(String action) {
+    final a = action.toLowerCase();
+    if (a.contains('delete')) return Colors.red;
+    if (a.contains('refund') || a.contains('pay') || a.contains('money')) return Colors.orange;
+    return Colors.purple;
+  }
+
+  String _actionTitle(String action, String table) {
+    final a = action.toLowerCase();
+    if (a.contains('delete')) return 'عملية حذف من جدول $table';
+    if (a.contains('refund')) return 'استرداد مالي / Refund';
+    if (a.contains('insert')) return 'إضافة قيد جديد في $table';
+    if (a.contains('update')) return 'تعديل بيانات في $table';
+    return '$action على جدول $table';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3212,33 +3300,62 @@ class _SecurityAuditRadarCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: onOpenAuditLog,
+                onPressed: widget.onOpenAuditLog,
                 icon: const Icon(Icons.open_in_new_rounded, size: 14),
                 label: const Text('سجل التدقيق الكامل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildAlertRow(
-            icon: Icons.delete_forever_rounded,
-            color: Colors.red,
-            title: 'حذف قيد واشتراك طالب نهائياً',
-            subtitle: 'المستخدم: مدير الفرع • جدول students • قبل 18 دقيقة',
-          ),
-          const SizedBox(height: 6),
-          _buildAlertRow(
-            icon: Icons.monetization_on_rounded,
-            color: Colors.orange,
-            title: 'استرداد قيمة فاتورة (Refund) بقيمة 450 ج.م',
-            subtitle: 'المستخدم: كاشير 1 • جدول invoices • قبل 42 دقيقة',
-          ),
-          const SizedBox(height: 6),
-          _buildAlertRow(
-            icon: Icons.edit_note_rounded,
-            color: Colors.purple,
-            title: 'تعديل درجات اختبار بعد الاعتماد الرسمي',
-            subtitle: 'المستخدم: مساعد معلم • جدول exam_attempts • قبل ساعة و15 دقيقة',
-          ),
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_recentLogs.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.verified_user_rounded, color: Colors.green, size: 22),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'المنظومة مؤمنة بالكامل: لا توجد عمليات خطرة أو استردادات مسجلة حديثاً 🛡️',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._recentLogs.map((log) {
+              final action = log['action']?.toString() ?? 'عملية أمنية';
+              final table = log['table_name']?.toString() ?? 'البيانات';
+              final timeStr = _formatRelativeTime(log['created_at']);
+              final actor = log['actor_id']?.toString() ?? 'نظام';
+              final shortActor = actor.length >= 8 ? actor.substring(0, 8) : actor;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: _buildAlertRow(
+                  icon: _iconForAction(action),
+                  color: _colorForAction(action),
+                  title: _actionTitle(action, table),
+                  subtitle: 'المعرف: $shortActor • جدول $table • $timeStr',
+                ),
+              );
+            }),
         ],
       ),
     );

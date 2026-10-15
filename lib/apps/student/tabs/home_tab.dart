@@ -599,7 +599,7 @@ class LiveCountdownHeroCard extends StatefulWidget {
 
 class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
   Timer? _ticker;
-  late DateTime _targetClassTime;
+  DateTime? _targetClassTime;
   Duration _remaining = Duration.zero;
   bool _reminderEnabled = false;
 
@@ -614,25 +614,22 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
     final now = DateTime.now();
     if (widget.lesson?.publishedAt != null &&
         widget.lesson!.publishedAt!.isAfter(now)) {
-      _targetClassTime = widget.lesson!.publishedAt!;
+      _targetClassTime = widget.lesson!.publishedAt;
+      _remaining = _targetClassTime!.difference(now);
     } else {
-      // Create a realistic upcoming lecture target (e.g. today at 18:00 or tomorrow at 16:30)
-      final candidateToday = DateTime(now.year, now.month, now.day, 18, 0);
-      if (candidateToday.isAfter(now)) {
-        _targetClassTime = candidateToday;
-      } else {
-        _targetClassTime = DateTime(now.year, now.month, now.day + 1, 16, 30);
-      }
+      _targetClassTime = null;
+      _remaining = Duration.zero;
     }
-    _remaining = _targetClassTime.difference(DateTime.now());
   }
 
   void _startTicker() {
     _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      setState(() {
-        _remaining = _targetClassTime.difference(DateTime.now());
-      });
+      if (_targetClassTime != null) {
+        setState(() {
+          _remaining = _targetClassTime!.difference(DateTime.now());
+        });
+      }
     });
   }
 
@@ -664,9 +661,9 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final totalSeconds = _remaining.inSeconds;
-    final isLiveNow = totalSeconds <= 0;
-    final isStartingSoon = !isLiveNow && _remaining.inMinutes < 60;
+    final hasScheduledUpcoming = _targetClassTime != null && _remaining.inSeconds > 0;
+    final isLiveNow = _targetClassTime != null && _remaining.inSeconds <= 0;
+    final isStartingSoon = hasScheduledUpcoming && _remaining.inMinutes < 60;
 
     final days = math.max(0, _remaining.inDays);
     final hours = math.max(0, _remaining.inHours % 24);
@@ -756,9 +753,13 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
                       Text(
                         isLiveNow
                             ? 'الحصة جارية الآن! 🔴'
-                            : (isStartingSoon
-                                ? 'أقل من ساعة على البداية! ⏳'
-                                : 'الحصة القادمة بعد'),
+                            : (hasScheduledUpcoming
+                                ? (isStartingSoon
+                                    ? 'أقل من ساعة على البداية! ⏳'
+                                    : 'الحصة القادمة بعد')
+                                : (widget.lesson != null
+                                    ? 'الدرس متاح للمشاهدة 🟢'
+                                    : 'الجدول الأكاديمي 📚')),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -826,8 +827,8 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
 
             const SizedBox(height: 18),
 
-            // Live Digital Countdown Ticker Boxes
-            if (!isLiveNow) ...[
+            // Live Digital Countdown Ticker Boxes (only when a lesson is scheduled in the future)
+            if (hasScheduledUpcoming) ...[
               Container(
                 padding: const EdgeInsets.symmetric(
                   vertical: 12,
@@ -853,6 +854,33 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
                       '$seconds'.padLeft(2, '0'),
                       'ثانية',
                       isPulsing: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else if (!isLiveNow && widget.lesson != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'المحاضرة منشورة ومتاحة بالكامل للمتابعة الآن 🚀',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -884,7 +912,7 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
                         ? ''
                         : widget.lesson == null
                         ? 'انضم لمجموعة وانتظر نشر الدروس الجديدة من معلمك.'
-                        : '${widget.lesson!.unitName}  ·  ${widget.lesson!.estimatedMinutes} دقيقة  ·  📍 قاعة 2 - الدور الأول',
+                        : '${widget.lesson!.unitName}  ·  ${widget.lesson!.estimatedMinutes} دقيقة${widget.groupName != null ? "  ·  🏛️ ${widget.groupName}" : ""}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

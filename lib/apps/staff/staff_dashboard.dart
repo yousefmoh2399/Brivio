@@ -1829,12 +1829,18 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
+                          color: _matchedStudent!.status == 'active'
+                              ? Colors.green.withValues(alpha: 0.15)
+                              : Colors.orange.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text(
-                          'مسدد الاشتراك ✔️',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                        child: Text(
+                          _matchedStudent!.status == 'active' ? 'قيد نشط بالمنظومة 🟢' : 'معلق / غير مفعل 🟡',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _matchedStudent!.status == 'active' ? Colors.green : Colors.orange,
+                          ),
                         ),
                       ),
                     ],
@@ -1852,13 +1858,31 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
                           ),
                           icon: const Icon(Icons.how_to_reg_rounded, size: 16, color: Colors.green),
                           label: const Text('تسجيل حضور يدوي', style: TextStyle(fontSize: 11)),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('تم تسجيل حضور الطالب ${_matchedStudent!.fullName} بنجاح! ⏱️'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
+                          onPressed: () async {
+                            try {
+                              await Supabase.instance.client.from('attendance').insert({
+                                'student_id': _matchedStudent!.id,
+                                'status': 'present',
+                                'recorded_at': DateTime.now().toIso8601String(),
+                              });
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('تم تسجيل حضور الطالب ${_matchedStudent!.fullName} في قاعدة البيانات بنجاح! ⏱️'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('تعذر تسجيل الحضور: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                         ),
                       ),
@@ -1899,7 +1923,7 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
                                 'emergency_contact_phone': _matchedStudent!.phoneNumber ?? '',
                               },
                             ],
-                            centerName: 'سنتر الأوائل التعليمي',
+                            centerName: 'منظومة بريفيو التعليمية المتطورة',
                             printDirectly: true,
                           );
                         },
@@ -1910,7 +1934,7 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
                         onPressed: () async {
                           final phone = _matchedStudent!.phoneNumber;
                           if (phone != null && phone.isNotEmpty) {
-                            final text = 'أهلاً بحضرتك، بخصوص الطالب ${_matchedStudent!.fullName} (كود ${_matchedStudent!.studentCode}) من سنتر الأوائل.';
+                            final text = 'أهلاً بحضرتك، بخصوص الطالب ${_matchedStudent!.fullName} (كود ${_matchedStudent!.studentCode}) من المنظومة التعليمية.';
                             final uri = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(text)}');
                             if (await canLaunchUrl(uri)) {
                               await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -632,23 +632,44 @@ class _ParentDashboardState extends State<ParentDashboard> {
             ),
             onPressed: () async {
               HapticFeedback.lightImpact();
-              const phone = '201000000000';
-              final msg =
-                  'السلام عليكم، أنا ولي أمر الطالب $childName (كود: $childCode) المسجل في مجموعة $groupName. أود الاستفسار بخصوص...';
-              final uri = Uri.parse(
-                  'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}');
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              } else {
-                if (mounted) {
-                  Clipboard.setData(ClipboardData(text: msg));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم نسخ رسالة الاستفسار إلى الحافظة!'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+              String? supportPhone;
+              try {
+                final branchId = _selectedChild?.primaryBranchId;
+                if (branchId != null && branchId.isNotEmpty) {
+                  final branchRow = await Supabase.instance.client
+                      .from('branches')
+                      .select('phone, contact_phone')
+                      .eq('id', branchId)
+                      .maybeSingle();
+                  supportPhone = branchRow?['contact_phone']?.toString() ??
+                      branchRow?['phone']?.toString();
                 }
+              } catch (_) {}
+
+              final phone = (supportPhone != null && supportPhone.isNotEmpty)
+                  ? supportPhone.replaceAll(RegExp(r'[^0-9+]'), '')
+                  : null;
+
+              final msg =
+                  'السلام عليكم، أنا ولي أمر الطالب $childName (كود: $childCode) المسجل في مجموعة $groupName. أود الاستفسار بخصوص المستوى الدراسي والدرجات.';
+
+              if (phone != null && phone.isNotEmpty) {
+                final uri = Uri.parse(
+                    'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  return;
+                }
+              }
+
+              if (mounted) {
+                Clipboard.setData(ClipboardData(text: msg));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم نسخ رسالة الاستفسار إلى الحافظة!'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               }
             },
             icon: const Icon(Icons.send_rounded, size: 16),

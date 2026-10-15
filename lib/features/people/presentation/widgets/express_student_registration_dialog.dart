@@ -95,38 +95,40 @@ class _ExpressStudentRegistrationDialogState
       final studentPhone = _studentPhoneController.text.trim();
       final parentPhone = _parentPhoneController.text.trim();
 
-      // 1. Insert student record into Supabase
-      Map<String, dynamic>? inserted;
+      // 1. Insert profile & student record into Supabase
+      String studentId;
       try {
-        final res = await client
-            .from('students')
-            .insert({
-              'student_code': studentCode,
-              'full_name': fullName,
-              'grade_level': _selectedGrade,
-              'emergency_contact_phone': parentPhone,
-              'status': 'active',
-              if (widget.defaultBranchId != null)
-                'primary_branch_id': widget.defaultBranchId,
-            })
-            .select()
-            .single();
-        inserted = res;
-      } catch (_) {
-        // Fallback for offline or local dev simulation
-        inserted = {
-          'id': 'stu_${DateTime.now().millisecondsSinceEpoch}',
-          'student_code': studentCode,
+        final profileRes = await client.from('profiles').insert({
           'full_name': fullName,
+          'phone_number': studentPhone.isNotEmpty ? studentPhone : parentPhone,
+          'role': 'student',
+        }).select().single();
+
+        final profileId = profileRes['id'].toString();
+
+        final studentRes = await client.from('students').insert({
+          'profile_id': profileId,
+          'student_code': studentCode,
           'grade_level': _selectedGrade,
           'emergency_contact_phone': parentPhone,
-          'phone_number': studentPhone,
           'status': 'active',
-          'primary_branch_id': widget.defaultBranchId ?? 'branch_main',
-        };
-      }
+          if (widget.defaultBranchId != null)
+            'primary_branch_id': widget.defaultBranchId,
+        }).select().single();
 
-      final studentId = inserted['id']?.toString() ?? 'stu_local';
+        studentId = studentRes['id'].toString();
+      } catch (_) {
+        // Direct insertion fallback if profiles trigger is automatic
+        final studentRes = await client.from('students').insert({
+          'student_code': studentCode,
+          'grade_level': _selectedGrade,
+          'emergency_contact_phone': parentPhone,
+          'status': 'active',
+          if (widget.defaultBranchId != null)
+            'primary_branch_id': widget.defaultBranchId,
+        }).select().single();
+        studentId = studentRes['id'].toString();
+      }
 
       // 2. Enroll student into selected groups
       final selectedNames = <String>[];
@@ -149,7 +151,6 @@ class _ExpressStudentRegistrationDialogState
             'group_id': groupId,
             'student_id': studentId,
             'status': 'active',
-            'enrolled_at': DateTime.now().toIso8601String(),
           });
         } catch (_) {}
       }
@@ -195,7 +196,7 @@ class _ExpressStudentRegistrationDialogState
           'emergency_contact_phone': _parentPhoneController.text.trim(),
         },
       ],
-      centerName: 'سنتر الأوائل التعليمي',
+      centerName: 'منظومة بريفيو التعليمية المتطورة',
       groupName: _enrolledGroupNames.isNotEmpty ? _enrolledGroupNames.first : 'السنتر التعليمي',
       printDirectly: true,
     );
@@ -215,7 +216,7 @@ class _ExpressStudentRegistrationDialogState
       parentPhone: parentPhone,
       studentName: _newlyCreatedStudent!.fullName,
       studentCode: _newlyCreatedStudent!.studentCode,
-      centerName: 'سنتر الأوائل التعليمي',
+      centerName: 'منظومة بريفيو التعليمية المتطورة',
       gradeLevel: _selectedGrade,
       enrolledGroups: _enrolledGroupNames,
     );

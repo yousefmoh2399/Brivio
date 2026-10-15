@@ -137,7 +137,7 @@ class _ExpressCashierDialogState extends State<ExpressCashierDialog> {
       if (printThermal) {
         try {
           await ReportGeneratorService().generateStudentCashReceiptPdf(
-            centerName: 'سنتر الأوائل التعليمي',
+            centerName: 'منظومة بريفيو التعليمية المتطورة',
             receiptNumber: receiptNo,
             studentName: _selectedStudent!.fullName,
             studentCode: _selectedStudent!.studentCode,
@@ -161,7 +161,7 @@ class _ExpressCashierDialogState extends State<ExpressCashierDialog> {
             receiptNo: receiptNo,
             amountPaid: amount,
             purpose: _purposeCtrl.text.trim(),
-            centerName: 'سنتر الأوائل التعليمي',
+            centerName: 'منظومة بريفيو التعليمية المتطورة',
             cashierName: 'موظف الاستقبال',
           );
         }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../design_system/tokens/colors.dart';
@@ -68,53 +69,88 @@ class AtRiskStudentsAlertWidget extends StatefulWidget {
 }
 
 class _AtRiskStudentsAlertWidgetState extends State<AtRiskStudentsAlertWidget> {
-  late List<AtRiskStudentInfo> _students;
+  bool _isLoading = false;
+  List<AtRiskStudentInfo> _students = [];
 
   @override
   void initState() {
     super.initState();
-    _students = widget.customStudents ?? _generateSimulatedAtRiskStudents();
+    if (widget.customStudents != null) {
+      _students = widget.customStudents!;
+    } else {
+      _loadRealAtRiskStudents();
+    }
   }
 
-  List<AtRiskStudentInfo> _generateSimulatedAtRiskStudents() {
-    return [
-      const AtRiskStudentInfo(
-        studentId: 'risk_01',
-        studentName: 'عمر أحمد محمود',
-        studentCode: 'STU-101',
-        parentPhone: '01012345678',
-        recentScores: [18.5, 13.0, 7.5],
-        maxScore: 20.0,
-        severity: AtRiskSeverity.critical,
-        declineReason: 'تراجع بنسبة 59% في آخر 3 اختبارات متتالية، صعوبة واضحة في قوانين كيرشوف وتيار المتردد',
-        suggestedIntervention: 'تخصيص جلسة مراجعة مجانية (1:1) مع المساعد لحل مسائل الدوائر المركبة',
-        missedHomeworkCount: 3,
-      ),
-      const AtRiskStudentInfo(
-        studentId: 'risk_02',
-        studentName: 'زياد طارق إبراهيم',
-        studentCode: 'STU-108',
-        parentPhone: '01234567890',
-        recentScores: [16.0, 11.0, 8.5],
-        maxScore: 20.0,
-        severity: AtRiskSeverity.warning,
-        declineReason: 'انخفاض مستمر في درجة الاختبار الأسبوعي مع عدم تسليم آخر واجبين',
-        suggestedIntervention: 'متابعة كشكول الواجب مع ولي الأمر وإعادة كويز الفصل الثالث',
-        missedHomeworkCount: 2,
-      ),
-      const AtRiskStudentInfo(
-        studentId: 'risk_03',
-        studentName: 'سارة خالد علي',
-        studentCode: 'STU-114',
-        parentPhone: '01198765432',
-        recentScores: [19.0, 17.5, 12.0],
-        maxScore: 20.0,
-        severity: AtRiskSeverity.homework,
-        declineReason: 'مستوى متميز سابقاً لكن تراجعت في الاختبار الأخير بسبب التغيب عن حصتين متتاليتين',
-        suggestedIntervention: 'إرسال تسجيل الحصة السابقة وإشعار ولي الأمر لتعويض الغياب',
-        missedHomeworkCount: 1,
-      ),
-    ];
+  Future<void> _loadRealAtRiskStudents() async {
+    setState(() => _isLoading = true);
+    try {
+      final attempts = await Supabase.instance.client
+          .from('exam_attempts')
+          .select('score, max_score, created_at, students(id, student_code, emergency_contact_phone, profiles(full_name, phone_number))')
+          .order('created_at', ascending: false)
+          .limit(50);
+
+      final Map<String, List<double>> studentScores = {};
+      final Map<String, Map<String, dynamic>> studentMeta = {};
+
+      for (final att in (attempts as List)) {
+        final stu = att['students'] as Map<String, dynamic>?;
+        if (stu == null) continue;
+        final stuId = stu['id']?.toString() ?? '';
+        final score = (att['score'] as num? ?? 0).toDouble();
+        final maxScore = (att['max_score'] as num? ?? 100).toDouble();
+        final percentage = maxScore > 0 ? (score / maxScore) * 100 : 0.0;
+
+        studentScores.putIfAbsent(stuId, () => []).add(percentage);
+        studentMeta[stuId] = stu;
+      }
+
+      final atRisk = <AtRiskStudentInfo>[];
+
+      studentScores.forEach((stuId, scores) {
+        if (scores.isEmpty) return;
+        final average = scores.reduce((a, b) => a + b) / scores.length;
+        if (average < 65.0) {
+          final meta = studentMeta[stuId]!;
+          final prof = meta['profiles'] as Map<String, dynamic>?;
+          final name = prof?['full_name']?.toString() ?? 'طالب';
+          final code = meta['student_code']?.toString() ?? '';
+          final phone = (meta['emergency_contact_phone']?.toString().isNotEmpty == true)
+              ? meta['emergency_contact_phone'].toString()
+              : (prof?['phone_number']?.toString() ?? '');
+
+          final isCritical = average < 50.0;
+
+          atRisk.add(
+            AtRiskStudentInfo(
+              studentId: stuId,
+              studentName: name,
+              studentCode: code,
+              parentPhone: phone,
+              recentScores: scores.take(3).toList(),
+              maxScore: 100.0,
+              severity: isCritical ? AtRiskSeverity.critical : AtRiskSeverity.warning,
+              declineReason: isCritical
+                  ? 'متوسط الدرجات أقل من 50% في آخر التقييمات (${average.toStringAsFixed(1)}%)'
+                  : 'متوسط الدرجات (${average.toStringAsFixed(1)}%) بحاجة لمتابعة وتقوية',
+              suggestedIntervention: isCritical
+                  ? 'جلسة متابعة مباشرة مع المعلم وتعيين واجبات علاجية'
+                  : 'مراجعة الملاحظات مع ولي الأمر وإعادة الاختبار الجزئي',
+            ),
+          );
+        }
+      });
+
+      if (mounted) {
+        setState(() {
+          _students = atRisk;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _sendWhatsAppIntervention(AtRiskStudentInfo student) async {
@@ -338,7 +374,53 @@ class _AtRiskStudentsAlertWidgetState extends State<AtRiskStudentsAlertWidget> {
           const SizedBox(height: 16),
 
           // List of At-Risk Students
-          ..._students.map((student) => _buildStudentRiskCard(student, isDark, textPrimary)),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(color: AppColors.teacherRole, strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_students.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'جميع الطلاب في مستوى أكاديمي مستقر 👏',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'لا توجد مؤشرات تراجع حرجة في الدرجات أو الحضور بين طلابك حالياً.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._students.map((student) => _buildStudentRiskCard(student, isDark, textPrimary)),
         ],
       ),
     );
