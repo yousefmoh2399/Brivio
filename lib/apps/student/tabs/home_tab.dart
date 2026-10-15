@@ -217,13 +217,18 @@ class HomeTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // ── 3-Minute Quick Review Flashcard Deck ──
-                const FadeInSlide(
-                  duration: Duration(milliseconds: 700),
-                  delay: Duration(milliseconds: 165),
-                  child: QuickReviewFlashcardDeck(),
-                ),
-                const SizedBox(height: 16),
+                // ── 3-Minute Quick Review Flashcard Deck (Only shown when enrolled in groups with an active lesson) ──
+                if (enrolledGroups.isNotEmpty && nextLesson != null) ...[
+                  FadeInSlide(
+                    duration: const Duration(milliseconds: 700),
+                    delay: const Duration(milliseconds: 165),
+                    child: QuickReviewFlashcardDeck(
+                      lesson: nextLesson,
+                      groupName: enrolledGroups.first.name,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // ── Code Playground Shortcut ──
                 FadeInSlide(
@@ -1068,7 +1073,14 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
 /// 3-Minute Quick Review Flashcard Deck.
 /// High-yield smart concept cards students can tap to 3D flip before lectures.
 class QuickReviewFlashcardDeck extends StatefulWidget {
-  const QuickReviewFlashcardDeck({super.key});
+  final StudyLessonSummary? lesson;
+  final String? groupName;
+
+  const QuickReviewFlashcardDeck({
+    super.key,
+    this.lesson,
+    this.groupName,
+  });
 
   @override
   State<QuickReviewFlashcardDeck> createState() =>
@@ -1079,42 +1091,96 @@ class _QuickReviewFlashcardDeckState extends State<QuickReviewFlashcardDeck> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   final Map<int, bool> _flipped = {};
+  List<Map<String, dynamic>> _cards = [];
+  bool _isLoading = true;
 
-  final List<Map<String, dynamic>> _cards = const [
-    {
-      'tag': 'القانون الذهبي 💡',
-      'title': 'حل مسائل الحركة والمقذوفات في خطوة واحدة',
-      'teaser':
-          'المس الكارت لاكتشاف المعادلة المختصرة وتوفير وقت الامتحان ⚡',
-      'tipTitle': 'المعادلة الذهبية المباشرة:',
-      'tipBody':
-          'استخدم v² = v₀² + 2aΔx عند غياب معطى الزمن (t). هذا يوفر عليك خطوتين كاملتين ويحميك من أخطاء الإشارات وحساب الجذور!',
-      'color': Color(0xFF0284C7),
-      'icon': Icons.bolt_rounded,
-    },
-    {
-      'tag': 'فخ شائع بالامتحان ⚠️',
-      'title': 'التحويلات ووحدات القياس الدولية (SI)',
-      'teaser':
-          'المس الكارت لتفادي فخ يسقط فيه أكثر من 70% من الطلاب 🎯',
-      'tipTitle': 'تنبيه المصححين النموذجي:',
-      'tipBody':
-          'تأكد دائماً من تحويل الكيلومتر إلى متر (ضرب × 1000) والدقائق إلى ثوانٍ قبل التعويض بالقانون. كتابة الوحدة بجانب كل رقم يضمن لك الدرجة الكاملة!',
-      'color': Color(0xFFD97706),
-      'icon': Icons.warning_amber_rounded,
-    },
-    {
-      'tag': 'استراتيجية التفوق 🎯',
-      'title': 'طريقة الاستبعاد الذكي في أسئلة الاختيارات',
-      'teaser':
-          'المس الكارت لكشف طريقة الوصول للإجابة في 20 ثانية 🚀',
-      'tipTitle': 'قاعدة الـ 20 ثانية:',
-      'tipBody':
-          'استبعد الخيارين الشاذين أولاً. إذا وجدت خيارين متطابقين في المقدار ومتعاكسين في الإشارة (+ / -) فغالباً ما يكون أحدهما هو الحل الصحيح بنسبة 90%!',
-      'color': Color(0xFF7C3AED),
-      'icon': Icons.psychology_rounded,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadLessonFlashcards();
+  }
+
+  @override
+  void didUpdateWidget(covariant QuickReviewFlashcardDeck oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lesson?.id != widget.lesson?.id) {
+      _loadLessonFlashcards();
+    }
+  }
+
+  Future<void> _loadLessonFlashcards() async {
+    if (widget.lesson == null) {
+      if (mounted) setState(() { _cards = []; _isLoading = false; });
+      return;
+    }
+
+    try {
+      final res = await Supabase.instance.client
+          .from('questions')
+          .select('prompt, explanation, difficulty')
+          .eq('lesson_id', widget.lesson!.id)
+          .limit(5);
+
+      final list = <Map<String, dynamic>>[];
+      final colors = [
+        const Color(0xFF0284C7),
+        const Color(0xFFD97706),
+        const Color(0xFF7C3AED),
+        const Color(0xFF059669),
+      ];
+      final icons = [
+        Icons.bolt_rounded,
+        Icons.lightbulb_rounded,
+        Icons.psychology_rounded,
+        Icons.star_rounded,
+      ];
+
+      for (int i = 0; i < (res as List).length; i++) {
+        final row = res[i];
+        final prompt = row['prompt']?.toString() ?? '';
+        final explanation = row['explanation']?.toString() ?? '';
+        if (prompt.isNotEmpty) {
+          list.add({
+            'tag': 'مفهوم للمراجعة 💡',
+            'title': prompt,
+            'teaser': 'المس الكارت لاكتشاف التفسير والحل النموذجي ⚡',
+            'tipTitle': 'التفسير والمفتاح النموذجي:',
+            'tipBody': explanation.isNotEmpty
+                ? explanation
+                : 'راجع خطوات الحل والقوانين المتعلقة بهذا المفهوم في المحاضرة.',
+            'color': colors[i % colors.length],
+            'icon': icons[i % icons.length],
+          });
+        }
+      }
+
+      if (list.isEmpty) {
+        list.add({
+          'tag': 'نظرة سريعة 🎯',
+          'title': widget.lesson!.title,
+          'teaser': 'المس الكارت للتعرف على محور درس اليوم في ${widget.lesson!.unitName} 🚀',
+          'tipTitle': 'محور محاضرة اليوم:',
+          'tipBody': 'استعد لمتابعة درس "${widget.lesson!.title}" ضمن وحدة "${widget.lesson!.unitName}". تأكد من إحضار كشكول الملاحظات ومراجعة الملزمة.',
+          'color': const Color(0xFF0284C7),
+          'icon': Icons.menu_book_rounded,
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _cards = list;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _cards = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   void _flipCard(int index) {
     HapticFeedback.selectionClick();
@@ -1131,6 +1197,10 @@ class _QuickReviewFlashcardDeckState extends State<QuickReviewFlashcardDeck> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading || _cards.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
@@ -1159,7 +1229,7 @@ class _QuickReviewFlashcardDeckState extends State<QuickReviewFlashcardDeck> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'كروت المراجعة الذكية (3 دقائق قبل الحصة)',
+                  'كروت المراجعة الذكية للدرس ⚡',
                   style: AppTypography.titleMedium(
                     textPrimary,
                   ).copyWith(fontWeight: FontWeight.w800),
