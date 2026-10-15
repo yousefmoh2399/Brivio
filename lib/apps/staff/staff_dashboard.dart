@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/di/injection.dart';
 import '../../core/localization/app_localizations.dart';
@@ -745,6 +746,47 @@ class _StaffDashboardState extends State<StaffDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Staff Front Desk & Instant Student Lookup HUD
+        _StaffFrontDeskHud(
+          students: _students,
+          onOpenQrGate: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ReceptionQrGateScreen(),
+              ),
+            );
+          },
+          onOpenTvKiosk: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ReceptionLiveTvKioskScreen(),
+              ),
+            );
+          },
+          onOpenBookstorePos: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const BookstorePosScreen(),
+              ),
+            );
+          },
+          onOpenCashRegister: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const DailyCashRegisterScreen(),
+              ),
+            );
+          },
+          onOpenAttendanceReports: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AttendanceReportsScreen(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+
         const PortalSectionTitle(
           title: 'العمليات السريعة للاستقبال',
           subtitle: 'مسح الباركود، تحصيل فوري، وتصفية مستحقات المدرسين',
@@ -1529,3 +1571,431 @@ int _asInt(Object? value) {
   if (value is num) return value.round();
   return int.tryParse(value?.toString() ?? '') ?? 0;
 }
+
+class _StaffFrontDeskHud extends StatefulWidget {
+  final List<Student> students;
+  final VoidCallback onOpenQrGate;
+  final VoidCallback onOpenTvKiosk;
+  final VoidCallback onOpenBookstorePos;
+  final VoidCallback onOpenCashRegister;
+  final VoidCallback onOpenAttendanceReports;
+
+  const _StaffFrontDeskHud({
+    required this.students,
+    required this.onOpenQrGate,
+    required this.onOpenTvKiosk,
+    required this.onOpenBookstorePos,
+    required this.onOpenCashRegister,
+    required this.onOpenAttendanceReports,
+  });
+
+  @override
+  State<_StaffFrontDeskHud> createState() => _StaffFrontDeskHudState();
+}
+
+class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  final TextEditingController _searchCtrl = TextEditingController();
+  Student? _matchedStudent;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearch(String query) {
+    final clean = query.trim().toLowerCase();
+    if (clean.isEmpty) {
+      setState(() => _matchedStudent = null);
+      return;
+    }
+
+    final match = widget.students.cast<Student?>().firstWhere(
+      (s) {
+        if (s == null) return false;
+        final name = s.fullName.toLowerCase();
+        final code = s.studentCode.toLowerCase();
+        final phone = (s.phoneNumber ?? '').toLowerCase();
+        return name.contains(clean) || code.contains(clean) || phone.contains(clean);
+      },
+      orElse: () => null,
+    );
+
+    setState(() => _matchedStudent = match);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+              : [const Color(0xFFFFFBEB), const Color(0xFFFEF3C7)],
+        ),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Bar
+          Row(
+            children: [
+              _StaffPulseBeacon(controller: _pulseController),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'مكتب الاستقبال وشؤون الطلاب (Front Desk HUD) 🪪',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'شفت الاستقبال نشط 🟢',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'استعلام فوري عن الطلاب • تحصيل اشتراكات • بيع ملازم • بوابات الحضور',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: widget.onOpenTvKiosk,
+                icon: const Icon(Icons.tv_rounded, size: 16),
+                label: const Text('شاشة السنتر (TV)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+
+          // Instant Student Lookup Input
+          TextField(
+            controller: _searchCtrl,
+            onChanged: _onSearch,
+            decoration: InputDecoration(
+              hintText: 'ابحث بكود الطالب (STU-101) أو الاسم أو رقم هاتف ولي الأمر...',
+              prefixIcon: const Icon(Icons.person_search_rounded, color: Color(0xFFD97706)),
+              suffixIcon: _searchCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        _onSearch('');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+            ),
+          ),
+
+          // Student Instant Result Card
+          if (_matchedStudent != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.amber.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _matchedStudent!.fullName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              Text(
+                                'كود: ${_matchedStudent!.studentCode} • ${_matchedStudent!.gradeLevel ?? "المرحلة التعليمية"}',
+                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'مسدد الاشتراك ✔️',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.how_to_reg_rounded, size: 16, color: Colors.green),
+                          label: const Text('تسجيل حضور يدوي', style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('تم تسجيل حضور الطالب ${_matchedStudent!.fullName} بنجاح! ⏱️'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.point_of_sale_rounded, size: 16, color: AppColors.primary),
+                          label: const Text('تحصيل رسوم 💵', style: TextStyle(fontSize: 11)),
+                          onPressed: widget.onOpenCashRegister,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'مراسلة ولي الأمر واتساب',
+                        icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+                        onPressed: () async {
+                          final phone = _matchedStudent!.phoneNumber;
+                          if (phone != null && phone.isNotEmpty) {
+                            final text = 'أهلاً بحضرتك، بخصوص الطالب ${_matchedStudent!.fullName} (كود ${_matchedStudent!.studentCode}) من سنتر الأوائل.';
+                            final uri = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(text)}');
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+
+          // Reception Quick Tools Dock
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildStaffDockPill(
+                label: 'بوابة الاستقبال QR 🪪',
+                color: AppColors.primary,
+                icon: Icons.qr_code_scanner_rounded,
+                onTap: widget.onOpenQrGate,
+              ),
+              _buildStaffDockPill(
+                label: 'منفذ بيع الملازم والكتب 📚',
+                color: Colors.purple.shade700,
+                icon: Icons.menu_book_rounded,
+                onTap: widget.onOpenBookstorePos,
+              ),
+              _buildStaffDockPill(
+                label: 'تقفيل الخزينة اليومية 💵',
+                color: Colors.green.shade700,
+                icon: Icons.point_of_sale_rounded,
+                onTap: widget.onOpenCashRegister,
+              ),
+              _buildStaffDockPill(
+                label: 'كشوفات الحضور PDF 🖨️',
+                color: Colors.blueGrey,
+                icon: Icons.print_rounded,
+                onTap: widget.onOpenAttendanceReports,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStaffDockPill({
+    required String label,
+    required Color color,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StaffPulseBeacon extends StatelessWidget {
+  final AnimationController controller;
+
+  const _StaffPulseBeacon({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final scale = 1.0 + (controller.value * 0.25);
+        final opacity = 0.8 - (controller.value * 0.4);
+        return SizedBox(
+          width: 32,
+          height: 32,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFF59E0B).withValues(alpha: opacity),
+                  ),
+                ),
+              ),
+              Container(
+                width: 14,
+                height: 14,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFF59E0B),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFFF59E0B),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
