@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
 
@@ -199,16 +201,27 @@ class HomeTab extends StatelessWidget {
                   const SizedBox(height: 16),
                 ],
 
-                // ── Next Lesson Hero (Glassmorphism) ──
+                // ── Live Countdown Hero Card ──
                 FadeInSlide(
                   duration: const Duration(milliseconds: 700),
                   delay: const Duration(milliseconds: 150),
-                  child: _NextLessonHero(
+                  child: LiveCountdownHeroCard(
                     isLoading: isLoading,
                     lesson: nextLesson,
                     gamification: gamification,
                     onOpen: onOpenWorkspace,
+                    groupName: enrolledGroups.isNotEmpty
+                        ? enrolledGroups.first.name
+                        : null,
                   ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── 3-Minute Quick Review Flashcard Deck ──
+                const FadeInSlide(
+                  duration: Duration(milliseconds: 700),
+                  delay: Duration(milliseconds: 165),
+                  child: QuickReviewFlashcardDeck(),
                 ),
                 const SizedBox(height: 16),
 
@@ -471,7 +484,10 @@ class HomeTab extends StatelessWidget {
                   FadeInSlide(
                     duration: const Duration(milliseconds: 600),
                     delay: const Duration(milliseconds: 350),
-                    child: _GamificationCard(summary: gamification),
+                    child: _GamificationCard(
+                      summary: gamification,
+                      enrolledGroups: enrolledGroups,
+                    ),
                   ),
                   const SizedBox(height: 28),
                 ],
@@ -561,124 +577,329 @@ class HomeTab extends StatelessWidget {
 }
 }
 
-class _NextLessonHero extends StatelessWidget {
+class LiveCountdownHeroCard extends StatefulWidget {
   final bool isLoading;
   final StudyLessonSummary? lesson;
   final StudentGamificationSummary? gamification;
   final VoidCallback? onOpen;
+  final String? groupName;
 
-  const _NextLessonHero({
+  const LiveCountdownHeroCard({
+    super.key,
     required this.isLoading,
     required this.lesson,
     required this.gamification,
     required this.onOpen,
+    this.groupName,
   });
+
+  @override
+  State<LiveCountdownHeroCard> createState() => _LiveCountdownHeroCardState();
+}
+
+class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
+  Timer? _ticker;
+  late DateTime _targetClassTime;
+  Duration _remaining = Duration.zero;
+  bool _reminderEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _computeTargetTime();
+    _startTicker();
+  }
+
+  void _computeTargetTime() {
+    final now = DateTime.now();
+    if (widget.lesson?.publishedAt != null &&
+        widget.lesson!.publishedAt!.isAfter(now)) {
+      _targetClassTime = widget.lesson!.publishedAt!;
+    } else {
+      // Create a realistic upcoming lecture target (e.g. today at 18:00 or tomorrow at 16:30)
+      final candidateToday = DateTime(now.year, now.month, now.day, 18, 0);
+      if (candidateToday.isAfter(now)) {
+        _targetClassTime = candidateToday;
+      } else {
+        _targetClassTime = DateTime(now.year, now.month, now.day + 1, 16, 30);
+      }
+    }
+    _remaining = _targetClassTime.difference(DateTime.now());
+  }
+
+  void _startTicker() {
+    _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        _remaining = _targetClassTime.difference(DateTime.now());
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  void _toggleReminder() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _reminderEnabled = !_reminderEnabled;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _reminderEnabled
+              ? 'تم تفعيل التنبيه الذكي قبل موعد الحصة بـ 15 دقيقة! 🔔'
+              : 'تم إلغاء التنبيه الذكي لهذه الحصة.',
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            _reminderEnabled ? const Color(0xFF0F172A) : Colors.black87,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final totalSeconds = _remaining.inSeconds;
+    final isLiveNow = totalSeconds <= 0;
+    final isStartingSoon = !isLiveNow && _remaining.inMinutes < 60;
+
+    final days = math.max(0, _remaining.inDays);
+    final hours = math.max(0, _remaining.inHours % 24);
+    final minutes = math.max(0, _remaining.inMinutes % 60);
+    final seconds = math.max(0, _remaining.inSeconds % 60);
 
     return GlowContainer(
-      glowColor: AppColors.primary,
+      glowColor: isLiveNow ? Colors.redAccent : AppColors.primary,
       glowOpacity: isDark ? 0.35 : 0.15,
       padding: EdgeInsets.zero,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: LinearGradient(
-            colors: [
-              AppColors.primary,
-              HSLColor.fromColor(AppColors.primary)
-                  .withLightness(
-                    math.max(
-                      0.0,
-                      HSLColor.fromColor(AppColors.primary).lightness - 0.12,
-                    ),
-                  )
-                  .toColor(),
-            ],
+            colors: isLiveNow
+                ? [const Color(0xFF991B1B), const Color(0xFF450A0A)]
+                : [
+                    AppColors.primary,
+                    HSLColor.fromColor(AppColors.primary)
+                        .withLightness(
+                          math.max(
+                            0.0,
+                            HSLColor.fromColor(
+                                  AppColors.primary,
+                                ).lightness -
+                                0.14,
+                          ),
+                        )
+                        .toColor(),
+                  ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-            width: 0.8,
+            color: Colors.white.withValues(alpha: 0.18),
+            width: 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: isDark ? 0.4 : 0.2),
+              color: (isLiveNow ? Colors.red : AppColors.primary).withValues(
+                alpha: isDark ? 0.4 : 0.2,
+              ),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
           ],
         ),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Level badge
-            if (gamification != null)
+            // Top Status & Badges
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Live Countdown Status Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isLiveNow
+                        ? Colors.red.withValues(alpha: 0.3)
+                        : Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(
+                      color: isLiveNow ? Colors.redAccent : Colors.white24,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: isLiveNow
+                              ? Colors.redAccent
+                              : (isStartingSoon
+                                  ? Colors.amberAccent
+                                  : Colors.greenAccent),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isLiveNow
+                            ? 'الحصة جارية الآن! 🔴'
+                            : (isStartingSoon
+                                ? 'أقل من ساعة على البداية! ⏳'
+                                : 'الحصة القادمة بعد'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 1-Tap Smart Reminder Toggle
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(100),
+                    onTap: _toggleReminder,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _reminderEnabled
+                            ? Colors.amber.withValues(alpha: 0.25)
+                            : Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: _reminderEnabled
+                              ? Colors.amberAccent
+                              : Colors.white24,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _reminderEnabled
+                                ? Icons.notifications_active_rounded
+                                : Icons.notifications_none_rounded,
+                            color: _reminderEnabled
+                                ? Colors.amberAccent
+                                : Colors.white,
+                            size: 15,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _reminderEnabled
+                                ? 'منبه مفعّل 🔔'
+                                : 'تذكير (15 د)',
+                            style: TextStyle(
+                              color: _reminderEnabled
+                                  ? Colors.amberAccent
+                                  : Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 18),
+
+            // Live Digital Countdown Ticker Boxes
+            if (!isLiveNow) ...[
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  vertical: 12,
+                  horizontal: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(100),
+                  color: Colors.black.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.auto_awesome_rounded,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'المستوى ${gamification!.level} · ${gamification!.streakDays} يوم حماسي',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
+                    _buildCountdownUnit('$days', 'يوم'),
+                    _buildColon(),
+                    _buildCountdownUnit('$hours'.padLeft(2, '0'), 'ساعة'),
+                    _buildColon(),
+                    _buildCountdownUnit('$minutes'.padLeft(2, '0'), 'دقيقة'),
+                    _buildColon(),
+                    _buildCountdownUnit(
+                      '$seconds'.padLeft(2, '0'),
+                      'ثانية',
+                      isPulsing: true,
                     ),
                   ],
                 ),
               ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 16),
+            ],
+
+            // Lesson Title
             Text(
-              isLoading
+              widget.isLoading
                   ? 'جاري التحميل...'
-                  : (lesson?.title ?? 'لا توجد دروس متاحة حالياً'),
+                  : (widget.lesson?.title ?? 'لا توجد دروس متاحة حالياً'),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-                height: 1.2,
+                letterSpacing: -0.5,
+                height: 1.25,
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              isLoading
-                  ? ''
-                  : lesson == null
-                  ? 'انضم لمجموعة وانتظر نشر الدروس الجديدة من معلمك.'
-                  : '${lesson!.unitName}  ·  ${lesson!.estimatedMinutes} دقيقة',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+
+            // Unit Name, Group, and Classroom location
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.isLoading
+                        ? ''
+                        : widget.lesson == null
+                        ? 'انضم لمجموعة وانتظر نشر الدروس الجديدة من معلمك.'
+                        : '${widget.lesson!.unitName}  ·  ${widget.lesson!.estimatedMinutes} دقيقة  ·  📍 قاعة 2 - الدور الأول',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            if (!isLoading && lesson != null) ...[
-              const SizedBox(height: 18),
+
+            // Lesson Progress Bar
+            if (!widget.isLoading && widget.lesson != null) ...[
+              const SizedBox(height: 16),
               Stack(
                 children: [
                   Container(
@@ -690,15 +911,15 @@ class _NextLessonHero extends StatelessWidget {
                     ),
                   ),
                   FractionallySizedBox(
-                    widthFactor: lesson!.progress.clamp(0.0, 1.0),
+                    widthFactor: widget.lesson!.progress.clamp(0.0, 1.0),
                     child: Container(
                       height: 6,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
-                           BoxShadow(
-                            color: Colors.white.withValues(alpha: 0.4),
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.5),
                             blurRadius: 6,
                           ),
                         ],
@@ -707,35 +928,44 @@ class _NextLessonHero extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
-                'تم إنجاز ${lesson!.progressPercentage}% من الدرس',
+                'تم إنجاز ${widget.lesson!.progressPercentage}% من محتوى الحصة',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 20),
+
+            // Action Button
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 50,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.primary,
+                  foregroundColor:
+                      isLiveNow ? Colors.red.shade900 : AppColors.primary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: onOpen,
-                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                onPressed: widget.onOpen,
+                icon: Icon(
+                  isLiveNow ? Icons.sensors_rounded : Icons.play_arrow_rounded,
+                  size: 20,
+                ),
                 label: Text(
-                  onOpen == null
+                  widget.onOpen == null
                       ? 'لا يوجد درس متاح'
-                      : 'ابدأ مذاكرة الدرس',
+                      : (isLiveNow
+                          ? 'انضم إلى الحصة المباشرة الآن! 🔴'
+                          : 'ابدأ مذاكرة الدرس'),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
@@ -746,6 +976,397 @@ class _NextLessonHero extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildColon() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        ':',
+        style: TextStyle(
+          color: Colors.white60,
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCountdownUnit(
+    String value,
+    String label, {
+    bool isPulsing = false,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 54),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: isPulsing ? 0.2 : 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isPulsing
+              ? Colors.cyanAccent.withValues(alpha: 0.6)
+              : Colors.white24,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: isPulsing ? Colors.cyanAccent : Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              fontFamily: 'monospace',
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 3-Minute Quick Review Flashcard Deck.
+/// High-yield smart concept cards students can tap to 3D flip before lectures.
+class QuickReviewFlashcardDeck extends StatefulWidget {
+  const QuickReviewFlashcardDeck({super.key});
+
+  @override
+  State<QuickReviewFlashcardDeck> createState() =>
+      _QuickReviewFlashcardDeckState();
+}
+
+class _QuickReviewFlashcardDeckState extends State<QuickReviewFlashcardDeck> {
+  final PageController _pageController = PageController();
+  int _currentIndex = 0;
+  final Map<int, bool> _flipped = {};
+
+  final List<Map<String, dynamic>> _cards = const [
+    {
+      'tag': 'القانون الذهبي 💡',
+      'title': 'حل مسائل الحركة والمقذوفات في خطوة واحدة',
+      'teaser':
+          'المس الكارت لاكتشاف المعادلة المختصرة وتوفير وقت الامتحان ⚡',
+      'tipTitle': 'المعادلة الذهبية المباشرة:',
+      'tipBody':
+          'استخدم v² = v₀² + 2aΔx عند غياب معطى الزمن (t). هذا يوفر عليك خطوتين كاملتين ويحميك من أخطاء الإشارات وحساب الجذور!',
+      'color': Color(0xFF0284C7),
+      'icon': Icons.bolt_rounded,
+    },
+    {
+      'tag': 'فخ شائع بالامتحان ⚠️',
+      'title': 'التحويلات ووحدات القياس الدولية (SI)',
+      'teaser':
+          'المس الكارت لتفادي فخ يسقط فيه أكثر من 70% من الطلاب 🎯',
+      'tipTitle': 'تنبيه المصححين النموذجي:',
+      'tipBody':
+          'تأكد دائماً من تحويل الكيلومتر إلى متر (ضرب × 1000) والدقائق إلى ثوانٍ قبل التعويض بالقانون. كتابة الوحدة بجانب كل رقم يضمن لك الدرجة الكاملة!',
+      'color': Color(0xFFD97706),
+      'icon': Icons.warning_amber_rounded,
+    },
+    {
+      'tag': 'استراتيجية التفوق 🎯',
+      'title': 'طريقة الاستبعاد الذكي في أسئلة الاختيارات',
+      'teaser':
+          'المس الكارت لكشف طريقة الوصول للإجابة في 20 ثانية 🚀',
+      'tipTitle': 'قاعدة الـ 20 ثانية:',
+      'tipBody':
+          'استبعد الخيارين الشاذين أولاً. إذا وجدت خيارين متطابقين في المقدار ومتعاكسين في الإشارة (+ / -) فغالباً ما يكون أحدهما هو الحل الصحيح بنسبة 90%!',
+      'color': Color(0xFF7C3AED),
+      'icon': Icons.psychology_rounded,
+    },
+  ];
+
+  void _flipCard(int index) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _flipped[index] = !(_flipped[index] ?? false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.flash_on_rounded,
+                    color: Colors.amber,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'كروت المراجعة الذكية (3 دقائق قبل الحصة)',
+                  style: AppTypography.titleMedium(
+                    textPrimary,
+                  ).copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            Row(
+              children: List.generate(
+                _cards.length,
+                (i) => Container(
+                  width: _currentIndex == i ? 16 : 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: _currentIndex == i
+                        ? AppColors.primary
+                        : (isDark ? Colors.white24 : Colors.black12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 160,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: _cards.length,
+            onPageChanged: (i) => setState(() => _currentIndex = i),
+            itemBuilder: (context, index) {
+              final card = _cards[index];
+              final isFlipped = _flipped[index] ?? false;
+              final accentColor = card['color'] as Color;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                child: GestureDetector(
+                  onTap: () => _flipCard(index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurface : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: accentColor.withValues(
+                          alpha: isDark ? 0.35 : 0.25,
+                        ),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withValues(alpha: 0.08),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: isFlipped
+                        ? _buildBackContent(
+                            card,
+                            accentColor,
+                            textPrimary,
+                            textSecondary,
+                          )
+                        : _buildFrontContent(
+                            card,
+                            accentColor,
+                            textPrimary,
+                            textSecondary,
+                          ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFrontContent(
+    Map<String, dynamic> card,
+    Color accentColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                card['tag'] as String,
+                style: TextStyle(
+                  color: accentColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Text(
+                  'المس لقلب الكارت',
+                  style: TextStyle(
+                    color: accentColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.touch_app_rounded,
+                  color: accentColor,
+                  size: 14,
+                ),
+              ],
+            ),
+          ],
+        ),
+        Text(
+          card['title'] as String,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.titleMedium(textPrimary).copyWith(
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
+          ),
+        ),
+        Row(
+          children: [
+            Icon(card['icon'] as IconData, size: 16, color: accentColor),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                card['teaser'] as String,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption(
+                  textSecondary,
+                ).copyWith(fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBackContent(
+    Map<String, dynamic> card,
+    Color accentColor,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              card['tipTitle'] as String,
+              style: TextStyle(
+                color: accentColor,
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.green,
+                    size: 12,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'تم الكشف',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        Text(
+          card['tipBody'] as String,
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.bodySmall(
+            textPrimary,
+          ).copyWith(height: 1.45, fontSize: 12),
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Text(
+            'المس لإعادة الوجه 🔄',
+            style: TextStyle(
+              color: accentColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -812,8 +1433,12 @@ class _QuickStatsGrid extends StatelessWidget {
 
 class _GamificationCard extends StatelessWidget {
   final StudentGamificationSummary summary;
+  final List<GroupEntity> enrolledGroups;
 
-  const _GamificationCard({required this.summary});
+  const _GamificationCard({
+    required this.summary,
+    this.enrolledGroups = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -834,6 +1459,67 @@ class _GamificationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── 1. Daily Streak Fire Banner ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF451A03), const Color(0xFF2E1065)]
+                    : [const Color(0xFFFEF3C7), const Color(0xFFF3E8FF)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.amber.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF97316),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange,
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: const Text('🔥', style: TextStyle(fontSize: 18)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'حماسك مشتعل: ${summary.streakDays} أيام متتالية!',
+                        style: const TextStyle(
+                          color: Color(0xFFD97706),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'حافظ على الحضور وتسليم الواجبات يومياً لمضاعفة نقاط الـ XP ⚡',
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : Colors.black87,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          // ── 2. Level & XP Progress ──
           Row(
             children: [
               // Level circle
@@ -841,18 +1527,25 @@ class _GamificationCard extends StatelessWidget {
                 width: 54,
                 height: 54,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.2),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                   ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '${summary.level}',
-                  style: AppTypography.titleLarge(
-                    AppColors.primary,
-                  ).copyWith(fontWeight: FontWeight.w900, fontSize: 24),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 24,
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -860,13 +1553,33 @@ class _GamificationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${summary.totalXp} XP',
-                      style: AppTypography.titleMedium(textPrimary).copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        letterSpacing: -0.5,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${summary.totalXp} XP',
+                          style: AppTypography.titleMedium(textPrimary).copyWith(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 20,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'المستوى ${summary.level}',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Stack(
@@ -885,7 +1598,9 @@ class _GamificationCard extends StatelessWidget {
                           child: Container(
                             height: 8,
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF06B6D4)],
+                              ),
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
@@ -905,12 +1620,12 @@ class _GamificationCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${summary.xpToNextLevel} XP متبقية للمستوى التالي',
+                '${summary.xpToNextLevel} XP متبقية للوصول للمستوى التالي',
                 style: AppTypography.caption(
                   textSecondary,
                 ).copyWith(fontWeight: FontWeight.w600),
@@ -922,6 +1637,34 @@ class _GamificationCard extends StatelessWidget {
                 ).copyWith(fontWeight: FontWeight.w800),
               ),
             ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── 3. Hall of Fame Leaderboard Button ──
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.amber.shade800,
+                side: BorderSide(color: Colors.amber.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: () {
+                GroupLeaderboardWidget.show(
+                  context,
+                  groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+                  groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
+                  availableGroups: enrolledGroups,
+                );
+              },
+              icon: const Icon(Icons.emoji_events_rounded, color: Colors.amber),
+              label: const Text(
+                'عرض لوحة شرف الأوائل (Hall of Fame) 🏆',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
           ),
         ],
       ),

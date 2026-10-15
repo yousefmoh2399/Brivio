@@ -477,9 +477,22 @@ class _StudentDashboardState extends State<StudentDashboard> {
       await _loadAll();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تسليم الواجب وصور الكشكول بنجاح للأستاذ ✅'),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.stars_rounded, color: Colors.amber, size: 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '🎉 أحسنت يا بطل! تم تسليم الواجب بنجاح وحصلت على +${payload.earnedXp} XP 🌟',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF0F172A),
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       );
     } catch (e) {
