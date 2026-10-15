@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/di/injection.dart';
@@ -559,155 +561,102 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
   }
 
-  Widget _buildLiveChildPresenceCard() {
+  Widget _buildWhatsAppHelplineCard() {
     final child = _selectedChild;
-    if (child == null) return const SizedBox.shrink();
-
-    final now = DateTime.now();
-    _ParentAttendanceItem? todayItem;
-    for (final item in _attendance) {
-      final date = item.sessionDate ?? item.markedAt;
-      if (date != null &&
-          date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day) {
-        todayItem = item;
-        break;
-      }
-    }
-
-    final isPresent = todayItem != null &&
-        (todayItem.status == 'present' || todayItem.status == 'late') &&
-        todayItem.checkOutAt == null;
-    final isCheckedOut = todayItem != null && todayItem.checkOutAt != null;
-    final isAbsent = todayItem != null && todayItem.status == 'absent';
-
-    Color cardColor;
-    Color accentColor;
-    IconData icon;
-    String statusTitle;
-    String statusSubtitle;
-    String badgeText;
-
-    if (isPresent) {
-      cardColor = const Color(0xFF064E3B).withValues(alpha: 0.15);
-      accentColor = const Color(0xFF10B981);
-      icon = Icons.verified_user_rounded;
-      statusTitle = 'متواجد حالياً داخل السنتر 🏫';
-      final timeStr = todayItem.markedAt != null
-          ? '${todayItem.markedAt!.hour.toString().padLeft(2, '0')}:${todayItem.markedAt!.minute.toString().padLeft(2, '0')}'
-          : '';
-      statusSubtitle = 'سجل الحضور الساعة $timeStr • ${todayItem.groupName}';
-      badgeText = 'في القاعة الآن 🟢';
-    } else if (isCheckedOut) {
-      cardColor = const Color(0xFF1E3A8A).withValues(alpha: 0.15);
-      accentColor = const Color(0xFF3B82F6);
-      icon = Icons.directions_walk_rounded;
-      statusTitle = 'غادر السنتر بأمان 👋';
-      final outTime = todayItem.checkOutAt != null
-          ? '${todayItem.checkOutAt!.hour.toString().padLeft(2, '0')}:${todayItem.checkOutAt!.minute.toString().padLeft(2, '0')}'
-          : '';
-      statusSubtitle = 'تم تسجيل الانصراف الساعة $outTime • ${todayItem.groupName}';
-      badgeText = 'انصرف بنجاح ✔️';
-    } else if (isAbsent) {
-      cardColor = const Color(0xFF7F1D1D).withValues(alpha: 0.15);
-      accentColor = const Color(0xFFEF4444);
-      icon = Icons.warning_amber_rounded;
-      statusTitle = 'غائب عن حصة اليوم ⚠️';
-      statusSubtitle = 'تم تسجيل غياب الطالب في حصة ${todayItem.groupName}';
-      badgeText = 'غياب غير مسجل بعذر';
-    } else {
-      cardColor = AppColors.primary.withValues(alpha: 0.08);
-      accentColor = AppColors.primary;
-      icon = Icons.school_rounded;
-      statusTitle = 'حالة الحضور والتواجد بالسنتر';
-      final next = _learningSnapshot?.nextLesson;
-      statusSubtitle = next != null
-          ? 'الدرس القادم: ${next.title} (${next.pathName})'
-          : 'لا توجد حصص مسجلة لليوم.';
-      badgeText = 'مجدول ⏳';
-    }
+    final childName = child?.fullName ?? 'الطالب';
+    final childCode = child?.studentCode ?? '';
+    final groupName = _childGroups.isNotEmpty ? _childGroups.first.name : 'السنتر';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 1.5),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF065F46), Color(0xFF047857)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: accentColor, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      statusTitle,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: accentColor,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      statusSubtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: accentColor.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  badgeText,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.chat_rounded, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'خدمة أولياء الأمور عبر واتساب 💬',
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: accentColor,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
                   ),
                 ),
-              ),
-            ],
-          ),
-          if (isAbsent) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _createLeaveRequest,
-                icon: const Icon(Icons.note_add_rounded, size: 16),
-                label: const Text('تقديم عذر غياب رسمي للسنتر'),
-                style: TextButton.styleFrom(
-                  foregroundColor: accentColor,
-                  visualDensity: VisualDensity.compact,
+                const SizedBox(height: 3),
+                Text(
+                  'تواصل فوري مع إدارة السنتر للاستفسار عن $childName',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF065F46),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            onPressed: () async {
+              HapticFeedback.lightImpact();
+              const phone = '201000000000';
+              final msg =
+                  'السلام عليكم، أنا ولي أمر الطالب $childName (كود: $childCode) المسجل في مجموعة $groupName. أود الاستفسار بخصوص...';
+              final uri = Uri.parse(
+                  'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else {
+                if (mounted) {
+                  Clipboard.setData(ClipboardData(text: msg));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم نسخ رسالة الاستفسار إلى الحافظة!'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text(
+              'محادثة',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
         ],
       ),
     );
@@ -720,7 +669,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLiveChildPresenceCard(),
+        _LiveChildPresenceRadar(
+          child: _selectedChild,
+          attendance: _attendance,
+          learningSnapshot: _learningSnapshot,
+          onExcuseRequest: _createLeaveRequest,
+        ),
+        _buildWhatsAppHelplineCard(),
         PortalMetricGrid(
           children: [
             PortalMetricCard(
@@ -2070,6 +2025,300 @@ class _ParentLeaveItem {
       submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
       sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
       groupName: json['group_name']?.toString() ?? 'عام',
+    );
+  }
+}
+
+class _LiveChildPresenceRadar extends StatefulWidget {
+  final Student? child;
+  final List<_ParentAttendanceItem> attendance;
+  final StudentLearningSnapshot? learningSnapshot;
+  final VoidCallback onExcuseRequest;
+
+  const _LiveChildPresenceRadar({
+    required this.child,
+    required this.attendance,
+    required this.learningSnapshot,
+    required this.onExcuseRequest,
+  });
+
+  @override
+  State<_LiveChildPresenceRadar> createState() => _LiveChildPresenceRadarState();
+}
+
+class _LiveChildPresenceRadarState extends State<_LiveChildPresenceRadar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+    _pulseAnimation = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final child = widget.child;
+    if (child == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    _ParentAttendanceItem? todayItem;
+    for (final item in widget.attendance) {
+      final date = item.sessionDate ?? item.markedAt;
+      if (date != null &&
+          date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
+        todayItem = item;
+        break;
+      }
+    }
+
+    final isPresent = todayItem != null &&
+        (todayItem.status == 'present' || todayItem.status == 'late') &&
+        todayItem.checkOutAt == null;
+    final isCheckedOut = todayItem != null && todayItem.checkOutAt != null;
+    final isAbsent = todayItem != null && todayItem.status == 'absent';
+
+    Color cardColor;
+    Color accentColor;
+    String statusTitle;
+    String statusSubtitle;
+    String badgeText;
+
+    if (isPresent) {
+      cardColor = const Color(0xFF064E3B).withValues(alpha: 0.16);
+      accentColor = const Color(0xFF10B981);
+      statusTitle = 'الطالب متواجد في القاعة الدراسية الآن 🏫';
+      final timeStr = todayItem.markedAt != null
+          ? '${todayItem.markedAt!.hour.toString().padLeft(2, '0')}:${todayItem.markedAt!.minute.toString().padLeft(2, '0')}'
+          : '';
+      final elapsedMinutes = todayItem.markedAt != null
+          ? now.difference(todayItem.markedAt!).inMinutes
+          : 0;
+      statusSubtitle =
+          'سجل حضور الساعة $timeStr • ${todayItem.groupName} • متواجد منذ $elapsedMinutes دقيقة ⏱️';
+      badgeText = 'داخل السنتر الآن 🟢';
+    } else if (isCheckedOut) {
+      cardColor = const Color(0xFF1E3A8A).withValues(alpha: 0.16);
+      accentColor = const Color(0xFF3B82F6);
+      statusTitle = 'غادر السنتر بأمان بعد الحصة 👋';
+      final outTime = todayItem.checkOutAt != null
+          ? '${todayItem.checkOutAt!.hour.toString().padLeft(2, '0')}:${todayItem.checkOutAt!.minute.toString().padLeft(2, '0')}'
+          : '';
+      statusSubtitle =
+          'تم تسجيل الانصراف في تمام $outTime • نتمنى له عودة سالمة للبيت 🏠';
+      badgeText = 'انصرف بنجاح ✔️';
+    } else if (isAbsent) {
+      cardColor = const Color(0xFF7F1D1D).withValues(alpha: 0.20);
+      accentColor = const Color(0xFFEF4444);
+      statusTitle = 'تنبيه غياب: الطالب لم يسجل حضوراً اليوم ⚠️';
+      statusSubtitle =
+          'حصة ${todayItem.groupName} المقررة اليوم لم يتم رصد حضور الطالب بها بالبوابة حتى الآن';
+      badgeText = 'غياب غير مسجل بعذر 🔴';
+    } else {
+      cardColor = AppColors.primary.withValues(alpha: 0.08);
+      accentColor = AppColors.primary;
+      statusTitle = 'رادار التواجد ومتابعة الدخول والخروج';
+      final next = widget.learningSnapshot?.nextLesson;
+      statusSubtitle = next != null
+          ? 'الحصة القادمة: ${next.title} (${next.pathName})'
+          : 'لا توجد حصص مسجلة لليوم.';
+      badgeText = 'في الانتظار ⏳';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (isPresent)
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _pulseAnimation,
+                        builder: (context, child) {
+                          return Container(
+                            width: 24 + (_pulseAnimation.value * 20),
+                            height: 24 + (_pulseAnimation.value * 20),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: accentColor.withValues(
+                                alpha: (1.0 - _pulseAnimation.value) * 0.45,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: accentColor.withValues(alpha: 0.6),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.radar_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isAbsent
+                        ? Icons.warning_amber_rounded
+                        : (isCheckedOut
+                            ? Icons.directions_walk_rounded
+                            : Icons.school_rounded),
+                    color: accentColor,
+                    size: 22,
+                  ),
+                ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      statusTitle,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      statusSubtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (isPresent) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'حضور موثق بالبوابة الإلكترونية الذكية للسنتر • القاعة مؤمنة بالكامل 🛡️',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (isAbsent) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                onPressed: widget.onExcuseRequest,
+                icon: const Icon(Icons.note_add_rounded, size: 18),
+                label: const Text(
+                  'تقديم عذر غياب فوري مع تقرير طبي/ورقي 📝',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

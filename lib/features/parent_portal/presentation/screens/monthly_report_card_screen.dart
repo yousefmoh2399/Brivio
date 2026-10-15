@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -67,6 +70,60 @@ class _MonthlyReportCardScreenState extends State<MonthlyReportCardScreen> {
     }
   }
 
+  Future<void> _shareOnWhatsApp() async {
+    final text = '''
+📊 *تقرير المتابعة الشهري - ${widget.centerName}*
+📅 لشهر: $_selectedMonth
+━━━━━━━━━━━━━━━━━━━━━
+👤 *الطالب:* ${widget.studentName}
+🔢 *كود الطالب:* ${widget.studentCode}
+👥 *المجموعة:* ${widget.groupName}
+👨‍🏫 *المعلم:* ${widget.teacherName}
+━━━━━━━━━━━━━━━━━━━━━
+📈 *معدل الحضور والالتزام:* %${_attendanceRate.toStringAsFixed(0)} ($_attendedSessions من $_totalSessions حصص)
+📝 *متوسط درجات الامتحانات:* $_examAverage / 20.0
+📚 *متوسط درجات الواجبات:* $_homeworkAverage / 20.0
+🌟 *التقييم السلوكي والتفاعل:* $_conductEvaluation
+━━━━━━━━━━━━━━━━━━━━━
+💬 *ملاحظات المعلم:*
+"$_teacherNotes"
+━━━━━━━━━━━━━━━━━━━━━
+تم توثيق التقرير وإصداره عبر منصة Brivio الذكية للسناتر التعليمية.
+''';
+
+    final uri = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(text)}');
+    final webUri = Uri.parse('https://api.whatsapp.com/send?text=${Uri.encodeComponent(text)}');
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        return;
+      }
+      if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+      await SharePlus.instance.share(ShareParams(
+        text: text,
+        subject: 'تقرير الطالب ${widget.studentName} - $_selectedMonth',
+      ));
+    } catch (_) {
+      try {
+        await SharePlus.instance.share(ShareParams(
+          text: text,
+          subject: 'تقرير الطالب ${widget.studentName} - $_selectedMonth',
+        ));
+      } catch (e) {
+        await Clipboard.setData(ClipboardData(text: text));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم نسخ نص التقرير بالكامل للحافظة بنجاح')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -77,6 +134,11 @@ class _MonthlyReportCardScreenState extends State<MonthlyReportCardScreen> {
       appBar: AppBar(
         title: const Text('كارت التقرير الشهري للدرجات 📄'),
         actions: [
+          IconButton(
+            tooltip: 'مشاركة التقرير عبر واتساب',
+            onPressed: _shareOnWhatsApp,
+            icon: const Icon(Icons.share_rounded, color: Color(0xFF25D366)),
+          ),
           IconButton(
             tooltip: 'تصدير كارت التقرير PDF معتمد',
             onPressed: _isExporting ? null : _exportPdf,
@@ -296,20 +358,44 @@ class _MonthlyReportCardScreenState extends State<MonthlyReportCardScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Export Action Button
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                backgroundColor: AppColors.primary,
-              ),
-              onPressed: _isExporting ? null : _exportPdf,
-              icon: _isExporting
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf_rounded),
-              label: Text(
-                _isExporting ? 'جارٍ تصدير ملف الـ PDF...' : 'طباعة وتصدير كارت التقرير الشهري A4 PDF',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+            // Action Buttons (WhatsApp Share + A4 PDF Export)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _shareOnWhatsApp,
+                    icon: const Icon(Icons.share_rounded, color: Color(0xFF25D366)),
+                    label: const Text(
+                      'مشاركة واتساب',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF25D366)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _isExporting ? null : _exportPdf,
+                    icon: _isExporting
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.picture_as_pdf_rounded),
+                    label: Text(
+                      _isExporting ? 'جارٍ التصدير...' : 'طباعة وتصدير كارت PDF',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

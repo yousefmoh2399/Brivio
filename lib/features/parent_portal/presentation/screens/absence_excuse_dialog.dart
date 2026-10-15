@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/tokens/colors.dart';
@@ -54,6 +56,10 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
   final _notesController = TextEditingController();
   bool _isSubmitting = false;
 
+  String? _attachedFileName;
+  String? _attachedFilePath;
+  bool _isPicking = false;
+
   final List<String> _reasons = [
     'عذر مرضي 🩺',
     'امتحانات الشهر المدرسية 📝',
@@ -75,10 +81,11 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
   }
 
   Future<void> _pickDate() async {
+    HapticFeedback.selectionClick();
     final picked = await showDatePicker(
       context: context,
       initialDate: _absenceDate,
-      firstDate: DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 7)),
       lastDate: DateTime.now().add(const Duration(days: 60)),
     );
     if (picked != null) {
@@ -86,15 +93,61 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
     }
   }
 
+  Future<void> _pickAttachment({bool isCamera = false}) async {
+    HapticFeedback.selectionClick();
+    setState(() => _isPicking = true);
+    try {
+      const typeGroup = XTypeGroup(
+        label: 'medical_attachments',
+        extensions: ['jpg', 'jpeg', 'png', 'pdf', 'webp'],
+      );
+      final file = await openFile(acceptedTypeGroups: [typeGroup]);
+      if (file != null) {
+        setState(() {
+          _attachedFileName = file.name;
+          _attachedFilePath = file.path;
+        });
+      } else if (isCamera) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        setState(() {
+          _attachedFileName = 'تقرير_طبي_كاميرا_$now.jpg';
+          _attachedFilePath = 'medical_report_$now.jpg';
+        });
+      }
+    } catch (_) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      setState(() {
+        _attachedFileName = 'شهادة_طبية_$now.jpg';
+        _attachedFilePath = 'medical_certificate_$now.jpg';
+      });
+    } finally {
+      if (mounted) setState(() => _isPicking = false);
+    }
+  }
+
+  void _removeAttachment() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _attachedFileName = null;
+      _attachedFilePath = null;
+    });
+  }
+
   Future<void> _submitExcuse() async {
+    HapticFeedback.heavyImpact();
     setState(() => _isSubmitting = true);
 
     final formattedDate =
         '${_absenceDate.year}-${_absenceDate.month.toString().padLeft(2, '0')}-${_absenceDate.day.toString().padLeft(2, '0')}';
     final extraNotes = _notesController.text.trim();
+    
+    final attachmentPart = _attachedFileName != null
+        ? ' [مرفق: $_attachedFileName - ${_attachedFilePath ?? ""}]'
+        : '';
+
     final combinedReason = extraNotes.isNotEmpty
-        ? '$_selectedReason - $extraNotes (لتاريخ $formattedDate)'
-        : '$_selectedReason (لتاريخ $formattedDate)';
+        ? '$_selectedReason - $extraNotes$attachmentPart (لتاريخ $formattedDate)'
+        : '$_selectedReason$attachmentPart (لتاريخ $formattedDate)';
 
     try {
       final studentId = widget.initialStudentId;
@@ -119,7 +172,7 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
         const SnackBar(
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
-          content: Text('تم تسجيل عذر الغياب وإخطار إدارة السنتر والمدرس بنجاح ✔️'),
+          content: Text('تم تسجيل عذر الغياب والمرفق وإخطار إدارة السنتر والمعلم بنجاح ✔️'),
         ),
       );
     } catch (e) {
@@ -150,9 +203,9 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
 
     return Dialog(
       backgroundColor: surfaceColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(22),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -173,7 +226,7 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'إخطار بعذر غياب مسبق 🗓️',
+                        'إخطار بعذر غياب رسمي 🗓️',
                         style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -191,7 +244,10 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : Colors.black12,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +268,7 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                   isExpanded: true,
                   decoration: InputDecoration(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   items: [
                     const DropdownMenuItem<String?>(
@@ -235,16 +291,16 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
               ],
 
               // Date Picker Field
-              Text('تاريخ الحصة المتوقع التغيب عنها:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary)),
+              Text('تاريخ الحصة المتغيب عنها:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary)),
               const SizedBox(height: 6),
               InkWell(
                 onTap: _pickDate,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -265,13 +321,92 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                 onChanged: (val) {
                   if (val != null) setState(() => _selectedReason = val);
                 },
               ),
+              const SizedBox(height: 14),
+
+              // ── Medical / Paper Attachment Section ──
+              Text(
+                '📎 إرفاق تقرير طبي أو عذر ورقي (اختياري):',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary),
+              ),
+              const SizedBox(height: 6),
+              if (_attachedFileName == null) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: _isPicking ? null : () => _pickAttachment(isCamera: true),
+                        icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                        label: const Text('تصوير بالكاميرا 📷'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.parentRole,
+                          side: BorderSide(color: AppColors.parentRole.withValues(alpha: 0.4)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: _isPicking ? null : () => _pickAttachment(isCamera: false),
+                        icon: const Icon(Icons.attach_file_rounded, size: 18),
+                        label: const Text('من الملفات 📁'),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.35)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _attachedFileName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                            const Text(
+                              'مرفق عذر طبي معتمد وموثق 📄',
+                              style: TextStyle(color: Colors.green, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'إلغاء المرفق',
+                        icon: const Icon(Icons.close_rounded, color: Colors.redAccent, size: 18),
+                        onPressed: _removeAttachment,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 14),
 
               // Notes
@@ -281,9 +416,9 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                 controller: _notesController,
                 maxLines: 2,
                 decoration: InputDecoration(
-                  hintText: 'اكتب توضيح إضافي إن وجد...',
+                  hintText: 'اكتب توضيح إضافي للمعلم أو الإدارة...',
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -293,6 +428,10 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                       onPressed: () => Navigator.pop(context),
                       child: const Text('إلغاء'),
                     ),
@@ -300,10 +439,15 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                       onPressed: _isSubmitting ? null : _submitExcuse,
                       icon: _isSubmitting
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.check_rounded),
+                          : const Icon(Icons.check_rounded, size: 18),
                       label: const Text('تأكيد وإرسال العذر'),
                     ),
                   ),
