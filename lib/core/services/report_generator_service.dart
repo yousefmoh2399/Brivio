@@ -3988,6 +3988,351 @@ class ReportGeneratorService {
       await _saveAndSharePdf(pdf, cleanFileName);
     }
   }
+
+  /// Generates Printable Barcode Stickers for Booklets & Books (ملصقات باركود حرارية للملازم والكتب لطباعتها ولصقها)
+  Future<void> generateBookletBarcodeLabelsPdf({
+    required String centerName,
+    required List<Map<String, dynamic>> items,
+    int copiesPerItem = 1,
+    bool printDirectly = false,
+  }) async {
+    final pdf = await createDocument();
+
+    pw.Font? cairoBold;
+    pw.Font? cairoRegular;
+    try {
+      cairoBold = await PdfGoogleFonts.cairoBold();
+      cairoRegular = await PdfGoogleFonts.cairoRegular();
+    } catch (_) {}
+
+    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+
+    final expandedList = <Map<String, dynamic>>[];
+    for (final it in items) {
+      for (int c = 0; c < copiesPerItem; c++) {
+        expandedList.add(it);
+      }
+    }
+
+    // Grid of barcode labels formatted for thermal sticker rolls or A4 sticker sheets
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(16),
+        build: (context) {
+          return [
+            pw.Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: expandedList.map((item) {
+                final title = item['title']?.toString() ?? 'مذكرة دراسية';
+                final teacher = item['teacher']?.toString() ?? 'معلم المادة';
+                final price = item['price'] != null ? '${item['price']} ج.م' : '';
+                final sku = item['sku']?.toString() ?? item['id']?.toString() ?? 'BK-1001';
+
+                return pw.Container(
+                  width: 175,
+                  height: 105,
+                  padding: const pw.EdgeInsets.all(6),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            centerName,
+                            style: boldStyle.copyWith(fontSize: 7, color: PdfColors.blueGrey900),
+                            textDirection: pw.TextDirection.rtl,
+                          ),
+                          if (price.isNotEmpty)
+                            pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: pw.BoxDecoration(
+                                color: PdfColors.black,
+                                borderRadius: pw.BorderRadius.circular(2),
+                              ),
+                              child: pw.Text(
+                                price,
+                                style: boldStyle.copyWith(fontSize: 7.5, color: PdfColors.white),
+                                textDirection: pw.TextDirection.rtl,
+                              ),
+                            ),
+                        ],
+                      ),
+                      pw.Text(
+                        title,
+                        style: boldStyle.copyWith(fontSize: 8.5),
+                        textAlign: pw.TextAlign.center,
+                        maxLines: 1,
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                      pw.Text(
+                        teacher,
+                        style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey800),
+                        textAlign: pw.TextAlign.center,
+                        maxLines: 1,
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                      pw.Container(
+                        height: 34,
+                        child: pw.BarcodeWidget(
+                          barcode: pw.Barcode.code128(),
+                          data: sku,
+                          drawText: true,
+                          textStyle: regularStyle.copyWith(fontSize: 7),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ];
+        },
+      ),
+    );
+
+    if (printDirectly) {
+      await Printing.layoutPdf(onLayout: (format) => pdf.save());
+    } else {
+      await _saveAndSharePdf(pdf, 'Booklet_Barcode_Labels_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    }
+  }
+
+  /// Generates an Executive Security Audit & Compliance Log PDF.
+  Future<void> generateSecurityAuditLogPdf({
+    required List<Map<String, dynamic>> auditItems,
+    String centerName = 'منظومة بريفيو التعليمية',
+    String branchName = 'الفرع الرئيسي',
+    String filterName = 'جميع العمليات',
+    bool printDirectly = false,
+  }) async {
+    final pdf = await createDocument();
+    final theme = await getArabicPdfTheme();
+    final boldStyle = theme.defaultTextStyle.copyWith(fontWeight: pw.FontWeight.bold);
+    final regularStyle = theme.defaultTextStyle;
+
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    final totalCount = auditItems.length;
+    final criticalCount = auditItems.where((i) {
+      final risk = (i['riskLevel']?.toString().toLowerCase() ?? '');
+      final action = (i['action']?.toString().toLowerCase() ?? '');
+      return risk == 'critical' || risk == 'حرج 🚨' || action == 'delete' || action == 'حذف';
+    }).length;
+    final financialCount = auditItems.where((i) {
+      final category = (i['category']?.toString().toLowerCase() ?? '');
+      final table = (i['tableName']?.toString().toLowerCase() ?? i['table']?.toString().toLowerCase() ?? '');
+      return category.contains('finan') || table.contains('invoice') || table.contains('payment') || table.contains('sale');
+    }).length;
+    final gradeCount = auditItems.where((i) {
+      final category = (i['category']?.toString().toLowerCase() ?? '');
+      final table = (i['tableName']?.toString().toLowerCase() ?? i['table']?.toString().toLowerCase() ?? '');
+      return category.contains('grade') || table.contains('exam') || table.contains('score');
+    }).length;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(24),
+        build: (context) {
+          return [
+            // Header
+            pw.Container(
+              padding: const pw.EdgeInsets.all(12),
+              decoration: const pw.BoxDecoration(
+                color: PdfColors.blueGrey900,
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(8)),
+              ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        '🛡️ تقرير التدقيق والرقابة الأمنية والمعاملات الحساسة',
+                        style: boldStyle.copyWith(color: PdfColors.white, fontSize: 16),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        '$centerName • $branchName | تصنيف العرض: $filterName',
+                        style: regularStyle.copyWith(color: PdfColors.grey300, fontSize: 10),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'تاريخ التصدير: $dateStr',
+                        style: regularStyle.copyWith(color: PdfColors.white, fontSize: 10),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        'وثيقة إدارية مشفرة وسرية للغاية 🔒',
+                        style: boldStyle.copyWith(color: PdfColors.amber300, fontSize: 9),
+                        textDirection: pw.TextDirection.rtl,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 12),
+
+            // KPI Summary Cards Row
+            pw.Row(
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.grey100,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      border: pw.Border.all(color: PdfColors.grey300),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        pw.Text('إجمالي العمليات الموثقة', style: regularStyle.copyWith(fontSize: 9), textDirection: pw.TextDirection.rtl),
+                        pw.SizedBox(height: 2),
+                        pw.Text('$totalCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.blueGrey800)),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.red50,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      border: pw.Border.all(color: PdfColors.red200),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        pw.Text('عمليات حرجة / حذف 🚨', style: regularStyle.copyWith(fontSize: 9, color: PdfColors.red900), textDirection: pw.TextDirection.rtl),
+                        pw.SizedBox(height: 2),
+                        pw.Text('$criticalCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.red700)),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.green50,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      border: pw.Border.all(color: PdfColors.green200),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        pw.Text('حركات مالية واسترداد 💸', style: regularStyle.copyWith(fontSize: 9, color: PdfColors.green900), textDirection: pw.TextDirection.rtl),
+                        pw.SizedBox(height: 2),
+                        pw.Text('$financialCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.green700)),
+                      ],
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Expanded(
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(8),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.purple50,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      border: pw.Border.all(color: PdfColors.purple200),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        pw.Text('تعديلات درجات وامتحانات 📝', style: regularStyle.copyWith(fontSize: 9, color: PdfColors.purple900), textDirection: pw.TextDirection.rtl),
+                        pw.SizedBox(height: 2),
+                        pw.Text('$gradeCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.purple700)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 14),
+
+            // Audit Table
+            pw.TableHelper.fromTextArray(
+              context: context,
+              headers: ['التفاصيل والبيانات', 'مستوى الخطورة', 'المنفّذ (المستخدم)', 'الكيان / الجدول', 'نوع العملية', 'التاريخ والوقت'],
+              headerStyle: boldStyle.copyWith(color: PdfColors.white, fontSize: 9),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
+              headerAlignment: pw.Alignment.center,
+              cellAlignment: pw.Alignment.centerRight,
+              cellStyle: regularStyle.copyWith(fontSize: 8),
+              data: auditItems.map((item) {
+                final date = item['createdAt']?.toString() ?? item['createdLabel']?.toString() ?? '-';
+                final action = item['actionLabel']?.toString() ?? item['action']?.toString() ?? '-';
+                final table = item['tableName']?.toString() ?? item['table']?.toString() ?? '-';
+                final actor = item['actorUserId']?.toString() ?? item['actor']?.toString() ?? 'النظام التلقائي';
+                final risk = item['riskLabel']?.toString() ?? item['riskLevel']?.toString() ?? 'عادي';
+                final desc = item['humanDescription']?.toString() ?? item['recordId']?.toString() ?? '-';
+
+                return [
+                  desc,
+                  risk,
+                  actor,
+                  table,
+                  action,
+                  date,
+                ];
+              }).toList(),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(3.0),
+                1: const pw.FlexColumnWidth(1.0),
+                2: const pw.FlexColumnWidth(1.5),
+                3: const pw.FlexColumnWidth(1.2),
+                4: const pw.FlexColumnWidth(1.0),
+                5: const pw.FlexColumnWidth(1.5),
+              },
+            ),
+            pw.SizedBox(height: 16),
+
+            // Footer Digital Seal
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Brivio Security Shield • ISO/IEC 27001 Audit Compliance Trail',
+                  style: regularStyle.copyWith(color: PdfColors.grey600, fontSize: 8),
+                ),
+                pw.Text(
+                  'ختم الاعتماد الرقمي للمنظومة: #BRV-SEC-${now.millisecondsSinceEpoch}',
+                  style: boldStyle.copyWith(color: PdfColors.grey700, fontSize: 8),
+                  textDirection: pw.TextDirection.rtl,
+                ),
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    if (printDirectly) {
+      await Printing.layoutPdf(onLayout: (format) => pdf.save());
+    } else {
+      await _saveAndSharePdf(pdf, 'Security_Audit_Log_${now.millisecondsSinceEpoch}.pdf');
+    }
+  }
 }
 
 

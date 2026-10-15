@@ -325,6 +325,80 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     );
   }
 
+  Future<void> _printBarcodeLabelsDialog([Map<String, dynamic>? singleItem]) async {
+    final countCtrl = TextEditingController(text: '12');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: const [
+            Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('طباعة ملصقات الباركود للملازم 🏷️'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              singleItem != null
+                  ? 'سيتم توليد ملصقات باركود حرارية لـ:\n${singleItem['title']}\nالسعر: ${singleItem['price']} ج.م'
+                  : 'سيتم توليد شيت ملصقات باركود لكافة الملازم المسجلة بالمخزن (${_inventory.length} صنف)',
+              style: const TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: countCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'عدد الملصقات المطلوب طباعتها',
+                suffixText: 'استيكر',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.print_rounded, size: 16),
+            label: const Text('طباعة الملصقات الآن'),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final copies = int.tryParse(countCtrl.text.trim()) ?? 1;
+              final itemsToPrint = singleItem != null ? [singleItem] : _inventory;
+              try {
+                await ReportGeneratorService().generateBookletBarcodeLabelsPdf(
+                  centerName: _centerName,
+                  items: itemsToPrint,
+                  copiesPerItem: singleItem != null ? copies : 1,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم توليد شيت ملصقات الباركود بنجاح 🏷️'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('فشل توليد ملصقات الباركود: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -382,6 +456,11 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
               ],
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.qr_code_2_rounded),
+                tooltip: 'طباعة ملصقات الباركود للمخزن 🏷️',
+                onPressed: () => _printBarcodeLabelsDialog(),
+              ),
               IconButton(
                 icon: const Icon(Icons.print_rounded),
                 tooltip: 'إعدادات الطابعة الحرارية (ESC/POS)',
@@ -576,31 +655,43 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  if (inCartQty > 0)
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
-                                          onPressed: () => _removeFromCart(item['id']),
-                                        ),
-                                        Text('$inCartQty', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        IconButton(
-                                          icon: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
-                                          onPressed: () => _addToCart(item['id']),
-                                        ),
-                                      ],
-                                    )
-                                  else
-                                    ElevatedButton.icon(
-                                      onPressed: stock <= 0 ? null : () => _addToCart(item['id']),
-                                      icon: const Icon(Icons.add_shopping_cart_rounded, size: 16),
-                                      label: const Text('إضافة'),
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                        textStyle: const TextStyle(fontSize: 12),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.qr_code_2_rounded, size: 20),
+                                        tooltip: 'طباعة استيكر باركود للملزمة 🏷️',
+                                        color: AppColors.primary,
+                                        onPressed: () => _printBarcodeLabelsDialog(item),
                                       ),
-                                    ),
+                                      const SizedBox(width: 4),
+                                      if (inCartQty > 0)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
+                                              onPressed: () => _removeFromCart(item['id']),
+                                            ),
+                                            Text('$inCartQty', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                            IconButton(
+                                              icon: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
+                                              onPressed: () => _addToCart(item['id']),
+                                            ),
+                                          ],
+                                        )
+                                      else
+                                        ElevatedButton.icon(
+                                          onPressed: stock <= 0 ? null : () => _addToCart(item['id']),
+                                          icon: const Icon(Icons.add_shopping_cart_rounded, size: 16),
+                                          label: const Text('إضافة'),
+                                          style: ElevatedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            textStyle: const TextStyle(fontSize: 12),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
