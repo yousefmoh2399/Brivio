@@ -880,7 +880,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
                           LiveBlitzQuizDialog.show(
                             context,
                             groupName: widget.groupName,
-                            subjectName: 'الفيزياء',
+                            subjectName: widget.groupName,
                             teacherId: widget.teacherId,
                           );
                         },

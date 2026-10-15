@@ -111,37 +111,21 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
       final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
       final client = Supabase.instance.client;
 
-      final res = await client
+      var query = client
           .from('attendance')
           .select('id, status, recorded_at, student:students(id, student_code, profile:profiles(full_name))')
           .gte('recorded_at', todayStart);
+
+      if (widget.groupId != null && widget.groupId!.isNotEmpty) {
+        query = query.eq('group_id', widget.groupId!);
+      }
+
+      final res = await query;
 
       final list = <Map<String, dynamic>>[];
       for (final row in (res as List)) {
         final st = row['status']?.toString().toLowerCase();
         if (st == 'present' || st == 'attended' || st == 'late') {
-          final student = row['student'] as Map<String, dynamic>?;
-          final profile = student?['profile'] as Map<String, dynamic>?;
-          final name = profile?['full_name']?.toString() ?? '';
-          if (name.isNotEmpty && !list.any((s) => s['name'] == name)) {
-            list.add({
-              'name': name,
-              'points': 0,
-              'speed': '--',
-              'avatar': '⚡',
-            });
-          }
-        }
-      }
-
-      // If no attendance records today and groupId is provided, check enrollments
-      if (list.isEmpty && widget.groupId != null && widget.groupId!.isNotEmpty) {
-        final enrollRes = await client
-            .from('enrollments')
-            .select('student:students(id, student_code, profile:profiles(full_name))')
-            .eq('group_id', widget.groupId!)
-            .eq('status', 'active');
-        for (final row in (enrollRes as List)) {
           final student = row['student'] as Map<String, dynamic>?;
           final profile = student?['profile'] as Map<String, dynamic>?;
           final name = profile?['full_name']?.toString() ?? '';

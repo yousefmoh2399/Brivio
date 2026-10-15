@@ -1181,7 +1181,7 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                         LiveBlitzQuizDialog.show(
                           context,
                           groupName: _currentGroup,
-                          subjectName: 'الفيزياء',
+                          subjectName: _currentGroup,
                           teacherId: widget.teacherId,
                         );
                       },

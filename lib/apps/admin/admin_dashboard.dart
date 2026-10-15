@@ -1302,8 +1302,11 @@ class _AdminOverview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top Row: Live badge + Switcher & Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -1993,6 +1996,10 @@ class _LiveCenterCommandRadarCard extends StatefulWidget {
 class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _rooms = [];
+  int _todayGateEntries = 0;
+  int _activeSessionsCount = 0;
 
   @override
   void initState() {
@@ -2001,6 +2008,93 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+    _loadLiveRadarData();
+  }
+
+  Future<void> _loadLiveRadarData() async {
+    try {
+      final client = Supabase.instance.client;
+      final todayStr = DateTime.now().toIso8601String().split('T').first;
+      final startOfDay = '$todayStr 00:00:00';
+      final endOfDay = '$todayStr 23:59:59';
+
+      // 1. Fetch real rooms from database
+      final roomsRes = await client.from('rooms').select().order('name');
+      final loadedRooms = <Map<String, dynamic>>[];
+
+      for (final r in (roomsRes as List)) {
+        final cap = (r['capacity'] as num?)?.toInt() ?? 30;
+        loadedRooms.add({
+          'id': r['id'],
+          'name': r['name'] as String? ?? 'قاعة عامة',
+          'capacity': cap,
+          'code': r['code']?.toString() ?? '',
+          'session': null,
+          'isLive': false,
+        });
+      }
+
+      // 2. Fetch today's class sessions
+      int activeSessions = 0;
+      try {
+        final sessionsRes = await client
+            .from('class_sessions')
+            .select('id, room_id, status, start_time, end_time, groups(name, subject, teachers(profiles(full_name)))')
+            .eq('session_date', todayStr);
+
+        for (final s in (sessionsRes as List)) {
+          final roomId = s['room_id']?.toString();
+          final grp = s['groups'] as Map<String, dynamic>?;
+          final tchr = grp?['teachers'] as Map<String, dynamic>?;
+          final prof = tchr?['profiles'] as Map<String, dynamic>?;
+          final subjectName = grp?['name'] as String? ?? grp?['subject'] as String? ?? 'حصة دراسية';
+          final teacherName = prof?['full_name'] as String? ?? 'معلم المادة';
+          final status = s['status']?.toString().toLowerCase();
+          final isLive = status == 'in_progress' || status == 'active' || status == 'live';
+
+          if (isLive) activeSessions++;
+
+          if (roomId != null) {
+            final roomIdx = loadedRooms.indexWhere((rm) => rm['id']?.toString() == roomId);
+            if (roomIdx != -1) {
+              loadedRooms[roomIdx]['session'] = '$subjectName • $teacherName';
+              loadedRooms[roomIdx]['isLive'] = isLive;
+            }
+          }
+        }
+      } catch (_) {}
+
+      // 3. Fetch today's attendance check-ins
+      int gateEntries = 0;
+      try {
+        final attendRes = await client
+            .from('attendance')
+            .select('id')
+            .gte('recorded_at', startOfDay)
+            .lte('recorded_at', endOfDay);
+        gateEntries = (attendRes as List).length;
+      } catch (_) {
+        try {
+          final recRes = await client
+              .from('attendance_records')
+              .select('id')
+              .gte('marked_at', startOfDay)
+              .lte('marked_at', endOfDay);
+          gateEntries = (recRes as List).length;
+        } catch (_) {}
+      }
+
+      if (mounted) {
+        setState(() {
+          _rooms = loadedRooms;
+          _todayGateEntries = gateEntries;
+          _activeSessionsCount = activeSessions;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -2040,64 +2134,97 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row
-          Row(
-            children: [
-              _CenterPulseBeacon(controller: _pulseController),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+          // Header Row with responsive LayoutBuilder
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 450;
+              final headerContent = Row(
+                children: [
+                  _CenterPulseBeacon(controller: _pulseController),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'رادار المراقبة والعمليات الحية للسنتر 📡',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF2563EB),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'طاقة استيعابية 92% 🟢',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            const Text(
+                              'رادار المراقبة والعمليات الحية للسنتر 📡',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF2563EB),
+                              ),
                             ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _activeSessionsCount > 0
+                                    ? Colors.green.withValues(alpha: 0.15)
+                                    : Colors.blue.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                _activeSessionsCount > 0
+                                    ? '$_activeSessionsCount حصص نشطة الآن 🟢'
+                                    : (_rooms.isNotEmpty ? 'المنظومة جاهزة 🟢' : 'بانتظار التهيئة ⚪'),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _activeSessionsCount > 0 ? Colors.green : Colors.blue,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _rooms.isNotEmpty
+                              ? '${_rooms.length} قاعات دراسية مسجلة • بوابات الدخول مؤمنة • الخزينة نشطة'
+                              : 'لا توجد قاعات دراسية مضافة بعد • انقر لإدارة المقاعد والقاعات',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '3 قاعات تدريس مباشرة • بوابات الدخول الذكية مؤمنة • الخزينة نشطة',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              FilledButton.tonalIcon(
+                  ),
+                ],
+              );
+
+              final tvButton = FilledButton.tonalIcon(
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 onPressed: widget.onOpenReceptionTv,
                 icon: const Icon(Icons.tv_rounded, size: 16),
                 label: const Text('شاشة العرض (TV)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    headerContent,
+                    const SizedBox(height: 10),
+                    Align(alignment: Alignment.centerLeft, child: tvButton),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: headerContent),
+                  const SizedBox(width: 8),
+                  tvButton,
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 16),
@@ -2105,63 +2232,131 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
           const SizedBox(height: 16),
 
           // Live Classrooms Occupancy Strip
-          Text(
-            'حالة القاعات الدراسية في الوقت الحقيقي الآن:',
-            style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'حالة القاعات الدراسية في الوقت الحقيقي الآن:',
+                style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+              ),
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ClassroomCapacityScreen()),
+                  );
+                },
+                child: const Text(
+                  'إدارة القاعات 🪑',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
 
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 650;
-              final r1 = _buildRoomCard(
-                name: 'قاعة 1 (نيوتن)',
-                subject: 'فيزياء 3 ثانوي • أ. محمد عبد الله',
-                students: '38 / 42 طالب',
-                rate: '90.5%',
-                statusColor: Colors.green,
-                isLive: true,
-              );
-              final r2 = _buildRoomCard(
-                name: 'قاعة 2 (فاراداي)',
-                subject: 'كيمياء لغات • أ. أحمد سمير',
-                students: '28 / 30 طالب',
-                rate: '93.3%',
-                statusColor: Colors.blue,
-                isLive: true,
-              );
-              final r3 = _buildRoomCard(
-                name: 'قاعة 3 (ابن الهيثم)',
-                subject: 'شاغرة ومكيفة • الحصة القادمة 06:00 م',
-                students: '0 / 35 مقعد',
-                rate: 'جاهزة ✔️',
-                statusColor: Colors.blueGrey,
-                isLive: false,
-              );
-
-              if (isWide) {
-                return Row(
-                  children: [
-                    Expanded(child: r1),
-                    const SizedBox(width: 8),
-                    Expanded(child: r2),
-                    const SizedBox(width: 8),
-                    Expanded(child: r3),
-                  ],
-                );
-              }
-
-              return Column(
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_rooms.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+              ),
+              child: Row(
                 children: [
-                  r1,
-                  const SizedBox(height: 6),
-                  r2,
-                  const SizedBox(height: 6),
-                  r3,
+                  const Icon(Icons.meeting_room_outlined, color: Colors.blueGrey, size: 24),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'لم يتم إضافة قاعات دراسية بالسنتر بعد',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'أضف قاعات السنتر ومقاعدها لتتبع نسب الإشغال والحصص الحية فورياً',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ClassroomCapacityScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('إضافة قاعة', style: TextStyle(fontSize: 11)),
+                  ),
                 ],
-              );
-            },
-          ),
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 650;
+                final roomCards = _rooms.take(3).map((rm) {
+                  final isLive = rm['isLive'] == true;
+                  final session = rm['session'] as String?;
+                  final cap = rm['capacity'] as int;
+                  final statusColor = isLive
+                      ? Colors.green
+                      : (session != null ? Colors.blue : Colors.blueGrey);
+                  return _buildRoomCard(
+                    name: rm['name'] as String,
+                    subject: session ?? 'شاغرة وجاهزة للحصص',
+                    students: 'السعة: $cap مقعد',
+                    rate: isLive ? 'حصة جارية' : (session != null ? 'مجدولة' : 'جاهزة ✔️'),
+                    statusColor: statusColor,
+                    isLive: isLive,
+                  );
+                }).toList();
+
+                if (isWide) {
+                  return Row(
+                    children: roomCards
+                        .map(
+                          (c) => Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: c,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  );
+                }
+
+                return Column(
+                  children: roomCards
+                      .map(
+                        (c) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: c,
+                        ),
+                      )
+                      .toList(),
+                );
+              },
+            ),
 
           const SizedBox(height: 16),
 
@@ -2177,19 +2372,30 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
               children: [
                 const Icon(Icons.sensor_door_rounded, color: Color(0xFF2563EB), size: 20),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '+248 عملية دخول ذكية مسجلة اليوم عبر البوابات ومطابقة الاشتراكات',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    _todayGateEntries > 0
+                        ? '+$_todayGateEntries عملية دخول ذكية مسجلة اليوم عبر البوابات ومطابقة الاشتراكات'
+                        : '0 عمليات دخول مسجلة اليوم عبر البوابات (بانتظار بدء الحصص)',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.15),
+                    color: _todayGateEntries > 0
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : Colors.grey.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text('100% انضباط', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
+                  child: Text(
+                    _todayGateEntries > 0 ? 'نشط 🟢' : 'في الانتظار ⚪',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: _todayGateEntries > 0 ? Colors.green : Colors.grey,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2763,11 +2969,14 @@ class _MultiBranchFederationBar extends StatelessWidget {
             children: [
               const Icon(Icons.account_tree_rounded, size: 16, color: AppColors.primary),
               const SizedBox(width: 8),
-              const Text(
-                'العزل السحابي وإدارة الفروع المتعددة (Multi-Branch Federation):',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              const Expanded(
+                child: Text(
+                  'إدارة الفروع المتعددة (Multi-Branch)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -3003,17 +3212,19 @@ class _DayEndSettlementHUD extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         const Text(
-                          'مركز الإغلاق اليومي للخزينة ومطابقة الدرج (Z-Report) 💵',
+                          'مركز الإغلاق اليومي للخزينة ومطابقة الدرج 💵',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
                             color: Colors.green,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -3042,75 +3253,94 @@ class _DayEndSettlementHUD extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Cash summary numbers
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          // Cash summary numbers with responsive LayoutBuilder
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 520;
+              final col1 = Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('متحصلات اليوم الفعلية', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '+${_formatMoney(todayCollected)} ج.م',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.green),
+                    ),
+                  ],
+                ),
+              );
+              final col2 = Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('سندات وإيصالات التحصيل', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$receiptsCount إيصال معتمد',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue),
+                    ),
+                  ],
+                ),
+              );
+              final col3 = Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('حالة المطابقة والعجز', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    Text(
+                      todayCollected > 0 ? 'مطابق 0.00 ج.م ✔️' : '0.00 ج.م',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.amber),
+                    ),
+                  ],
+                ),
+              );
+
+              if (isWide) {
+                return Row(
+                  children: [
+                    Expanded(child: col1),
+                    const SizedBox(width: 10),
+                    Expanded(child: col2),
+                    const SizedBox(width: 10),
+                    Expanded(child: col3),
+                  ],
+                );
+              }
+
+              return Column(
+                children: [
+                  Row(
                     children: [
-                      const Text('متحصلات اليوم الفعلية', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      const SizedBox(height: 4),
-                      Text(
-                        '+${_formatMoney(todayCollected > 0 ? todayCollected : 3250.0)} ج.م',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.green),
-                      ),
+                      Expanded(child: col1),
+                      const SizedBox(width: 8),
+                      Expanded(child: col2),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('سندات وإيصالات التحصيل', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${receiptsCount > 0 ? receiptsCount : 24} إيصال معتمد',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('حالة المطابقة والعجز', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      SizedBox(height: 4),
-                      Text(
-                        'مطابق 0.00 ج.م ✔️',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.amber),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 8),
+                  SizedBox(width: double.infinity, child: col3),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
 
@@ -3261,41 +3491,47 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.shield_rounded, color: Colors.red, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'رادار التدقيق الأمني ومراقبة العمليات الحساسة 🚨',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.red,
-                      ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 460;
+              final headerInfo = Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'تتبع لحظي لعمليات الحذف، استرداد الأموال، تعديل النتائج والصلاحيات',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                      ),
+                    child: const Icon(Icons.shield_rounded, color: Colors.red, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'رادار التدقيق الأمني ومراقبة العمليات الحساسة 🚨',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'تتبع لحظي لعمليات الحذف، استرداد الأموال، وتعديل النتائج والصلاحيات',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              FilledButton.tonalIcon(
+                  ),
+                ],
+              );
+
+              final auditBtn = FilledButton.tonalIcon(
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -3303,8 +3539,27 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
                 onPressed: widget.onOpenAuditLog,
                 icon: const Icon(Icons.open_in_new_rounded, size: 14),
                 label: const Text('سجل التدقيق الكامل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    headerInfo,
+                    const SizedBox(height: 8),
+                    Align(alignment: Alignment.centerLeft, child: auditBtn),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: headerInfo),
+                  const SizedBox(width: 8),
+                  auditBtn,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           if (_isLoading)
