@@ -5,6 +5,7 @@ import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../widgets/account_login_qr_dialog.dart';
 import '../widgets/account_password_dialog.dart';
+import '../../../../core/services/user_provisioning_service.dart';
 
 class StaffManagementScreen extends StatefulWidget {
   const StaffManagementScreen({super.key});
@@ -245,31 +246,14 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       final nav = Navigator.of(ctx);
 
                       try {
-                        final response = await Supabase.instance.client.functions
-                            .invoke(
-                              'provision-user',
-                              body: {
-                                'email': emailCtrl.text.trim(),
-                                'fullName': nameCtrl.text.trim(),
-                                'role': selectedRole,
-                                'branchId': selectedBranchId,
-                                'phoneNumber': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
-                                if (passwordCtrl.text.isNotEmpty)
-                                  'password': passwordCtrl.text,
-                              },
-                            );
-
-                        if (response.status < 200 || response.status >= 300) {
-                          final data = response.data;
-                          final message = data is Map
-                              ? data['error']?.toString()
-                              : null;
-                          throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
-                        }
-                        final data = Map<String, dynamic>.from(response.data as Map);
-                        if (data['success'] != true) {
-                          throw Exception('فشلت عملية إنشاء الحساب.');
-                        }
+                        await UserProvisioningService.provisionUser(
+                          email: emailCtrl.text.trim(),
+                          fullName: nameCtrl.text.trim(),
+                          role: selectedRole,
+                          branchId: selectedBranchId,
+                          phoneNumber: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                          password: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,
+                        );
 
                         nav.pop();
                         _loadStaff();

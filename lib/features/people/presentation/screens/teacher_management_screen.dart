@@ -9,6 +9,7 @@ import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/account_login_qr_dialog.dart';
 import '../widgets/account_password_dialog.dart';
 import '../../../../core/services/report_generator_service.dart';
+import '../../../../core/services/user_provisioning_service.dart';
 
 class TeacherManagementScreen extends StatefulWidget {
   const TeacherManagementScreen({super.key});
@@ -411,32 +412,15 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                       final nav = Navigator.of(ctx);
 
                       try {
-                        final response = await Supabase.instance.client.functions
-                            .invoke(
-                              'provision-user',
-                              body: {
-                                'email': emailCtrl.text.trim(),
-                                'fullName': nameCtrl.text.trim(),
-                                'role': 'teacher',
-                                'branchId': selectedBranchId,
-                                'phoneNumber': phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
-                                'specialization': specCtrl.text.trim().isEmpty ? null : specCtrl.text.trim(),
-                                if (passwordCtrl.text.isNotEmpty)
-                                  'password': passwordCtrl.text,
-                              },
-                            );
-
-                        if (response.status < 200 || response.status >= 300) {
-                          final data = response.data;
-                          final message = data is Map
-                              ? data['error']?.toString()
-                              : null;
-                          throw Exception(message ?? 'فشلت عملية إنشاء الحساب.');
-                        }
-                        final data = Map<String, dynamic>.from(response.data as Map);
-                        if (data['success'] != true) {
-                          throw Exception('فشلت عملية إنشاء الحساب.');
-                        }
+                        await UserProvisioningService.provisionUser(
+                          email: emailCtrl.text.trim(),
+                          fullName: nameCtrl.text.trim(),
+                          role: 'teacher',
+                          branchId: selectedBranchId,
+                          phoneNumber: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                          specialization: specCtrl.text.trim().isEmpty ? null : specCtrl.text.trim(),
+                          password: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,
+                        );
 
                         nav.pop();
                         _loadTeachers();

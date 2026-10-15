@@ -4,11 +4,11 @@ import 'package:archive/archive.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:xml/xml.dart';
 
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
+import '../../../../core/services/user_provisioning_service.dart';
 
 class DataImportScreen extends StatefulWidget {
   const DataImportScreen({super.key});
@@ -103,22 +103,12 @@ class _DataImportScreenState extends State<DataImportScreen> {
         (item) => item.rowNumber == row.rowNumber,
       );
       try {
-        final body = {
-          'email': row.email,
-          'fullName': row.fullName,
-          'role': _entity.role,
-          if (row.branchId != null) 'branchId': row.branchId,
-        };
-        final response = await Supabase.instance.client.functions.invoke(
-          'provision-user',
-          body: body,
+        await UserProvisioningService.provisionUser(
+          email: row.email,
+          fullName: row.fullName,
+          role: _entity.role,
+          branchId: row.branchId,
         );
-        if (response.status != 200) {
-          final error = response.data is Map
-              ? response.data['error']?.toString()
-              : 'Provisioning failed';
-          throw Exception(error ?? 'Status ${response.status}');
-        }
         nextRows[index] = row.copyWith(
           status: _ImportStatus.success,
           resultMessage: 'تم الاستيراد بنجاح',

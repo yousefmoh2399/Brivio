@@ -5,6 +5,7 @@ import '../../domain/models/auth_user_bootstrap.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/user_role.dart';
 import '../../domain/repositories/i_auth_repository.dart';
+import '../../../../core/services/user_provisioning_service.dart';
 
 class SupabaseAuthRepository implements IAuthRepository {
   final SupabaseClientWrapper _clientWrapper;
@@ -243,32 +244,15 @@ class SupabaseAuthRepository implements IAuthRepository {
     String? branchId,
   }) async {
     try {
-      // Invoke trusted Supabase Edge Function boundary
-      final response = await _client.functions.invoke(
-        'provision-user',
-        body: {
-          'email': email,
-          'fullName': fullName,
-          'role': role.toDbValue(),
-          'branchId': branchId,
-        },
-      );
-
-      if (response.status != 200) {
-        final errBody = response.data as Map<String, dynamic>?;
-        throw AuthFailure(
-          message: errBody?['error'] ?? 'Privileged provisioning failed',
-        );
-      }
-
-      return Map<String, dynamic>.from(response.data as Map);
-    } on supabase.FunctionException catch (e) {
-      throw AuthFailure(
-        message: e.reasonPhrase ?? 'Edge Function execution error',
+      return await UserProvisioningService.provisionUser(
+        email: email,
+        fullName: fullName,
+        role: role.toDbValue(),
+        branchId: branchId,
       );
     } catch (e) {
-      throw UnexpectedFailure(
-        message: 'Privileged provisioning failed: ${e.toString()}',
+      throw AuthFailure(
+        message: e.toString().replaceAll('Exception: ', ''),
       );
     }
   }
