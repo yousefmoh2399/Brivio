@@ -410,7 +410,9 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                         success = true;
                       } catch (e) {
                         if (ctx.mounted) {
-                          setDialogState(() => isSubmitting = false);
+                          try {
+                            setDialogState(() => isSubmitting = false);
+                          } catch (_) {}
                         }
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(

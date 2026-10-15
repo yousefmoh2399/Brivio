@@ -5,6 +5,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
+import '../widgets/smart_grading_studio.dart';
 
 class StudentSubmissionsScreen extends StatefulWidget {
   final Map<String, dynamic> initialSubmission;
@@ -441,7 +442,95 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                       ),
                     ],
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
+
+                    // Smart Grading Studio Launcher (Interactive Canvas & Stamps)
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.deepOrange.withValues(alpha: 0.12),
+                            Colors.amber.withValues(alpha: 0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.deepOrange.withValues(alpha: 0.3)),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.deepOrange.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.draw_rounded, color: Colors.deepOrange, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'استوديو التصحيح الذكي بالقلم والأختام ✍️',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'تصحيح حر على كشكول الطالب مع أختام الإشادة (10/10 و ممتاز)',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.deepOrange,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.mode_edit_outline_rounded, size: 16),
+                            label: const Text('فتح الاستوديو'),
+                            onPressed: () async {
+                              final currentScore = double.tryParse(_scoreCtrl.text) ?? 15.0;
+                              final result = await showDialog<Map<String, dynamic>>(
+                                context: context,
+                                builder: (_) => SmartGradingStudioDialog(
+                                  studentName: widget.initialSubmission['students']?['profiles']?['full_name'] ??
+                                      widget.initialSubmission['student_name'] ??
+                                      'الطالب',
+                                  submissionId: widget.initialSubmission['id']?.toString() ?? '',
+                                  initialScore: currentScore,
+                                  maxScore: 20.0,
+                                  initialFeedback: _feedbackCtrl.text,
+                                  attachmentUrl: widget.initialSubmission['attachment_url']?.toString(),
+                                ),
+                              );
+                              if (result != null && mounted) {
+                                if (result['score'] != null) {
+                                  setState(() {
+                                    _scoreCtrl.text = (result['score'] as double).toStringAsFixed(1);
+                                    if (result['feedback'] != null && (result['feedback'] as String).isNotEmpty) {
+                                      _feedbackCtrl.text = result['feedback'];
+                                    }
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('تم اعتماد التصحيح بالقلم والأختام بنجاح! ✨'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
                     TextField(
                       controller: _scoreCtrl,
                       style: TextStyle(color: textColor),

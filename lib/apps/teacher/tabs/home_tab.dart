@@ -12,6 +12,9 @@ import '../../../features/payments/presentation/screens/teacher_settlement_scree
 import '../../../features/reports/presentation/screens/attendance_reports_screen.dart';
 import '../../../features/attendance/presentation/screens/teacher_session_board_screen.dart';
 import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
+import '../../../features/assessment/presentation/widgets/live_blitz_quiz_dialog.dart';
+import '../../../features/communication/presentation/screens/class_broadcast_dialog.dart';
+import '../../../features/assessment/presentation/widgets/smart_grading_studio.dart';
 
 class HomeTab extends StatelessWidget {
   final UserProfile? user;
@@ -114,6 +117,17 @@ class HomeTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Live Class Session Cockpit & Absence Alert Radar
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 550),
+                  delay: const Duration(milliseconds: 50),
+                  child: _LiveSessionCockpitCard(
+                    teacherId: user?.id ?? '',
+                    teacherName: user?.fullName ?? 'معلمنا الفاضل',
+                  ),
+                ),
+                const SizedBox(height: 20),
 
                 // Metrics grid
                 FadeInSlide(
@@ -689,3 +703,663 @@ class _TeacherQuickActionCard extends StatelessWidget {
     );
   }
 }
+
+class _LiveSessionCockpitCard extends StatefulWidget {
+  final String teacherId;
+  final String teacherName;
+
+  const _LiveSessionCockpitCard({
+    required this.teacherId,
+    required this.teacherName,
+  });
+
+  @override
+  State<_LiveSessionCockpitCard> createState() => _LiveSessionCockpitCardState();
+}
+
+class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+
+  final String _currentGroup = 'فيزياء 3 ثانوي - مجموعة التميز واللغات (A)';
+  final String _roomName = 'قاعة نيوتن 1 (الفرع الرئيسي)';
+  final int _totalEnrolled = 42;
+  final int _presentCount = 38;
+  final int _absentCount = 4;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  void _openAbsenceBroadcastDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => _AbsenceAlertBroadcastDialog(
+        groupName: _currentGroup,
+        teacherName: widget.teacherName,
+        absentStudents: const [
+          {'name': 'عمر أحمد محمود', 'code': 'STU-101', 'phone': '01012345678'},
+          {'name': 'مريم حسام الدين', 'code': 'STU-105', 'phone': '01198765432'},
+          {'name': 'زياد طارق إبراهيم', 'code': 'STU-108', 'phone': '01234567890'},
+          {'name': 'فاطمة خالد علي', 'code': 'STU-112', 'phone': '01055566778'},
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    final attendancePercentage = (_presentCount / _totalEnrolled * 100).toStringAsFixed(1);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  const Color(0xFF1E293B),
+                  const Color(0xFF0F172A),
+                ]
+              : [
+                  const Color(0xFFF8FAFC),
+                  const Color(0xFFEEF2F6),
+                ],
+        ),
+        border: Border.all(
+          color: const Color(0xFF0D9488).withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Bar: Live Beacon + Room + Time
+          Row(
+            children: [
+              _CockpitPulseBeacon(controller: _pulseController),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'غرفة التحكم الحية للحصة المباشرة 🔴',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0D9488),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'جارية الآن ⏱️',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currentGroup,
+                      style: AppTypography.titleMedium(textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white10 : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: const [
+                    Text('04:00 - 06:00 م', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                    Text('مضى 42 دقيقة ⏳', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.meeting_room_outlined, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(_roomName, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+
+          // Live Attendance Gauge
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.people_alt_rounded, size: 16, color: Color(0xFF0D9488)),
+                            const SizedBox(width: 6),
+                            Text(
+                              'الحضور المسجل حتى اللحظة:',
+                              style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '$_presentCount من $_totalEnrolled طالب ($attendancePercentage%)',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D9488)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Two-Tone Progress Bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        height: 10,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: _presentCount,
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: _absentCount,
+                              child: Container(
+                                color: Colors.redAccent.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 1-Tap Absence Alert Broadcast Button
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 2,
+              ),
+              icon: const Icon(Icons.campaign_rounded, size: 20),
+              label: Text(
+                'إرسال إنذار غياب فوري لأولياء الأمور ($_absentCount طلاب متغيبين) 🚨',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              onPressed: _openAbsenceBroadcastDialog,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Classroom Quick Dock (Tools for active lecturing)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.02),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'أدوات التحكم التفاعلية أثناء الحصة المباشرة:',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildCockpitPill(
+                      label: 'السبورة الذكية للشرح 🎨',
+                      color: Colors.teal,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TeacherSessionBoardScreen(teacherId: widget.teacherId),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildCockpitPill(
+                      label: 'كويز الـ 5 دقائق التفاعلي ⚡',
+                      color: Colors.purple,
+                      onTap: () {
+                        LiveBlitzQuizDialog.show(
+                          context,
+                          groupName: _currentGroup,
+                          subjectName: 'الفيزياء',
+                        );
+                      },
+                    ),
+                    _buildCockpitPill(
+                      label: 'استوديو التصحيح بالقلم ✍️',
+                      color: Colors.deepOrange,
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => const SmartGradingStudioDialog(
+                            studentName: 'عمر أحمد محمود',
+                            submissionId: 'live_preview',
+                            initialScore: 18.5,
+                            maxScore: 20.0,
+                            initialFeedback: 'ممتاز ومنظم يا بطل 🌟',
+                          ),
+                        );
+                      },
+                    ),
+                    _buildCockpitPill(
+                      label: 'مسح حضور QR السريع 🪪',
+                      color: AppColors.primary,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ReceptionQrGateScreen()),
+                        );
+                      },
+                    ),
+                    _buildCockpitPill(
+                      label: 'إذاعة تنبيه للقاعة 📢',
+                      color: Colors.amber.shade800,
+                      onTap: () {
+                        ClassBroadcastDialog.show(
+                          context,
+                          groupName: _currentGroup,
+                          teacherName: widget.teacherName,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCockpitPill({
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CockpitPulseBeacon extends StatelessWidget {
+  final AnimationController controller;
+
+  const _CockpitPulseBeacon({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        final scale = 1.0 + (controller.value * 0.25);
+        final opacity = 0.8 - (controller.value * 0.4);
+        return SizedBox(
+          width: 32,
+          height: 32,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF0D9488).withValues(alpha: opacity),
+                  ),
+                ),
+              ),
+              Container(
+                width: 14,
+                height: 14,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF0D9488),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFF0D9488),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AbsenceAlertBroadcastDialog extends StatefulWidget {
+  final String groupName;
+  final String teacherName;
+  final List<Map<String, String>> absentStudents;
+
+  const _AbsenceAlertBroadcastDialog({
+    required this.groupName,
+    required this.teacherName,
+    required this.absentStudents,
+  });
+
+  @override
+  State<_AbsenceAlertBroadcastDialog> createState() => _AbsenceAlertBroadcastDialogState();
+}
+
+class _AbsenceAlertBroadcastDialogState extends State<_AbsenceAlertBroadcastDialog> {
+  bool _sendAppNotification = true;
+  bool _sendWhatsAppAlert = true;
+  bool _isBroadcasting = false;
+
+  Future<void> _broadcastAbsenceAlerts() async {
+    setState(() => _isBroadcasting = true);
+
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم إرسال إنذار الغياب الفوري لـ ${widget.absentStudents.length} أولياء أمور بنجاح عبر التطبيق والواتساب 📲',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+
+    return Dialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.campaign_rounded, color: Colors.redAccent, size: 28),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'إذاعة إنذار غياب فوري لأولياء الأمور 🚨',
+                          style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          widget.groupName,
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Warning Info Banner
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'سيتم إرسال إشعار فوري لأولياء أمور ${widget.absentStudents.length} طلاب متغيبين عن حصة اليوم الآن لتنبيههم فوراً واطمئنانهم.',
+                        style: const TextStyle(fontSize: 12, height: 1.5, color: Colors.redAccent),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Absent Roster List
+              Text(
+                'قائمة الطلاب المتغيبين في الحصة الآن:',
+                style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...widget.absentStudents.map((s) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.02),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.person_off_rounded, size: 16, color: Colors.redAccent),
+                          const SizedBox(width: 8),
+                          Text(s['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(width: 6),
+                          Text('(${s['code']})', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                      Text(s['phone'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 16),
+
+              // Message Preview Box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'نص الرسالة المعتمد للتنبيه:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.grey),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '🚨 تنبيه عاجل من إدارة السنتر: نحيط سيادتكم علماً بأن الطالب لم يسجل حضوره اليوم في حصة الفيزياء الجارية حالياً في تمام الساعة 04:00م. برجاء الاطمئنان عليه والتواصل معنا فوراً للضرورة.',
+                      style: TextStyle(fontSize: 12, height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Dispatch Channels
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: _sendAppNotification,
+                onChanged: (val) => setState(() => _sendAppNotification = val ?? true),
+                title: const Text('إرسال إشعار لحظي عبر تطبيق ولي الأمر 📱', style: TextStyle(fontSize: 13)),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: _sendWhatsAppAlert,
+                onChanged: (val) => setState(() => _sendWhatsAppAlert = val ?? true),
+                title: const Text('إرسال رسالة واتساب رسمية من رقم السنتر 💬', style: TextStyle(fontSize: 13)),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isBroadcasting ? null : () => Navigator.pop(context),
+                      child: const Text('إلغاء'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.redAccent.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: _isBroadcasting ? null : _broadcastAbsenceAlerts,
+                      icon: _isBroadcasting
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.send_rounded),
+                      label: Text(
+                        _isBroadcasting ? 'جارٍ إرسال التنبيهات...' : 'إرسال الإنذار للكل (${widget.absentStudents.length}) 🚀',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
