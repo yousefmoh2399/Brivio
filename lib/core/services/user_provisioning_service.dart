@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_config.dart';
@@ -8,7 +10,7 @@ import '../logging/app_logger.dart';
 /// Implements dual-strategy:
 /// 1. Tries trusted Edge Function 'provision-user' first if deployed.
 /// 2. If the Edge Function is missing (HTTP 404) or fails, falls back transparently
-///    to isolated client auth sign-up and database RPC/upsert.
+///    to direct Auth REST API sign-up and database RPC/upsert.
 class UserProvisioningService {
   static Future<Map<String, dynamic>> provisionUser({
     required String email,
@@ -37,7 +39,7 @@ class UserProvisioningService {
 
     final client = Supabase.instance.client;
 
-    // 1. Attempt trusted Edge Function 'provision-user' first
+    // 1. Attempt trusted Edge Function 'provision-user' first if deployed
     try {
       final response = await client.functions.invoke(
         'provision-user',
@@ -66,46 +68,73 @@ class UserProvisioningService {
       );
     }
 
-    // 2. Direct Provisioning Fallback
+    // 2. Direct Provisioning Fallback via Supabase Auth REST API
     // Generate temporary password if none provided
     final effectivePassword = (password != null && password.trim().isNotEmpty)
         ? password.trim()
         : 'Brivio@${100000 + Random().nextInt(900000)}';
 
-    String newUserId;
+    String newUserId = '';
 
-    // Create an isolated SupabaseClient so the current admin/staff session is untouched
-    final tempClient = SupabaseClient(
-      AppConfig.effectiveSupabaseUrl,
-      AppConfig.effectiveSupabaseAnonKey,
-    );
-
+    // Direct HTTP call to /auth/v1/signup avoids client PKCE storage requirements
+    // and completely prevents touching the current admin session.
+    final signupUri = Uri.parse('${AppConfig.effectiveSupabaseUrl}/auth/v1/signup');
     try {
-      final authRes = await tempClient.auth.signUp(
-        email: cleanEmail,
-        password: effectivePassword,
-        data: {
-          'full_name': cleanName,
-          'role': role,
-          if (cleanBranchId != null) 'branch_id': cleanBranchId,
+      final httpResponse = await http.post(
+        signupUri,
+        headers: {
+          'apikey': AppConfig.effectiveSupabaseAnonKey,
+          'Content-Type': 'application/json',
         },
-      );
+        body: jsonEncode({
+          'email': cleanEmail,
+          'password': effectivePassword,
+          'data': {
+            'full_name': cleanName,
+            'role': role,
+            if (cleanBranchId != null) 'branch_id': cleanBranchId,
+          },
+        }),
+      ).timeout(const Duration(seconds: 15));
 
-      final user = authRes.user;
-      if (user == null) {
-        throw Exception('تعذر إنشاء حساب المستخدم في نظام المصادقة.');
+      final dynamic responseBody = jsonDecode(httpResponse.body);
+
+      if (httpResponse.statusCode >= 200 && httpResponse.statusCode < 300) {
+        if (responseBody is Map<String, dynamic>) {
+          newUserId = responseBody['id']?.toString() ??
+              responseBody['user']?['id']?.toString() ??
+              '';
+        }
+        if (newUserId.isEmpty) {
+          throw Exception('تعذر استخراج معرّف المستخدم من استجابة المصادقة.');
+        }
+      } else {
+        final msg = (responseBody is Map
+                ? (responseBody['msg'] ??
+                    responseBody['message'] ??
+                    responseBody['error_description'] ??
+                    responseBody['error'])
+                : null)
+            ?.toString()
+            .toLowerCase() ??
+            '';
+
+        if (msg.contains('already registered') ||
+            msg.contains('already exists') ||
+            msg.contains('user already exists')) {
+          throw Exception('هذا البريد الإلكتروني مسجل بالفعل لمستخدم آخر.');
+        }
+        throw Exception(
+          responseBody is Map && responseBody['msg'] != null
+              ? responseBody['msg'].toString()
+              : (responseBody is Map && responseBody['message'] != null
+                  ? responseBody['message'].toString()
+                  : 'فشل إنشاء حساب المصادقة: رمز الحالة ${httpResponse.statusCode}'),
+        );
       }
-      newUserId = user.id;
-    } on AuthException catch (e) {
-      final msg = e.message.toLowerCase();
-      if (msg.contains('already registered') ||
-          msg.contains('user already exists') ||
-          msg.contains('already exists')) {
-        throw Exception('هذا البريد الإلكتروني مسجل بالفعل لمستخدم آخر.');
-      }
-      throw Exception('خطأ في المصادقة: ${e.message}');
     } catch (e) {
-      throw Exception('فشل إنشاء حساب المصادقة: $e');
+      if (e is Exception) rethrow;
+      throw Exception('فشل الاتصال بخادم المصادقة: $e');
     }
 
     // 3. Complete Profile and Domain Entity
