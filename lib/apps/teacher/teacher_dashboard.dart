@@ -450,6 +450,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 }
 
 class TeacherGroupAnalytics {
+  final String? groupId;
   final String groupName;
   final String groupCode;
   final int studentCount;
@@ -460,6 +461,7 @@ class TeacherGroupAnalytics {
   final double averageExamScore;
 
   const TeacherGroupAnalytics({
+    this.groupId,
     required this.groupName,
     required this.groupCode,
     required this.studentCount,
@@ -473,6 +475,7 @@ class TeacherGroupAnalytics {
   factory TeacherGroupAnalytics.fromJson(Map<dynamic, dynamic> raw) {
     final json = Map<String, dynamic>.from(raw);
     return TeacherGroupAnalytics(
+      groupId: json['group_id']?.toString(),
       groupName: json['group_name']?.toString() ?? 'المجموعة الدراسية',
       groupCode: json['group_code']?.toString() ?? '',
       studentCount: (json['student_count'] as num?)?.round() ?? 0,

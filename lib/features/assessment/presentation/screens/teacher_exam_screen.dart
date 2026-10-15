@@ -1357,8 +1357,11 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                             'id': att['id'],
                                             'assessment_type': 'exam',
                                             'assessment_id': exam.id,
+                                            'assessment_title': exam.title,
                                             'student_id': att['student_id'],
+                                            'student_full_name': studentName,
                                             'score': att['score'],
+                                            'max_score': exam.totalMarks,
                                             'teacher_feedback': att['teacher_feedback'],
                                           },
                                           onGraded: () {

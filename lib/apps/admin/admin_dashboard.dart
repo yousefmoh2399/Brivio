@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/di/injection.dart';
@@ -128,18 +130,59 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final startOfDay = '$todayStr 00:00:00';
       final endOfDay = '$todayStr 23:59:59';
 
-      final res = await Supabase.instance.client
-          .from('receipts')
-          .select('amount_minor')
-          .gte('issued_at', startOfDay)
-          .lte('issued_at', endOfDay);
-
       double sum = 0.0;
       int count = 0;
-      for (final row in res) {
-        sum += ((row['amount_minor'] as num? ?? 0) / 100.0);
-        count++;
-      }
+
+      // 1. Core receipts from Supabase
+      try {
+        final res = await Supabase.instance.client
+            .from('receipts')
+            .select('amount, amount_minor')
+            .gte('issued_at', startOfDay)
+            .lte('issued_at', endOfDay);
+
+        for (final row in res) {
+          if (row['amount'] != null) {
+            sum += (row['amount'] as num).toDouble();
+            count++;
+          } else if (row['amount_minor'] != null) {
+            sum += ((row['amount_minor'] as num).toDouble() / 100.0);
+            count++;
+          }
+        }
+      } catch (_) {}
+
+      // 2. Bookstore & Inventory POS Sales
+      try {
+        final salesRes = await Supabase.instance.client
+            .from('bookstore_sales')
+            .select('total_amount')
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay);
+
+        for (final row in salesRes) {
+          sum += ((row['total_amount'] as num?)?.toDouble() ?? 0.0);
+          count++;
+        }
+      } catch (_) {}
+
+      // 3. Local persistent POS sales log (in case of offline/cache checkout)
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final localSalesJson = prefs.getString('pos_daily_sales_$todayStr');
+        if (localSalesJson != null) {
+          final localSales = jsonDecode(localSalesJson) as List;
+          double localSum = 0.0;
+          for (final s in localSales) {
+            localSum += ((s['total_amount'] as num?)?.toDouble() ?? 0.0);
+          }
+          if (localSum > sum) {
+            sum = localSum;
+            count = localSales.length;
+          }
+        }
+      } catch (_) {}
+
       return {'todayCollected': sum, 'todayCount': count};
     } catch (_) {
       return {'todayCollected': 0.0, 'todayCount': 0};
@@ -153,6 +196,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
     });
 
     try {
+      final curUser = Supabase.instance.client.auth.currentUser;
+      String? centerId = widget.authViewModel.currentUser?.centerId;
+      if (centerId == null && curUser != null) {
+        try {
+          final p = await Supabase.instance.client
+              .from('profiles')
+              .select('center_id')
+              .eq('id', curUser.id)
+              .maybeSingle();
+          if (p != null && p['center_id'] != null) {
+            centerId = p['center_id'].toString();
+          }
+        } catch (_) {}
+      }
+
       final activeBranch = _selectedBranchId;
       final wrapper = SupabaseClientWrapper(Supabase.instance.client);
       final studentRepo = SupabaseStudentRepository(wrapper);
@@ -164,6 +222,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
       final summaryRepo = SupabaseAcademySummaryRepository(wrapper);
       final paymentRepo = SupabasePaymentRepository(wrapper);
       final notificationRepo = getIt<INotificationRepository>();
+
+      // Fetch branches for this center
+      List<Branch> centerBranches = [];
+      if (centerId != null) {
+        try {
+          final bRes = await Supabase.instance.client
+              .from('branches')
+              .select()
+              .eq('center_id', centerId)
+              .order('name');
+          centerBranches = (bRes as List)
+              .map((j) => Branch.fromJson(Map<String, dynamic>.from(j as Map)))
+              .toList();
+        } catch (_) {}
+      }
+      if (centerBranches.isEmpty) {
+        centerBranches = await branchRepo.fetchBranches().catchError((_) => <Branch>[]);
+      }
+      final centerBranchIds = centerBranches.map((b) => b.id).toSet();
 
       final results = await Future.wait([
         studentRepo.fetchStudents(branchId: activeBranch, pageSize: 500).catchError(
@@ -245,20 +322,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       setState(() {
         final studentResult = results[0] as PaginatedResult<Student>;
-        _students = studentResult.data;
-        _studentTotal = studentResult.total;
+        _students = centerBranchIds.isEmpty
+            ? studentResult.data
+            : studentResult.data
+                .where((s) => s.primaryBranchId.isEmpty || centerBranchIds.contains(s.primaryBranchId))
+                .toList();
+        _studentTotal = _students.length;
 
         final parentResult = results[1] as PaginatedResult<Parent>;
         _parents = parentResult.data;
         _parentTotal = parentResult.total;
 
         final teacherResult = results[2] as PaginatedResult<Teacher>;
-        _teachers = teacherResult.data;
-        _teacherTotal = teacherResult.total;
+        _teachers = centerBranchIds.isEmpty
+            ? teacherResult.data
+            : teacherResult.data
+                .where((t) => t.primaryBranchId.isEmpty || centerBranchIds.contains(t.primaryBranchId))
+                .toList();
+        _teacherTotal = _teachers.length;
 
-        _branches = results[3] as List<Branch>;
+        _branches = centerBranches;
         _subjects = results[4] as List<SubjectEntity>;
-        _groups = results[5] as List<GroupEntity>;
+        final allGroups = results[5] as List<GroupEntity>;
+        _groups = centerBranchIds.isEmpty
+            ? allGroups
+            : allGroups.where((g) => centerBranchIds.contains(g.branchId)).toList();
         _summary = results[6] as AcademyCoreSummary;
         _opsMetrics = results[7] as _AdminOpsMetrics;
         _recentActivity = results[8] as List<_AdminActivityItem>;
@@ -668,14 +756,10 @@ class _AdminOverview extends StatelessWidget {
         : teachers.where((t) => t.primaryBranchId == selectedBranchId).toList();
 
     // The count strictly represents the active center and selected branch, NEVER global database totals
-    final studentCount = selectedBranchId != null
-        ? scopedStudents.length
-        : (studentTotal > 0 ? studentTotal : scopedStudents.length);
-    final teacherCount = selectedBranchId != null
-        ? scopedTeachers.length
-        : (teacherTotal > 0 ? teacherTotal : scopedTeachers.length);
+    final studentCount = scopedStudents.length;
+    final teacherCount = scopedTeachers.length;
     final groupCount = scopedGroups.length;
-    final parentCount = parentTotal > 0 ? parentTotal : parents.length;
+    final parentCount = parents.length;
 
     final treasuryValue = '${_formatMoney(treasuryTotalCollected)} ج.م';
     final treasurySubtitle = treasuryTodayCollected > 0

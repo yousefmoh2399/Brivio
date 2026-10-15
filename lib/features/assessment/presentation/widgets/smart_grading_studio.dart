@@ -35,6 +35,9 @@ class SmartGradingStudioDialog extends StatefulWidget {
   final double maxScore;
   final String initialFeedback;
   final String? attachmentUrl;
+  final String? submissionText;
+  final String? assessmentTitle;
+  final String? assessmentType;
 
   const SmartGradingStudioDialog({
     super.key,
@@ -44,6 +47,9 @@ class SmartGradingStudioDialog extends StatefulWidget {
     this.maxScore = 20.0,
     this.initialFeedback = '',
     this.attachmentUrl,
+    this.submissionText,
+    this.assessmentTitle,
+    this.assessmentType,
   });
 
   @override
@@ -408,6 +414,100 @@ class _SmartGradingStudioDialogState extends State<SmartGradingStudioDialog> {
                             painter: _NotebookPaperBackgroundPainter(isDark: isDark),
                           ),
                         ),
+
+                        // If student submitted an image attachment (homework sheet / solution scan)
+                        if (widget.attachmentUrl != null && widget.attachmentUrl!.trim().isNotEmpty)
+                          Positioned.fill(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Center(
+                                child: Image.network(
+                                  widget.attachmentUrl!,
+                                  fit: BoxFit.contain,
+                                  loadingBuilder: (ctx, child, progress) {
+                                    if (progress == null) return child;
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  },
+                                  errorBuilder: (ctx, err, _) {
+                                    return Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.amber),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.broken_image_rounded, color: Colors.amber),
+                                            SizedBox(width: 8),
+                                            Text('تعذر تحميل صورة المرفق، يرجى التحقق من الشبكة'),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // If student wrote a text answer/essay/solution
+                        if (widget.submissionText != null && widget.submissionText!.trim().isNotEmpty)
+                          Positioned(
+                            top: 24,
+                            left: 32,
+                            right: 32,
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: (isDark ? const Color(0xFF1E293B) : Colors.white).withValues(alpha: 0.88),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isDark ? Colors.white24 : Colors.blueGrey.shade200,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.description_rounded, size: 16, color: Colors.blue),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'إجابة الطالب المكتوبة:',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    widget.submissionText!,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      height: 1.6,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
 
                         // Freehand ink drawing layer
                         Positioned.fill(

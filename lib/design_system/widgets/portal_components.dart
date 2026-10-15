@@ -324,7 +324,7 @@ class PortalHeader extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 640;
+          final isNarrow = constraints.maxWidth < 920;
 
           final headerInfo = Row(
             crossAxisAlignment: CrossAxisAlignment.center,

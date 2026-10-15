@@ -8,6 +8,7 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_curriculum_repositories.dart';
 import '../../domain/models/curriculum_models.dart';
+import '../../../attendance/presentation/screens/teacher_session_board_screen.dart';
 
 class CurriculumEditorScreen extends StatefulWidget {
   const CurriculumEditorScreen({super.key});
@@ -1010,6 +1011,22 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                                       ),
                                       trailing: _CurriculumActionMenu(
                                         actions: [
+                                          _CurriculumAction(
+                                            icon: Icons.draw_rounded,
+                                            color: Colors.indigo,
+                                            label: 'سبورة شرح الدرس التفاعلية 🎨',
+                                            onPressed: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => TeacherSessionBoardScreen(
+                                                    teacherId: Supabase.instance.client.auth.currentUser?.id ?? '',
+                                                    groupName: _selectedSubject?.name ?? 'المادة الدراسية',
+                                                    lessonTitle: lesson.title,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
                                           _CurriculumAction(
                                             icon: Icons.attach_file,
                                             color: Colors.purple,

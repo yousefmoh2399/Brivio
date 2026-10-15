@@ -216,6 +216,9 @@ class Exam {
       availableUntil != null && DateTime.now().isAfter(availableUntil!);
   bool get isOpenForStart =>
       status == 'published' && hasStarted && !isPastWindow;
+  double get totalMarks => questions.isNotEmpty
+      ? questions.fold<double>(0.0, (sum, q) => sum + q.defaultPoints)
+      : 100.0;
 }
 
 class ExamAttempt {

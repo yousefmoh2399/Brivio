@@ -129,6 +129,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
           actionsOverflowButtonSpacing: 8,
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsOverflowAlignment: OverflowBarAlignment.end,
           title: Row(
             children: [
               Container(
@@ -170,7 +172,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                       const SizedBox(height: 12),
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          if (constraints.maxWidth < 360) {
+                          if (constraints.maxWidth < 460) {
                             return Column(
                               children: [
                                 TextFormField(
@@ -355,6 +357,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
           actionsOverflowButtonSpacing: 8,
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsOverflowAlignment: OverflowBarAlignment.end,
           title: Row(
             children: [
               Container(
@@ -396,7 +400,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                       const SizedBox(height: 12),
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          if (constraints.maxWidth < 360) {
+                          if (constraints.maxWidth < 480) {
                             return Column(
                               children: [
                                 TextFormField(

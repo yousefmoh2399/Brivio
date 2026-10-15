@@ -1154,18 +1154,6 @@ class _QuickReviewFlashcardDeckState extends State<QuickReviewFlashcardDeck> {
         }
       }
 
-      if (list.isEmpty) {
-        list.add({
-          'tag': 'نظرة سريعة 🎯',
-          'title': widget.lesson!.title,
-          'teaser': 'المس الكارت للتعرف على محور درس اليوم في ${widget.lesson!.unitName} 🚀',
-          'tipTitle': 'محور محاضرة اليوم:',
-          'tipBody': 'استعد لمتابعة درس "${widget.lesson!.title}" ضمن وحدة "${widget.lesson!.unitName}". تأكد من إحضار كشكول الملاحظات ومراجعة الملزمة.',
-          'color': const Color(0xFF0284C7),
-          'icon': Icons.menu_book_rounded,
-        });
-      }
-
       if (mounted) {
         setState(() {
           _cards = list;

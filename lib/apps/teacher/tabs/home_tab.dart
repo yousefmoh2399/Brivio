@@ -740,6 +740,8 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
   late AnimationController _pulseController;
 
   String _currentGroup = '';
+  String? _currentGroupId;
+  String? _currentSessionId;
   String _roomName = 'القاعة الدراسية';
   int _totalEnrolled = 0;
   int _presentCount = 0;
@@ -762,11 +764,13 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
     if (widget.groupAnalytics.isNotEmpty) {
       final first = widget.groupAnalytics.first;
       _currentGroup = first.groupName;
+      _currentGroupId = first.groupId;
       _totalEnrolled = first.studentCount;
       _absentCount = first.absentCount;
       _presentCount = (first.studentCount - first.absentCount).clamp(0, first.studentCount);
     } else {
       _currentGroup = 'لا توجد مجموعات مسندة بعد';
+      _currentGroupId = null;
       _totalEnrolled = 0;
       _presentCount = 0;
       _absentCount = 0;
@@ -789,21 +793,22 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
         );
 
         final sessId = inProgress['id']?.toString();
+        final grpId = inProgress['group_id']?.toString();
         final grp = inProgress['groups'] as Map<String, dynamic>?;
         final rm = inProgress['rooms'] as Map<String, dynamic>?;
 
         if (sessId == null) return;
 
         final attendanceRows = await Supabase.instance.client
-            .from('attendance')
-            .select('student_id, status, students(student_code, profiles(full_name, phone_number))')
-            .eq('session_id', sessId);
+            .from('attendance_records')
+            .select('student_id, attendance_status, students(student_code, profiles(full_name, phone_number))')
+            .eq('class_session_id', sessId);
 
         final absentList = <Map<String, String>>[];
         int present = 0;
         for (final att in (attendanceRows as List)) {
-          final st = att['status']?.toString();
-          if (st == 'present' || st == 'late') {
+          final st = (att['attendance_status'] ?? att['status'])?.toString().toLowerCase();
+          if (st == 'present' || st == 'late' || st == 'attended') {
             present++;
           } else if (st == 'absent') {
             final stu = att['students'] as Map<String, dynamic>?;
@@ -819,6 +824,8 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
         if (mounted) {
           setState(() {
             _hasActiveSession = inProgress['status'] == 'in_progress';
+            _currentSessionId = sessId;
+            if (grpId != null) _currentGroupId = grpId;
             if (grp != null && grp['name'] != null) {
               _currentGroup = grp['name'].toString();
             }
@@ -1087,6 +1094,8 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                           teacherName: widget.teacherName,
                           groupName: _currentGroup,
                           roomName: _roomName,
+                          groupId: _currentGroupId,
+                          sessionId: _currentSessionId,
                           totalStudents: _totalEnrolled,
                           initialPresent: _presentCount,
                           initialAbsent: _absentCount,
@@ -1153,6 +1162,8 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                               teacherName: widget.teacherName,
                               groupName: _currentGroup,
                               roomName: _roomName,
+                              groupId: _currentGroupId,
+                              sessionId: _currentSessionId,
                               totalStudents: _totalEnrolled,
                               initialPresent: _presentCount,
                               initialAbsent: _absentCount,

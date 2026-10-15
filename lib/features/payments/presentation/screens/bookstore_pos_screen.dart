@@ -183,6 +183,20 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
 
       if (items.isNotEmpty) {
         if (mounted) {
+          // Merge with local inventory so stock deductions made on this device are preserved!
+          for (final item in items) {
+            final localIndex = _inventory.indexWhere(
+              (l) => l['id'] == item['id'] || l['title'] == item['title'],
+            );
+            if (localIndex != -1) {
+              final localStock = (_inventory[localIndex]['stock'] as num?)?.toInt() ?? 0;
+              // If local stock was deducted (lower than remote), prefer the deducted local stock
+              if (localStock < (item['stock'] as int)) {
+                item['stock'] = localStock;
+              }
+            }
+          }
+
           setState(() {
             _inventory.clear();
             _inventory.addAll(items);
@@ -403,13 +417,26 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
               if (newTitle.isEmpty) return;
 
               try {
-                await Supabase.instance.client.from('bookstore_items').update({
-                  'title': newTitle,
-                  'teacher': newTeacher,
-                  'price': newPrice,
-                  'stock': newStock,
-                  'updated_at': DateTime.now().toIso8601String(),
-                }).eq('id', item['id']);
+                final isUuid = RegExp(
+                  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+                ).hasMatch(item['id']?.toString() ?? '');
+                if (isUuid) {
+                  await Supabase.instance.client.from('bookstore_items').update({
+                    'title': newTitle,
+                    'teacher': newTeacher,
+                    'price': newPrice,
+                    'stock': newStock,
+                    'updated_at': DateTime.now().toIso8601String(),
+                  }).eq('id', item['id']);
+                } else {
+                  await Supabase.instance.client.from('bookstore_items').update({
+                    'title': newTitle,
+                    'teacher': newTeacher,
+                    'price': newPrice,
+                    'stock': newStock,
+                    'updated_at': DateTime.now().toIso8601String(),
+                  }).eq('title', item['title']);
+                }
               } catch (e) {
                 debugPrint('Supabase update bookstore item error: $e');
               }
@@ -459,13 +486,30 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
               try {
-                await Supabase.instance.client.from('bookstore_items').update({
-                  'status': 'archived',
-                  'updated_at': DateTime.now().toIso8601String(),
-                }).eq('id', item['id']);
+                final isUuid = RegExp(
+                  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+                ).hasMatch(item['id']?.toString() ?? '');
+                if (isUuid) {
+                  await Supabase.instance.client.from('bookstore_items').update({
+                    'status': 'archived',
+                    'updated_at': DateTime.now().toIso8601String(),
+                  }).eq('id', item['id']);
+                } else {
+                  await Supabase.instance.client.from('bookstore_items').update({
+                    'status': 'archived',
+                    'updated_at': DateTime.now().toIso8601String(),
+                  }).eq('title', item['title']);
+                }
               } catch (_) {
                 try {
-                  await Supabase.instance.client.from('bookstore_items').delete().eq('id', item['id']);
+                  final isUuid = RegExp(
+                    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+                  ).hasMatch(item['id']?.toString() ?? '');
+                  if (isUuid) {
+                    await Supabase.instance.client.from('bookstore_items').delete().eq('id', item['id']);
+                  } else {
+                    await Supabase.instance.client.from('bookstore_items').delete().eq('title', item['title']);
+                  }
                 } catch (_) {}
               }
 
@@ -564,10 +608,20 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
 
         // Persist stock deduction to Supabase
         try {
-          await Supabase.instance.client.from('bookstore_items').update({
-            'stock': newStock,
-            'updated_at': nowStr,
-          }).eq('id', bookId);
+          final isUuid = RegExp(
+            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+          ).hasMatch(bookId);
+          if (isUuid) {
+            await Supabase.instance.client.from('bookstore_items').update({
+              'stock': newStock,
+              'updated_at': nowStr,
+            }).eq('id', bookId);
+          } else {
+            await Supabase.instance.client.from('bookstore_items').update({
+              'stock': newStock,
+              'updated_at': nowStr,
+            }).eq('title', item['title']);
+          }
         } catch (e) {
           debugPrint('Error deducting stock in DB: $e');
         }
@@ -587,7 +641,25 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         ? _selectedStudent!['code']?.toString() ?? 'GEN-CASH'
         : 'GEN-CASH';
 
-    // 2. Persist financial collection to public.receipts
+    // 2. Persist to local cash register journal (guarantees money is NEVER lost even offline)
+    final todayKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final existingJson = prefs.getString('pos_daily_sales_$todayKey');
+      final List<dynamic> salesList = existingJson != null ? jsonDecode(existingJson) : [];
+      salesList.add({
+        'receipt_number': receiptNumber,
+        'student_name': studentName,
+        'student_code': studentCode,
+        'total_amount': total,
+        'cashier_name': _cashierName,
+        'items': receiptItems,
+        'created_at': nowStr,
+      });
+      await prefs.setString('pos_daily_sales_$todayKey', jsonEncode(salesList));
+    } catch (_) {}
+
+    // 3. Persist financial collection to public.receipts
     try {
       final receiptData = <String, dynamic>{
         'receipt_number': receiptNumber,
@@ -605,7 +677,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
       debugPrint('Error inserting bookstore receipt: $e');
     }
 
-    // 3. Persist financial transaction to public.payment_transactions
+    // 4. Persist financial transaction to public.payment_transactions
     try {
       await Supabase.instance.client.from('payment_transactions').insert({
         'amount': total,
@@ -614,14 +686,14 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         'transaction_type': 'payment',
         'provider': 'cash',
         'provider_transaction_id': 'BOOK-$receiptNumber',
-        'status': 'completed',
+        'status': 'succeeded',
         'occurred_at': nowStr,
       });
     } catch (e) {
       debugPrint('Error inserting payment transaction: $e');
     }
 
-    // 4. Log sales itemization to public.bookstore_sales
+    // 5. Log sales itemization to public.bookstore_sales
     try {
       await Supabase.instance.client.from('bookstore_sales').insert({
         'receipt_number': receiptNumber,
@@ -963,11 +1035,14 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item['title'],
+                                    child: InkWell(
+                                      onTap: () => _editBookDialog(item),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item['title'],
                                           style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -1011,6 +1086,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
                                       ],
                                     ),
                                   ),
+                                ),
                                   const SizedBox(width: 8),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,

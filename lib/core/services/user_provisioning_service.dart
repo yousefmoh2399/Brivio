@@ -17,6 +17,7 @@ class UserProvisioningService {
     required String fullName,
     required String role,
     String? branchId,
+    String? centerId,
     String? phoneNumber,
     String? gradeLevel,
     String? specialization,
@@ -39,6 +40,26 @@ class UserProvisioningService {
 
     final client = Supabase.instance.client;
 
+    // Resolve centerId from admin profile if not provided
+    String? effectiveCenterId = (centerId != null && centerId.trim().isNotEmpty)
+        ? centerId.trim()
+        : null;
+    if (effectiveCenterId == null) {
+      final curUser = client.auth.currentUser;
+      if (curUser != null) {
+        try {
+          final p = await client
+              .from('profiles')
+              .select('center_id')
+              .eq('id', curUser.id)
+              .maybeSingle();
+          if (p != null && p['center_id'] != null) {
+            effectiveCenterId = p['center_id'].toString();
+          }
+        } catch (_) {}
+      }
+    }
+
     // 1. Attempt trusted Edge Function 'provision-user' first if deployed
     try {
       final response = await client.functions.invoke(
@@ -48,6 +69,7 @@ class UserProvisioningService {
           'fullName': cleanName,
           'role': role,
           if (cleanBranchId != null) 'branchId': cleanBranchId,
+          if (effectiveCenterId != null) 'centerId': effectiveCenterId,
           if (cleanPhone != null) 'phoneNumber': cleanPhone,
           if (cleanGrade != null) 'gradeLevel': cleanGrade,
           if (cleanSpec != null) 'specialization': cleanSpec,
@@ -93,6 +115,7 @@ class UserProvisioningService {
             'full_name': cleanName,
             'role': role,
             if (cleanBranchId != null) 'branch_id': cleanBranchId,
+            if (effectiveCenterId != null) 'center_id': effectiveCenterId,
           },
         }),
       ).timeout(const Duration(seconds: 15));
@@ -163,6 +186,7 @@ class UserProvisioningService {
         'full_name': cleanName,
         'role': role,
         if (cleanBranchId != null) 'branch_id': cleanBranchId,
+        if (effectiveCenterId != null) 'center_id': effectiveCenterId,
         if (cleanPhone != null) 'phone_number': cleanPhone,
         'status': 'active',
         'updated_at': DateTime.now().toIso8601String(),

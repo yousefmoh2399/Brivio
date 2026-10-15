@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/whatsapp_service.dart';
 import '../../../student/presentation/widgets/student_digital_id_card.dart';
 import 'parent_financial_ledger_screen.dart';
@@ -11,51 +12,23 @@ class AcademicsViewModel {
   final List<ExamScore> recentExams;
   final List<ReportCard> reportCards;
   final List<ChartData> performanceHistory;
+  final double cumulativeGpa;
 
   AcademicsViewModel({
     required this.childName,
     required this.recentExams,
     required this.reportCards,
     required this.performanceHistory,
+    this.cumulativeGpa = 0.0,
   });
 
-  // Factory for mock data
-  factory AcademicsViewModel.mock(String name) {
+  factory AcademicsViewModel.empty(String name) {
     return AcademicsViewModel(
       childName: name,
-      recentExams: [
-        ExamScore(
-          subject: 'الرياضيات',
-          score: 92,
-          maxScore: 100,
-          date: '١٢ أكتوبر ٢٠٢٦',
-          grade: 'ممتاز',
-        ),
-        ExamScore(
-          subject: 'الفيزياء',
-          score: 88,
-          maxScore: 100,
-          date: '١٠ أكتوبر ٢٠٢٦',
-          grade: 'جيد جداً',
-        ),
-        ExamScore(
-          subject: 'اللغة العربية',
-          score: 95,
-          maxScore: 100,
-          date: '٠٨ أكتوبر ٢٠٢٦',
-          grade: 'ممتاز مرتفع',
-        ),
-      ],
-      reportCards: [
-        ReportCard(term: 'تقرير منتصف الفصل الدراسي الأول', gpa: 3.8, status: 'جاهز للتحميل'),
-        ReportCard(term: 'التقرير التراكمي الشامل', gpa: 3.9, status: 'جاهز للتحميل'),
-      ],
-      performanceHistory: [
-        ChartData(month: 'سبتمبر', value: 85),
-        ChartData(month: 'أكتوبر', value: 92),
-        ChartData(month: 'نوفمبر', value: 89),
-        ChartData(month: 'ديسمبر', value: 95),
-      ],
+      recentExams: const [],
+      reportCards: const [],
+      performanceHistory: const [],
+      cumulativeGpa: 0.0,
     );
   }
 }
@@ -99,11 +72,186 @@ class ChildDetailsScreen extends StatefulWidget {
 
 class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
   late AcademicsViewModel _viewModel;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = AcademicsViewModel.mock(widget.childData['name'] ?? 'Student');
+    _viewModel = AcademicsViewModel.empty(
+      widget.childData['name'] ?? widget.childData['full_name'] ?? 'الطالب',
+    );
+    _loadRealAcademicData();
+  }
+
+  Future<void> _loadRealAcademicData() async {
+    final studentId = widget.childData['id']?.toString();
+    final childName = widget.childData['name'] ?? widget.childData['full_name'] ?? 'الطالب';
+
+    if (studentId == null || studentId.isEmpty) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final client = Supabase.instance.client;
+
+      // 1. Fetch real exam attempts
+      final examAttemptsRes = await client
+          .from('exam_attempts')
+          .select('id, score, status, completed_at, exams(title, total_marks, subjects(name))')
+          .eq('student_id', studentId)
+          .order('completed_at', ascending: false)
+          .limit(10);
+
+      final examScores = <ExamScore>[];
+      final monthlyBuckets = <String, List<double>>{};
+      double totalScorePercentage = 0;
+      int scoredExamsCount = 0;
+
+      for (final row in (examAttemptsRes as List)) {
+        final examMap = row['exams'] as Map<String, dynamic>?;
+        final title = examMap?['title']?.toString() ??
+            examMap?['subjects']?['name']?.toString() ??
+            'اختبار تقييمي';
+        final score = (row['score'] as num?)?.round() ?? 0;
+        final maxScore = (examMap?['total_marks'] as num?)?.round() ?? 100;
+        final completedStr = row['completed_at']?.toString() ?? '';
+        final dt = DateTime.tryParse(completedStr)?.toLocal();
+        final dateStr = dt != null
+            ? '${dt.day}/${dt.month}/${dt.year}'
+            : 'مؤخراً';
+
+        final percentage = maxScore > 0 ? (score / maxScore) * 100 : 0.0;
+        totalScorePercentage += percentage;
+        scoredExamsCount++;
+
+        String grade;
+        if (percentage >= 90) {
+          grade = 'ممتاز';
+        } else if (percentage >= 80) {
+          grade = 'جيد جداً';
+        } else if (percentage >= 65) {
+          grade = 'جيد';
+        } else if (percentage >= 50) {
+          grade = 'مقبول';
+        } else {
+          grade = 'يحتاج دعم';
+        }
+
+        examScores.add(ExamScore(
+          subject: title,
+          score: score,
+          maxScore: maxScore,
+          date: dateStr,
+          grade: grade,
+        ));
+
+        if (dt != null) {
+          final monthName = _monthName(dt.month);
+          monthlyBuckets.putIfAbsent(monthName, () => []).add(percentage);
+        }
+      }
+
+      // 2. Fetch homework submissions
+      final hwRes = await client
+          .from('homework_submissions')
+          .select('id, score, status, submitted_at, homework(title, max_score)')
+          .eq('student_id', studentId)
+          .order('submitted_at', ascending: false)
+          .limit(10);
+
+      for (final hw in (hwRes as List)) {
+        final hwMap = hw['homework'] as Map<String, dynamic>?;
+        final score = (hw['score'] as num?)?.toDouble();
+        final max = (hwMap?['max_score'] as num?)?.toDouble() ?? 20.0;
+        if (score != null && max > 0) {
+          final pct = (score / max) * 100;
+          totalScorePercentage += pct;
+          scoredExamsCount++;
+          final dt = DateTime.tryParse(hw['submitted_at']?.toString() ?? '')?.toLocal();
+          if (dt != null) {
+            final monthName = _monthName(dt.month);
+            monthlyBuckets.putIfAbsent(monthName, () => []).add(pct);
+          }
+        }
+      }
+
+      // 3. Attendance records
+      final attRes = await client
+          .from('attendance_records')
+          .select('id, attendance_status')
+          .eq('student_id', studentId);
+      final attList = attRes as List;
+      final presentCount = attList.where((a) {
+        final s = (a['attendance_status'] ?? a['status'])?.toString().toLowerCase();
+        return s == 'present' || s == 'late' || s == 'attended';
+      }).length;
+      final totalSessions = attList.length;
+      final attendanceRate = totalSessions > 0
+          ? ((presentCount / totalSessions) * 100).toStringAsFixed(1)
+          : '100';
+
+      // 4. Performance history bars
+      final chartData = <ChartData>[];
+      if (monthlyBuckets.isNotEmpty) {
+        monthlyBuckets.forEach((month, pcts) {
+          final avg = pcts.reduce((a, b) => a + b) / pcts.length;
+          chartData.add(ChartData(month: month, value: avg.clamp(0, 100)));
+        });
+      } else {
+        final currentMonth = _monthName(DateTime.now().month);
+        chartData.add(ChartData(
+          month: currentMonth,
+          value: scoredExamsCount > 0 ? (totalScorePercentage / scoredExamsCount) : 0,
+        ));
+      }
+
+      final overallAvg = scoredExamsCount > 0
+          ? (totalScorePercentage / scoredExamsCount)
+          : 0.0;
+
+      // 5. Reports
+      final reports = <ReportCard>[
+        ReportCard(
+          term: 'سجل الحضور والانتظام',
+          gpa: double.tryParse(attendanceRate) ?? 100.0,
+          status: '$presentCount من $totalSessions حصص حضور',
+        ),
+        ReportCard(
+          term: 'التقييم الفصلي الشامل',
+          gpa: overallAvg,
+          status: '$scoredExamsCount اختبارات وواجبات مسجلة',
+        ),
+      ];
+
+      if (mounted) {
+        setState(() {
+          _viewModel = AcademicsViewModel(
+            childName: childName,
+            recentExams: examScores,
+            reportCards: reports,
+            performanceHistory: chartData,
+            cumulativeGpa: overallAvg,
+          );
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  static String _monthName(int m) {
+    const months = [
+      '', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+    if (m >= 1 && m <= 12) return months[m];
+    return 'الشهر';
   }
 
   @override
@@ -277,22 +425,42 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
               ),
               const SizedBox(height: 20),
 
-              _buildSectionTitle('المستوى العام والتطور الدراسي'),
-              const SizedBox(height: 12),
-              _buildPerformanceChart(),
-              const SizedBox(height: 24),
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                )
+              else ...[
+                _buildSectionTitle('المستوى العام والتطور الدراسي'),
+                const SizedBox(height: 12),
+                _buildPerformanceChart(),
+                const SizedBox(height: 24),
 
-              _buildSectionTitle('نتائج الاختبارات الأخيرة'),
-              const SizedBox(height: 12),
-              ..._viewModel.recentExams.map((exam) => _buildExamCard(exam)),
-              const SizedBox(height: 24),
+                _buildSectionTitle('نتائج الاختبارات الأخيرة'),
+                const SizedBox(height: 12),
+                if (_viewModel.recentExams.isEmpty)
+                  _buildGlassContainer(
+                    padding: const EdgeInsets.all(20),
+                    child: const Center(
+                      child: Text(
+                        'لم تسجل أي درجات اختبارات رسمية حتى الآن لهذا الطالب.',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ),
+                  )
+                else
+                  ..._viewModel.recentExams.map((exam) => _buildExamCard(exam)),
+                const SizedBox(height: 24),
 
-              _buildSectionTitle('التقارير والشهادات الدورية'),
-              const SizedBox(height: 12),
-              ..._viewModel.reportCards.map(
-                (report) => _buildReportCard(report),
-              ),
-              const SizedBox(height: 24),
+                _buildSectionTitle('التقارير والشهادات الدورية'),
+                const SizedBox(height: 12),
+                ..._viewModel.reportCards.map(
+                  (report) => _buildReportCard(report),
+                ),
+                const SizedBox(height: 24),
+              ],
             ],
           ),
         ),
@@ -351,14 +519,16 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
+            children: [
+              const Text(
                 'المعدل التراكمي العام',
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
               Text(
-                '91%',
-                style: TextStyle(
+                _viewModel.cumulativeGpa > 0
+                    ? '${_viewModel.cumulativeGpa.toStringAsFixed(1)}%'
+                    : '--',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

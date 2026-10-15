@@ -108,23 +108,47 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   Future<void> _loadConnectedStudents() async {
     try {
       final now = DateTime.now();
+      final todayDate = now.toIso8601String().split('T').first;
       final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
       final client = Supabase.instance.client;
 
-      var query = client
-          .from('attendance')
-          .select('id, status, recorded_at, student:students(id, student_code, profile:profiles(full_name))')
-          .gte('recorded_at', todayStart);
+      List<dynamic> rows = [];
 
+      // If groupId is provided, locate today's class_sessions for this group
       if (widget.groupId != null && widget.groupId!.isNotEmpty) {
-        query = query.eq('group_id', widget.groupId!);
+        final sessionRes = await client
+            .from('class_sessions')
+            .select('id')
+            .eq('group_id', widget.groupId!)
+            .eq('session_date', todayDate);
+        final sessionIds = (sessionRes as List)
+            .map((s) => s['id']?.toString())
+            .whereType<String>()
+            .toList();
+
+        if (sessionIds.isNotEmpty) {
+          final attRes = await client
+              .from('attendance_records')
+              .select('id, attendance_status, student:students(id, student_code, profile:profiles(full_name))')
+              .inFilter('class_session_id', sessionIds);
+          rows = attRes as List;
+        }
+      } else {
+        // Direct attendance records query for today
+        try {
+          final attRes = await client
+              .from('attendance_records')
+              .select('id, attendance_status, student:students(id, student_code, profile:profiles(full_name))')
+              .gte('marked_at', todayStart)
+              .order('marked_at', ascending: false)
+              .limit(50);
+          rows = attRes as List;
+        } catch (_) {}
       }
 
-      final res = await query;
-
       final list = <Map<String, dynamic>>[];
-      for (final row in (res as List)) {
-        final st = row['status']?.toString().toLowerCase();
+      for (final row in rows) {
+        final st = (row['attendance_status'] ?? row['status'])?.toString().toLowerCase();
         if (st == 'present' || st == 'attended' || st == 'late') {
           final student = row['student'] as Map<String, dynamic>?;
           final profile = student?['profile'] as Map<String, dynamic>?;
@@ -190,21 +214,6 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
       setState(() {
         if (_timeRemaining > 0) {
           _timeRemaining--;
-
-          // If real students are in the room, update live responses for the active students
-          if (_liveLeaderboard.isNotEmpty && _timeRemaining % 3 == 0) {
-            final targetIdx = Random().nextInt(_liveLeaderboard.length);
-            final currentPoints = _liveLeaderboard[targetIdx]['points'] as int;
-            final addedPoints = 70 + Random().nextInt(30);
-            final speed = ((_secondsPerQuestion - _timeRemaining) + (Random().nextInt(9) / 10)).toStringAsFixed(1);
-            _liveLeaderboard[targetIdx]['points'] = currentPoints + addedPoints;
-            _liveLeaderboard[targetIdx]['speed'] = '${speed}s';
-
-            _liveLeaderboard.sort((a, b) => (b['points'] as int).compareTo(a['points'] as int));
-            for (int i = 0; i < _liveLeaderboard.length; i++) {
-              _liveLeaderboard[i]['avatar'] = i < avatars.length ? avatars[i] : '⚡';
-            }
-          }
         } else {
           final maxQ = _questions.isEmpty ? _selectedQuestionsCount : min(_selectedQuestionsCount, _questions.length);
           if (_activeQuestionIndex < maxQ - 1) {
@@ -439,10 +448,11 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
             if (_connectedCount == 0) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('تنبيه: لا يوجد طلاب متصلون حالياً في القاعة. شارك الـ PIN مع الطلاب للبدء!'),
+                  content: Text('تنبيه: لا يوجد طلاب حاضرون أو مسجلون في هذه الحصة حالياً. يجب تسجيل حضور الطلاب أو انضمامهم بالقاعة أولاً للبدء!'),
                   backgroundColor: Colors.orange,
                 ),
               );
+              return;
             }
             _startLiveCompetition();
           },

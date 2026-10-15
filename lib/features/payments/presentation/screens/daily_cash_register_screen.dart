@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/report_generator_service.dart';
@@ -154,6 +156,62 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
           'is_credit': true,
         });
       }
+
+      // Fetch bookstore POS sales
+      try {
+        final salesRes = await Supabase.instance.client
+            .from('bookstore_sales')
+            .select('receipt_number, student_name, total_amount, created_at')
+            .gte('created_at', startOfDay)
+            .lte('created_at', endOfDay)
+            .order('created_at', ascending: false);
+
+        for (final s in (salesRes as List<dynamic>)) {
+          final amt = (s['total_amount'] as num?)?.toDouble() ?? 0.0;
+          grossInflow += amt;
+          countInflow++;
+          final studentName = s['student_name']?.toString() ?? 'طالب نقدي';
+          final recNum = s['receipt_number']?.toString() ?? '';
+          logs.add({
+            'type': 'receipt',
+            'title': 'مبيعات مذكرات #$recNum • $studentName',
+            'amount': amt,
+            'time': s['created_at'] != null
+                ? DateFormat('hh:mm a').format(DateTime.parse(s['created_at']))
+                : 'اليوم',
+            'is_credit': true,
+          });
+        }
+      } catch (_) {}
+
+      // Fetch local persistent POS sales log if not in remote
+      try {
+        final dateKey = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+        final prefs = await SharedPreferences.getInstance();
+        final localSalesJson = prefs.getString('pos_daily_sales_$dateKey');
+        if (localSalesJson != null) {
+          final localSales = jsonDecode(localSalesJson) as List;
+          for (final ls in localSales) {
+            final recNum = ls['receipt_number']?.toString() ?? '';
+            final alreadyInLogs = logs.any((l) => (l['title'] as String).contains(recNum));
+            if (!alreadyInLogs) {
+              final amt = (ls['total_amount'] as num?)?.toDouble() ?? 0.0;
+              grossInflow += amt;
+              countInflow++;
+              final sName = ls['student_name']?.toString() ?? 'طالب نقدي';
+              logs.add({
+                'type': 'receipt',
+                'title': 'مبيعات مذكرات #$recNum • $sName',
+                'amount': amt,
+                'time': ls['created_at'] != null
+                    ? DateFormat('hh:mm a').format(DateTime.parse(ls['created_at']))
+                    : 'اليوم',
+                'is_credit': true,
+              });
+            }
+          }
+        }
+      } catch (_) {}
 
       // Fetch today's cash refunds or payouts
       double payouts = 0.0;

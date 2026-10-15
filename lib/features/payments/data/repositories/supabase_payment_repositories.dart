@@ -255,6 +255,15 @@ class SupabasePaymentRepository implements IPaymentRepository {
     } catch (_) {}
 
     try {
+      final salesRes =
+          await _wrapper.client.from('bookstore_sales').select('total_amount');
+      for (final row in salesRes) {
+        final amt = ((row['total_amount'] as num?)?.toDouble() ?? 0.0) * 100;
+        totalCollectedMinor += amt.toInt();
+      }
+    } catch (_) {}
+
+    try {
       final invoicesRes =
           await _wrapper.client.from('invoices').select('amount_minor, status');
       for (final row in invoicesRes) {

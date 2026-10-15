@@ -26,6 +26,8 @@ class LiveClassFocusModeScreen extends StatefulWidget {
   final String teacherName;
   final String groupName;
   final String roomName;
+  final String? groupId;
+  final String? sessionId;
   final int totalStudents;
   final int initialPresent;
   final int initialAbsent;
@@ -38,6 +40,8 @@ class LiveClassFocusModeScreen extends StatefulWidget {
     this.teacherName = 'معلمنا الفاضل',
     this.groupName = 'المجموعة الدراسية الحالية',
     this.roomName = 'القاعة الدراسية',
+    this.groupId,
+    this.sessionId,
     this.totalStudents = 0,
     this.initialPresent = 0,
     this.initialAbsent = 0,
@@ -117,22 +121,50 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
   Future<void> _loadLiveAttendance() async {
     try {
       final now = DateTime.now();
+      final todayDate = now.toIso8601String().split('T').first;
       final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
       final client = Supabase.instance.client;
 
-      final res = await client
-          .from('attendance')
-          .select('id, status, recorded_at, student:students(id, student_code, profile:profiles(full_name))')
-          .gte('recorded_at', todayStart)
-          .order('recorded_at', ascending: false)
-          .limit(10);
+      List<dynamic> rows = [];
+
+      String? activeSessionId = widget.sessionId;
+      if (activeSessionId == null && widget.groupId != null && widget.groupId!.isNotEmpty) {
+        final sessRes = await client
+            .from('class_sessions')
+            .select('id')
+            .eq('group_id', widget.groupId!)
+            .eq('session_date', todayDate)
+            .limit(1);
+        if ((sessRes as List).isNotEmpty) {
+          activeSessionId = sessRes.first['id']?.toString();
+        }
+      }
+
+      if (activeSessionId != null && activeSessionId.isNotEmpty) {
+        final res = await client
+            .from('attendance_records')
+            .select('id, attendance_status, marked_at, student:students(id, student_code, profile:profiles(full_name))')
+            .eq('class_session_id', activeSessionId)
+            .order('marked_at', ascending: false);
+        rows = res as List;
+      } else {
+        try {
+          final res = await client
+              .from('attendance_records')
+              .select('id, attendance_status, marked_at, student:students(id, student_code, profile:profiles(full_name))')
+              .gte('marked_at', todayStart)
+              .order('marked_at', ascending: false)
+              .limit(15);
+          rows = res as List;
+        } catch (_) {}
+      }
 
       final list = <Map<String, String>>[];
       int present = 0;
       int lateCount = 0;
 
-      for (final row in (res as List)) {
-        final st = row['status']?.toString().toLowerCase();
+      for (final row in rows) {
+        final st = (row['attendance_status'] ?? row['status'])?.toString().toLowerCase();
         if (st == 'present' || st == 'attended') {
           present++;
         } else if (st == 'late') {
@@ -140,7 +172,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
         }
         final sName = row['student']?['profile']?['full_name']?.toString() ?? 'طالب مسجل';
         final sCode = row['student']?['student_code']?.toString() ?? '';
-        final recStr = row['recorded_at']?.toString() ?? '';
+        final recStr = (row['marked_at'] ?? row['recorded_at'])?.toString() ?? '';
         final dt = DateTime.tryParse(recStr)?.toLocal();
         final timeStr = dt != null
             ? '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}'
@@ -881,6 +913,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
                             context,
                             groupName: widget.groupName,
                             subjectName: widget.groupName,
+                            groupId: widget.groupId,
                             teacherId: widget.teacherId,
                           );
                         },

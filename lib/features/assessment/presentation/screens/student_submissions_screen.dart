@@ -26,6 +26,8 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _allAttempts = [];
   Map<String, List<Map<String, dynamic>>> _answersByAttempt = {};
+  String? _studentFullName;
+  String? _assessmentTitle;
 
   late TextEditingController _scoreCtrl;
   late TextEditingController _feedbackCtrl;
@@ -57,6 +59,44 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
 
       final assessmentId = widget.initialSubmission['assessment_id'];
       final studentId = widget.initialSubmission['student_id'];
+
+      // Resolve student real name
+      final initialName = widget.initialSubmission['student_full_name'] ??
+          widget.initialSubmission['student_name'] ??
+          widget.initialSubmission['students']?['profiles']?['full_name'];
+      if (initialName != null && initialName.toString().isNotEmpty) {
+        _studentFullName = initialName.toString();
+      } else if (studentId != null) {
+        try {
+          final stuRes = await Supabase.instance.client
+              .from('students')
+              .select('student_code, profile:profiles(full_name)')
+              .eq('id', studentId)
+              .maybeSingle();
+          if (stuRes != null) {
+            final prof = stuRes['profile'] as Map<String, dynamic>?;
+            if (prof != null && prof['full_name'] != null) {
+              _studentFullName = prof['full_name'].toString();
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Resolve assessment title
+      if (widget.initialSubmission['assessment_title'] != null) {
+        _assessmentTitle = widget.initialSubmission['assessment_title'].toString();
+      } else if (assessmentId != null) {
+        try {
+          final aRes = await Supabase.instance.client
+              .from(isExam ? 'exams' : 'homework')
+              .select('title')
+              .eq('id', assessmentId)
+              .maybeSingle();
+          if (aRes != null && aRes['title'] != null) {
+            _assessmentTitle = aRes['title'].toString();
+          }
+        } catch (_) {}
+      }
 
       // Fetch all attempts for this student and assessment
       final attemptsRes = await Supabase.instance.client
@@ -495,17 +535,29 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                             label: const Text('فتح الاستوديو'),
                             onPressed: () async {
                               final currentScore = double.tryParse(_scoreCtrl.text) ?? 15.0;
+                              final openedSubmissionId = widget.initialSubmission['id']?.toString();
+                              final openedAttempt = _allAttempts
+                                  .cast<Map<String, dynamic>>()
+                                  .firstWhere(
+                                    (attempt) => attempt['id']?.toString() == openedSubmissionId,
+                                    orElse: () => _allAttempts.isNotEmpty ? _allAttempts.last : widget.initialSubmission,
+                                  );
+
                               final result = await showDialog<Map<String, dynamic>>(
                                 context: context,
                                 builder: (_) => SmartGradingStudioDialog(
-                                  studentName: widget.initialSubmission['students']?['profiles']?['full_name'] ??
-                                      widget.initialSubmission['student_name'] ??
-                                      'الطالب',
-                                  submissionId: widget.initialSubmission['id']?.toString() ?? '',
+                                  studentName: _studentFullName ??
+                                      widget.initialSubmission['student_full_name']?.toString() ??
+                                      widget.initialSubmission['student_name']?.toString() ??
+                                      'طالب مسجل',
+                                  submissionId: openedAttempt['id']?.toString() ?? widget.initialSubmission['id']?.toString() ?? '',
                                   initialScore: currentScore,
-                                  maxScore: 20.0,
+                                  maxScore: (widget.initialSubmission['max_score'] as num?)?.toDouble() ?? 20.0,
                                   initialFeedback: _feedbackCtrl.text,
-                                  attachmentUrl: widget.initialSubmission['attachment_url']?.toString(),
+                                  attachmentUrl: openedAttempt['attachment_url']?.toString() ?? widget.initialSubmission['attachment_url']?.toString(),
+                                  submissionText: openedAttempt['submission_text']?.toString() ?? widget.initialSubmission['submission_text']?.toString(),
+                                  assessmentTitle: _assessmentTitle ?? widget.initialSubmission['assessment_title']?.toString(),
+                                  assessmentType: widget.initialSubmission['assessment_type']?.toString(),
                                 ),
                               );
                               if (result != null && mounted) {

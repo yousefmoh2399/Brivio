@@ -1604,8 +1604,13 @@ class _HomeworkSubmissionsDialogContentState
             'id': sub['id'],
             'assessment_type': 'homework',
             'assessment_id': widget.homework.id,
+            'assessment_title': widget.homework.title,
             'student_id': r['student_id'],
+            'student_full_name': r['name'] ?? r['student_name'] ?? 'طالب',
             'score': sub['score'] ?? 0,
+            'max_score': widget.homework.maxScore,
+            'attachment_url': sub['attachment_url'],
+            'submission_text': sub['submission_text'],
             'teacher_feedback': sub['teacher_feedback'] ?? '',
           },
           onGraded: () {
