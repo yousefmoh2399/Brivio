@@ -324,7 +324,7 @@ class PortalHeader extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 560;
+          final isNarrow = constraints.maxWidth < 640;
 
           final headerInfo = Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -385,7 +385,10 @@ class PortalHeader extends StatelessWidget {
                 headerInfo,
                 if (trailing != null) ...[
                   const SizedBox(height: 14),
-                  trailing!,
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: trailing!,
+                  ),
                 ],
               ],
             );
@@ -397,7 +400,12 @@ class PortalHeader extends StatelessWidget {
               Expanded(child: headerInfo),
               if (trailing != null) ...[
                 const SizedBox(width: 14),
-                Flexible(child: trailing!),
+                Flexible(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: trailing!,
+                  ),
+                ),
               ],
             ],
           );
@@ -773,13 +781,15 @@ class PortalPageShell extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            minimumSize: const Size(48, 38),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           onPressed: action.onPressed,
           icon: Icon(action.icon, size: 18),
           label: Text(
             context.l10n.t(action.label),
-            style: AppTypography.labelLarge(Colors.white),
+            style: AppTypography.labelLarge(Colors.white).copyWith(fontSize: 13),
           ),
         );
       }
@@ -788,11 +798,16 @@ class PortalPageShell extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          minimumSize: const Size(48, 38),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: action.onPressed,
         icon: Icon(action.icon, size: 18),
-        label: Text(context.l10n.t(action.label)),
+        label: Text(
+          context.l10n.t(action.label),
+          style: const TextStyle(fontSize: 13),
+        ),
       );
     }
 
@@ -809,28 +824,24 @@ class PortalPageShell extends StatelessWidget {
               subtitle: subtitle,
               icon: icon,
               accentColor: accentColor,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (canPop)
-                    IconButton.filledTonal(
-                      tooltip: 'رجوع',
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      onPressed: () => Navigator.of(context).maybePop(),
-                    ),
-                  if (canPop && actions.isNotEmpty) const SizedBox(width: 8),
-                  if (actions.isNotEmpty)
-                    Wrap(
+              trailing: (canPop || actions.isNotEmpty)
+                  ? Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        if (canPop)
+                          IconButton.filledTonal(
+                            tooltip: 'رجوع',
+                            icon: const Icon(Icons.arrow_back_rounded),
+                            onPressed: () => Navigator.of(context).maybePop(),
+                          ),
                         ...secondaryActions.map(buildAction),
                         ...primaryActions.map(buildAction),
                       ],
-                    ),
-                ],
-              ),
+                    )
+                  : null,
             ),
             const SizedBox(height: 16),
             Expanded(child: child),

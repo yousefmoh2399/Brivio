@@ -127,6 +127,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowButtonSpacing: 8,
           title: Row(
             children: [
               Container(
@@ -146,50 +147,80 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'الاسم الكامل للطالب *',
-                        border: OutlineInputBorder(),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'الاسم الكامل للطالب *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
                       ),
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: codeCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'كود الطالب *',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (v) =>
-                                v == null || v.trim().isEmpty ? 'يرجى إدخال كود الطالب' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: phoneCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'رقم هاتف الطالب / واتساب',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.phone,
-                          ),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(height: 12),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth < 360) {
+                            return Column(
+                              children: [
+                                TextFormField(
+                                  controller: codeCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'كود الطالب *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (v) =>
+                                      v == null || v.trim().isEmpty ? 'يرجى إدخال كود الطالب' : null,
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: phoneCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'رقم هاتف الطالب / واتساب',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: codeCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'كود الطالب *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  validator: (v) =>
+                                      v == null || v.trim().isEmpty ? 'يرجى إدخال كود الطالب' : null,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: phoneCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'رقم هاتف الطالب / واتساب',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: selectedGrade,
@@ -233,7 +264,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               ),
             ),
           ),
-          actions: [
+        ),
+        actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
@@ -321,6 +353,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowButtonSpacing: 8,
           title: Row(
             children: [
               Container(
@@ -340,54 +373,88 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'الاسم الكامل للطالب *',
-                        border: OutlineInputBorder(),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'الاسم الكامل للطالب *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
                       ),
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: emailCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'البريد الإلكتروني *',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'يرجى إدخال البريد';
-                              if (!v.contains('@')) return 'بريد إلكتروني غير صالح';
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: phoneCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'رقم الهاتف / واتساب',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.phone,
-                          ),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(height: 12),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth < 360) {
+                            return Column(
+                              children: [
+                                TextFormField(
+                                  controller: emailCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'البريد الإلكتروني *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'يرجى إدخال البريد';
+                                    if (!v.contains('@')) return 'بريد إلكتروني غير صالح';
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: phoneCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'رقم الهاتف / واتساب',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: emailCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'البريد الإلكتروني *',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'يرجى إدخال البريد';
+                                    if (!v.contains('@')) return 'بريد إلكتروني غير صالح';
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: phoneCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'رقم الهاتف / واتساب',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: selectedGrade,
@@ -445,7 +512,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               ),
             ),
           ),
-          actions: [
+        ),
+        actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
