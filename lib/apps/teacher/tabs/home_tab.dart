@@ -1090,6 +1090,7 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                           totalStudents: _totalEnrolled,
                           initialPresent: _presentCount,
                           initialAbsent: _absentCount,
+                          absentStudents: _absentStudents,
                         ),
                       ),
                     );
@@ -1155,6 +1156,7 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                               totalStudents: _totalEnrolled,
                               initialPresent: _presentCount,
                               initialAbsent: _absentCount,
+                              absentStudents: _absentStudents,
                             ),
                           ),
                         );

@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/services/whatsapp_service.dart';
 import 'teacher_session_board_screen.dart';
 import '../../../assessment/presentation/widgets/live_blitz_quiz_dialog.dart';
 import '../../../communication/presentation/screens/class_broadcast_dialog.dart';
@@ -28,17 +30,19 @@ class LiveClassFocusModeScreen extends StatefulWidget {
   final int initialPresent;
   final int initialAbsent;
   final int sessionDurationMinutes;
+  final List<Map<String, String>> absentStudents;
 
   const LiveClassFocusModeScreen({
     super.key,
     required this.teacherId,
     this.teacherName = 'معلمنا الفاضل',
-    this.groupName = 'فيزياء 3 ثانوي - مجموعة التميز A',
-    this.roomName = 'قاعة نيوتن 1 (الفرع الرئيسي)',
-    this.totalStudents = 42,
-    this.initialPresent = 38,
-    this.initialAbsent = 4,
+    this.groupName = 'المجموعة الدراسية الحالية',
+    this.roomName = 'القاعة الدراسية',
+    this.totalStudents = 0,
+    this.initialPresent = 0,
+    this.initialAbsent = 0,
     this.sessionDurationMinutes = 120,
+    this.absentStudents = const [],
   });
 
   @override
@@ -49,26 +53,23 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
     with TickerProviderStateMixin {
   late Timer _clockTimer;
   late Timer _qrRotationTimer;
+  Timer? _attendancePollTimer;
   late AnimationController _pulseController;
   late AnimationController _bellController;
 
-  int _elapsedSeconds = 42 * 60; // 42 minutes elapsed initially
+  int _elapsedSeconds = 0; // Starts from 0 seconds
   int _qrTimeRemaining = 20;
   String _currentQrToken = '';
 
-  int _presentCount = 38;
-  int _absentCount = 4;
-  final int _lateCount = 2;
+  int _presentCount = 0;
+  int _absentCount = 0;
+  int _lateCount = 0;
 
   ClassPhase _currentPhase = ClassPhase.lecture;
   bool _isSilenceAlertActive = false;
 
-  final List<Map<String, String>> _recentCheckIns = [
-    {'name': 'عمر أحمد محمود', 'time': '16:15', 'seat': 'قاعة 1 - مقعد B4'},
-    {'name': 'مريم حسام الدين', 'time': '16:18', 'seat': 'قاعة 1 - مقعد A12'},
-    {'name': 'زياد طارق إبراهيم', 'time': '16:22', 'seat': 'قاعة 1 - مقعد C2'},
-    {'name': 'فاطمة خالد علي', 'time': '16:25', 'seat': 'قاعة 1 - مقعد D7'},
-  ];
+  List<Map<String, String>> _recentCheckIns = [];
+  bool _isLoadingAttendance = true;
 
   @override
   void initState() {
@@ -76,6 +77,12 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
     _presentCount = widget.initialPresent;
     _absentCount = widget.initialAbsent;
     _generateNewQrToken();
+    _loadLiveAttendance();
+
+    // Poll live attendance from database every 10 seconds during the projected session
+    _attendancePollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _loadLiveAttendance();
+    });
 
     _pulseController = AnimationController(
       vsync: this,
@@ -107,6 +114,66 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
     });
   }
 
+  Future<void> _loadLiveAttendance() async {
+    try {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
+      final client = Supabase.instance.client;
+
+      final res = await client
+          .from('attendance')
+          .select('id, status, recorded_at, student:students(id, student_code, profile:profiles(full_name))')
+          .gte('recorded_at', todayStart)
+          .order('recorded_at', ascending: false)
+          .limit(10);
+
+      final list = <Map<String, String>>[];
+      int present = 0;
+      int lateCount = 0;
+
+      for (final row in (res as List)) {
+        final st = row['status']?.toString().toLowerCase();
+        if (st == 'present' || st == 'attended') {
+          present++;
+        } else if (st == 'late') {
+          lateCount++;
+        }
+        final sName = row['student']?['profile']?['full_name']?.toString() ?? 'طالب مسجل';
+        final sCode = row['student']?['student_code']?.toString() ?? '';
+        final recStr = row['recorded_at']?.toString() ?? '';
+        final dt = DateTime.tryParse(recStr)?.toLocal();
+        final timeStr = dt != null
+            ? '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}'
+            : '--:--';
+        list.add({
+          'name': sName,
+          'time': timeStr,
+          'seat': sCode.isNotEmpty ? 'كود: $sCode' : 'قاعة المحاضرات',
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _recentCheckIns = list;
+          _isLoadingAttendance = false;
+          if (present > 0) {
+            _presentCount = present;
+            _lateCount = lateCount;
+            if (widget.totalStudents > 0) {
+              _absentCount = math.max(0, widget.totalStudents - _presentCount);
+            }
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingAttendance = false;
+        });
+      }
+    }
+  }
+
   void _generateNewQrToken() {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final randomSuffix = math.Random().nextInt(9999).toString().padLeft(4, '0');
@@ -117,6 +184,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
   void dispose() {
     _clockTimer.cancel();
     _qrRotationTimer.cancel();
+    _attendancePollTimer?.cancel();
     _pulseController.dispose();
     _bellController.dispose();
     super.dispose();
@@ -555,57 +623,86 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'آخر المسجلين بالقاعة مباشرة:',
                     style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    'مزامنة فورية ⚡',
-                    style: TextStyle(color: Color(0xFF14B8A6), fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
+                  if (_isLoadingAttendance)
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF14B8A6)),
+                    )
+                  else
+                    const Text(
+                      'مزامنة فورية ⚡',
+                      style: TextStyle(color: Color(0xFF14B8A6), fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                height: 48,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _recentCheckIns.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final item = _recentCheckIns[index];
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white12),
+              if (_recentCheckIns.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF14B8A6), size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        'في انتظار مسح الطلاب للباركود لتسجيل الحضور الحي بالقاعة 📱',
+                        style: TextStyle(color: Colors.white70, fontSize: 11),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 14),
-                          const SizedBox(width: 6),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                item['name']!,
-                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                '${item['time']} • ${item['seat']}',
-                                style: const TextStyle(color: Colors.white54, fontSize: 9),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                    ],
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 48,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _recentCheckIns.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final item = _recentCheckIns[index];
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 14),
+                            const SizedBox(width: 6),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  item['name']!,
+                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '${item['time']} • ${item['seat']}',
+                                  style: const TextStyle(color: Colors.white54, fontSize: 9),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -614,7 +711,9 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
   }
 
   Widget _buildCockpitControlsSection() {
-    final attendancePct = ((_presentCount / widget.totalStudents) * 100).toStringAsFixed(1);
+    final attendancePct = widget.totalStudents > 0
+        ? ((_presentCount / widget.totalStudents) * 100).toStringAsFixed(1)
+        : (_presentCount > 0 ? '100.0' : '0.0');
 
     return Column(
       children: [
@@ -808,13 +907,22 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
                         color: const Color(0xFFDC2626),
                         icon: Icons.warning_amber_rounded,
                         onTap: () {
+                          if (_absentCount == 0 && widget.absentStudents.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('ممتاز! لا يوجد طلاب غائبين مسجلين لهذه الحصة 👏'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            return;
+                          }
                           showDialog(
                             context: context,
                             builder: (ctx) => AlertDialog(
                               backgroundColor: const Color(0xFF1E293B),
                               title: const Text('إرسال إنذار غياب فوري', style: TextStyle(color: Colors.white)),
                               content: Text(
-                                'سيتم إرسال إشعار فوري لـ $_absentCount أولياء أمور للطلاب الذين لم يمرروا الباركود حتى الآن.',
+                                'سيتم إرسال إشعار فوري لـ $_absentCount أولياء أمور للطلاب الذين لم يمرروا الباركود حتى الآن في ${widget.groupName}.',
                                 style: const TextStyle(color: Colors.white70),
                               ),
                               actions: [
@@ -824,14 +932,40 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
                                 ),
                                 FilledButton(
                                   style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
-                                  onPressed: () {
+                                  onPressed: () async {
                                     Navigator.pop(ctx);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('تم إرسال إشعارات الغياب الفورية لأولياء الأمور بنجاح 🚨'),
-                                        backgroundColor: Color(0xFFDC2626),
-                                      ),
-                                    );
+
+                                    try {
+                                      final client = Supabase.instance.client;
+                                      for (final s in widget.absentStudents) {
+                                        await client.from('notifications').insert({
+                                          'title': 'تنبيه غياب فوري: ${widget.groupName}',
+                                          'body': 'نحيطكم علماً بأن الطالب ${s['name']} لم يمرر الباركود في حصة اليوم بقاعة ${widget.roomName}.',
+                                          'type': 'absence_alert',
+                                          'created_at': DateTime.now().toIso8601String(),
+                                        });
+
+                                        final phone = s['phone'];
+                                        if (phone != null && phone.isNotEmpty) {
+                                          await WhatsAppService.sendAbsenceNotice(
+                                            parentPhone: phone,
+                                            studentName: s['name'] ?? 'الطالب',
+                                            subjectName: widget.groupName,
+                                            centerName: 'منظومة بريفيو التعليمية المتطورة',
+                                            sessionDate: DateTime.now().toString().split(' ')[0],
+                                          );
+                                        }
+                                      }
+                                    } catch (_) {}
+
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('تم إرسال إشعارات الغياب الفورية في النظام بنجاح 🚨'),
+                                          backgroundColor: Color(0xFFDC2626),
+                                        ),
+                                      );
+                                    }
                                   },
                                   child: const Text('إرسال الإنذار الآن'),
                                 ),
