@@ -730,12 +730,13 @@ class _AdminOverview extends StatelessWidget {
                   ),
                 );
               },
-              onOpenBookstorePos: () {
-                Navigator.of(context).push(
+              onOpenBookstorePos: () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const BookstorePosScreen(),
                   ),
                 );
+                onRetry();
               },
             ),
           ),
@@ -791,12 +792,13 @@ class _AdminOverview extends StatelessWidget {
                   ),
                 );
               },
-              onOpenBookstorePos: () {
-                Navigator.of(context).push(
+              onOpenBookstorePos: () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const BookstorePosScreen(),
                   ),
                 );
+                onRetry();
               },
               onOpenAuditLog: () => onNavigate(16),
               onOpenEmergencyBroadcast: () => _openCenterEmergencyBroadcastDialog(context),

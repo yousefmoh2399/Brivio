@@ -663,12 +663,13 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   ),
                   IconButton.filledTonal(
                     tooltip: 'بيع الملازم والمخزن (POS)',
-                    onPressed: () {
-                      Navigator.of(context).push(
+                    onPressed: () async {
+                      await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const BookstorePosScreen(),
                         ),
                       );
+                      _loadStaffData();
                     },
                     icon: const Icon(Icons.shopping_bag_rounded),
                   ),
@@ -782,12 +783,13 @@ class _StaffDashboardState extends State<StaffDashboard> {
               ),
             );
           },
-          onOpenBookstorePos: () {
-            Navigator.of(context).push(
+          onOpenBookstorePos: () async {
+            await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const BookstorePosScreen(),
               ),
             );
+            _loadStaffData();
           },
           onOpenCashRegister: () {
             Navigator.of(context).push(
