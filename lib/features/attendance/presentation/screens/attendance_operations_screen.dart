@@ -60,7 +60,8 @@ class _AttendanceOperationsScreenState
       final rawLeaves = await Supabase.instance.client
           .from('leave_requests')
           .select()
-          .order('submitted_at', ascending: false);
+          .order('submitted_at', ascending: false)
+          .limit(50);
       final leaves = (rawLeaves as List)
           .map((j) => LeaveRequest.fromJson(j as Map<String, dynamic>))
           .toList();
