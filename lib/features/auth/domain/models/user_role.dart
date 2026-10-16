@@ -68,4 +68,23 @@ enum UserRole {
         return 'User';
     }
   }
+
+  String get displayNameArabic {
+    switch (this) {
+      case UserRole.superAdmin:
+        return 'المدير العام';
+      case UserRole.admin:
+        return 'إدارة السنتر';
+      case UserRole.staff:
+        return 'فريق العمليات';
+      case UserRole.teacher:
+        return 'المعلم';
+      case UserRole.parent:
+        return 'ولي الأمر';
+      case UserRole.student:
+        return 'الطالب';
+      case UserRole.unknown:
+        return 'مستخدم';
+    }
+  }
 }

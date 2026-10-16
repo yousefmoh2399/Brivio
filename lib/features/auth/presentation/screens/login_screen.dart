@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/components/buttons.dart';
@@ -15,6 +16,7 @@ import '../../domain/models/user_role.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../../academy/presentation/screens/register_center_screen.dart';
 import '../../../legal/presentation/screens/privacy_and_terms_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final UserRole? targetRole;
@@ -38,6 +40,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberMe = true;
+  UserRole? _selectedRole;
   String? _qrMessage;
   String? _pendingQrToken;
 
@@ -49,10 +53,12 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+    _selectedRole = widget.targetRole;
     _ambientCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 20),
     )..repeat();
+    _loadSavedCredentials();
   }
 
   @override
@@ -67,13 +73,45 @@ class _LoginScreenState extends State<LoginScreen>
   void didUpdateWidget(LoginScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.targetRole != widget.targetRole) {
-      _roleCircle = null;
+      setState(() {
+        _selectedRole = widget.targetRole;
+        _roleCircle = null;
+      });
     }
   }
 
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final remember = prefs.getBool('brivio_remember_login') ?? true;
+      final savedEmail = prefs.getString('brivio_saved_email');
+      if (mounted) {
+        setState(() {
+          _rememberMe = remember;
+          if (remember && savedEmail != null && savedEmail.isNotEmpty) {
+            _emailController.text = savedEmail;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('brivio_remember_login', _rememberMe);
+      if (_rememberMe) {
+        await prefs.setString('brivio_saved_email', _emailController.text.trim());
+      } else {
+        await prefs.remove('brivio_saved_email');
+      }
+    } catch (_) {}
+  }
+
   Color get _roleColor {
-    if (widget.targetRole == null) return AppColors.primary;
-    switch (widget.targetRole!) {
+    final effectiveRole = _selectedRole ?? widget.targetRole;
+    if (effectiveRole == null) return AppColors.primary;
+    switch (effectiveRole) {
       case UserRole.student:
         return AppColors.studentRole;
       case UserRole.teacher:
@@ -92,6 +130,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _handleLogin() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    await _persistCredentials();
 
     await widget.viewModel.signIn(
       email: _emailController.text.trim(),
@@ -128,9 +168,8 @@ class _LoginScreenState extends State<LoginScreen>
     if (result == null || !mounted) return;
 
     if (result.isMagicQr) {
-      // Auto-login flow
       setState(() {
-        _qrMessage = 'Logging in automatically for ${result.email}...';
+        _qrMessage = 'جاري تسجيل الدخول التلقائي لحساب ${result.email}...';
       });
       await widget.viewModel.signInWithMagicQr(
         email: result.email,
@@ -140,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen>
         widget.onLoginSuccess?.call();
       } else {
         setState(() {
-          _qrMessage = null; // Error will be shown via AuthStatus.error
+          _qrMessage = null;
         });
       }
     } else {
@@ -159,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() {
       _emailController.text = result.email;
       _pendingQrToken = null;
-      _qrMessage = 'Password saved. Signing in for ${result.fullName}...';
+      _qrMessage = 'تم تعيين كلمة المرور بنجاح. جاري تسجيل دخول ${result.fullName}...';
     });
 
     await widget.viewModel.signIn(email: result.email, password: password);
@@ -172,6 +211,34 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  void _fillQuickCredentials(String email, String password, UserRole role) {
+    setState(() {
+      _selectedRole = role;
+      _roleCircle = null;
+      _emailController.text = email;
+      _passwordController.text = password;
+    });
+  }
+
+  String _formatErrorMessage(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('invalid login credentials') ||
+        lower.contains('invalid credentials') ||
+        lower.contains('wrong password')) {
+      return 'بيانات الدخول غير صحيحة. يرجى مراجعة البريد وكلمة المرور.';
+    }
+    if (lower.contains('email not confirmed')) {
+      return 'البريد الإلكتروني غير مؤكد. يرجى تفعيل حسابك أولاً.';
+    }
+    if (lower.contains('network') || lower.contains('socketexception') || lower.contains('failed host lookup')) {
+      return 'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.';
+    }
+    if (lower.contains('too many requests')) {
+      return 'محاولات دخول كثيرة خاطئة. يرجى الانتظار قليلاً ثم المحاولة.';
+    }
+    return raw;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -182,260 +249,348 @@ class _LoginScreenState extends State<LoginScreen>
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
-    return ListenableBuilder(
-      listenable: widget.viewModel,
-      builder: (context, _) {
-        final state = widget.viewModel.state;
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: ListenableBuilder(
+        listenable: widget.viewModel,
+        builder: (context, _) {
+          final state = widget.viewModel.state;
 
-        return Scaffold(
-          backgroundColor: isDark
-              ? AppColors.darkBackground
-              : AppColors.lightBackground,
-          body: Stack(
-            children: [
-              // High-performance animated ambient background with zero-cost RadialGradient glows
-              if (isDark) ...[
-                Builder(
-                  builder: (context) {
-                    _roleCircle ??= Container(
-                      width: 440,
-                      height: 440,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            _roleColor.withValues(alpha: 0.24),
-                            _roleColor.withValues(alpha: 0.0),
-                          ],
-                        ),
-                      ),
-                    );
-                    _purpleCircle ??= Container(
-                      width: 520,
-                      height: 520,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            AppColors.purple.withValues(alpha: 0.18),
-                            AppColors.purple.withValues(alpha: 0.0),
-                          ],
-                        ),
-                      ),
-                    );
-                    return const SizedBox();
-                  },
-                ),
-                AnimatedBuilder(
-                  animation: _ambientCtrl,
-                  builder: (context, child) {
-                    return Stack(
-                      children: [
-                        Positioned(
-                          top:
-                              -150 +
-                              math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
-                          left:
-                              -100 +
-                              math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
-                          child: _roleCircle!,
-                        ),
-                        Positioned(
-                          bottom:
-                              -200 +
-                              math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
-                          right:
-                              -100 +
-                              math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
-                          child: _purpleCircle!,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-
-              SafeArea(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 24,
-                    ),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          FadeInSlide(
-                            duration: const Duration(milliseconds: 600),
-                            child: _AppleHeroPanel(
-                              roleColor: _roleColor,
-                              role: widget.targetRole,
-                            ),
+          return Scaffold(
+            backgroundColor: isDark
+                ? AppColors.darkBackground
+                : AppColors.lightBackground,
+            body: Stack(
+              children: [
+                // Animated ambient glow background
+                if (isDark) ...[
+                  Builder(
+                    builder: (context) {
+                      _roleCircle ??= Container(
+                        width: 440,
+                        height: 440,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              _roleColor.withValues(alpha: 0.28),
+                              _roleColor.withValues(alpha: 0.0),
+                            ],
                           ),
-                          const SizedBox(height: 32),
-                          FadeInSlide(
-                            duration: const Duration(milliseconds: 600),
-                            delay: const Duration(milliseconds: 150),
-                            child: GlassCard(
-                              padding: const EdgeInsets.all(28),
-                              color: isDark
-                                  ? AppColors.darkSurface.withValues(alpha: 0.75)
-                                  : Colors.white.withValues(alpha: 0.90),
-                              borderColor: isDark
-                                  ? AppColors.glassBorder
-                                  : AppColors.lightGlassBorder,
-                              blur: 0,
-                              child: Form(
-                                key: _formKey,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Sign In',
-                                      style: AppTypography.displayMedium(
-                                        textPrimary,
-                                      ).copyWith(letterSpacing: -0.5),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      widget.targetRole == null
-                                          ? 'Enter your credentials to access the platform.'
-                                          : 'Sign in to your ${widget.targetRole!.displayName.toLowerCase()} workspace.',
-                                      style: AppTypography.bodyMedium(
-                                        textSecondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 24),
+                        ),
+                      );
+                      _purpleCircle ??= Container(
+                        width: 520,
+                        height: 520,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              AppColors.purple.withValues(alpha: 0.20),
+                              AppColors.purple.withValues(alpha: 0.0),
+                            ],
+                          ),
+                        ),
+                      );
+                      return const SizedBox();
+                    },
+                  ),
+                  AnimatedBuilder(
+                    animation: _ambientCtrl,
+                    builder: (context, child) {
+                      return Stack(
+                        children: [
+                          Positioned(
+                            top: -150 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
+                            right: -100 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
+                            child: _roleCircle!,
+                          ),
+                          Positioned(
+                            bottom: -200 + math.cos(_ambientCtrl.value * 2 * math.pi) * 50,
+                            left: -100 + math.sin(_ambientCtrl.value * 2 * math.pi) * 50,
+                            child: _purpleCircle!,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
 
-                                    if (state.status == AuthStatus.error &&
-                                        state.failure != null) ...[
-                                      _AppleAlertBanner(
-                                        message: state.failure!.message,
-                                        isError: true,
-                                      ),
-                                      const SizedBox(height: 16),
-                                    ],
-                                    if (_qrMessage != null) ...[
-                                      _AppleAlertBanner(
-                                        message: _qrMessage!,
-                                        isError: false,
-                                      ),
-                                      const SizedBox(height: 16),
-                                    ],
+                SafeArea(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 20,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // ── 1. Hero Brand Panel ──
+                            FadeInSlide(
+                              duration: const Duration(milliseconds: 600),
+                              child: _AppleHeroPanel(
+                                roleColor: _roleColor,
+                                role: _selectedRole ?? widget.targetRole,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
 
-                                    CustomTextField(
-                                      label: 'Email',
-                                      hint: 'name@domain.com',
-                                      controller: _emailController,
-                                      keyboardType: TextInputType.emailAddress,
-                                      prefixIcon: Icons.alternate_email_rounded,
-                                      validator: (value) {
-                                        if (value == null ||
-                                            value.trim().isEmpty) {
-                                          return 'Please enter your email';
-                                        }
-                                        if (!value.contains('@')) {
-                                          return 'Please enter a valid email address';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    const SizedBox(height: 16),
-                                    CustomTextField(
-                                      label: 'Password',
-                                      hint: '••••••••',
-                                      controller: _passwordController,
-                                      obscureText: _obscurePassword,
-                                      prefixIcon: Icons.lock_outline_rounded,
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword
-                                              ? Icons.visibility_outlined
-                                              : Icons.visibility_off_outlined,
-                                          color: textSecondary,
-                                          size: 18,
-                                        ),
-                                        onPressed: () => setState(
-                                          () => _obscurePassword =
-                                              !_obscurePassword,
-                                        ),
-                                      ),
-                                      validator: (value) {
-                                        if (value == null ||
-                                            value.trim().isEmpty) {
-                                          return 'Please enter your password';
-                                        }
-                                        if (value.length < 6) {
-                                          return 'Password must be at least 6 characters';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    const SizedBox(height: 28),
-                                    PrimaryButton(
-                                      text: 'Sign In',
-                                      isLoading:
-                                          state.status == AuthStatus.loading,
-                                      onPressed: _handleLogin,
-                                      icon: Icons.arrow_forward_rounded,
-                                      color: _roleColor,
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          _roleColor,
-                                          HSLColor.fromColor(_roleColor)
-                                              .withLightness(
-                                                math.max(
-                                                  0.0,
-                                                  HSLColor.fromColor(
-                                                        _roleColor,
-                                                      ).lightness -
-                                                      0.1,
+                            // ── 2. Interactive Role Switcher ──
+                            FadeInSlide(
+                              duration: const Duration(milliseconds: 600),
+                              delay: const Duration(milliseconds: 100),
+                              child: _buildRoleSelectorBar(isDark),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // ── 3. Main Glass Card Form ──
+                            FadeInSlide(
+                              duration: const Duration(milliseconds: 600),
+                              delay: const Duration(milliseconds: 150),
+                              child: GlassCard(
+                                padding: const EdgeInsets.all(24),
+                                color: isDark
+                                    ? AppColors.darkSurface.withValues(alpha: 0.85)
+                                    : Colors.white.withValues(alpha: 0.94),
+                                borderColor: isDark
+                                    ? _roleColor.withValues(alpha: 0.25)
+                                    : AppColors.lightGlassBorder,
+                                blur: 0,
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'تسجيل الدخول',
+                                                style: AppTypography.displaySmall(textPrimary).copyWith(
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: -0.5,
                                                 ),
-                                              )
-                                              .toColor(),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'أهلاً بك مجدداً! أدخل بيانات حسابك للمتابعة.',
+                                                style: AppTypography.bodySmall(textSecondary),
+                                              ),
+                                            ],
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: _roleColor.withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Icon(Icons.lock_person_rounded, color: _roleColor, size: 24),
+                                          ),
                                         ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
                                       ),
-                                    ),
+                                      const SizedBox(height: 20),
 
-                                    if (widget.targetRole == UserRole.student ||
-                                        widget.targetRole == UserRole.parent ||
-                                        widget.targetRole == UserRole.teacher ||
-                                        widget.targetRole == UserRole.staff ||
-                                        widget.targetRole == UserRole.admin ||
-                                        widget.targetRole == null) ...[
+                                      // Alert banner
+                                      if (state.status == AuthStatus.error && state.failure != null) ...[
+                                        _AppleAlertBanner(
+                                          message: _formatErrorMessage(state.failure!.message),
+                                          isError: true,
+                                        ),
+                                        const SizedBox(height: 16),
+                                      ],
+                                      if (_qrMessage != null) ...[
+                                        _AppleAlertBanner(
+                                          message: _qrMessage!,
+                                          isError: false,
+                                        ),
+                                        const SizedBox(height: 16),
+                                      ],
+
+                                      // Email Field
+                                      CustomTextField(
+                                        label: 'البريد الإلكتروني',
+                                        hint: 'name@example.com',
+                                        controller: _emailController,
+                                        keyboardType: TextInputType.emailAddress,
+                                        prefixIcon: Icons.alternate_email_rounded,
+                                        validator: (value) {
+                                          if (value == null || value.trim().isEmpty) {
+                                            return 'يرجى إدخال البريد الإلكتروني';
+                                          }
+                                          if (!value.contains('@')) {
+                                            return 'صيغة البريد الإلكتروني غير صالحة';
+                                          }
+                                          return null;
+                                        },
+                                      ),
                                       const SizedBox(height: 16),
+
+                                      // Password Field
+                                      CustomTextField(
+                                        label: 'كلمة المرور',
+                                        hint: '••••••••',
+                                        controller: _passwordController,
+                                        obscureText: _obscurePassword,
+                                        prefixIcon: Icons.lock_outline_rounded,
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_outlined
+                                                : Icons.visibility_off_outlined,
+                                            color: textSecondary,
+                                            size: 20,
+                                          ),
+                                          onPressed: () => setState(
+                                            () => _obscurePassword = !_obscurePassword,
+                                          ),
+                                        ),
+                                        validator: (value) {
+                                          if (value == null || value.trim().isEmpty) {
+                                            return 'يرجى إدخال كلمة المرور';
+                                          }
+                                          if (value.length < 6) {
+                                            return 'كلمة المرور يجب ألا تقل عن 6 أحرف';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      const SizedBox(height: 12),
+
+                                      // Remember Me & Forgot Password Row
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          InkWell(
+                                            onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child: Checkbox(
+                                                    value: _rememberMe,
+                                                    activeColor: _roleColor,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    onChanged: (val) {
+                                                      if (val != null) {
+                                                        setState(() => _rememberMe = val);
+                                                      }
+                                                    },
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'تذكرني',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => ForgotPasswordScreen(
+                                                    viewModel: widget.viewModel,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                                              visualDensity: VisualDensity.compact,
+                                            ),
+                                            child: Text(
+                                              'نسيت كلمة المرور؟',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: _roleColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 22),
+
+                                      // Submit Button
+                                      PrimaryButton(
+                                        text: 'تسجيل الدخول',
+                                        isLoading: state.status == AuthStatus.loading,
+                                        onPressed: _handleLogin,
+                                        icon: Icons.login_rounded,
+                                        color: _roleColor,
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            _roleColor,
+                                            HSLColor.fromColor(_roleColor)
+                                                .withLightness(
+                                                  math.max(
+                                                    0.0,
+                                                    HSLColor.fromColor(_roleColor).lightness - 0.12,
+                                                  ),
+                                                )
+                                                .toColor(),
+                                          ],
+                                          begin: Alignment.topRight,
+                                          end: Alignment.bottomLeft,
+                                        ),
+                                      ),
+
+                                      // QR Login Button
+                                      const SizedBox(height: 14),
                                       GhostButton(
-                                        text: 'Sign in with QR Code',
+                                        text: 'تسجيل الدخول السريع عبر QR Code 📷',
                                         icon: Icons.qr_code_scanner_rounded,
-                                        onPressed:
-                                            state.status == AuthStatus.loading
+                                        onPressed: state.status == AuthStatus.loading
                                             ? null
                                             : _openQrLoginScanner,
                                         color: textPrimary,
                                       ),
-                                      const SizedBox(height: 12),
+
+                                      // Quick Demo Credentials Selector
+                                      const SizedBox(height: 16),
+                                      _buildQuickDemoAccounts(isDark),
+
+                                      // Register Center CTA
+                                      const SizedBox(height: 16),
                                       OutlinedButton.icon(
                                         style: OutlinedButton.styleFrom(
-                                          minimumSize: const Size(double.infinity, 48),
+                                          minimumSize: const Size(double.infinity, 46),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(14),
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
                                           side: BorderSide(
-                                            color: AppColors.primary.withValues(alpha: 0.5),
+                                            color: AppColors.primary.withValues(alpha: 0.4),
+                                            width: 1.2,
                                           ),
                                         ),
-                                        icon: const Icon(Icons.add_business_rounded, color: AppColors.primary),
+                                        icon: const Icon(
+                                          Icons.add_business_rounded,
+                                          color: AppColors.primary,
+                                          size: 18,
+                                        ),
                                         label: const Text(
-                                          'صاحب سنتر؟ سجّل سنترك الآن مجاناً',
+                                          'صاحب سنتر؟ سجّل سنترك الآن مجاناً 🏢',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: AppColors.primary,
-                                            fontSize: 14,
+                                            fontSize: 13,
                                           ),
                                         ),
                                         onPressed: state.status == AuthStatus.loading
@@ -452,43 +607,189 @@ class _LoginScreenState extends State<LoginScreen>
                                               },
                                       ),
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 18),
-                          FadeInSlide(
-                            duration: const Duration(milliseconds: 600),
-                            delay: const Duration(milliseconds: 250),
-                            child: TextButton.icon(
-                              onPressed: () => PrivacyAndTermsScreen.show(context),
-                              icon: Icon(
-                                Icons.shield_outlined,
-                                size: 14,
-                                color: textSecondary.withValues(alpha: 0.7),
-                              ),
-                              label: Text(
-                                'شروط الخدمة وسياسة الخصوصية وأمان البيانات',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: textSecondary.withValues(alpha: 0.8),
-                                  decoration: TextDecoration.underline,
+                            const SizedBox(height: 16),
+
+                            // ── 4. Privacy & Security Footer ──
+                            FadeInSlide(
+                              duration: const Duration(milliseconds: 600),
+                              delay: const Duration(milliseconds: 250),
+                              child: TextButton.icon(
+                                onPressed: () => PrivacyAndTermsScreen.show(context),
+                                icon: Icon(
+                                  Icons.shield_outlined,
+                                  size: 14,
+                                  color: textSecondary.withValues(alpha: 0.7),
+                                ),
+                                label: Text(
+                                  'شروط الخدمة وسياسة الخصوصية وأمان البيانات',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: textSecondary.withValues(alpha: 0.85),
+                                    decoration: TextDecoration.underline,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRoleSelectorBar(bool isDark) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildRoleChip(label: 'الكل', role: null, isDark: isDark),
+          const SizedBox(width: 6),
+          _buildRoleChip(label: '👨‍💼 الإدارة', role: UserRole.admin, isDark: isDark),
+          const SizedBox(width: 6),
+          _buildRoleChip(label: '👨‍🏫 المعلم', role: UserRole.teacher, isDark: isDark),
+          const SizedBox(width: 6),
+          _buildRoleChip(label: '🎓 الطالب', role: UserRole.student, isDark: isDark),
+          const SizedBox(width: 6),
+          _buildRoleChip(label: '👨‍👩‍👦 ولي الأمر', role: UserRole.parent, isDark: isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleChip({
+    required String label,
+    required UserRole? role,
+    required bool isDark,
+  }) {
+    final isSelected = (_selectedRole == role);
+    final chipColor = role == null
+        ? AppColors.primary
+        : switch (role) {
+            UserRole.admin || UserRole.superAdmin => AppColors.adminRole,
+            UserRole.teacher => AppColors.teacherRole,
+            UserRole.student => AppColors.studentRole,
+            UserRole.parent => AppColors.parentRole,
+            _ => AppColors.primary,
+          };
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedRole = role;
+          _roleCircle = null;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? chipColor.withValues(alpha: isDark ? 0.25 : 0.15)
+              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? chipColor : Colors.transparent,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected
+                ? chipColor
+                : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickDemoAccounts(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.black12,
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bolt_rounded, size: 14, color: Colors.amber),
+              const SizedBox(width: 4),
+              Text(
+                'تجربة سريعة بحسابات افتراضية:',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              _buildDemoFillChip('أدمن', 'admin@brivio.com', '123456', UserRole.admin, AppColors.adminRole),
+              _buildDemoFillChip('معلم', 'teacher@brivio.com', '123456', UserRole.teacher, AppColors.teacherRole),
+              _buildDemoFillChip('طالب', 'student@brivio.com', '123456', UserRole.student, AppColors.studentRole),
+              _buildDemoFillChip('ولي أمر', 'parent@brivio.com', '123456', UserRole.parent, AppColors.parentRole),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDemoFillChip(
+    String label,
+    String email,
+    String password,
+    UserRole role,
+    Color color,
+  ) {
+    return InkWell(
+      onTap: () => _fillQuickCredentials(email, password, role),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -501,11 +802,54 @@ class _AppleHeroPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    final IconData roleIcon;
+    final String roleSubtitle;
+    if (role == null) {
+      roleIcon = Icons.school_rounded;
+      roleSubtitle = 'المنظومة الرقمية الشاملة لإدارة المراكز والسناتر التعليمية';
+    } else {
+      switch (role!) {
+        case UserRole.admin:
+        case UserRole.superAdmin:
+          roleIcon = Icons.admin_panel_settings_rounded;
+          roleSubtitle = 'مساحة عمل إدارة السنتر والفروع والخزينة';
+          break;
+        case UserRole.teacher:
+          roleIcon = Icons.co_present_rounded;
+          roleSubtitle = 'بوابة المعلم لإدارة الحصص والطلاب والواجبات';
+          break;
+        case UserRole.student:
+          roleIcon = Icons.menu_book_rounded;
+          roleSubtitle = 'بوابة الطالب لمتابعة الدروس والواجبات والمذكرات';
+          break;
+        case UserRole.parent:
+          roleIcon = Icons.family_restroom_rounded;
+          roleSubtitle = 'بوابة ولي الأمر لمتابعة حضور ونتائج الأبناء';
+          break;
+        case UserRole.staff:
+          roleIcon = Icons.badge_rounded;
+          roleSubtitle = 'بوابة موظفي الاستقبال والعمليات';
+          break;
+        case UserRole.unknown:
+          roleIcon = Icons.school_rounded;
+          roleSubtitle = 'تسجيل الدخول إلى حسابك';
+          break;
+      }
+    }
+
     return Column(
       children: [
         GlowContainer(
           glowColor: roleColor,
-          glowOpacity: 0.25,
+          glowOpacity: 0.35,
           padding: const EdgeInsets.all(18),
           borderRadius: BorderRadius.circular(24),
           gradient: LinearGradient(
@@ -523,26 +867,35 @@ class _AppleHeroPanel extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          child: const Icon(
-            Icons.school_rounded,
+          child: Icon(
+            roleIcon,
             color: Colors.white,
-            size: 42,
+            size: 40,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         Text(
-          'Academy Platform',
-          style: AppTypography.hero(
-            Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkTextPrimary
-                : AppColors.lightTextPrimary,
-          ).copyWith(fontSize: 32),
+          'منظومة بريفيو التعليمية',
+          style: AppTypography.hero(textPrimary).copyWith(
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          roleSubtitle,
+          style: AppTypography.bodySmall(textSecondary).copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
           textAlign: TextAlign.center,
         ),
         if (role != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           StatusChip(
-            label: '${role!.displayName} Workspace',
+            label: 'مساحة ${role!.displayNameArabic}',
             status: ChipStatus.info,
           ),
         ],
@@ -561,13 +914,13 @@ class _AppleAlertBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final accentColor = isError ? AppColors.error : AppColors.info;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: accentColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: accentColor.withValues(alpha: 0.25),
-          width: 0.5,
+          width: 0.8,
         ),
       ),
       child: Row(
@@ -575,15 +928,15 @@ class _AppleAlertBanner extends StatelessWidget {
           Icon(
             isError ? Icons.error_outline_rounded : Icons.info_outline_rounded,
             color: accentColor,
-            size: 20,
+            size: 18,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
               style: AppTypography.bodyMedium(
                 accentColor,
-              ).copyWith(fontWeight: FontWeight.w500, fontSize: 13),
+              ).copyWith(fontWeight: FontWeight.w600, fontSize: 12),
             ),
           ),
         ],
@@ -636,7 +989,7 @@ class _QrPasswordSetupDialogState extends State<_QrPasswordSetupDialog> {
       if (response.status < 200 || response.status >= 300) {
         final data = response.data;
         final message = data is Map ? data['error']?.toString() : null;
-        throw Exception(message ?? 'QR password setup failed.');
+        throw Exception(message ?? 'فشل حفظ كلمة المرور للباركود.');
       }
 
       if (!mounted) return;
@@ -654,7 +1007,7 @@ class _QrPasswordSetupDialogState extends State<_QrPasswordSetupDialog> {
     final text = error.toString();
     if (text.contains('Requested function was not found') ||
         text.contains('status: 404')) {
-      return 'QR password setup service is not deployed yet. Deploy the complete-account-login-qr Supabase function, then try again.';
+      return 'خدمة إعداد كلمة مرور QR غير منشورة حالياً بالسيرفر.';
     }
     return text;
   }
@@ -669,103 +1022,111 @@ class _QrPasswordSetupDialogState extends State<_QrPasswordSetupDialog> {
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
-    return AlertDialog(
-      title: const Text('Set Your Password'),
-      content: SizedBox(
-        width: 380,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.primary.withValues(alpha: .14),
-                    child: const Icon(Icons.qr_code_2),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: const Text('تعيين كلمة المرور لحسابك'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          widget.result.fullName,
-                          style: AppTypography.titleMedium(textPrimary),
+                        CircleAvatar(
+                          backgroundColor: AppColors.primary.withValues(alpha: .14),
+                          child: const Icon(Icons.qr_code_2),
                         ),
-                        Text(
-                          widget.result.email,
-                          style: AppTypography.bodySmall(textSecondary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.result.fullName,
+                                style: AppTypography.titleMedium(textPrimary),
+                              ),
+                              Text(
+                                widget.result.email,
+                                style: AppTypography.bodySmall(textSecondary),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  labelText: 'New Password',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                    icon: Icon(
-                      _obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscure,
+                      decoration: InputDecoration(
+                        labelText: 'كلمة المرور الجديدة',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.length < 6) {
+                          return 'كلمة المرور يجب ألا تقل عن 6 أحرف.';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _confirmController,
+                      obscureText: _obscure,
+                      decoration: const InputDecoration(
+                        labelText: 'تأكيد كلمة المرور',
+                        prefixIcon: Icon(Icons.verified_user_outlined),
+                      ),
+                      validator: (value) {
+                        if (value != _passwordController.text) {
+                          return 'كلمات المرور غير متطابقة.';
+                        }
+                        return null;
+                      },
+                    ),
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                    ],
+                  ],
                 ),
-                validator: (value) {
-                  if (value == null || value.length < 6) {
-                    return 'Password must be at least 6 characters.';
-                  }
-                  return null;
-                },
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _confirmController,
-                obscureText: _obscure,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm Password',
-                  prefixIcon: Icon(Icons.verified_user_outlined),
-                ),
-                validator: (value) {
-                  if (value != _passwordController.text) {
-                    return 'Passwords do not match.';
-                  }
-                  return null;
-                },
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 12),
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-              ],
-            ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _isSaving ? null : () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton.icon(
+            onPressed: _isSaving ? null : _savePassword,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.login_rounded),
+            label: const Text('حفظ ومتابعة الدخول'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: _isSaving ? null : _savePassword,
-          icon: _isSaving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.login_rounded),
-          label: const Text('Continue'),
-        ),
-      ],
     );
   }
 }
@@ -826,7 +1187,7 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
           _QrLoginResult(
             token: decoded['token']?.toString() ?? '',
             email: decoded['email']?.toString() ?? '',
-            fullName: 'Account',
+            fullName: 'حساب مسجل',
             role: '',
             isMagicQr: true,
           ),
@@ -837,7 +1198,7 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
 
     final token = _extractAccountQrToken(value);
     if (token == null) {
-      setState(() => _errorMessage = 'This is not an account login QR.');
+      setState(() => _errorMessage = 'هذا الرمز ليس كود QR صالح لتسجيل الدخول.');
       return;
     }
 
@@ -858,7 +1219,7 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
         _QrLoginResult(
           token: token,
           email: json['email']?.toString() ?? '',
-          fullName: json['full_name']?.toString() ?? 'Account',
+          fullName: json['full_name']?.toString() ?? 'مستخدم',
           role: json['role']?.toString() ?? '',
         ),
       );
@@ -890,97 +1251,100 @@ class _QrLoginScannerSheetState extends State<_QrLoginScannerSheet> {
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-        child: Container(
-          height: MediaQuery.of(context).size.height * .75,
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.darkSurface.withValues(alpha: 0.8)
-                : Colors.white.withValues(alpha: 0.9),
-            border: Border(
-              top: BorderSide(
-                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                width: 0.5,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            height: MediaQuery.of(context).size.height * .75,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppColors.darkSurface.withValues(alpha: 0.8)
+                  : Colors.white.withValues(alpha: 0.9),
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  width: 0.5,
+                ),
               ),
             ),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  borderRadius: BorderRadius.circular(10),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Scan QR Code',
-                        style: AppTypography.displaySmall(textPrimary),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: IconButton.styleFrom(
-                        backgroundColor: isDark
-                            ? Colors.white12
-                            : Colors.black12,
-                      ),
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Stack(
-                      children: [
-                        MobileScanner(
-                          controller: _controller,
-                          onDetect: _handleCapture,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 24, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'مسح كود الدخول السريع (QR)',
+                          style: AppTypography.displaySmall(textPrimary),
                         ),
-                        if (_isResolving)
-                          Container(
-                            color: Colors.black54,
-                            alignment: Alignment.center,
-                            child: const CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: IconButton.styleFrom(
+                          backgroundColor: isDark
+                              ? Colors.white12
+                              : Colors.black12,
+                        ),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Stack(
+                        children: [
+                          MobileScanner(
+                            controller: _controller,
+                            onDetect: _handleCapture,
                           ),
-                      ],
+                          if (_isResolving)
+                            Container(
+                              color: Colors.black54,
+                              alignment: Alignment.center,
+                              child: const CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  _errorMessage ??
-                      'Position the QR code within the frame to sign in.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodyMedium(
-                    _errorMessage != null
-                        ? AppColors.error
-                        : (isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    _errorMessage ??
+                        'وجّه الكاميرا نحو كود بطاقة الدخول أو الكارنيه للدخول فوراً.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodyMedium(
+                      _errorMessage != null
+                          ? AppColors.error
+                          : (isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20), // Bottom safe area spacing
-            ],
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
