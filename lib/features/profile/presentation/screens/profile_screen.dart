@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../design_system/components/buttons.dart';
 import '../../../../design_system/components/cards.dart';
+import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/components/text_fields.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -129,31 +130,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      // Avatar Header
-                      CircleAvatar(
-                        radius: 46,
-                        backgroundColor: AppColors.primary.withValues(
-                          alpha: 0.15,
-                        ),
-                        backgroundImage:
-                            profile?.avatarUrl != null &&
-                                profile!.avatarUrl!.isNotEmpty
-                            ? NetworkImage(profile.avatarUrl!)
-                            : null,
-                        child:
-                            profile?.avatarUrl == null ||
-                                profile!.avatarUrl!.isEmpty
-                            ? Text(
-                                profile?.fullName.isNotEmpty == true
-                                    ? profile!.fullName[0].toUpperCase()
-                                    : 'U',
-                                style: AppTypography.displayLarge(
-                                  AppColors.primary,
-                                ),
-                              )
-                            : null,
+                      // Avatar Header with 1-tap photo picker
+                      EditableAvatar(
+                        avatarUrl: _avatarController.text,
+                        fullName: profile?.fullName ?? 'User',
+                        radius: 48,
+                        userId: profile?.id,
+                        userEmail: profile?.email,
+                        roleColor: AppColors.primary,
+                        onAvatarChanged: (newUrl) {
+                          setState(() {
+                            _avatarController.text = newUrl ?? '';
+                          });
+                          _saveProfile();
+                        },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Text(
                         profile?.fullName ?? context.tr('User'),
                         style: AppTypography.titleLarge(textPrimary),
@@ -162,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         '${profile?.role.displayName} • ${profile?.email ?? ''}',
                         style: AppTypography.bodyMedium(textSecondary),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
 
                       if (state.status == ProfileStatus.success &&
                           state.message != null) ...[
@@ -185,7 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CustomTextField(
-                              label: 'Full Name',
+                              label: 'الاسم بالكامل / Full Name',
                               controller: _nameController,
                               prefixIcon: Icons.person_outline,
                               validator: (v) => v == null || v.trim().isEmpty
@@ -194,18 +186,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 16),
                             CustomTextField(
-                              label: 'Phone Number',
-                              hint: '+1 234 567 8900',
+                              label: 'رقم الهاتف / Phone Number',
+                              hint: '+20 10 1234 5678',
                               controller: _phoneController,
                               keyboardType: TextInputType.phone,
                               prefixIcon: Icons.phone_outlined,
                             ),
                             const SizedBox(height: 16),
-                            CustomTextField(
-                              label: 'Avatar Image URL',
-                              hint: 'https://example.com/avatar.png',
-                              controller: _avatarController,
-                              prefixIcon: Icons.image_outlined,
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () async {
+                                final newUrl = await showModalBottomSheet<String?>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (ctx) => AvatarPickerBottomSheet(
+                                    currentAvatarUrl: _avatarController.text,
+                                    fullName: profile?.fullName ?? 'User',
+                                    roleColor: AppColors.primary,
+                                    userId: profile?.id,
+                                    userEmail: profile?.email,
+                                  ),
+                                );
+                                if (newUrl != null || newUrl == null && _avatarController.text.isNotEmpty) {
+                                  setState(() {
+                                    _avatarController.text = newUrl ?? '';
+                                  });
+                                  _saveProfile();
+                                }
+                              },
+                              icon: const Icon(Icons.add_a_photo_rounded, size: 18),
+                              label: const Text('تغيير أو رفع صورة شخصية 📷', style: TextStyle(fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -55,7 +56,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
 
       var profilesQuery = client
           .from('profiles')
-          .select('id, full_name, email, role, status, center_id, phone_number')
+          .select('id, full_name, email, role, status, center_id, phone_number, avatar_url')
           .inFilter('role', ['staff', 'admin']);
       if (_centerId != null) {
         profilesQuery = profilesQuery.eq('center_id', _centerId!);
@@ -506,14 +507,14 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
+          EditableAvatar(
+            avatarUrl: p['avatar_url'] as String?,
+            name: (p['full_name'] as String?) ?? 'موظف',
+            role: role,
+            userId: p['id']?.toString(),
+            userEmail: p['email']?.toString(),
             radius: 22,
-            backgroundColor: (isAdmin ? AppColors.adminRole : AppColors.info).withValues(alpha: 0.12),
-            child: Icon(
-              isAdmin ? Icons.admin_panel_settings : Icons.badge,
-              color: isAdmin ? AppColors.adminRole : AppColors.info,
-              size: 22,
-            ),
+            onAvatarChanged: (_) => _loadStaff(),
           ),
           const SizedBox(width: 14),
           Expanded(

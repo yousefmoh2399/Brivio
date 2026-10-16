@@ -284,6 +284,7 @@ class PortalHeader extends StatelessWidget {
   final IconData icon;
   final Color accentColor;
   final Widget? trailing;
+  final Widget? leading;
 
   const PortalHeader({
     super.key,
@@ -293,6 +294,7 @@ class PortalHeader extends StatelessWidget {
     required this.icon,
     required this.accentColor,
     this.trailing,
+    this.leading,
   });
 
   @override
@@ -329,19 +331,20 @@ class PortalHeader extends StatelessWidget {
           final headerInfo = Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: .14),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: accentColor.withValues(alpha: .25),
-                    width: 0.8,
+              leading ??
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: accentColor.withValues(alpha: .25),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Icon(icon, color: accentColor, size: 24),
                   ),
-                ),
-                child: Icon(icon, color: accentColor, size: 24),
-              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

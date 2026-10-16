@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -762,10 +763,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
+          EditableAvatar(
+            avatarUrl: s.avatarUrl,
+            name: s.fullName,
+            role: 'student',
+            userId: s.profileId,
+            userEmail: s.email,
             radius: 22,
-            backgroundColor: AppColors.studentRole.withValues(alpha: 0.12),
-            child: const Icon(Icons.school, color: AppColors.studentRole, size: 22),
+            onAvatarChanged: (_) => _loadStudents(),
           ),
           const SizedBox(width: 14),
           Expanded(

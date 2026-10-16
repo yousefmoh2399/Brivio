@@ -9,6 +9,7 @@ import '../../core/error/supabase_error_handler.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../core/settings/app_settings_screen.dart';
+import '../../design_system/components/editable_avatar.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/tokens/typography.dart';
 import '../../design_system/widgets/portal_components.dart';
@@ -406,6 +407,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildHeader() {
+    final parentUser = widget.authViewModel.currentUser;
     return PortalHeader(
       eyebrow: 'بوابة أولياء الأمور',
       title: _selectedChild?.fullName ?? 'لوحة متابعة ولي الأمر',
@@ -414,6 +416,20 @@ class _ParentDashboardState extends State<ParentDashboard> {
           : '${_selectedChild!.studentCode} • ${_childGroups.length} مجموعات نشطة',
       icon: Icons.family_restroom,
       accentColor: AppColors.parentRole,
+      leading: EditableAvatar(
+        avatarUrl: parentUser?.avatarUrl,
+        name: parentUser?.fullName ?? 'ولي الأمر',
+        role: 'parent',
+        userId: parentUser?.id,
+        userEmail: parentUser?.email,
+        radius: 23,
+        onAvatarChanged: (_) async {
+          if (mounted) {
+            await widget.authViewModel.restoreSession();
+            setState(() {});
+          }
+        },
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -485,6 +501,26 @@ class _ParentDashboardState extends State<ParentDashboard> {
           subtitle: 'إدارة حساب ولي الأمر وصلاحيات الدخول.',
         ),
         const SizedBox(height: 12),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: EditableAvatar(
+              avatarUrl: profile?.avatarUrl,
+              name: name,
+              role: 'parent',
+              userId: profile?.id,
+              userEmail: profile?.email,
+              radius: 46,
+              onAvatarChanged: (_) async {
+                if (mounted) {
+                  await widget.authViewModel.restoreSession();
+                  setState(() {});
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         PortalListCard(
           icon: Icons.account_circle,
           accentColor: AppColors.parentRole,

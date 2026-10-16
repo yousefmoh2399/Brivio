@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -72,29 +73,52 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: AppColors.primarySubtle,
-                        backgroundImage: (_avatarController.text.trim().isEmpty)
-                            ? null
-                            : NetworkImage(_avatarController.text.trim()),
-                        child: _avatarController.text.trim().isEmpty
-                            ? const Icon(
-                                Icons.person,
-                                size: 48,
-                                color: AppColors.primary,
-                              )
-                            : null,
+                      EditableAvatar(
+                        avatarUrl: _avatarController.text,
+                        name: _nameController.text.isNotEmpty
+                            ? _nameController.text
+                            : (user?.fullName ?? 'معلم'),
+                        role: 'teacher',
+                        userId: user?.id,
+                        userEmail: user?.email,
+                        radius: 48,
+                        onAvatarChanged: (newUrl) {
+                          setState(() {
+                            _avatarController.text = newUrl ?? '';
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          AvatarPickerBottomSheet.show(
+                            context: context,
+                            currentAvatarUrl: _avatarController.text,
+                            userName: _nameController.text.isNotEmpty
+                                ? _nameController.text
+                                : (user?.fullName ?? 'معلم'),
+                            userRole: 'teacher',
+                            userId: user?.id,
+                            userEmail: user?.email,
+                            onAvatarSelected: (newUrl) {
+                              setState(() {
+                                _avatarController.text = newUrl ?? '';
+                              });
+                            },
+                          );
+                        },
+                        icon: const Icon(Icons.photo_camera_rounded, size: 18),
+                        label: const Text('تغيير صورة الحساب'),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
-                          labelText: 'Full name',
+                          labelText: 'الاسم الكامل',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
                         validator: (value) => (value?.trim().isEmpty ?? true)
-                            ? 'Name is required'
+                            ? 'الاسم مطلوب'
                             : null,
                       ),
                       const SizedBox(height: 12),
@@ -102,19 +126,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
                         decoration: const InputDecoration(
-                          labelText: 'Phone number',
+                          labelText: 'رقم الهاتف',
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _avatarController,
-                        keyboardType: TextInputType.url,
-                        decoration: const InputDecoration(
-                          labelText: 'Avatar URL',
-                          prefixIcon: Icon(Icons.image_outlined),
-                        ),
-                        onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 16),
                       FilledButton.icon(

@@ -8,6 +8,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/security/permission.dart';
 import '../../core/settings/app_settings_screen.dart';
+import '../../design_system/components/editable_avatar.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
@@ -584,12 +585,12 @@ class _StaffDashboardState extends State<StaffDashboard> {
       onRefresh: _loadStaffData,
       onSignOut: widget.authViewModel.signOut,
       body: _selectedIndex <= 5
-          ? _dashboardBody(user?.fullName)
+          ? _dashboardBody(user)
           : _selectedPage(),
     );
   }
 
-  Widget _dashboardBody(String? userName) {
+  Widget _dashboardBody(dynamic user) {
     return RefreshIndicator(
       onRefresh: _loadStaffData,
       child: PortalStateView(
@@ -605,10 +606,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
           children: [
             PortalHeader(
               eyebrow: 'Operations Portal',
-              title: userName ?? 'Staff Member',
+              title: user?.fullName ?? 'Staff Member',
               subtitle: 'Students, groups, attendance, leave, and payments',
               icon: Icons.badge,
               accentColor: AppColors.primary,
+              leading: EditableAvatar(
+                avatarUrl: user?.avatarUrl,
+                name: user?.fullName ?? 'Staff Member',
+                role: 'staff',
+                userId: user?.id,
+                userEmail: user?.email,
+                radius: 23,
+                onAvatarChanged: (_) => _loadStaffData(),
+              ),
               trailing: Wrap(
                 spacing: 8,
                 runSpacing: 8,

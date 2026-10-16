@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -579,10 +580,14 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
+          EditableAvatar(
+            avatarUrl: t.avatarUrl,
+            name: t.fullName,
+            role: 'teacher',
+            userId: t.profileId,
+            userEmail: t.email,
             radius: 22,
-            backgroundColor: AppColors.teacherRole.withValues(alpha: 0.12),
-            child: const Icon(Icons.person, color: AppColors.teacherRole, size: 22),
+            onAvatarChanged: (_) => _loadTeachers(),
           ),
           const SizedBox(width: 14),
           Expanded(

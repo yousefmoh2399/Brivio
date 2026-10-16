@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/di/injection.dart';
 import '../../core/network/supabase_client_wrapper.dart';
 import '../../core/settings/app_settings_screen.dart';
+import '../../design_system/components/editable_avatar.dart';
 import '../../design_system/components/glass_card.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/tokens/typography.dart';
@@ -1557,23 +1558,45 @@ class _AdminOverview extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Main Greeting
-          Text(
-            'أهلاً بك، ${user?.fullName ?? "مدير المنظومة"} 👋',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • $branchName',
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+          // Main Greeting with Avatar
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              EditableAvatar(
+                avatarUrl: user?.avatarUrl,
+                name: user?.fullName ?? "مدير المنظومة",
+                role: 'admin',
+                userId: user?.id,
+                userEmail: user?.email,
+                radius: 28,
+                onAvatarChanged: (_) => onRetry(),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'أهلاً بك، ${user?.fullName ?? "مدير المنظومة"} 👋',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • $branchName',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 18),
 

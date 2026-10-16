@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/network/supabase_client_wrapper.dart';
 import '../../../core/settings/app_settings_screen.dart';
+import '../../../design_system/components/editable_avatar.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
@@ -99,6 +100,7 @@ class AccountTab extends StatelessWidget {
                   profile: profile,
                   role: role,
                   studentId: studentId,
+                  onProfileChanged: onProfileChanged,
                 ),
               ),
               const SizedBox(height: 32),
@@ -457,11 +459,13 @@ class _ProfileHeroCard extends StatelessWidget {
   final UserProfile? profile;
   final String role;
   final String? studentId;
+  final Future<void> Function()? onProfileChanged;
 
   const _ProfileHeroCard({
     required this.profile,
     required this.role,
     required this.studentId,
+    this.onProfileChanged,
   });
 
   @override
@@ -483,31 +487,15 @@ class _ProfileHeroCard extends StatelessWidget {
       borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
       child: Row(
         children: [
-          // Avatar
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                width: 2,
-              ),
-            ),
-            child: CircleAvatar(
-              radius: 36,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: avatarUrl == null || avatarUrl.isEmpty
-                  ? Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : 'ط',
-                      style: AppTypography.displaySmall(
-                        AppColors.primary,
-                      ).copyWith(fontWeight: FontWeight.w800),
-                    )
-                  : null,
-            ),
+          // Interactive Editable Avatar
+          EditableAvatar(
+            avatarUrl: avatarUrl,
+            fullName: name,
+            radius: 36,
+            roleColor: AppColors.studentRole,
+            userId: profile?.id,
+            userEmail: profile?.email,
+            onAvatarChanged: (_) => onProfileChanged?.call(),
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -1248,13 +1236,38 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _avatarCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'رابط الصورة الشخصية (اختياري)',
-                      prefixIcon: Icon(Icons.image_outlined),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    keyboardType: TextInputType.url,
+                    onPressed: () async {
+                      final newUrl = await showModalBottomSheet<String?>(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (ctx) => AvatarPickerBottomSheet(
+                          currentAvatarUrl: _avatarCtrl.text,
+                          fullName: _nameCtrl.text.isNotEmpty ? _nameCtrl.text : 'طالب',
+                          roleColor: AppColors.studentRole,
+                          userId: widget.profile?.id,
+                          userEmail: widget.profile?.email,
+                        ),
+                      );
+                      if (newUrl != null || newUrl == null && _avatarCtrl.text.isNotEmpty) {
+                        setState(() {
+                          _avatarCtrl.text = newUrl ?? '';
+                        });
+                        await _saveProfile();
+                      }
+                    },
+                    icon: const Icon(Icons.add_a_photo_rounded, size: 20),
+                    label: const Text(
+                      'تغيير أو اختيار صورة شخصية 📷',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
