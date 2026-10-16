@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
+import '../../../core/services/avatar_service.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../viewmodels/classes_viewmodel.dart';
 
@@ -101,11 +102,10 @@ class ClassRosterScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundImage: student.avatarUrl.isNotEmpty
-                              ? NetworkImage(student.avatarUrl)
-                              : null,
+                          backgroundImage: AvatarService.getImageProvider(student.avatarUrl),
+                          onBackgroundImageError: (_, __) {},
                           radius: 24,
-                          child: student.avatarUrl.isEmpty
+                          child: (student.avatarUrl.isEmpty || AvatarService.getImageProvider(student.avatarUrl) == null)
                               ? Text(
                                   student.name.isNotEmpty
                                       ? student.name[0]
