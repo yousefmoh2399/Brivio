@@ -68,6 +68,8 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
     } catch (_) {}
   }
 
+  String? _centerId;
+
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
     try {
@@ -75,17 +77,26 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
       final teachers = teachersResult.data;
       final groups = await _groupRepo.fetchGroups(status: 'active');
 
+      String? centerId;
       String resolvedCenterName = _centerName;
       try {
         final client = Supabase.instance.client;
-        final cRes = await client.from('educational_centers').select('name').limit(1).maybeSingle();
-        if (cRes != null && cRes['name'] != null && (cRes['name'] as String).isNotEmpty) {
-          resolvedCenterName = cRes['name'] as String;
+        final user = client.auth.currentUser;
+        if (user != null) {
+          final p = await client.from('profiles').select('center_id').eq('id', user.id).maybeSingle();
+          if (p != null && p['center_id'] != null) {
+            centerId = p['center_id'].toString();
+            final cRes = await client.from('educational_centers').select('name').eq('id', centerId).maybeSingle();
+            if (cRes != null && cRes['name'] != null && (cRes['name'] as String).isNotEmpty) {
+              resolvedCenterName = cRes['name'] as String;
+            }
+          }
         }
       } catch (_) {}
 
       if (mounted) {
         setState(() {
+          _centerId = centerId;
           _centerName = resolvedCenterName;
           _teachers = teachers;
           _selectedTeacher = teachers.isNotEmpty ? teachers.first : null;
@@ -124,9 +135,11 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
       final client = Supabase.instance.client;
       await client.from('payment_transactions').insert({
         'amount': _netTeacherPayout,
+        'amount_minor': (_netTeacherPayout * 100).toInt(),
         'direction': 'payout',
         'provider': 'cash',
         'status': 'settled',
+        if (_centerId != null) 'center_id': _centerId,
         'metadata': {
           'type': 'teacher_settlement',
           'teacher_id': _selectedTeacher!.id,
