@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/avatar_service.dart';
+import '../../features/profile/presentation/screens/avatar_studio_screen.dart';
 import '../tokens/colors.dart';
 
 /// Interactive, responsive Avatar component supporting 1-tap photo picking,
@@ -431,6 +432,85 @@ class _AvatarPickerBottomSheetState extends State<AvatarPickerBottomSheet> {
                   ),
                 ),
               ] else ...[
+                // Snapchat Bitmoji-style Avatar Studio Button
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFFF59E0B)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEC4899).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () async {
+                        final nav = Navigator.of(context);
+                        final builtUrl = await AvatarStudioScreen.open(
+                          context: context,
+                          userId: widget.userId,
+                          userEmail: widget.userEmail,
+                          initialAvatarUrl: _selectedUrl,
+                          roleColor: widget.roleColor,
+                        );
+                        if (builtUrl != null && builtUrl.isNotEmpty) {
+                          nav.pop(builtUrl);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.25),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'استوديو تصميم الأفاتار الخاص بك 🎨',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'صمم مظهرك وشخصيتك الكارتونية مثل Bitmoji',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
                 // Main Option: Pick from Gallery/Device
                 FilledButton.icon(
                   style: FilledButton.styleFrom(

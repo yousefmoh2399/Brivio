@@ -6,6 +6,7 @@ import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/components/text_fields.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
+import 'avatar_studio_screen.dart';
 import '../viewmodels/profile_viewmodel.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -154,7 +155,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         '${profile?.role.displayName} • ${profile?.email ?? ''}',
                         style: AppTypography.bodyMedium(textSecondary),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 6),
+                      TextButton.icon(
+                        onPressed: () async {
+                          final newUrl = await AvatarStudioScreen.open(
+                            context: context,
+                            userId: profile?.id,
+                            userEmail: profile?.email,
+                            initialAvatarUrl: _avatarController.text,
+                            roleColor: AppColors.primary,
+                          );
+                          if (newUrl != null && newUrl.isNotEmpty) {
+                            setState(() {
+                              _avatarController.text = newUrl;
+                            });
+                            _saveProfile();
+                          }
+                        },
+                        icon: const Icon(Icons.auto_awesome_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                        label: const Text(
+                          'تصميم شخصية كارتونية (Bitmoji) 🎨',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
                       if (state.status == ProfileStatus.success &&
                           state.message != null) ...[
