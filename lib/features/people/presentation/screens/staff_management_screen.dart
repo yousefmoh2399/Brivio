@@ -33,6 +33,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     super.dispose();
   }
 
+  String? _centerId;
+
   Future<void> _loadStaff() async {
     setState(() {
       _isLoading = true;
@@ -40,16 +42,34 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     });
 
     try {
-      final res = await Supabase.instance.client
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId != null) {
+        final prof = await client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', userId)
+            .maybeSingle();
+        _centerId = prof?['center_id'] as String?;
+      }
+
+      var profilesQuery = client
           .from('profiles')
           .select('id, full_name, email, role, status, center_id, phone_number')
-          .inFilter('role', ['staff', 'admin'])
-          .order('full_name');
+          .inFilter('role', ['staff', 'admin']);
+      if (_centerId != null) {
+        profilesQuery = profilesQuery.eq('center_id', _centerId!);
+      }
+      final res = await profilesQuery.order('full_name');
 
-      final bRes = await Supabase.instance.client
+      var branchesQuery = client
           .from('branches')
           .select('id, name')
           .eq('status', 'active');
+      if (_centerId != null) {
+        branchesQuery = branchesQuery.eq('center_id', _centerId!);
+      }
+      final bRes = await branchesQuery;
 
       if (mounted) {
         setState(() {
@@ -84,6 +104,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -104,7 +125,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 460,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -251,6 +272,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                           fullName: nameCtrl.text.trim(),
                           role: selectedRole,
                           branchId: selectedBranchId,
+                          centerId: _centerId,
                           phoneNumber: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
                           password: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,
                         );
@@ -304,6 +326,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -324,7 +347,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 440,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 460.0),
             child: Form(
               key: formKey,
               child: Column(

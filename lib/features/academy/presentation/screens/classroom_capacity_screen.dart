@@ -32,17 +32,129 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
     setState(() => _isLoading = true);
     try {
       final client = Supabase.instance.client;
-      final res = await client.from('rooms').select().order('name');
+      final userId = client.auth.currentUser?.id;
+      String? centerId;
+      if (userId != null) {
+        final prof = await client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', userId)
+            .maybeSingle();
+        centerId = prof?['center_id'] as String?;
+      }
+
+      List<dynamic> res;
+      if (centerId != null) {
+        final bRes = await client
+            .from('branches')
+            .select('id')
+            .eq('center_id', centerId);
+        final bIds = (bRes as List)
+            .map((b) => b['id']?.toString())
+            .whereType<String>()
+            .toList();
+        if (bIds.isNotEmpty) {
+          res = await client
+              .from('rooms')
+              .select('id, name, code, capacity, status, branch_id')
+              .inFilter('branch_id', bIds)
+              .order('name');
+        } else {
+          res = [];
+        }
+      } else {
+        res = await client
+            .from('rooms')
+            .select('id, name, code, capacity, status, branch_id')
+            .order('name');
+      }
+
+      // Fetch today's class sessions
+      final now = DateTime.now();
+      final todayStr = now.toIso8601String().split('T')[0];
+      List<dynamic> sessionsRes = [];
+      try {
+        sessionsRes = await client
+            .from('class_sessions')
+            .select('id, location, scheduled_start_at, scheduled_end_at, group_id, groups(name, code, max_capacity)')
+            .eq('session_date', todayStr);
+      } catch (_) {}
+
+      // Collect session IDs to query attendance for actual live headcount
+      final activeSessionIds = sessionsRes
+          .map((s) => s['id']?.toString())
+          .whereType<String>()
+          .toList();
+
+      Map<String, int> sessionHeadcounts = {};
+      if (activeSessionIds.isNotEmpty) {
+        try {
+          final attRes = await client
+              .from('attendance_records')
+              .select('session_id')
+              .inFilter('session_id', activeSessionIds)
+              .eq('attendance_status', 'present');
+          for (final row in (attRes as List)) {
+            final sid = row['session_id']?.toString();
+            if (sid != null) {
+              sessionHeadcounts[sid] = (sessionHeadcounts[sid] ?? 0) + 1;
+            }
+          }
+        } catch (_) {}
+      }
+
       final List<Map<String, dynamic>> loaded = [];
-      for (final item in (res as List)) {
+      for (final item in res) {
+        final roomId = item['id'] as String;
+        final roomName = item['name'] as String? ?? 'قاعة بدون اسم';
+        final roomCode = item['code'] as String?;
+
+        // Check if there is an active session for this room right now or today
+        Map<String, dynamic>? activeSession;
+        for (final s in sessionsRes) {
+          final loc = s['location']?.toString();
+          if (loc != null &&
+              (loc == roomId ||
+               loc.trim().toLowerCase() == roomName.trim().toLowerCase() ||
+               (roomCode != null && loc.trim().toLowerCase() == roomCode.trim().toLowerCase()))) {
+            final start = DateTime.tryParse(s['scheduled_start_at']?.toString() ?? '')?.toLocal();
+            final end = DateTime.tryParse(s['scheduled_end_at']?.toString() ?? '')?.toLocal();
+            if (start != null && end != null && now.isAfter(start.subtract(const Duration(minutes: 15))) && now.isBefore(end.add(const Duration(minutes: 15)))) {
+              activeSession = Map<String, dynamic>.from(s as Map);
+              break;
+            } else {
+              activeSession ??= Map<String, dynamic>.from(s as Map);
+            }
+          }
+        }
+
+        int occupiedCount = 0;
+        String? groupName;
+        String timeLabel = 'شاغرة حالياً';
+
+        if (activeSession != null) {
+          final sid = activeSession['id']?.toString();
+          occupiedCount = sid != null ? (sessionHeadcounts[sid] ?? 0) : 0;
+          final grp = activeSession['groups'] as Map<String, dynamic>?;
+          groupName = grp?['name']?.toString() ?? 'مجموعة دراسية';
+
+          final start = DateTime.tryParse(activeSession['scheduled_start_at']?.toString() ?? '')?.toLocal();
+          final end = DateTime.tryParse(activeSession['scheduled_end_at']?.toString() ?? '')?.toLocal();
+          if (start != null && end != null) {
+            timeLabel = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} - ${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+          } else {
+            timeLabel = 'محاضرة اليوم';
+          }
+        }
+
         loaded.add({
-          'id': item['id'] as String,
-          'name': item['name'] as String? ?? 'قاعة بدون اسم',
-          'floor': item['code'] != null ? 'كود: ${item['code']}' : 'الطابق الأرضي',
+          'id': roomId,
+          'name': roomName,
+          'floor': roomCode != null ? 'كود: $roomCode' : 'الطابق الأرضي',
           'capacity': (item['capacity'] as num?)?.toInt() ?? 30,
-          'occupied': 0,
-          'current_session': null,
-          'time': 'شاغرة حالياً',
+          'occupied': occupiedCount,
+          'current_session': groupName,
+          'time': timeLabel,
           'air_conditioned': true,
         });
       }
@@ -66,36 +178,40 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        actionsOverflowDirection: VerticalDirection.down,
         title: const Text('إضافة قاعة دراسية جديدة'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'اسم القاعة / المدرج *',
-                  hintText: 'مثال: قاعة 1، مدرج أ',
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم القاعة / المدرج *',
+                    hintText: 'مثال: قاعة 1، مدرج أ',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: capCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'السعة القصوى (عدد المقاعد) *',
-                  hintText: '40',
+                const SizedBox(height: 12),
+                TextField(
+                  controller: capCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'السعة القصوى (عدد المقاعد) *',
+                    hintText: '40',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'كود القاعة (اختياري)',
-                  hintText: 'مثال: R-101',
+                const SizedBox(height: 12),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'كود القاعة (اختياري)',
+                    hintText: 'مثال: R-101',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -111,7 +227,23 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
 
               try {
                 final client = Supabase.instance.client;
-                final branchRes = await client.from('branches').select('id').limit(1);
+                final userId = client.auth.currentUser?.id;
+                String? centerId;
+                if (userId != null) {
+                  final prof = await client
+                      .from('profiles')
+                      .select('center_id')
+                      .eq('id', userId)
+                      .maybeSingle();
+                  centerId = prof?['center_id'] as String?;
+                }
+
+                var bQuery = client.from('branches').select('id');
+                if (centerId != null) {
+                  bQuery = bQuery.eq('center_id', centerId);
+                }
+                final branchRes = await bQuery.limit(1);
+
                 String? branchId;
                 if ((branchRes as List).isNotEmpty) {
                   branchId = branchRes.first['id'] as String;
@@ -120,6 +252,7 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
                     'name': 'الفرع الرئيسي',
                     'code': 'MAIN-01',
                     'status': 'active',
+                    if (centerId != null) 'center_id': centerId,
                   }).select('id').single();
                   branchId = newBranch['id'] as String;
                 }
@@ -156,11 +289,15 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        actionsOverflowDirection: VerticalDirection.down,
         title: Text('تعديل سعة مقاعد ${hall['name']}'),
-        content: TextField(
-          controller: capCtrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'الحد الأقصى لعدد المقاعد'),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width.clamp(280.0, 420.0),
+          child: TextField(
+            controller: capCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'الحد الأقصى لعدد المقاعد'),
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),

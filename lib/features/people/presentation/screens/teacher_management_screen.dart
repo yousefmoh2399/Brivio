@@ -21,7 +21,6 @@ class TeacherManagementScreen extends StatefulWidget {
 
 class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   late final SupabaseTeacherRepository _teacherRepo;
-  late final SupabaseBranchRepository _branchRepo;
 
   List<Teacher> _teachers = [];
   List<Branch> _branches = [];
@@ -34,7 +33,6 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     super.initState();
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     _teacherRepo = SupabaseTeacherRepository(wrapper);
-    _branchRepo = SupabaseBranchRepository(wrapper);
     _loadTeachers();
   }
 
@@ -44,6 +42,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     super.dispose();
   }
 
+  String? _centerId;
+
   Future<void> _loadTeachers() async {
     setState(() {
       _isLoading = true;
@@ -51,12 +51,54 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     });
 
     try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId != null) {
+        final prof = await client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', userId)
+            .maybeSingle();
+        _centerId = prof?['center_id'] as String?;
+      }
+
       final res = await _teacherRepo.fetchTeachers();
-      final bRes = await _branchRepo.fetchBranches();
+
+      var branchQuery = client
+          .from('branches')
+          .select()
+          .eq('status', 'active');
+      if (_centerId != null) {
+        branchQuery = branchQuery.eq('center_id', _centerId!);
+      }
+      final bRes = await branchQuery.order('name');
+      final branches = (bRes as List)
+          .map((j) => Branch.fromJson(j as Map<String, dynamic>))
+          .toList();
+
+      List<Teacher> filteredTeachers = res.data;
+      if (_centerId != null) {
+        final centerProfilesRes = await client
+            .from('profiles')
+            .select('id')
+            .eq('center_id', _centerId!)
+            .eq('role', 'teacher');
+        final centerProfileIds = (centerProfilesRes as List)
+            .map((p) => p['id']?.toString())
+            .whereType<String>()
+            .toSet();
+        final branchIds = branches.map((b) => b.id).toSet();
+
+        filteredTeachers = res.data.where((t) {
+          return centerProfileIds.contains(t.profileId) ||
+              (t.primaryBranchId.isNotEmpty && branchIds.contains(t.primaryBranchId));
+        }).toList();
+      }
+
       if (mounted) {
         setState(() {
-          _teachers = res.data;
-          _branches = bRes;
+          _teachers = filteredTeachers;
+          _branches = branches;
           _isLoading = false;
         });
       }
@@ -89,6 +131,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -109,7 +152,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 460,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -261,6 +304,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -281,7 +325,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 460,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -417,6 +461,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                           fullName: nameCtrl.text.trim(),
                           role: 'teacher',
                           branchId: selectedBranchId,
+                          centerId: _centerId,
                           phoneNumber: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
                           specialization: specCtrl.text.trim().isEmpty ? null : specCtrl.text.trim(),
                           password: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,

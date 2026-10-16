@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:xml/xml.dart';
 
 import '../../../../design_system/tokens/colors.dart';
@@ -97,28 +98,61 @@ class _DataImportScreenState extends State<DataImportScreen> {
       _errorMessage = null;
     });
 
-    final nextRows = [..._rows];
-    for (final row in validRows) {
-      final index = nextRows.indexWhere(
-        (item) => item.rowNumber == row.rowNumber,
-      );
+    final client = Supabase.instance.client;
+    String? centerId;
+    final curUser = client.auth.currentUser;
+    if (curUser != null) {
       try {
-        await UserProvisioningService.provisionUser(
-          email: row.email,
-          fullName: row.fullName,
-          role: _entity.role,
-          branchId: row.branchId,
-        );
-        nextRows[index] = row.copyWith(
-          status: _ImportStatus.success,
-          resultMessage: 'تم الاستيراد بنجاح',
-        );
-      } catch (e) {
-        nextRows[index] = row.copyWith(
-          status: _ImportStatus.failed,
-          resultMessage: e.toString(),
-        );
-      }
+        final prof = await client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', curUser.id)
+            .maybeSingle();
+        centerId = prof?['center_id'] as String?;
+      } catch (_) {}
+    }
+
+    final nextRows = [..._rows];
+    const chunkSize = 5;
+    for (var i = 0; i < validRows.length; i += chunkSize) {
+      final chunk = validRows.sublist(
+        i,
+        i + chunkSize > validRows.length ? validRows.length : i + chunkSize,
+      );
+
+      await Future.wait(
+        chunk.map((row) async {
+          final index = nextRows.indexWhere(
+            (item) => item.rowNumber == row.rowNumber,
+          );
+          try {
+            await UserProvisioningService.provisionUser(
+              email: row.email,
+              fullName: row.fullName,
+              role: _entity.role,
+              branchId: row.branchId,
+              centerId: centerId,
+              phoneNumber: row.phoneNumber,
+              gradeLevel: _entity == _ImportEntity.students ? row.gradeLevel : null,
+              specialization: _entity == _ImportEntity.teachers ? row.specialization : null,
+            );
+            if (index != -1) {
+              nextRows[index] = row.copyWith(
+                status: _ImportStatus.success,
+                resultMessage: 'تم الاستيراد بنجاح',
+              );
+            }
+          } catch (e) {
+            if (index != -1) {
+              nextRows[index] = row.copyWith(
+                status: _ImportStatus.failed,
+                resultMessage: e.toString(),
+              );
+            }
+          }
+        }),
+      );
+
       if (mounted) setState(() => _rows = [...nextRows]);
     }
 
@@ -387,11 +421,11 @@ enum _ImportEntity {
   String get template {
     switch (this) {
       case _ImportEntity.students:
-        return 'full_name,email,branch_id\nأحمد محمد,student@example.com,<معرف-الفرع>';
+        return 'full_name,email,branch_id,phone_number,grade_level\nأحمد محمد,student@example.com,<معرف-الفرع>,01012345678,الثالث الثانوي';
       case _ImportEntity.parents:
-        return 'full_name,email\nولي الأمر,parent@example.com';
+        return 'full_name,email,phone_number\nولي الأمر,parent@example.com,01012345678';
       case _ImportEntity.teachers:
-        return 'full_name,email,branch_id\nأستاذ أحمد,teacher@example.com,<معرف-الفرع>';
+        return 'full_name,email,branch_id,phone_number,specialization\nأستاذ أحمد,teacher@example.com,<معرف-الفرع>,01012345678,فيزياء';
     }
   }
 }
@@ -434,6 +468,31 @@ class _ImportRow {
   String get email => data['email'] ?? data['البريد'] ?? data['email_address'] ?? '';
   String? get branchId {
     final value = data['branch_id'] ?? data['branchid'] ?? data['الفرع'];
+    if (value == null || value.trim().isEmpty) return null;
+    return value.trim();
+  }
+  String? get phoneNumber {
+    final value = data['phone'] ??
+        data['phone_number'] ??
+        data['الهاتف'] ??
+        data['الموبايل'] ??
+        data['mobile'];
+    if (value == null || value.trim().isEmpty) return null;
+    return value.trim();
+  }
+  String? get gradeLevel {
+    final value = data['grade'] ??
+        data['grade_level'] ??
+        data['الصف'] ??
+        data['المرحلة'];
+    if (value == null || value.trim().isEmpty) return null;
+    return value.trim();
+  }
+  String? get specialization {
+    final value = data['spec'] ??
+        data['specialization'] ??
+        data['التخصص'] ??
+        data['المادة'];
     if (value == null || value.trim().isEmpty) return null;
     return value.trim();
   }

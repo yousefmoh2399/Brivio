@@ -8,6 +8,7 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
+import '../widgets/homework_submissions_dialog.dart';
 
 class HomeworkManagementScreen extends StatefulWidget {
   const HomeworkManagementScreen({super.key});
@@ -92,6 +93,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -112,7 +114,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 500,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 500.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -305,6 +307,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -325,7 +328,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 500,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 500.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -620,6 +623,9 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                     icon: const Icon(Icons.more_vert_rounded),
                     onSelected: (value) async {
                       switch (value) {
+                        case 'submissions':
+                          _showSubmissionsDialog(h);
+                          break;
                         case 'edit':
                           _showEditHomeworkDialog(h);
                           break;
@@ -682,6 +688,14 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                     },
                     itemBuilder: (context) => [
                       const PopupMenuItem(
+                        value: 'submissions',
+                        child: ListTile(
+                          leading: Icon(Icons.assignment_turned_in_outlined, color: AppColors.adminRole, size: 18),
+                          title: Text('كشف التسليمات والتصحيح'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const PopupMenuItem(
                         value: 'edit',
                         child: ListTile(
                           leading: Icon(Icons.edit, size: 18),
@@ -712,7 +726,40 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
               ),
             ],
           ),
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.adminRole,
+                  side: const BorderSide(color: AppColors.adminRole),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.assignment_turned_in_rounded, size: 18),
+                label: const Text('تسليمات الطلاب والتصحيح', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                onPressed: () => _showSubmissionsDialog(h),
+              ),
+              Text(
+                'معرف: ${h.id.length > 8 ? h.id.substring(0, 8) : h.id}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  void _showSubmissionsDialog(Homework h) {
+    if (_selectedGroup == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => HomeworkSubmissionsDialog(
+        homework: h,
+        group: _selectedGroup!,
+        onDataChanged: _loadHomeworks,
       ),
     );
   }
