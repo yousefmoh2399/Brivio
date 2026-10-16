@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/models/avatar_builder_model.dart';
 import '../../../../core/services/avatar_service.dart';
 import '../../../../design_system/tokens/colors.dart';
+import 'package:brivio/features/avatar/presentation/screens/snapchat_avatar_studio_screen.dart';
 
 /// Interactive, Snapchat Bitmoji-style Avatar Studio Screen
 class AvatarStudioScreen extends StatefulWidget {
@@ -168,6 +169,24 @@ class _AvatarStudioScreenState extends State<AvatarStudioScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           actions: [
+            IconButton(
+              tooltip: 'استوديو Bitmoji 3D الاحترافي ✨',
+              icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFEC4899)),
+              onPressed: () async {
+                final nav = Navigator.of(context);
+                final res = await SnapchatAvatarStudioScreen.open(
+                  context: context,
+                  userId: widget.userId,
+                  userEmail: widget.userEmail,
+                  initialAvatarUrl: widget.initialAvatarUrl,
+                  roleColor: widget.roleColor,
+                );
+                if (res != null && res.isNotEmpty) {
+                  widget.onAvatarSaved?.call(res);
+                  nav.pop(res);
+                }
+              },
+            ),
             IconButton(
               tooltip: 'توليد مظهر عشوائي',
               icon: const Icon(Icons.casino_rounded, color: AppColors.warning),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/avatar_service.dart';
-import '../../features/profile/presentation/screens/avatar_studio_screen.dart';
+import '../../features/avatar/presentation/screens/snapchat_avatar_studio_screen.dart';
 import '../tokens/colors.dart';
 
 /// Interactive, responsive Avatar component supporting 1-tap photo picking,
@@ -456,7 +456,7 @@ class _AvatarPickerBottomSheetState extends State<AvatarPickerBottomSheet> {
                       borderRadius: BorderRadius.circular(16),
                       onTap: () async {
                         final nav = Navigator.of(context);
-                        final builtUrl = await AvatarStudioScreen.open(
+                        final builtUrl = await SnapchatAvatarStudioScreen.open(
                           context: context,
                           userId: widget.userId,
                           userEmail: widget.userEmail,

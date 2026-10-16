@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -163,6 +164,40 @@ class AvatarService {
       AppLogger.error('pickAndUploadAvatar failed', e);
       return null;
     }
+  }
+
+  /// Uploads binary avatar bytes (e.g. from Canvas snapshot) to Supabase Storage
+  /// or falls back to a base64 Data URI.
+  static Future<String?> uploadAvatar({
+    required Uint8List bytes,
+    required String filename,
+    String? userId,
+  }) async {
+    if (bytes.isEmpty) return null;
+    const mimeType = 'image/png';
+
+    // Attempt 1: Upload to Supabase Storage 'avatars' bucket
+    try {
+      final client = Supabase.instance.client;
+      final storagePath = 'profiles/${userId ?? "guest"}/$filename';
+
+      await client.storage.from('avatars').uploadBinary(
+        storagePath,
+        bytes,
+        fileOptions: const FileOptions(contentType: mimeType, upsert: true),
+      );
+
+      final publicUrl = client.storage.from('avatars').getPublicUrl(storagePath);
+      if (publicUrl.isNotEmpty) {
+        return publicUrl;
+      }
+    } catch (storageError) {
+      AppLogger.warning('Supabase storage upload failed, falling back to base64: $storageError');
+    }
+
+    // Attempt 2: Fallback to high-quality Data URI
+    final base64Data = base64Encode(bytes);
+    return 'data:$mimeType;base64,$base64Data';
   }
 
   /// Updates the user's avatar_url in the Supabase 'profiles' table

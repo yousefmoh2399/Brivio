@@ -6,7 +6,7 @@ import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/components/text_fields.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
-import 'avatar_studio_screen.dart';
+import 'package:brivio/features/avatar/presentation/screens/snapchat_avatar_studio_screen.dart';
 import '../viewmodels/profile_viewmodel.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -158,7 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 6),
                       TextButton.icon(
                         onPressed: () async {
-                          final newUrl = await AvatarStudioScreen.open(
+                          final newUrl = await SnapchatAvatarStudioScreen.open(
                             context: context,
                             userId: profile?.id,
                             userEmail: profile?.email,
