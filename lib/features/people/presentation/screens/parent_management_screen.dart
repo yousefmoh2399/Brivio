@@ -51,17 +51,65 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
 
     try {
       final res = await _parentRepo.fetchParents();
-      final sRes = await _studentRepo.fetchStudents();
+      final sRes = await _studentRepo.fetchStudents(pageSize: 500);
 
-      final Map<String, List<Student>> linked = {};
-      final futures = res.data.map((p) async {
+      final Map<String, Student> studentMap = {
+        for (final s in sRes.data) s.id: s,
+      };
+
+      final Map<String, List<Student>> linked = {
+        for (final p in res.data) p.id: <Student>[],
+      };
+
+      final parentIds = res.data.map((p) => p.id).toList();
+      if (parentIds.isNotEmpty) {
         try {
-          linked[p.id] = await _parentRepo.fetchLinkedStudents(p.id);
-        } catch (_) {
-          linked[p.id] = [];
-        }
-      });
-      await Future.wait(futures);
+          final links = await Supabase.instance.client
+              .from('parent_students')
+              .select('parent_id, student_id')
+              .inFilter('parent_id', parentIds);
+
+          final missingStudentIds = <String>{};
+          for (final l in links as List) {
+            final sid = l['student_id']?.toString();
+            if (sid != null && !studentMap.containsKey(sid)) {
+              missingStudentIds.add(sid);
+            }
+          }
+
+          if (missingStudentIds.isNotEmpty) {
+            try {
+              final missingRaw = await Supabase.instance.client
+                  .from('students')
+                  .select('*, profiles(*)')
+                  .inFilter('id', missingStudentIds.toList());
+              for (final s in missingRaw as List) {
+                final Map<String, dynamic> item =
+                    Map<String, dynamic>.from(s as Map);
+                final prof = Map<String, dynamic>.from(
+                  (item['profiles'] as Map?) ?? {},
+                );
+                final st = Student.fromJson({
+                  ...item,
+                  'full_name': prof['full_name'],
+                  'email': prof['email'],
+                  'avatar_url': prof['avatar_url'],
+                  'phone_number': prof['phone_number'],
+                });
+                studentMap[st.id] = st;
+              }
+            } catch (_) {}
+          }
+
+          for (final l in links) {
+            final pid = l['parent_id']?.toString();
+            final sid = l['student_id']?.toString();
+            if (pid != null && sid != null && studentMap.containsKey(sid)) {
+              linked[pid]?.add(studentMap[sid]!);
+            }
+          }
+        } catch (_) {}
+      }
 
       if (mounted) {
         setState(() {

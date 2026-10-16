@@ -52,14 +52,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       final rows = await query.order('created_at', ascending: false).limit(150);
       if (!mounted) return;
 
-      var parsedItems = (rows as List)
+      final parsedItems = (rows as List)
           .whereType<Map>()
           .map((row) => _AuditLogItem.fromJson(row))
           .toList();
-
-      if (parsedItems.isEmpty) {
-        parsedItems = _AuditLogItem.getSampleAuditLogs();
-      }
 
       setState(() {
         _items = parsedItems;
@@ -68,8 +64,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _items = _AuditLogItem.getSampleAuditLogs();
-        _errorMessage = null; // graceful fallback to rich demonstration logs
+        _items = [];
+        _errorMessage = 'حدث خطأ أثناء تحميل سجل العمليات: ${e.toString()}';
         _isLoading = false;
       });
     }
@@ -787,107 +783,5 @@ class _AuditLogItem {
     return '$date $time';
   }
 
-  static List<_AuditLogItem> getSampleAuditLogs() {
-    final now = DateTime.now();
-    return [
-      _AuditLogItem(
-        id: 'aud-101',
-        tableName: 'students',
-        recordId: 'stu-78192',
-        action: 'DELETE',
-        actorUserId: 'admin@brivio.edu (مدير الفرع)',
-        oldData: {
-          'id': 'stu-78192',
-          'full_name': 'يوسف خالد إبراهيم',
-          'phone': '01012345678',
-          'status': 'active',
-          'balance': 350.0,
-        },
-        newData: null,
-        createdAt: now.subtract(const Duration(minutes: 18)),
-      ),
-      _AuditLogItem(
-        id: 'aud-102',
-        tableName: 'invoices',
-        recordId: 'inv-90312',
-        action: 'UPDATE',
-        actorUserId: 'accountant@brivio.edu (الخزينة)',
-        oldData: {
-          'id': 'inv-90312',
-          'status': 'paid',
-          'amount_paid': 450.0,
-        },
-        newData: {
-          'id': 'inv-90312',
-          'status': 'refunded',
-          'refund_reason': 'انسحاب الطالب من المادة واسترداد الرسوم',
-          'amount_paid': 0.0,
-        },
-        createdAt: now.subtract(const Duration(minutes: 42)),
-      ),
-      _AuditLogItem(
-        id: 'aud-103',
-        tableName: 'exam_attempts',
-        recordId: 'att-55410',
-        action: 'UPDATE',
-        actorUserId: 'teacher.assistant@brivio.edu (مساعد معلم)',
-        oldData: {
-          'student_name': 'سارة أحمد محمود',
-          'score': 18.5,
-          'max_score': 30.0,
-        },
-        newData: {
-          'student_name': 'سارة أحمد محمود',
-          'score': 28.5,
-          'correction_note': 'إعادة تصحيح السؤال المقالي بعد المراجعة',
-        },
-        createdAt: now.subtract(const Duration(hours: 1, minutes: 15)),
-      ),
-      _AuditLogItem(
-        id: 'aud-104',
-        tableName: 'user_roles',
-        recordId: 'usr-33129',
-        action: 'UPDATE',
-        actorUserId: 'superadmin@brivio.edu (المالك)',
-        oldData: {
-          'user': 'ahmed.sec@brivio.edu',
-          'role': 'receptionist',
-        },
-        newData: {
-          'user': 'ahmed.sec@brivio.edu',
-          'role': 'branch_manager',
-          'promoted_by': 'المدير العام',
-        },
-        createdAt: now.subtract(const Duration(hours: 3)),
-      ),
-      _AuditLogItem(
-        id: 'aud-105',
-        tableName: 'payments',
-        recordId: 'pay-44120',
-        action: 'INSERT',
-        actorUserId: 'cashier@brivio.edu (كاشير 1)',
-        oldData: null,
-        newData: {
-          'receipt_no': 'REC-2026-9921',
-          'amount': 600.0,
-          'method': 'cash',
-          'notes': 'تحصيل رسوم شهر أكتوبر',
-        },
-        createdAt: now.subtract(const Duration(hours: 4, minutes: 20)),
-      ),
-      _AuditLogItem(
-        id: 'aud-106',
-        tableName: 'enrollments',
-        recordId: 'enr-11983',
-        action: 'DELETE',
-        actorUserId: 'admin@brivio.edu (مدير الفرع)',
-        oldData: {
-          'group': 'فيزياء 3 ثانوي - مجموعة السبت 4 م',
-          'student': 'عمرو مصطفى',
-        },
-        newData: null,
-        createdAt: now.subtract(const Duration(hours: 5)),
-      ),
-    ];
-  }
+
 }

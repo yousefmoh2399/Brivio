@@ -45,7 +45,36 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
     });
 
     try {
-      final res = await _subjectRepo.fetchSubjects();
+      String? centerId;
+      final curUser = Supabase.instance.client.auth.currentUser;
+      if (curUser != null) {
+        try {
+          final p = await Supabase.instance.client
+              .from('profiles')
+              .select('center_id')
+              .eq('id', curUser.id)
+              .maybeSingle();
+          centerId = p?['center_id']?.toString();
+        } catch (_) {}
+      }
+
+      List<SubjectEntity> res = [];
+      if (centerId != null) {
+        try {
+          final sRes = await Supabase.instance.client
+              .from('subjects')
+              .select()
+              .eq('center_id', centerId)
+              .order('name');
+          res = (sRes as List)
+              .map((j) => SubjectEntity.fromJson(Map<String, dynamic>.from(j as Map)))
+              .toList();
+        } catch (_) {}
+      }
+      if (res.isEmpty) {
+        res = await _subjectRepo.fetchSubjects();
+      }
+
       if (mounted) {
         setState(() {
           _subjects = res;
@@ -94,7 +123,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 460,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -137,6 +166,8 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
               ),
             ),
           ),
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsOverflowAlignment: OverflowBarAlignment.end,
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -155,23 +186,39 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
 
                       final nav = Navigator.of(ctx);
                       try {
-                        final s = SubjectEntity(
-                          id: '',
-                          code: codeCtrl.text.trim(),
-                          name: nameCtrl.text.trim(),
-                          description: descCtrl.text.trim().isEmpty
+                        String? centerId;
+                        final curUser = Supabase.instance.client.auth.currentUser;
+                        if (curUser != null) {
+                          try {
+                            final p = await Supabase.instance.client
+                                .from('profiles')
+                                .select('center_id')
+                                .eq('id', curUser.id)
+                                .maybeSingle();
+                            centerId = p?['center_id']?.toString();
+                          } catch (_) {}
+                        }
+
+                        final subjectPayload = <String, dynamic>{
+                          'code': codeCtrl.text.trim(),
+                          'name': nameCtrl.text.trim(),
+                          'description': descCtrl.text.trim().isEmpty
                               ? null
                               : descCtrl.text.trim(),
-                          status: 'active',
-                        );
+                          'status': 'active',
+                          if (centerId != null) 'center_id': centerId,
+                        };
 
-                        await _subjectRepo.createSubject(s);
+                        await Supabase.instance.client
+                            .from('subjects')
+                            .insert(subjectPayload);
+
                         nav.pop();
                         _loadSubjects();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('تمت إضافة المادة بنجاح!'),
+                              content: Text('تمت إضافة المادة وربطها بالسنتر بنجاح!'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -236,7 +283,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 460,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -291,6 +338,8 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
               ),
             ),
           ),
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsOverflowAlignment: OverflowBarAlignment.end,
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),

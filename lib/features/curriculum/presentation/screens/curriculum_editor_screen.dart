@@ -98,40 +98,106 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
       final sList = selected == null
           ? <Semester>[]
           : await _semesterRepo.fetchSemestersForSubject(selected.id);
+      final semIds = sList.map((s) => s.id).toList();
       final List<Semester> populatedSemesters = [];
 
-      for (final sem in sList) {
-        final uList = await _unitRepo.fetchUnitsForSemester(sem.id);
-        final List<Unit> populatedUnits = [];
+      if (semIds.isNotEmpty) {
+        try {
+          final unitsRes = await Supabase.instance.client
+              .from('units')
+              .select()
+              .inFilter('semester_id', semIds)
+              .order('order_number');
 
-        for (final unit in uList) {
-          final lList = await _lessonRepo.fetchLessonsForUnit(unit.id);
-          populatedUnits.add(
-            Unit(
-              id: unit.id,
-              semesterId: unit.semesterId,
-              name: unit.name,
-              code: unit.code,
-              orderNumber: unit.orderNumber,
-              status: unit.status,
-              lessons: lList,
-            ),
-          );
+          final rawUnits = (unitsRes as List)
+              .map((u) => Unit.fromJson(Map<String, dynamic>.from(u as Map)))
+              .toList();
+
+          final unitIds = rawUnits.map((u) => u.id).toList();
+          final Map<String, List<Lesson>> lessonsByUnit = {
+            for (final u in rawUnits) u.id: <Lesson>[],
+          };
+
+          if (unitIds.isNotEmpty) {
+            try {
+              final lessonsRes = await Supabase.instance.client
+                  .from('lessons')
+                  .select()
+                  .inFilter('unit_id', unitIds)
+                  .order('order_number');
+
+              for (final l in lessonsRes as List) {
+                final lesson = Lesson.fromJson(Map<String, dynamic>.from(l as Map));
+                lessonsByUnit[lesson.unitId]?.add(lesson);
+              }
+            } catch (_) {}
+          }
+
+          final Map<String, List<Unit>> unitsBySem = {
+            for (final s in sList) s.id: <Unit>[],
+          };
+
+          for (final u in rawUnits) {
+            final populated = Unit(
+              id: u.id,
+              semesterId: u.semesterId,
+              name: u.name,
+              code: u.code,
+              orderNumber: u.orderNumber,
+              status: u.status,
+              lessons: lessonsByUnit[u.id] ?? [],
+            );
+            unitsBySem[u.semesterId]?.add(populated);
+          }
+
+          for (final sem in sList) {
+            populatedSemesters.add(
+              Semester(
+                id: sem.id,
+                subjectId: sem.subjectId,
+                name: sem.name,
+                code: sem.code,
+                orderNumber: sem.orderNumber,
+                startDate: sem.startDate,
+                endDate: sem.endDate,
+                status: sem.status,
+                units: unitsBySem[sem.id] ?? [],
+              ),
+            );
+          }
+        } catch (_) {
+          for (final sem in sList) {
+            final uList = await _unitRepo.fetchUnitsForSemester(sem.id);
+            final List<Unit> populatedUnits = [];
+            for (final unit in uList) {
+              final lList = await _lessonRepo.fetchLessonsForUnit(unit.id);
+              populatedUnits.add(
+                Unit(
+                  id: unit.id,
+                  semesterId: unit.semesterId,
+                  name: unit.name,
+                  code: unit.code,
+                  orderNumber: unit.orderNumber,
+                  status: unit.status,
+                  lessons: lList,
+                ),
+              );
+            }
+            populatedSemesters.add(
+              Semester(
+                id: sem.id,
+                subjectId: sem.subjectId,
+                name: sem.name,
+                code: sem.code,
+                orderNumber: sem.orderNumber,
+                startDate: sem.startDate,
+                endDate: sem.endDate,
+                status: sem.status,
+                units: populatedUnits,
+              ),
+            );
+          }
         }
-
-        populatedSemesters.add(
-          Semester(
-            id: sem.id,
-            subjectId: sem.subjectId,
-            name: sem.name,
-            code: sem.code,
-            orderNumber: sem.orderNumber,
-            startDate: sem.startDate,
-            endDate: sem.endDate,
-            status: sem.status,
-            units: populatedUnits,
-          ),
-        );
       }
 
       if (mounted) {

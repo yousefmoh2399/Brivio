@@ -156,21 +156,59 @@ class SupabaseAdminRepository implements IAdminRepository {
       data['total_revenue'] = totalRevenue;
     }
 
-    // 5. Revenue Growth
-    if (totalRevenue > 0) {
-      data['revenue_growth'] = [
-        {'date': startDate.toIso8601String(), 'amount': totalRevenue * 0.25},
-        {
-          'date': startDate.add(const Duration(days: 7)).toIso8601String(),
-          'amount': totalRevenue * 0.50,
-        },
-        {
-          'date': startDate.add(const Duration(days: 14)).toIso8601String(),
-          'amount': totalRevenue * 0.75,
-        },
-        {'date': endDate.toIso8601String(), 'amount': totalRevenue},
-      ];
-    } else {
+    // 5. Real Revenue Growth grouped by date
+    try {
+      final startIso = startDate.toIso8601String();
+      final endIso = endDate.toIso8601String();
+
+      final rRes = await _client
+          .from('receipts')
+          .select('amount, amount_minor, issued_at')
+          .gte('issued_at', startIso)
+          .lte('issued_at', endIso)
+          .order('issued_at');
+
+      final Map<String, double> dailySums = {};
+      for (final r in rRes as List) {
+        final dStr = r['issued_at']?.toString().split('T').first ?? '';
+        if (dStr.isEmpty) continue;
+        double val = 0.0;
+        if (r['amount'] != null) {
+          val = (r['amount'] as num).toDouble();
+        } else if (r['amount_minor'] != null) {
+          val = (r['amount_minor'] as num).toDouble() / 100.0;
+        }
+        dailySums[dStr] = (dailySums[dStr] ?? 0.0) + val;
+      }
+
+      try {
+        final bsRes = await _client
+            .from('bookstore_sales')
+            .select('total_amount, created_at')
+            .gte('created_at', startIso)
+            .lte('created_at', endIso)
+            .order('created_at');
+        for (final s in bsRes as List) {
+          final dStr = s['created_at']?.toString().split('T').first ?? '';
+          if (dStr.isEmpty) continue;
+          final val = (s['total_amount'] as num?)?.toDouble() ?? 0.0;
+          dailySums[dStr] = (dailySums[dStr] ?? 0.0) + val;
+        }
+      } catch (_) {}
+
+      if (dailySums.isNotEmpty) {
+        final sortedKeys = dailySums.keys.toList()..sort();
+        data['revenue_growth'] = sortedKeys.map((k) => {
+          'date': '${k}T00:00:00.000',
+          'amount': dailySums[k] ?? 0.0,
+        }).toList();
+      } else {
+        data['revenue_growth'] = [
+          {'date': startDate.toIso8601String(), 'amount': 0.0},
+          {'date': endDate.toIso8601String(), 'amount': 0.0},
+        ];
+      }
+    } catch (_) {
       data['revenue_growth'] = [
         {'date': startDate.toIso8601String(), 'amount': 0.0},
         {'date': endDate.toIso8601String(), 'amount': 0.0},

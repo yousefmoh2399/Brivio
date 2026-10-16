@@ -36,6 +36,16 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
     List<dynamic> data,
     Future<void> Function() generateAction,
   ) async {
+    if (data.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('لا توجد سجلات مسجلة لاستخراج $title حالياً.'),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     setState(() => _isGenerating = true);
     try {
       await generateAction();

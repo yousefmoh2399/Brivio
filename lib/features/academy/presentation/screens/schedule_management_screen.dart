@@ -40,9 +40,25 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
 
     try {
       final g = await _groupRepo.fetchGroups();
+      final groupIds = g.map((item) => item.id).toList();
       final s = <ScheduleEntity>[];
-      for (final group in g) {
-        s.addAll(await _scheduleRepo.fetchSchedulesForGroup(group.id));
+
+      if (groupIds.isNotEmpty) {
+        try {
+          final res = await Supabase.instance.client
+              .from('schedules')
+              .select()
+              .inFilter('group_id', groupIds);
+          for (final row in res as List) {
+            s.add(ScheduleEntity.fromJson(Map<String, dynamic>.from(row as Map)));
+          }
+        } catch (_) {
+          for (final group in g) {
+            try {
+              s.addAll(await _scheduleRepo.fetchSchedulesForGroup(group.id));
+            } catch (_) {}
+          }
+        }
       }
       s.sort((a, b) {
         final dayCompare = a.dayOfWeek.compareTo(b.dayOfWeek);

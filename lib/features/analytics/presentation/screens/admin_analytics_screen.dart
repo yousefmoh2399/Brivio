@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/components/glass_card.dart';
+import '../../../admin/domain/models/admin_models.dart';
 import '../viewmodels/admin_analytics_viewmodel.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
@@ -188,12 +189,26 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                                 ),
                               ),
                             ),
-                            CustomPaint(
-                              size: const Size(double.infinity, 180),
-                              painter: _MockChartPainter(
-                                color: Colors.deepPurple,
+                            if (analytics != null &&
+                                analytics.revenueGrowth.isNotEmpty &&
+                                analytics.totalRevenue > 0)
+                              CustomPaint(
+                                size: const Size(double.infinity, 180),
+                                painter: _RealChartPainter(
+                                  points: analytics.revenueGrowth,
+                                  color: Colors.deepPurple,
+                                ),
+                              )
+                            else
+                              const Center(
+                                child: Text(
+                                  'لا توجد عمليات تحصيل مسجلة خلال هذه الفترة',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -441,12 +456,21 @@ class _SubjectPerformanceRow extends StatelessWidget {
   }
 }
 
-class _MockChartPainter extends CustomPainter {
+class _RealChartPainter extends CustomPainter {
+  final List<RevenueDataPoint> points;
   final Color color;
-  _MockChartPainter({required this.color});
+
+  _RealChartPainter({required this.points, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+
+    final maxAmount = points
+        .map((p) => p.amount)
+        .fold<double>(0.0, (m, a) => a > m ? a : m);
+    if (maxAmount <= 0) return;
+
     final paint = Paint()
       ..color = color
       ..strokeWidth = 3
@@ -454,28 +478,32 @@ class _MockChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final path = Path();
-    path.moveTo(0, size.height * 0.8);
-    path.quadraticBezierTo(
-      size.width * 0.2,
-      size.height * 0.9,
-      size.width * 0.4,
-      size.height * 0.5,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.6,
-      size.height * 0.1,
-      size.width * 0.8,
-      size.height * 0.3,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.9,
-      size.height * 0.4,
-      size.width,
-      size.height * 0.2,
-    );
+    final stepX =
+        points.length > 1 ? size.width / (points.length - 1) : size.width;
+
+    for (int i = 0; i < points.length; i++) {
+      final x = i * stepX;
+      final normalizedY = (points[i].amount / maxAmount).clamp(0.0, 1.0);
+      final y = size.height - (normalizedY * (size.height - 30)) - 15;
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
 
     canvas.drawPath(path, paint);
 
+    // Draw point markers
+    final dotPaint = Paint()..color = color;
+    for (int i = 0; i < points.length; i++) {
+      final x = i * stepX;
+      final normalizedY = (points[i].amount / maxAmount).clamp(0.0, 1.0);
+      final y = size.height - (normalizedY * (size.height - 30)) - 15;
+      canvas.drawCircle(Offset(x, y), 3.5, dotPaint);
+    }
+
+    // Gradient fill beneath curve
     final fillPath = Path.from(path);
     fillPath.lineTo(size.width, size.height);
     fillPath.lineTo(0, size.height);
@@ -492,7 +520,8 @@ class _MockChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _RealChartPainter oldDelegate) =>
+      oldDelegate.points != points || oldDelegate.color != color;
 }
 
 class _AnalyticsSummaryCard extends StatelessWidget {

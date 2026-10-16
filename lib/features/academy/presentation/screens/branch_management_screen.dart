@@ -44,7 +44,36 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     });
 
     try {
-      final res = await _branchRepo.fetchBranches();
+      String? centerId;
+      final curUser = Supabase.instance.client.auth.currentUser;
+      if (curUser != null) {
+        try {
+          final p = await Supabase.instance.client
+              .from('profiles')
+              .select('center_id')
+              .eq('id', curUser.id)
+              .maybeSingle();
+          centerId = p?['center_id']?.toString();
+        } catch (_) {}
+      }
+
+      List<Branch> res = [];
+      if (centerId != null) {
+        try {
+          final bRes = await Supabase.instance.client
+              .from('branches')
+              .select()
+              .eq('center_id', centerId)
+              .order('name');
+          res = (bRes as List)
+              .map((j) => Branch.fromJson(Map<String, dynamic>.from(j as Map)))
+              .toList();
+        } catch (_) {}
+      }
+      if (res.isEmpty) {
+        res = await _branchRepo.fetchBranches();
+      }
+
       if (mounted) {
         setState(() {
           _branches = res;
@@ -94,7 +123,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 460,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -145,6 +174,8 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
               ),
             ),
           ),
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsOverflowAlignment: OverflowBarAlignment.end,
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -163,26 +194,42 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
 
                       final nav = Navigator.of(ctx);
                       try {
-                        final b = Branch(
-                          id: '',
-                          code: codeCtrl.text.trim(),
-                          name: nameCtrl.text.trim(),
-                          address: addrCtrl.text.trim().isEmpty
+                        String? centerId;
+                        final curUser = Supabase.instance.client.auth.currentUser;
+                        if (curUser != null) {
+                          try {
+                            final p = await Supabase.instance.client
+                                .from('profiles')
+                                .select('center_id')
+                                .eq('id', curUser.id)
+                                .maybeSingle();
+                            centerId = p?['center_id']?.toString();
+                          } catch (_) {}
+                        }
+
+                        final branchPayload = <String, dynamic>{
+                          'code': codeCtrl.text.trim(),
+                          'name': nameCtrl.text.trim(),
+                          'address': addrCtrl.text.trim().isEmpty
                               ? null
                               : addrCtrl.text.trim(),
-                          phoneNumber: phoneCtrl.text.trim().isEmpty
+                          'phone_number': phoneCtrl.text.trim().isEmpty
                               ? null
                               : phoneCtrl.text.trim(),
-                          status: 'active',
-                        );
+                          'status': 'active',
+                          if (centerId != null) 'center_id': centerId,
+                        };
 
-                        await _branchRepo.createBranch(b);
+                        await Supabase.instance.client
+                            .from('branches')
+                            .insert(branchPayload);
+
                         nav.pop();
                         _loadBranches();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('تم إنشاء الفرع بنجاح!'),
+                              content: Text('تم إنشاء الفرع وربطه بالسنتر بنجاح!'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -248,7 +295,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
             ],
           ),
           content: SizedBox(
-            width: 460,
+            width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
             child: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -311,6 +358,8 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
               ),
             ),
           ),
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsOverflowAlignment: OverflowBarAlignment.end,
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
