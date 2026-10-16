@@ -143,9 +143,11 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 540,
-              child: SingleChildScrollView(
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 540),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -412,6 +414,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -577,9 +580,11 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 540,
-              child: SingleChildScrollView(
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 540),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -825,6 +830,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),

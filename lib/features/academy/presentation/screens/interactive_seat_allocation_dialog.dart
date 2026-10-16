@@ -280,8 +280,10 @@ class _InteractiveSeatAllocationDialogState extends State<InteractiveSeatAllocat
       child: Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          width: 820,
-          height: 680,
+          constraints: BoxConstraints(
+            maxWidth: 820,
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

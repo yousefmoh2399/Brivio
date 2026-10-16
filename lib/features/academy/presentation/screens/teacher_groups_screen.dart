@@ -183,9 +183,11 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 440,
-            child: Form(
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: Form(
               key: formKey,
               child: SingleChildScrollView(
                 child: Column(
@@ -312,6 +314,7 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
               ),
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),

@@ -177,9 +177,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
           title: Text(
             'تسجيل الحضور: ${session.location ?? "الحصة الدراسية"}',
           ),
-          content: SizedBox(
-            width: 540,
-            child: ListView.separated(
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: ListView.separated(
               shrinkWrap: true,
               itemCount: roster.length,
               separatorBuilder: (_, __) => const Divider(height: 16),
@@ -254,6 +256,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
               },
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
@@ -343,9 +346,11 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
 
           return AlertDialog(
             title: const Text('سجل وكشف الحضور والغياب'),
-            content: SizedBox(
-              width: 620,
-              child: Column(
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Wrap(
@@ -480,6 +485,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                 ],
               ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx),
@@ -1075,9 +1081,11 @@ class _TeacherAttendanceQrDialogState
           ),
         ],
       ),
-      content: SizedBox(
-        width: 440,
-        child: SingleChildScrollView(
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1359,6 +1367,7 @@ class _TeacherAttendanceQrDialogState
           ),
         ),
       ),
+    ),
       actions: [
         TextButton(
           onPressed: _isFinalizing ? null : () => Navigator.pop(context),

@@ -139,9 +139,11 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 440,
-              child: SingleChildScrollView(
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -239,6 +241,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                 ),
               ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -362,9 +365,11 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 440,
-              child: SingleChildScrollView(
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -441,6 +446,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                 ),
               ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),

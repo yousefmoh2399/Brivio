@@ -215,9 +215,11 @@ class _StudentHomeworkSubmissionDialogState
           ),
         ],
       ),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,6 +596,7 @@ class _StudentHomeworkSubmissionDialogState
           ),
         ),
       ),
+    ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, null),

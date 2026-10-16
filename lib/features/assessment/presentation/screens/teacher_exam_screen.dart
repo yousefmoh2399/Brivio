@@ -1139,7 +1139,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Container(
-              width: 650,
+              constraints: const BoxConstraints(maxWidth: 650),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Theme.of(context).brightness == Brightness.dark

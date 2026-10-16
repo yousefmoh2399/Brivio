@@ -382,6 +382,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
     bool obscurePassword = true;
     String? selectedBranchId;
@@ -511,6 +512,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
+                      controller: codeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'كود الطالب (اختياري - يولد تلقائياً)',
+                        hintText: 'مثال: STU-2024-001',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
                       controller: passwordCtrl,
                       obscureText: obscurePassword,
                       decoration: InputDecoration(
@@ -589,6 +599,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           email: emailCtrl.text.trim(),
                           fullName: nameCtrl.text.trim(),
                           role: 'student',
+                          studentCode: codeCtrl.text.trim().isNotEmpty ? codeCtrl.text.trim() : null,
                           branchId: selectedBranchId,
                           centerId: _centerId,
                           phoneNumber: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),

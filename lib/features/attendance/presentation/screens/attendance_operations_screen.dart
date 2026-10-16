@@ -310,9 +310,11 @@ class _AttendanceOperationsScreenState
               ),
             ],
           ),
-          content: SizedBox(
-            width: 520,
-            child: FutureBuilder<List<dynamic>>(
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: FutureBuilder<List<dynamic>>(
               future: Future.wait([
                 _studentRepo.fetchStudentsForGroup(session.groupId),
                 _attendanceRepo.fetchAttendanceForSession(session.id).catchError((_) => <AttendanceRecord>[]),
@@ -522,6 +524,7 @@ class _AttendanceOperationsScreenState
               },
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: isSaving ? null : () => Navigator.pop(ctx),

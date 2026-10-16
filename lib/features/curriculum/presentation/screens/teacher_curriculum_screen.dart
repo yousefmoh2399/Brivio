@@ -1746,9 +1746,11 @@ class _LessonCodeChallengeDialogState
           ),
         ],
       ),
-      content: SizedBox(
-        width: 760,
-        child: SingleChildScrollView(
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1946,6 +1948,7 @@ class _LessonCodeChallengeDialogState
           ),
         ),
       ),
+    ),
       actions: [
         TextButton(
           onPressed: _isSaving ? null : () => Navigator.pop(context),

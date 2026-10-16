@@ -22,9 +22,13 @@ class UserProvisioningService {
     String? gradeLevel,
     String? specialization,
     String? password,
+    String? studentCode,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanName = fullName.trim();
+    final cleanStudentCode = (studentCode != null && studentCode.trim().isNotEmpty)
+        ? studentCode.trim()
+        : null;
     final cleanPhone = (phoneNumber != null && phoneNumber.trim().isNotEmpty)
         ? phoneNumber.trim()
         : null;
@@ -71,6 +75,7 @@ class UserProvisioningService {
           if (cleanBranchId != null) 'branchId': cleanBranchId,
           if (effectiveCenterId != null) 'centerId': effectiveCenterId,
           if (cleanPhone != null) 'phoneNumber': cleanPhone,
+          if (cleanStudentCode != null) 'studentCode': cleanStudentCode,
           if (cleanGrade != null) 'gradeLevel': cleanGrade,
           if (cleanSpec != null) 'specialization': cleanSpec,
           if (password != null && password.trim().isNotEmpty)
@@ -198,7 +203,7 @@ class UserProvisioningService {
     // Domain entity table provisioning
     try {
       if (role == 'student') {
-        final generatedCode =
+        final generatedCode = cleanStudentCode ??
             'STU-${newUserId.replaceAll('-', '').substring(0, 8).toUpperCase()}';
         await client.from('students').upsert(
           {

@@ -169,9 +169,11 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 440,
-              child: Form(
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: Form(
                 key: formKey,
                 child: SingleChildScrollView(
                   child: Column(
@@ -308,6 +310,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                 ),
               ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: isSaving ? null : () => Navigator.pop(ctx),

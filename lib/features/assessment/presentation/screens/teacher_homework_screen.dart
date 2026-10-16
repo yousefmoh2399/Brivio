@@ -1659,8 +1659,10 @@ class _HomeworkSubmissionsDialogContentState
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 700,
-        height: MediaQuery.of(context).size.height * 0.88,
+        constraints: BoxConstraints(
+          maxWidth: 700,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: bgColor,

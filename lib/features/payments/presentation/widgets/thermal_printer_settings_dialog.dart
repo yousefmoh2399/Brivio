@@ -89,7 +89,7 @@ class _ThermalPrinterSettingsDialogState extends State<ThermalPrinterSettingsDia
       child: Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          width: 520,
+          constraints: const BoxConstraints(maxWidth: 520),
           padding: const EdgeInsets.all(20),
           child: SingleChildScrollView(
             child: Column(

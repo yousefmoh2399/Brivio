@@ -207,12 +207,15 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 440,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
                     controller: nameCtrl,
@@ -236,6 +239,8 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
               ),
             ),
           ),
+        ),
+      ),
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -333,9 +338,11 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 440,
-            child: SingleChildScrollView(
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
               child: Form(
                 key: formKey,
                 child: Column(
@@ -399,6 +406,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
               ),
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -504,10 +512,13 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 440,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
               children: [
                 if (_students.isNotEmpty)
                   DropdownButtonFormField<String>(
@@ -533,6 +544,8 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                     child: Text('لا يوجد طلاب مسجلون متاحون للربط حالياً.', style: TextStyle(color: Colors.grey)),
                   ),
               ],
+                ),
+              ),
             ),
           ),
           actions: [

@@ -106,9 +106,11 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
               child: Form(
                 key: formKey,
                 child: Column(
@@ -188,6 +190,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -289,9 +292,11 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
               child: Form(
                 key: formKey,
                 child: Column(
@@ -366,6 +371,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -483,10 +489,14 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 580,
-              height: 480,
-              child: isBankLoading
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 580,
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
+              ),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: isBankLoading
                   ? const Center(child: CircularProgressIndicator())
                   : bankQuestions.isEmpty
                       ? const Center(
@@ -554,6 +564,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                           },
                         ),
             ),
+          ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),

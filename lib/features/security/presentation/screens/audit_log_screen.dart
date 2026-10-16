@@ -541,9 +541,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               ),
             ],
           ),
-          content: SizedBox(
-            width: 720,
-            child: SingleChildScrollView(
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -606,6 +608,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               ),
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
