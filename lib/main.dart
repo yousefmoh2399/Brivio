@@ -22,7 +22,7 @@ import 'core/services/settings_service.dart';
 import 'design_system/tokens/colors.dart';
 import 'design_system/theme/app_theme.dart';
 import 'features/auth/domain/models/user_role.dart';
-import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/auth_gate_screen.dart';
 import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey =
@@ -243,7 +243,7 @@ class _MainAppSelectorState extends State<MainAppSelector> {
               );
             case AuthStatus.unauthenticated:
             case AuthStatus.error:
-              return LoginScreen(viewModel: _viewModel);
+              return AuthGateScreen(viewModel: _viewModel);
           }
         },
       ),

@@ -16,18 +16,23 @@ import '../../domain/models/user_role.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../../academy/presentation/screens/register_center_screen.dart';
 import '../../../legal/presentation/screens/privacy_and_terms_screen.dart';
+import '../../../../core/services/saved_accounts_service.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final UserRole? targetRole;
   final AuthViewModel viewModel;
   final VoidCallback? onLoginSuccess;
+  final VoidCallback? onNavigateToSavedAccounts;
+  final bool hasSavedAccounts;
 
   const LoginScreen({
     super.key,
     this.targetRole,
     required this.viewModel,
     this.onLoginSuccess,
+    this.onNavigateToSavedAccounts,
+    this.hasSavedAccounts = false,
   });
 
   @override
@@ -133,14 +138,195 @@ class _LoginScreenState extends State<LoginScreen>
 
     await _persistCredentials();
 
+    final enteredEmail = _emailController.text.trim();
+    final enteredPassword = _passwordController.text;
+
     await widget.viewModel.signIn(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
+      email: enteredEmail,
+      password: enteredPassword,
     );
     if (widget.viewModel.state.status == AuthStatus.authenticated) {
       await _consumePendingQrToken();
+      await _handlePostLoginSaveAccount(
+        email: enteredEmail,
+        password: enteredPassword,
+      );
       widget.onLoginSuccess?.call();
     }
+  }
+
+  Future<bool?> _showSaveLoginInfoDialog({
+    required String name,
+    required String email,
+    required UserRole role,
+    String? avatarUrl,
+  }) async {
+    if (!mounted) return false;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final roleColor = switch (role) {
+      UserRole.admin || UserRole.superAdmin => AppColors.adminRole,
+      UserRole.teacher => AppColors.teacherRole,
+      UserRole.student => AppColors.studentRole,
+      UserRole.parent => AppColors.parentRole,
+      UserRole.staff => AppColors.staffRole,
+      _ => AppColors.primary,
+    };
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+          title: Column(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [roleColor, roleColor.withValues(alpha: 0.7)],
+                  ),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: CircleAvatar(
+                  backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                      ? NetworkImage(avatarUrl)
+                      : null,
+                  child: avatarUrl == null || avatarUrl.isEmpty
+                      ? Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: roleColor,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'حفظ معلومات تسجيل الدخول؟',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'هل ترغب في حفظ حساب "$name" على هذا الجهاز؟',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'ستتمكن من تسجيل الدخول بنقرة واحدة في المرات القادمة دون الحاجة لإعادة كتابة كلمة المرور.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('ليس الآن'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: roleColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    icon: const Icon(Icons.bookmark_added_rounded, size: 18),
+                    label: const Text(
+                      'حفظ الحساب',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handlePostLoginSaveAccount({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final profile = widget.viewModel.currentUser;
+      final effectiveRole = profile?.role ?? _selectedRole ?? widget.targetRole ?? UserRole.student;
+      final effectiveName = (profile?.fullName.isNotEmpty ?? false)
+          ? profile!.fullName
+          : email.split('@').first;
+      final userId = profile?.id ?? '';
+
+      final isAlreadySaved = await SavedAccountsService.isAccountSaved(email);
+      if (!isAlreadySaved) {
+        final shouldSave = await _showSaveLoginInfoDialog(
+          name: effectiveName,
+          email: email,
+          role: effectiveRole,
+          avatarUrl: profile?.avatarUrl,
+        );
+        if (shouldSave == true) {
+          await SavedAccountsService.saveAccount(
+            SavedAccount(
+              id: userId,
+              email: email,
+              fullName: effectiveName,
+              role: effectiveRole.toDbValue(),
+              avatarUrl: profile?.avatarUrl,
+              password: password.isNotEmpty ? password : null,
+              lastLoginAt: DateTime.now(),
+            ),
+          );
+        }
+      } else {
+        final accounts = await SavedAccountsService.getSavedAccounts();
+        final existingIndex = accounts.indexWhere(
+          (a) => a.email.toLowerCase() == email.toLowerCase() || (userId.isNotEmpty && a.id == userId),
+        );
+        if (existingIndex != -1) {
+          final existing = accounts[existingIndex];
+          await SavedAccountsService.saveAccount(
+            existing.copyWith(
+              password: password.isNotEmpty ? password : existing.password,
+              lastLoginAt: DateTime.now(),
+              avatarUrl: profile?.avatarUrl ?? existing.avatarUrl,
+              fullName: effectiveName.isNotEmpty ? effectiveName : existing.fullName,
+              role: effectiveRole.toDbValue(),
+            ),
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _consumePendingQrToken() async {
@@ -176,6 +362,10 @@ class _LoginScreenState extends State<LoginScreen>
         token: result.token,
       );
       if (widget.viewModel.state.status == AuthStatus.authenticated) {
+        await _handlePostLoginSaveAccount(
+          email: result.email,
+          password: '',
+        );
         widget.onLoginSuccess?.call();
       } else {
         setState(() {
@@ -205,6 +395,10 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (!mounted) return;
     if (widget.viewModel.state.status == AuthStatus.authenticated) {
+      await _handlePostLoginSaveAccount(
+        email: result.email,
+        password: password,
+      );
       widget.onLoginSuccess?.call();
     } else {
       setState(() => _qrMessage = null);
@@ -328,6 +522,42 @@ class _LoginScreenState extends State<LoginScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            if (widget.hasSavedAccounts && widget.onNavigateToSavedAccounts != null) ...[
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: InkWell(
+                                  onTap: widget.onNavigateToSavedAccounts,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: _roleColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: _roleColor.withValues(alpha: 0.3),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.arrow_forward_rounded, size: 16, color: _roleColor),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'التبديل إلى الحسابات المحفوظة 👥',
+                                          style: TextStyle(
+                                            color: _roleColor,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+
                             // ── 1. Hero Brand Panel ──
                             FadeInSlide(
                               duration: const Duration(milliseconds: 600),
