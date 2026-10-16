@@ -111,11 +111,15 @@ class _PrimaryButtonState extends State<PrimaryButton>
                       ),
                       const SizedBox(width: 8),
                     ],
-                    Text(
-                      context.l10n.t(widget.text),
-                      style: AppTypography.labelLarge(
-                        _disabled ? AppColors.darkTextTertiary : Colors.white,
-                      ).copyWith(fontWeight: FontWeight.w700),
+                    Flexible(
+                      child: Text(
+                        context.l10n.t(widget.text),
+                        style: AppTypography.labelLarge(
+                          _disabled ? AppColors.darkTextTertiary : Colors.white,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                   ],
                 ),
@@ -167,11 +171,15 @@ class GhostButton extends StatelessWidget {
               Icon(icon, size: 18, color: c),
               const SizedBox(width: 8),
             ],
-            Text(
-              context.l10n.t(text),
-              style: AppTypography.labelLarge(
-                c,
-              ).copyWith(fontWeight: FontWeight.w600),
+            Flexible(
+              child: Text(
+                context.l10n.t(text),
+                style: AppTypography.labelLarge(
+                  c,
+                ).copyWith(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
           ],
         ),

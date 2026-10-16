@@ -598,23 +598,26 @@ class _LoginScreenState extends State<LoginScreen>
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'تسجيل الدخول',
-                                                style: AppTypography.displaySmall(textPrimary).copyWith(
-                                                  fontWeight: FontWeight.w900,
-                                                  letterSpacing: -0.5,
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'تسجيل الدخول',
+                                                  style: AppTypography.displaySmall(textPrimary).copyWith(
+                                                    fontWeight: FontWeight.w900,
+                                                    letterSpacing: -0.5,
+                                                  ),
                                                 ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'أهلاً بك مجدداً! أدخل بيانات حسابك للمتابعة.',
-                                                style: AppTypography.bodySmall(textSecondary),
-                                              ),
-                                            ],
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'أهلاً بك مجدداً! أدخل بيانات حسابك للمتابعة.',
+                                                  style: AppTypography.bodySmall(textSecondary),
+                                                ),
+                                              ],
+                                            ),
                                           ),
+                                          const SizedBox(width: 12),
                                           Container(
                                             padding: const EdgeInsets.all(10),
                                             decoration: BoxDecoration(
