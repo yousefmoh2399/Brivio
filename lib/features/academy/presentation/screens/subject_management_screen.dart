@@ -71,7 +71,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
               .toList();
         } catch (_) {}
       }
-      if (res.isEmpty) {
+      if (res.isEmpty && centerId == null) {
         res = await _subjectRepo.fetchSubjects();
       }
 

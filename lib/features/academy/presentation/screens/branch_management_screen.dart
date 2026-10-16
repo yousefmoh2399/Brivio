@@ -70,7 +70,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
               .toList();
         } catch (_) {}
       }
-      if (res.isEmpty) {
+      if (res.isEmpty && centerId == null) {
         res = await _branchRepo.fetchBranches();
       }
 

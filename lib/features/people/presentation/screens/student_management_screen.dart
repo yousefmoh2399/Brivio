@@ -21,12 +21,12 @@ class StudentManagementScreen extends StatefulWidget {
 
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
   late final SupabaseStudentRepository _studentRepo;
-  late final SupabaseBranchRepository _branchRepo;
 
   List<Student> _students = [];
   List<Branch> _branches = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String? _centerId;
   String _centerName = 'المركز التعليمي';
   final TextEditingController _searchController = TextEditingController();
 
@@ -44,9 +44,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     super.initState();
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     _studentRepo = SupabaseStudentRepository(wrapper);
-    _branchRepo = SupabaseBranchRepository(wrapper);
-    _loadCenterInfo();
-    _loadStudents();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    await _loadCenterInfo();
+    await _loadStudents();
   }
 
   @override
@@ -65,13 +68,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
             .eq('id', user.id)
             .maybeSingle();
         final centerId = profile?['center_id'];
+        _centerId = centerId?.toString();
         if (centerId != null) {
           final center = await Supabase.instance.client
               .from('educational_centers')
               .select('name')
               .eq('id', centerId)
               .maybeSingle();
-          if (center != null && center['name'] != null) {
+          if (center != null && center['name'] != null && mounted) {
             setState(() => _centerName = center['name']);
           }
         }
@@ -86,12 +90,45 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     });
 
     try {
+      final client = Supabase.instance.client;
+      if (_centerId == null) {
+        await _loadCenterInfo();
+      }
+
       final res = await _studentRepo.fetchStudents();
-      final bRes = await _branchRepo.fetchBranches();
+
+      var bQuery = client.from('branches').select().eq('status', 'active');
+      if (_centerId != null) {
+        bQuery = bQuery.eq('center_id', _centerId!);
+      }
+      final bRes = await bQuery.order('name');
+      final branches = (bRes as List)
+          .map((b) => Branch.fromJson(b as Map<String, dynamic>))
+          .toList();
+
+      List<Student> filteredStudents = res.data;
+      if (_centerId != null) {
+        final profileRes = await client
+            .from('profiles')
+            .select('id')
+            .eq('center_id', _centerId!)
+            .eq('role', 'student');
+        final centerProfileIds = (profileRes as List)
+            .map((p) => p['id']?.toString())
+            .whereType<String>()
+            .toSet();
+        final branchIds = branches.map((b) => b.id).toSet();
+
+        filteredStudents = res.data.where((s) {
+          return centerProfileIds.contains(s.profileId) ||
+              (s.primaryBranchId.isNotEmpty && branchIds.contains(s.primaryBranchId));
+        }).toList();
+      }
+
       if (mounted) {
         setState(() {
-          _students = res.data;
-          _branches = bRes;
+          _students = filteredStudents;
+          _branches = branches;
           _isLoading = false;
         });
       }
@@ -553,6 +590,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           fullName: nameCtrl.text.trim(),
                           role: 'student',
                           branchId: selectedBranchId,
+                          centerId: _centerId,
                           phoneNumber: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
                           gradeLevel: selectedGrade,
                           password: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,

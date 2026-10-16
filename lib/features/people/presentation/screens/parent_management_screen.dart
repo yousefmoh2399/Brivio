@@ -26,6 +26,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
   Map<String, List<Student>> _linkedStudents = {};
   bool _isLoading = false;
   String? _errorMessage;
+  String? _centerId;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -43,6 +44,22 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchCenterId() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', user.id)
+            .maybeSingle();
+        if (profile != null && profile['center_id'] != null) {
+          _centerId = profile['center_id'].toString();
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadParents() async {
     setState(() {
       _isLoading = true;
@@ -50,11 +67,30 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
     });
 
     try {
+      if (_centerId == null) {
+        await _fetchCenterId();
+      }
+
       final res = await _parentRepo.fetchParents();
       final sRes = await _studentRepo.fetchStudents(pageSize: 500);
 
+      List<String> centerBranchIds = [];
+      if (_centerId != null) {
+        try {
+          final bRes = await Supabase.instance.client
+              .from('branches')
+              .select('id')
+              .eq('center_id', _centerId!);
+          centerBranchIds = (bRes as List).map((b) => b['id'].toString()).toList();
+        } catch (_) {}
+      }
+
+      final scopedStudents = _centerId != null && centerBranchIds.isNotEmpty
+          ? sRes.data.where((s) => centerBranchIds.contains(s.primaryBranchId)).toList()
+          : sRes.data;
+
       final Map<String, Student> studentMap = {
-        for (final s in sRes.data) s.id: s,
+        for (final s in scopedStudents) s.id: s,
       };
 
       final Map<String, List<Student>> linked = {
@@ -114,7 +150,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
       if (mounted) {
         setState(() {
           _parents = res.data;
-          _students = sRes.data;
+          _students = scopedStudents;
           _linkedStudents = linked;
           _isLoading = false;
         });
@@ -151,6 +187,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -276,6 +313,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -397,6 +435,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
                           role: 'parent',
                           phoneNumber: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
                           password: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,
+                          centerId: _centerId,
                         );
 
                         nav.pop();
@@ -445,6 +484,7 @@ class _ParentManagementScreenState extends State<ParentManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(

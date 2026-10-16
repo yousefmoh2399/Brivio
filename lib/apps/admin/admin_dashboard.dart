@@ -122,26 +122,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
   }
 
-  Future<Map<String, dynamic>> _fetchTodayTreasuryCollections() async {
+  Future<Map<String, dynamic>> _fetchTodayTreasuryCollections([String? centerId]) async {
     try {
       final now = DateTime.now();
       final todayStr =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final startOfDay = '$todayStr 00:00:00';
-      final endOfDay = '$todayStr 23:59:59';
+      final startOfDayUtc = DateTime.utc(now.year, now.month, now.day).toIso8601String();
+      final endOfDayUtc = DateTime.utc(now.year, now.month, now.day, 23, 59, 59, 999).toIso8601String();
+      final startOfDayLocal = DateTime(now.year, now.month, now.day).toIso8601String();
+      final endOfDayLocal = DateTime(now.year, now.month, now.day, 23, 59, 59).toIso8601String();
 
       double sum = 0.0;
       int count = 0;
+      final Set<String> countedReceiptNumbers = {};
 
       // 1. Core receipts from Supabase
       try {
-        final res = await Supabase.instance.client
+        var query = Supabase.instance.client
             .from('receipts')
-            .select('amount, amount_minor')
-            .gte('issued_at', startOfDay)
-            .lte('issued_at', endOfDay);
+            .select('receipt_number, amount, amount_minor, center_id');
+
+        if (centerId != null) {
+          query = query.or('center_id.eq.$centerId,center_id.is.null');
+        }
+
+        final res = await query
+            .gte('issued_at', startOfDayUtc)
+            .lte('issued_at', endOfDayUtc)
+            .catchError((_) async {
+              return await query
+                  .gte('issued_at', startOfDayLocal)
+                  .lte('issued_at', endOfDayLocal);
+            });
 
         for (final row in res) {
+          final recNum = row['receipt_number']?.toString() ?? '';
+          if (recNum.isNotEmpty && countedReceiptNumbers.contains(recNum)) continue;
+          if (recNum.isNotEmpty) countedReceiptNumbers.add(recNum);
+
           if (row['amount'] != null) {
             sum += (row['amount'] as num).toDouble();
             count++;
@@ -154,13 +172,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       // 2. Bookstore & Inventory POS Sales
       try {
-        final salesRes = await Supabase.instance.client
+        var salesQuery = Supabase.instance.client
             .from('bookstore_sales')
-            .select('total_amount')
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay);
+            .select('receipt_number, total_amount, center_id');
+
+        if (centerId != null) {
+          salesQuery = salesQuery.or('center_id.eq.$centerId,center_id.is.null');
+        }
+
+        final salesRes = await salesQuery
+            .gte('created_at', startOfDayUtc)
+            .lte('created_at', endOfDayUtc)
+            .catchError((_) async {
+              return await salesQuery
+                  .gte('created_at', startOfDayLocal)
+                  .lte('created_at', endOfDayLocal);
+            });
 
         for (final row in salesRes) {
+          final recNum = row['receipt_number']?.toString() ?? '';
+          if (recNum.isNotEmpty && countedReceiptNumbers.contains(recNum)) continue;
+          if (recNum.isNotEmpty) countedReceiptNumbers.add(recNum);
+
           sum += ((row['total_amount'] as num?)?.toDouble() ?? 0.0);
           count++;
         }
@@ -172,13 +205,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         final localSalesJson = prefs.getString('pos_daily_sales_$todayStr');
         if (localSalesJson != null) {
           final localSales = jsonDecode(localSalesJson) as List;
-          double localSum = 0.0;
           for (final s in localSales) {
-            localSum += ((s['total_amount'] as num?)?.toDouble() ?? 0.0);
-          }
-          if (localSum > sum) {
-            sum = localSum;
-            count = localSales.length;
+            final recNum = s['receipt_number']?.toString() ?? '';
+            if (recNum.isNotEmpty && countedReceiptNumbers.contains(recNum)) continue;
+            if (recNum.isNotEmpty) countedReceiptNumbers.add(recNum);
+
+            sum += ((s['total_amount'] as num?)?.toDouble() ?? 0.0);
+            count++;
           }
         }
       } catch (_) {}
@@ -237,10 +270,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
               .toList();
         } catch (_) {}
       }
-      if (centerBranches.isEmpty) {
+      if (centerBranches.isEmpty && centerId == null) {
         centerBranches = await branchRepo.fetchBranches().catchError((_) => <Branch>[]);
       }
       final centerBranchIds = centerBranches.map((b) => b.id).toSet();
+
+      Set<String> centerProfileStudentIds = {};
+      Set<String> centerProfileTeacherIds = {};
+      if (centerId != null) {
+        try {
+          final pRes = await Supabase.instance.client
+              .from('profiles')
+              .select('id, role')
+              .eq('center_id', centerId);
+          for (final row in pRes as List) {
+            final pid = row['id']?.toString();
+            final r = row['role']?.toString();
+            if (pid != null) {
+              if (r == 'student') centerProfileStudentIds.add(pid);
+              if (r == 'teacher') centerProfileTeacherIds.add(pid);
+            }
+          }
+        } catch (_) {}
+      }
 
       final results = await Future.wait([
         studentRepo.fetchStudents(branchId: activeBranch, pageSize: 500).catchError(
@@ -268,7 +320,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ),
         branchRepo.fetchBranches().catchError((_) => <Branch>[]),
-        subjectRepo.fetchSubjects().catchError((_) => <SubjectEntity>[]),
+        centerId != null
+            ? Supabase.instance.client
+                .from('subjects')
+                .select()
+                .eq('center_id', centerId)
+                .order('name')
+                .then((rows) => (rows as List)
+                    .map((j) => SubjectEntity.fromJson(
+                        Map<String, dynamic>.from(j as Map)))
+                    .toList())
+                .catchError((_) => <SubjectEntity>[])
+            : subjectRepo.fetchSubjects().catchError((_) => <SubjectEntity>[]),
         groupRepo.fetchGroups(branchId: activeBranch).catchError((_) => <GroupEntity>[]),
         summaryRepo.fetchSummary().catchError(
           (_) => const AcademyCoreSummary(
@@ -294,7 +357,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             totalAdjustmentsMinor: 0,
           ),
         ),
-        _fetchTodayTreasuryCollections(),
+        _fetchTodayTreasuryCollections(centerId),
       ]);
 
       double fallbackTreasury = 0.0;
@@ -322,11 +385,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       setState(() {
         final studentResult = results[0] as PaginatedResult<Student>;
-        _students = centerBranchIds.isEmpty
-            ? studentResult.data
-            : studentResult.data
-                .where((s) => s.primaryBranchId.isEmpty || centerBranchIds.contains(s.primaryBranchId))
-                .toList();
+        if (centerId != null) {
+          _students = studentResult.data.where((s) {
+            return centerProfileStudentIds.contains(s.profileId) ||
+                (s.primaryBranchId.isNotEmpty &&
+                    centerBranchIds.contains(s.primaryBranchId));
+          }).toList();
+        } else {
+          _students = studentResult.data;
+        }
         _studentTotal = _students.length;
 
         final parentResult = results[1] as PaginatedResult<Parent>;
@@ -334,11 +401,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _parentTotal = parentResult.total;
 
         final teacherResult = results[2] as PaginatedResult<Teacher>;
-        _teachers = centerBranchIds.isEmpty
-            ? teacherResult.data
-            : teacherResult.data
-                .where((t) => t.primaryBranchId.isEmpty || centerBranchIds.contains(t.primaryBranchId))
-                .toList();
+        if (centerId != null) {
+          _teachers = teacherResult.data.where((t) {
+            return centerProfileTeacherIds.contains(t.profileId) ||
+                (t.primaryBranchId.isNotEmpty &&
+                    centerBranchIds.contains(t.primaryBranchId));
+          }).toList();
+        } else {
+          _teachers = teacherResult.data;
+        }
         _teacherTotal = _teachers.length;
 
         _branches = centerBranches;
@@ -347,7 +418,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _groups = centerBranchIds.isEmpty
             ? allGroups
             : allGroups.where((g) => centerBranchIds.contains(g.branchId)).toList();
-        _summary = results[6] as AcademyCoreSummary;
+
+        final rawSummary = results[6] as AcademyCoreSummary;
+        _summary = AcademyCoreSummary(
+          activeBranches: _branches.length,
+          activeStudents: _studentTotal,
+          activeTeachers: _teacherTotal,
+          activeSubjects: _subjects.length,
+          activeGroups: _groups.length,
+          todayScheduledClasses: rawSummary.todayScheduledClasses,
+        );
         _opsMetrics = results[7] as _AdminOpsMetrics;
         _recentActivity = results[8] as List<_AdminActivityItem>;
         _notifications = results[9] as List<AppNotification>;
@@ -361,6 +441,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             (todayFin['todayCollected'] as num?)?.toDouble() ?? 0.0;
         _treasuryReceiptsCount =
             (todayFin['todayCount'] as num?)?.toInt() ?? 0;
+
+        if (_treasuryTotalCollected < _treasuryTodayCollected) {
+          _treasuryTotalCollected = _treasuryTodayCollected;
+        }
 
         _isLoading = false;
       });

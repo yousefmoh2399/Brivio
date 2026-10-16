@@ -32,6 +32,7 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
   String _centerName = 'المركز التعليمي';
   String _cashierName = 'مسؤول الخزينة';
+  String? _centerId;
 
   // Financial aggregates
   double _grossCashReceipts = 0.0;
@@ -104,14 +105,17 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
             _cashierName = fullName;
           }
           final centerId = profile['center_id'];
-          if (centerId != null && widget.centerName == null) {
-            final center = await Supabase.instance.client
-                .from('educational_centers')
-                .select('name')
-                .eq('id', centerId)
-                .maybeSingle();
-            if (center != null && center['name'] != null) {
-              _centerName = center['name'];
+          if (centerId != null) {
+            _centerId = centerId.toString();
+            if (widget.centerName == null) {
+              final center = await Supabase.instance.client
+                  .from('educational_centers')
+                  .select('name')
+                  .eq('id', centerId)
+                  .maybeSingle();
+              if (center != null && center['name'] != null) {
+                _centerName = center['name'];
+              }
             }
           }
         }
@@ -125,27 +129,52 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
     try {
       await _fetchCenterAndCashierInfo();
 
-      final startOfDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day).toIso8601String();
-      final endOfDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59).toIso8601String();
+      final startOfDayUtc = DateTime.utc(_selectedDate.year, _selectedDate.month, _selectedDate.day).toIso8601String();
+      final endOfDayUtc = DateTime.utc(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59, 999).toIso8601String();
+      final startOfDayLocal = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day).toIso8601String();
+      final endOfDayLocal = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59).toIso8601String();
 
       // Fetch today's receipts from Supabase
-      final receiptsRes = await Supabase.instance.client
+      var receiptsQuery = Supabase.instance.client
           .from('receipts')
-          .select('id, receipt_number, amount_minor, currency, issued_at, student:students(profiles(full_name))')
-          .gte('issued_at', startOfDay)
-          .lte('issued_at', endOfDay)
-          .order('issued_at', ascending: false);
+          .select('id, receipt_number, amount, amount_minor, currency, issued_at, center_id, student:students!left(profiles!left(full_name))');
+
+      if (_centerId != null) {
+        receiptsQuery = receiptsQuery.or('center_id.eq.$_centerId,center_id.is.null');
+      }
+
+      final receiptsRes = await receiptsQuery
+          .gte('issued_at', startOfDayUtc)
+          .lte('issued_at', endOfDayUtc)
+          .order('issued_at', ascending: false)
+          .catchError((_) async {
+            // Fallback with local time bounds if UTC didn't match
+            return await receiptsQuery
+                .gte('issued_at', startOfDayLocal)
+                .lte('issued_at', endOfDayLocal)
+                .order('issued_at', ascending: false);
+          });
 
       double grossInflow = 0.0;
       int countInflow = 0;
       final List<Map<String, dynamic>> logs = [];
+      final Set<String> seenReceiptNumbers = {};
 
       for (final r in (receiptsRes as List<dynamic>)) {
-        final amt = ((r['amount_minor'] as num? ?? 0) / 100.0).toDouble();
+        final recNum = r['receipt_number']?.toString() ?? r['id'].toString().substring(0, 8);
+        if (seenReceiptNumbers.contains(recNum)) continue;
+        seenReceiptNumbers.add(recNum);
+
+        double amt = 0.0;
+        if (r['amount'] != null) {
+          amt = (r['amount'] as num).toDouble();
+        } else if (r['amount_minor'] != null) {
+          amt = ((r['amount_minor'] as num).toDouble() / 100.0);
+        }
+
         grossInflow += amt;
         countInflow++;
-        final studentName = r['student']?['profiles']?['full_name']?.toString() ?? 'طالب';
-        final recNum = r['receipt_number']?.toString() ?? r['id'].toString().substring(0, 8);
+        final studentName = r['student']?['profiles']?['full_name']?.toString() ?? 'طالب نقدي';
         logs.add({
           'type': 'receipt',
           'title': 'إيصال تحصيل نقدية #$recNum • $studentName',
@@ -159,19 +188,34 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
       // Fetch bookstore POS sales
       try {
-        final salesRes = await Supabase.instance.client
+        var salesQuery = Supabase.instance.client
             .from('bookstore_sales')
-            .select('receipt_number, student_name, total_amount, created_at')
-            .gte('created_at', startOfDay)
-            .lte('created_at', endOfDay)
-            .order('created_at', ascending: false);
+            .select('receipt_number, student_name, total_amount, created_at, center_id');
+
+        if (_centerId != null) {
+          salesQuery = salesQuery.or('center_id.eq.$_centerId,center_id.is.null');
+        }
+
+        final salesRes = await salesQuery
+            .gte('created_at', startOfDayUtc)
+            .lte('created_at', endOfDayUtc)
+            .order('created_at', ascending: false)
+            .catchError((_) async {
+              return await salesQuery
+                  .gte('created_at', startOfDayLocal)
+                  .lte('created_at', endOfDayLocal)
+                  .order('created_at', ascending: false);
+            });
 
         for (final s in (salesRes as List<dynamic>)) {
+          final recNum = s['receipt_number']?.toString() ?? '';
+          if (recNum.isNotEmpty && seenReceiptNumbers.contains(recNum)) continue;
+          if (recNum.isNotEmpty) seenReceiptNumbers.add(recNum);
+
           final amt = (s['total_amount'] as num?)?.toDouble() ?? 0.0;
           grossInflow += amt;
           countInflow++;
           final studentName = s['student_name']?.toString() ?? 'طالب نقدي';
-          final recNum = s['receipt_number']?.toString() ?? '';
           logs.add({
             'type': 'receipt',
             'title': 'مبيعات مذكرات #$recNum • $studentName',
@@ -193,22 +237,22 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
           final localSales = jsonDecode(localSalesJson) as List;
           for (final ls in localSales) {
             final recNum = ls['receipt_number']?.toString() ?? '';
-            final alreadyInLogs = logs.any((l) => (l['title'] as String).contains(recNum));
-            if (!alreadyInLogs) {
-              final amt = (ls['total_amount'] as num?)?.toDouble() ?? 0.0;
-              grossInflow += amt;
-              countInflow++;
-              final sName = ls['student_name']?.toString() ?? 'طالب نقدي';
-              logs.add({
-                'type': 'receipt',
-                'title': 'مبيعات مذكرات #$recNum • $sName',
-                'amount': amt,
-                'time': ls['created_at'] != null
-                    ? DateFormat('hh:mm a').format(DateTime.parse(ls['created_at']))
-                    : 'اليوم',
-                'is_credit': true,
-              });
-            }
+            if (recNum.isNotEmpty && seenReceiptNumbers.contains(recNum)) continue;
+            if (recNum.isNotEmpty) seenReceiptNumbers.add(recNum);
+
+            final amt = (ls['total_amount'] as num?)?.toDouble() ?? 0.0;
+            grossInflow += amt;
+            countInflow++;
+            final sName = ls['student_name']?.toString() ?? 'طالب نقدي';
+            logs.add({
+              'type': 'receipt',
+              'title': 'مبيعات مذكرات #$recNum • $sName',
+              'amount': amt,
+              'time': ls['created_at'] != null
+                  ? DateFormat('hh:mm a').format(DateTime.parse(ls['created_at']))
+                  : 'اليوم',
+              'is_credit': true,
+            });
           }
         }
       } catch (_) {}
@@ -221,9 +265,18 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
             .from('payment_transactions')
             .select('id, provider, amount_minor, currency, transaction_type, status, occurred_at')
             .eq('provider', 'cash')
-            .gte('occurred_at', startOfDay)
-            .lte('occurred_at', endOfDay)
-            .order('occurred_at', ascending: false);
+            .gte('occurred_at', startOfDayUtc)
+            .lte('occurred_at', endOfDayUtc)
+            .order('occurred_at', ascending: false)
+            .catchError((_) async {
+              return await Supabase.instance.client
+                  .from('payment_transactions')
+                  .select('id, provider, amount_minor, currency, transaction_type, status, occurred_at')
+                  .eq('provider', 'cash')
+                  .gte('occurred_at', startOfDayLocal)
+                  .lte('occurred_at', endOfDayLocal)
+                  .order('occurred_at', ascending: false);
+            });
 
         for (final p in (txRes as List<dynamic>)) {
           final type = p['transaction_type']?.toString();

@@ -22,8 +22,6 @@ class GroupManagementScreen extends StatefulWidget {
 
 class _GroupManagementScreenState extends State<GroupManagementScreen> {
   late final SupabaseGroupRepository _groupRepo;
-  late final SupabaseSubjectRepository _subjectRepo;
-  late final SupabaseBranchRepository _branchRepo;
   late final SupabaseStudentRepository _studentRepo;
   late final SupabaseTeacherRepository _teacherRepo;
   late final SupabaseEnrollmentRepository _enrollmentRepo;
@@ -33,6 +31,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
   List<Branch> _branches = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String? _centerId;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -40,8 +39,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     super.initState();
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     _groupRepo = SupabaseGroupRepository(wrapper);
-    _subjectRepo = SupabaseSubjectRepository(wrapper);
-    _branchRepo = SupabaseBranchRepository(wrapper);
     _studentRepo = SupabaseStudentRepository(wrapper);
     _teacherRepo = SupabaseTeacherRepository(wrapper);
     _enrollmentRepo = SupabaseEnrollmentRepository(wrapper);
@@ -61,14 +58,57 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
     });
 
     try {
-      final g = await _groupRepo.fetchGroups();
-      final s = await _subjectRepo.fetchSubjects();
-      final b = await _branchRepo.fetchBranches();
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId != null) {
+        final prof = await client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', userId)
+            .maybeSingle();
+        _centerId = prof?['center_id'] as String?;
+      }
+
+      var bQuery = client.from('branches').select().eq('status', 'active');
+      if (_centerId != null) {
+        bQuery = bQuery.eq('center_id', _centerId!);
+      }
+      final bRes = await bQuery.order('name');
+      final branches = (bRes as List)
+          .map((json) => Branch.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      var sQuery = client.from('subjects').select().eq('status', 'active');
+      if (_centerId != null) {
+        sQuery = sQuery.eq('center_id', _centerId!);
+      }
+      final sRes = await sQuery.order('name');
+      final subjects = (sRes as List)
+          .map((json) => SubjectEntity.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      List<GroupEntity> groups;
+      if (_centerId != null && branches.isNotEmpty) {
+        final branchIds = branches.map((b) => b.id).toList();
+        final gRes = await client
+            .from('groups')
+            .select()
+            .inFilter('branch_id', branchIds)
+            .order('name');
+        groups = (gRes as List)
+            .map((json) => GroupEntity.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } else if (_centerId != null && branches.isEmpty) {
+        groups = [];
+      } else {
+        groups = await _groupRepo.fetchGroups();
+      }
+
       if (mounted) {
         setState(() {
-          _groups = g;
-          _subjects = s;
-          _branches = b;
+          _groups = groups;
+          _subjects = subjects;
+          _branches = branches;
           _isLoading = false;
         });
       }
@@ -99,6 +139,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
+            actionsOverflowDirection: VerticalDirection.down,
             title: Row(
               children: [
                 Container(
@@ -119,7 +160,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
               ],
             ),
             content: SizedBox(
-              width: 480,
+              width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
               child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
@@ -307,6 +348,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
+            actionsOverflowDirection: VerticalDirection.down,
             title: Row(
               children: [
                 Container(
@@ -327,7 +369,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
               ],
             ),
             content: SizedBox(
-              width: 480,
+              width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
               child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
@@ -845,6 +887,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
+            actionsOverflowDirection: VerticalDirection.down,
             title: Row(
               children: [
                 Container(
@@ -865,7 +908,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ],
             ),
             content: SizedBox(
-              width: 440,
+              width: MediaQuery.of(context).size.width.clamp(280.0, 460.0),
               child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
@@ -999,6 +1042,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
+            actionsOverflowDirection: VerticalDirection.down,
             title: Row(
               children: [
                 Container(
@@ -1019,7 +1063,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
               ],
             ),
             content: SizedBox(
-              width: 440,
+              width: MediaQuery.of(context).size.width.clamp(280.0, 460.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

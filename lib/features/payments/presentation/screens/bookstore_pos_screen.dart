@@ -54,9 +54,15 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
       _cashierName = widget.cashierName!;
     }
     ThermalPrinterService().init();
-    _loadCenterInfo();
-    _loadStudents();
-    _loadInventory();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    await _loadCenterInfo();
+    await Future.wait([
+      _loadStudents(),
+      _loadInventory(),
+    ]);
   }
 
   Future<void> _loadCenterInfo() async {
@@ -98,13 +104,17 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = jsonEncode(_inventory);
       await prefs.setString(_cacheKey, jsonStr);
+      await prefs.setString('bookstore_pos_inventory_local', jsonStr);
     } catch (_) {}
   }
 
   Future<bool> _loadLocalInventory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString(_cacheKey);
+      String? jsonStr = prefs.getString(_cacheKey);
+      if (jsonStr == null || jsonStr.isEmpty) {
+        jsonStr = prefs.getString('bookstore_pos_inventory_local');
+      }
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final list = List<Map<String, dynamic>>.from(
           (jsonDecode(jsonStr) as List).map((x) => Map<String, dynamic>.from(x as Map)),
@@ -121,17 +131,46 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     return false;
   }
 
+  Future<void> _syncDeductedStockToRemote(String id, String title, int newStock) async {
+    final nowStr = DateTime.now().toIso8601String();
+    try {
+      final isUuid = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      ).hasMatch(id);
+      if (isUuid) {
+        await Supabase.instance.client.from('bookstore_items').update({
+          'stock': newStock,
+          'updated_at': nowStr,
+        }).eq('id', id);
+      } else {
+        await Supabase.instance.client.from('bookstore_items').update({
+          'stock': newStock,
+          'updated_at': nowStr,
+        }).eq('title', title);
+      }
+    } catch (e) {
+      debugPrint('Error updating stock in remote DB: $e');
+    }
+  }
+
   Future<void> _loadStudents() async {
     setState(() => _isLoadingStudents = true);
     try {
-      final res = await Supabase.instance.client
+      var query = Supabase.instance.client
           .from('students')
-          .select('id, student_code, profile:profiles(full_name, phone_number)')
+          .select('id, student_code, profile:profiles!inner(full_name, phone_number, center_id)')
           .order('student_code');
 
+      final res = await query;
       final List<Map<String, dynamic>> list = [];
       for (final s in (res as List<dynamic>)) {
         final profile = s['profile'] as Map<String, dynamic>? ?? {};
+        if (_centerId != null) {
+          final profileCenterId = profile['center_id']?.toString();
+          if (profileCenterId != null && profileCenterId != _centerId) {
+            continue;
+          }
+        }
         list.add({
           'id': s['id']?.toString() ?? '',
           'code': s['student_code']?.toString() ?? '',
@@ -147,8 +186,32 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() => _isLoadingStudents = false);
+      try {
+        final res = await Supabase.instance.client
+            .from('students')
+            .select('id, student_code, profile:profiles(full_name, phone_number)')
+            .order('student_code');
+
+        final List<Map<String, dynamic>> list = [];
+        for (final s in (res as List<dynamic>)) {
+          final profile = s['profile'] as Map<String, dynamic>? ?? {};
+          list.add({
+            'id': s['id']?.toString() ?? '',
+            'code': s['student_code']?.toString() ?? '',
+            'name': profile['full_name']?.toString() ?? 'طالب',
+            'phone': profile['phone_number']?.toString() ?? '',
+          });
+        }
+        if (mounted) {
+          setState(() {
+            _students = list;
+            _isLoadingStudents = false;
+          });
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() => _isLoadingStudents = false);
+        }
       }
     }
   }
@@ -183,7 +246,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
 
       if (items.isNotEmpty) {
         if (mounted) {
-          // Merge with local inventory so stock deductions made on this device are preserved!
+          // Merge with local inventory so stock deductions made on this device are strictly preserved!
           for (final item in items) {
             final localIndex = _inventory.indexWhere(
               (l) => l['id'] == item['id'] || l['title'] == item['title'],
@@ -193,6 +256,8 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
               // If local stock was deducted (lower than remote), prefer the deducted local stock
               if (localStock < (item['stock'] as int)) {
                 item['stock'] = localStock;
+                // Sync the deducted stock back to Supabase so remote database is updated
+                _syncDeductedStockToRemote(item['id'].toString(), item['title'].toString(), localStock);
               }
             }
           }
@@ -209,10 +274,14 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
 
       // If database table is empty for this center, seed from active subjects and persist
       if (_inventory.isEmpty) {
-        final subjectsRes = await Supabase.instance.client
+        var subQuery = Supabase.instance.client
             .from('subjects')
             .select('id, name')
             .eq('status', 'active');
+        if (_centerId != null) {
+          subQuery = subQuery.eq('center_id', _centerId!);
+        }
+        final subjectsRes = await subQuery;
 
         final List<Map<String, dynamic>> seeded = [];
         for (final s in (subjectsRes as List<dynamic>)) {
@@ -273,6 +342,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        actionsOverflowDirection: VerticalDirection.down,
         title: const Row(
           children: [
             Icon(Icons.add_box_rounded, color: AppColors.primary),
@@ -371,6 +441,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        actionsOverflowDirection: VerticalDirection.down,
         title: const Row(
           children: [
             Icon(Icons.edit_note_rounded, color: AppColors.primary),
@@ -429,13 +500,26 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
                     'updated_at': DateTime.now().toIso8601String(),
                   }).eq('id', item['id']);
                 } else {
-                  await Supabase.instance.client.from('bookstore_items').update({
+                  final updatedRows = await Supabase.instance.client.from('bookstore_items').update({
                     'title': newTitle,
                     'teacher': newTeacher,
                     'price': newPrice,
                     'stock': newStock,
                     'updated_at': DateTime.now().toIso8601String(),
-                  }).eq('title', item['title']);
+                  }).eq('title', item['title']).select('id');
+                  if ((updatedRows as List).isEmpty) {
+                    final inserted = await Supabase.instance.client.from('bookstore_items').insert({
+                      'title': newTitle,
+                      'teacher': newTeacher,
+                      'price': newPrice,
+                      'stock': newStock,
+                      'center_id': _centerId,
+                      'status': 'active',
+                    }).select('id').maybeSingle();
+                    if (inserted != null && inserted['id'] != null) {
+                      item['id'] = inserted['id'].toString();
+                    }
+                  }
                 }
               } catch (e) {
                 debugPrint('Supabase update bookstore item error: $e');
@@ -469,6 +553,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        actionsOverflowDirection: VerticalDirection.down,
         title: const Row(
           children: [
             Icon(Icons.delete_forever_rounded, color: Colors.red),
@@ -607,24 +692,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         });
 
         // Persist stock deduction to Supabase
-        try {
-          final isUuid = RegExp(
-            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-          ).hasMatch(bookId);
-          if (isUuid) {
-            await Supabase.instance.client.from('bookstore_items').update({
-              'stock': newStock,
-              'updated_at': nowStr,
-            }).eq('id', bookId);
-          } else {
-            await Supabase.instance.client.from('bookstore_items').update({
-              'stock': newStock,
-              'updated_at': nowStr,
-            }).eq('title', item['title']);
-          }
-        } catch (e) {
-          debugPrint('Error deducting stock in DB: $e');
-        }
+        await _syncDeductedStockToRemote(bookId, item['title'].toString(), newStock);
       }
     }
 
@@ -655,11 +723,32 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         'cashier_name': _cashierName,
         'items': receiptItems,
         'created_at': nowStr,
+        'center_id': _centerId,
       });
       await prefs.setString('pos_daily_sales_$todayKey', jsonEncode(salesList));
     } catch (_) {}
 
-    // 3. Persist financial collection to public.receipts
+    // 3. Persist financial transaction to public.payment_transactions
+    String? createdTxId;
+    try {
+      final txRow = await Supabase.instance.client.from('payment_transactions').insert({
+        'amount': total,
+        'amount_minor': (total * 100).toInt(),
+        'currency': 'EGP',
+        'transaction_type': 'payment',
+        'provider': 'cash',
+        'provider_transaction_id': 'BOOK-$receiptNumber',
+        'status': 'completed',
+        'occurred_at': nowStr,
+      }).select('id').maybeSingle();
+      if (txRow != null) {
+        createdTxId = txRow['id']?.toString();
+      }
+    } catch (e) {
+      debugPrint('Error inserting payment transaction: $e');
+    }
+
+    // 4. Persist financial collection to public.receipts
     try {
       final receiptData = <String, dynamic>{
         'receipt_number': receiptNumber,
@@ -672,45 +761,40 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
       if (_selectedStudent != null && _selectedStudent!['id'] != null) {
         receiptData['student_id'] = _selectedStudent!['id'];
       }
+      if (_centerId != null) {
+        receiptData['center_id'] = _centerId;
+      }
+      if (createdTxId != null) {
+        receiptData['transaction_id'] = createdTxId;
+      }
       await Supabase.instance.client.from('receipts').insert(receiptData);
     } catch (e) {
       debugPrint('Error inserting bookstore receipt: $e');
     }
 
-    // 4. Persist financial transaction to public.payment_transactions
-    try {
-      await Supabase.instance.client.from('payment_transactions').insert({
-        'amount': total,
-        'amount_minor': (total * 100).toInt(),
-        'currency': 'EGP',
-        'transaction_type': 'payment',
-        'provider': 'cash',
-        'provider_transaction_id': 'BOOK-$receiptNumber',
-        'status': 'succeeded',
-        'occurred_at': nowStr,
-      });
-    } catch (e) {
-      debugPrint('Error inserting payment transaction: $e');
-    }
-
     // 5. Log sales itemization to public.bookstore_sales
     try {
-      await Supabase.instance.client.from('bookstore_sales').insert({
+      final saleData = <String, dynamic>{
         'receipt_number': receiptNumber,
-        'center_id': _centerId,
-        'student_id': _selectedStudent?['id'],
         'student_name': studentName,
         'student_code': studentCode,
         'total_amount': total,
         'cashier_name': _cashierName,
         'items': receiptItems,
         'created_at': nowStr,
-      });
+      };
+      if (_centerId != null) {
+        saleData['center_id'] = _centerId;
+      }
+      if (_selectedStudent != null && _selectedStudent!['id'] != null) {
+        saleData['student_id'] = _selectedStudent!['id'];
+      }
+      await Supabase.instance.client.from('bookstore_sales').insert(saleData);
     } catch (e) {
       debugPrint('Error inserting bookstore sale: $e');
     }
 
-    // 5. Generate and print receipt PDF / ESC/POS
+    // 6. Generate and print receipt PDF / ESC/POS
     final isDirectPrint = ThermalPrinterService().directPrintEnabled.value;
     try {
       final reportService = ReportGeneratorService();
@@ -748,6 +832,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        actionsOverflowDirection: VerticalDirection.down,
         title: const Row(
           children: [
             Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
