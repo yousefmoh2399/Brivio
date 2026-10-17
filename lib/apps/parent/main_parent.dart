@@ -42,7 +42,8 @@ class _ParentAppState extends State<ParentApp> {
           final state = _viewModel.state;
 
           if (state.status == AuthStatus.initial ||
-              state.status == AuthStatus.loading) {
+              (state.status == AuthStatus.loading &&
+                  _viewModel.isRestoringSession)) {
             return const AuthLoadingScreen(
               title: 'جاري فتح بوابة ولي الأمر',
               subtitle: 'تحميل بيانات الأبناء، التنبيهات، والوصول الآمن...',

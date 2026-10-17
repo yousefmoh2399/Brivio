@@ -19,6 +19,7 @@ import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 import '../../../features/student/presentation/widgets/student_digital_id_card.dart';
 import '../../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
 import '../../../features/assessment/presentation/widgets/group_leaderboard_widget.dart';
+import '../../../features/assessment/presentation/widgets/student_blitz_quiz_dialog.dart';
 import '../student_dashboard_models.dart';
 
 String _formatMoney(int amountMinor, String currency) {
@@ -43,6 +44,10 @@ class HomeTab extends StatelessWidget {
   final VoidCallback? onOpenPersonalBoard;
   final ValueChanged<int> onNavigate;
   final List<StudentHomeworkItem> pendingHomework;
+  final List<StudentAttendanceItem> attendanceItems;
+  final String? centerName;
+  final String? centerCode;
+  final String? seatNumber;
 
   const HomeTab({
     super.key,
@@ -58,6 +63,10 @@ class HomeTab extends StatelessWidget {
     this.onOpenPersonalBoard,
     required this.onNavigate,
     required this.pendingHomework,
+    this.attendanceItems = const [],
+    this.centerName,
+    this.centerCode,
+    this.seatNumber,
   });
 
   @override
@@ -99,6 +108,13 @@ class HomeTab extends StatelessWidget {
                   final stuCode = authId != null && authId.length >= 8
                       ? 'STU-${authId.substring(0, 8).toUpperCase()}'
                       : 'STU-BRIVIO';
+                  final totalSessions = attendanceItems.length;
+                  final attended = attendanceItems
+                      .where((a) =>
+                          a.status.toLowerCase() == 'present' ||
+                          a.status.toLowerCase() == 'attended')
+                      .length;
+                  final rate = totalSessions > 0 ? (attended / totalSessions) : 1.0;
                   StudentDigitalIdCard.show(
                     context,
                     studentName: userName,
@@ -106,6 +122,13 @@ class HomeTab extends StatelessWidget {
                     gradeLevel: enrolledGroups.isNotEmpty
                         ? enrolledGroups.first.name
                         : null,
+                    centerName: centerName?.trim().isNotEmpty == true
+                        ? centerName!
+                        : 'المركز التعليمي',
+                    centerCode: centerCode,
+                    attendanceRate: rate,
+                    activeCoursesCount: enrolledGroups.length,
+                    seatNumber: seatNumber ?? 'مقعد عام',
                   );
                 },
                 icon: const Icon(
@@ -149,6 +172,20 @@ class HomeTab extends StatelessWidget {
                 icon: const Icon(
                   Icons.emoji_events_rounded,
                   color: Colors.amber,
+                ),
+              ),
+              IconButton(
+                tooltip: 'كويز 5 دقائق المباشر (أدخل الكود)',
+                onPressed: () {
+                  StudentBlitzQuizJoinDialog.show(
+                    context,
+                    studentName: userName,
+                    groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+                  );
+                },
+                icon: const Icon(
+                  Icons.bolt_rounded,
+                  color: Colors.amberAccent,
                 ),
               ),
               CenterSwitcherWidget(onCenterChanged: onRetry),
@@ -213,6 +250,142 @@ class HomeTab extends StatelessWidget {
                     groupName: enrolledGroups.isNotEmpty
                         ? enrolledGroups.first.name
                         : null,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Live Blitz Quiz 5-Min Hero Card ──
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 700),
+                  delay: const Duration(milliseconds: 160),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => StudentBlitzQuizJoinDialog.show(
+                      context,
+                      studentName: userName,
+                      groupId: enrolledGroups.isNotEmpty
+                          ? enrolledGroups.first.id
+                          : null,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [
+                                  const Color(0xFF311042),
+                                  const Color(0xFF1E1B4B),
+                                  const Color(0xFF0F172A),
+                                ]
+                              : [
+                                  const Color(0xFFFAF5FF),
+                                  const Color(0xFFEEF2FF),
+                                  Colors.white,
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFA855F7).withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFA855F7).withValues(alpha: 0.15),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.purpleAccent.withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.bolt_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'كويز الـ 5 دقائق المباشر ⚡',
+                                      style: AppTypography.titleMedium(textPrimary).copyWith(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.redAccent.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.redAccent, width: 0.8),
+                                      ),
+                                      child: const Text(
+                                        'LIVE',
+                                        style: TextStyle(
+                                          color: Colors.redAccent,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'انضم لكويز الحصة التفاعلي السريع عبر إدخال كود الـ PIN السري',
+                                  style: AppTypography.caption(textSecondary).copyWith(
+                                    fontSize: 12,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'أدخل الكود',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

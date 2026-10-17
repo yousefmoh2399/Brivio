@@ -67,6 +67,7 @@ class AuthViewModel extends ChangeNotifier {
   UserRole? get userRole => _state.role;
   bool get isAuthenticated => _state.status == AuthStatus.authenticated;
   bool get isRestricted => _state.status == AuthStatus.restricted;
+  bool get isRestoringSession => _isRestoringSession;
   bool get hasFreshlyAuthenticated => _hasFreshlyAuthenticated;
 
   void consumeFreshlyAuthenticated() {

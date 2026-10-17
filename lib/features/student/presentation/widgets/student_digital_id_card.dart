@@ -28,11 +28,11 @@ class StudentDigitalIdCard extends StatefulWidget {
     required this.studentName,
     required this.studentCode,
     this.gradeLevel,
-    this.centerName = 'سنتر التفوق التعليمي',
+    this.centerName = 'المركز التعليمي',
     this.centerCode,
-    this.attendanceRate = 0.96,
-    this.activeCoursesCount = 3,
-    this.seatNumber = 'A-14',
+    this.attendanceRate = 1.0,
+    this.activeCoursesCount = 0,
+    this.seatNumber = 'مقعد عام',
   });
 
   static void show(
@@ -40,11 +40,11 @@ class StudentDigitalIdCard extends StatefulWidget {
     required String studentName,
     required String studentCode,
     String? gradeLevel,
-    String centerName = 'السنتر التعليمي',
+    String centerName = 'المركز التعليمي',
     String? centerCode,
-    double attendanceRate = 0.96,
-    int activeCoursesCount = 3,
-    String seatNumber = 'A-14',
+    double attendanceRate = 1.0,
+    int activeCoursesCount = 0,
+    String seatNumber = 'مقعد عام',
   }) {
     showDialog(
       context: context,
@@ -372,53 +372,62 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.cyanAccent.withValues(alpha: 0.4),
-                                  blurRadius: 10,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
                                 ),
-                              ],
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.cyanAccent.withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.school_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.school_rounded,
-                              color: Colors.white,
-                              size: 20,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.centerName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'بطاقة الطالب الذكية • Smart Pass',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.centerName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const Text(
-                                'بطاقة الطالب الذكية • Smart Pass',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       // VIP Hologram Seal
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -530,7 +539,8 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
 
                   // Dynamic Security Hash Pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    constraints: const BoxConstraints(maxWidth: 310),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(100),
@@ -548,13 +558,17 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'كود أمان حي: $_securityHash • يتجدد بعد $_secondsRemaining ث',
-                          style: const TextStyle(
-                            color: Colors.cyanAccent,
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Text(
+                            'كود أمان حي: $_securityHash • $_secondsRemaining ث',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.cyanAccent,
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -678,13 +692,17 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'AUTHORIZED SIGNATURE // NOT TRANSFERABLE',
-                    style: TextStyle(
-                      color: Colors.white30,
-                      fontSize: 8,
-                      fontFamily: 'monospace',
-                      letterSpacing: 1.5,
+                  const Flexible(
+                    child: Text(
+                      'AUTHORIZED SIGNATURE // NOT TRANSFERABLE',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white30,
+                        fontSize: 8,
+                        fontFamily: 'monospace',
+                        letterSpacing: 1.5,
+                      ),
                     ),
                   ),
                   Container(

@@ -42,7 +42,8 @@ class _StaffAppState extends State<StaffApp> {
           final state = _viewModel.state;
 
           if (state.status == AuthStatus.initial ||
-              state.status == AuthStatus.loading) {
+              (state.status == AuthStatus.loading &&
+                  _viewModel.isRestoringSession)) {
             return const AuthLoadingScreen(
               title: 'Opening staff portal',
               subtitle: 'Loading operations, permissions, and secure access.',

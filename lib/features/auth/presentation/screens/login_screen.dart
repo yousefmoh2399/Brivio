@@ -92,11 +92,17 @@ class _LoginScreenState extends State<LoginScreen>
       final prefs = await SharedPreferences.getInstance();
       final remember = prefs.getBool('brivio_remember_login') ?? true;
       final savedEmail = prefs.getString('brivio_saved_email');
+      final savedPassword = prefs.getString('brivio_saved_password');
       if (mounted) {
         setState(() {
           _rememberMe = remember;
-          if (remember && savedEmail != null && savedEmail.isNotEmpty) {
-            _emailController.text = savedEmail;
+          if (remember) {
+            if (savedEmail != null && savedEmail.isNotEmpty) {
+              _emailController.text = savedEmail;
+            }
+            if (savedPassword != null && savedPassword.isNotEmpty) {
+              _passwordController.text = savedPassword;
+            }
           }
         });
       }
@@ -109,8 +115,10 @@ class _LoginScreenState extends State<LoginScreen>
       await prefs.setBool('brivio_remember_login', _rememberMe);
       if (_rememberMe) {
         await prefs.setString('brivio_saved_email', _emailController.text.trim());
+        await prefs.setString('brivio_saved_password', _passwordController.text);
       } else {
         await prefs.remove('brivio_saved_email');
+        await prefs.remove('brivio_saved_password');
       }
     } catch (_) {}
   }

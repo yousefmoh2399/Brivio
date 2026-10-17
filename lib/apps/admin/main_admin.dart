@@ -42,7 +42,8 @@ class _AdminAppState extends State<AdminApp> {
           final state = _viewModel.state;
 
           if (state.status == AuthStatus.initial ||
-              state.status == AuthStatus.loading) {
+              (state.status == AuthStatus.loading &&
+                  _viewModel.isRestoringSession)) {
             return const AuthLoadingScreen(
               title: 'فتح لوحة تحكم الإدارة',
               subtitle:

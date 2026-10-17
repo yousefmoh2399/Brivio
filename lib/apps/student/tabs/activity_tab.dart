@@ -6,6 +6,7 @@ import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../design_system/widgets/portal_components.dart';
+import '../../../features/assessment/presentation/widgets/student_blitz_quiz_dialog.dart';
 import '../student_dashboard_models.dart';
 
 String _formatDate(DateTime? dt) =>
@@ -580,33 +581,41 @@ class _HomeworkAndExamsView extends StatelessWidget {
       );
     }
     if (homeworkItems.isEmpty && examItems.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.assignment_turned_in_rounded,
-              size: 64,
-              color: AppColors.success.withValues(alpha: 0.5),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        children: [
+          _buildLiveBlitzBanner(context, isDark, textPrimary),
+          const SizedBox(height: 32),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.assignment_turned_in_rounded,
+                  size: 64,
+                  color: AppColors.success.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'لا توجد مهام حالياً',
+                  style: AppTypography.titleLarge(
+                    textPrimary,
+                  ).copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'الواجبات والاختبارات المنشورة ستظهر هنا فور إتاحتها.',
+                  style: AppTypography.bodyMedium(
+                    isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد مهام حالياً',
-              style: AppTypography.titleLarge(
-                textPrimary,
-              ).copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'الواجبات والاختبارات المنشورة ستظهر هنا فور إتاحتها.',
-              style: AppTypography.bodyMedium(
-                isDark
-                    ? AppColors.darkTextSecondary
-                    : AppColors.lightTextSecondary,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -614,6 +623,8 @@ class _HomeworkAndExamsView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
+        _buildLiveBlitzBanner(context, isDark, textPrimary),
+        const SizedBox(height: 20),
         if (homeworkItems.isNotEmpty) ...[
           FadeInSlide(
             duration: const Duration(milliseconds: 500),
@@ -661,6 +672,124 @@ class _HomeworkAndExamsView extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildLiveBlitzBanner(
+    BuildContext context,
+    bool isDark,
+    Color textPrimary,
+  ) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () {
+        final user = Supabase.instance.client.auth.currentUser;
+        final name = user?.userMetadata?['full_name']?.toString() ?? 'طالب';
+        StudentBlitzQuizJoinDialog.show(context, studentName: name);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [const Color(0xFF3B0764), const Color(0xFF1E1B4B)]
+                : [const Color(0xFFF3E8FF), const Color(0xFFEDE9FE)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xFFA855F7).withValues(alpha: 0.4),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFA855F7).withValues(alpha: 0.12),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.bolt_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'كويز الـ 5 دقائق المباشر ⚡',
+                        style: AppTypography.titleMedium(textPrimary).copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.redAccent, width: 0.7),
+                        ),
+                        child: const Text(
+                          'LIVE',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'أدخل كود الـ PIN الخاص بالمعلم للمشاركة المباشرة',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'أدخل الكود',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

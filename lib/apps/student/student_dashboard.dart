@@ -699,6 +699,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
         financialSummary: _financialSummary,
         unreadCount: _unreadCount,
         pendingHomework: _homeworkItems.where((h) => !h.isSubmitted).toList(),
+        attendanceItems: _attendanceItems,
+        centerName: widget.authViewModel.bootstrap?.activeCenter?.name,
+        centerCode: widget.authViewModel.bootstrap?.activeCenter?.code,
+        seatNumber: 'مقعد عام',
         onRetry: _loadAll,
         onOpenWorkspace: nextLesson == null
             ? null

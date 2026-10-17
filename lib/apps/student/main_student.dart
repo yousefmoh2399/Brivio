@@ -42,7 +42,8 @@ class _StudentAppState extends State<StudentApp> {
           final state = _viewModel.state;
 
           if (state.status == AuthStatus.initial ||
-              state.status == AuthStatus.loading) {
+              (state.status == AuthStatus.loading &&
+                  _viewModel.isRestoringSession)) {
             return const AuthLoadingScreen(
               title: 'جاري فتح بوابة الطالب',
               subtitle: 'التحقق من جلسة الدخول وتأمين الاتصال...',

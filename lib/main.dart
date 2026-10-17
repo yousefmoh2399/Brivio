@@ -206,10 +206,16 @@ class _MainAppSelectorState extends State<MainAppSelector> {
 
           switch (state.status) {
             case AuthStatus.initial:
-            case AuthStatus.loading:
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
+            case AuthStatus.loading:
+              if (_viewModel.isRestoringSession) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return AuthGateScreen(viewModel: _viewModel);
             case AuthStatus.authenticated:
               final role = _viewModel.userRole;
               if (role != null) {

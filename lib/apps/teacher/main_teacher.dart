@@ -42,7 +42,8 @@ class _TeacherAppState extends State<TeacherApp> {
           final state = _viewModel.state;
 
           if (state.status == AuthStatus.initial ||
-              state.status == AuthStatus.loading) {
+              (state.status == AuthStatus.loading &&
+                  _viewModel.isRestoringSession)) {
             return const AuthLoadingScreen(
               title: 'جاري فتح بوابة المعلم',
               subtitle: 'تحميل المجموعات الدراسية، المهام، والوصول الآمن...',
