@@ -497,44 +497,76 @@ class _ParentDashboardState extends State<ParentDashboard> {
           }
         },
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_linkedChildren.isNotEmpty)
-            SizedBox(
-              width: 210,
-              child: DropdownButtonFormField<Student>(
-                initialValue: _selectedChild,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'اختر الطالب',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                ),
-                items: _linkedChildren
-                    .map(
-                      (child) => DropdownMenuItem<Student>(
-                        value: child,
-                        child: Text(
-                          '${child.fullName} (${child.studentCode})',
-                          overflow: TextOverflow.ellipsis,
+      trailing: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = MediaQuery.sizeOf(context).width < 500;
+          return Row(
+            mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              if (_linkedChildren.isNotEmpty)
+                isNarrow
+                    ? Expanded(
+                        child: DropdownButtonFormField<Student>(
+                          initialValue: _selectedChild,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'اختر الطالب',
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          items: _linkedChildren
+                              .map(
+                                (child) => DropdownMenuItem<Student>(
+                                  value: child,
+                                  child: Text(
+                                    '${child.fullName} (${child.studentCode})',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (child) {
+                            if (child == null) return;
+                            setState(() => _selectedChild = child);
+                            _loadChildDetails(child);
+                          },
+                        ),
+                      )
+                    : SizedBox(
+                        width: 210,
+                        child: DropdownButtonFormField<Student>(
+                          initialValue: _selectedChild,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'اختر الطالب',
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          items: _linkedChildren
+                              .map(
+                                (child) => DropdownMenuItem<Student>(
+                                  value: child,
+                                  child: Text(
+                                    '${child.fullName} (${child.studentCode})',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (child) {
+                            if (child == null) return;
+                            setState(() => _selectedChild = child);
+                            _loadChildDetails(child);
+                          },
                         ),
                       ),
-                    )
-                    .toList(),
-                onChanged: (child) {
-                  if (child == null) return;
-                  setState(() => _selectedChild = child);
-                  _loadChildDetails(child);
-                },
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: 'ربط طالب جديد بكود السنتر',
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                onPressed: _openLinkChildScreen,
               ),
-            ),
-          const SizedBox(width: 8),
-          IconButton.filledTonal(
-            tooltip: 'ربط طالب جديد بكود السنتر',
-            icon: const Icon(Icons.person_add_alt_1_rounded),
-            onPressed: _openLinkChildScreen,
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -664,126 +696,52 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
   }
 
-  Widget _buildWhatsAppHelplineCard() {
+  Future<void> _launchWhatsAppSupport() async {
+    HapticFeedback.lightImpact();
     final child = _selectedChild;
     final childName = child?.fullName ?? 'الطالب';
     final childCode = child?.studentCode ?? '';
     final groupName = _childGroups.isNotEmpty ? _childGroups.first.name : 'السنتر';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF065F46), Color(0xFF047857)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    String? supportPhone;
+    try {
+      final branchId = _selectedChild?.primaryBranchId;
+      if (branchId != null && branchId.isNotEmpty) {
+        final branchRow = await Supabase.instance.client
+            .from('branches')
+            .select('phone, contact_phone')
+            .eq('id', branchId)
+            .maybeSingle();
+        supportPhone = branchRow?['contact_phone']?.toString() ??
+            branchRow?['phone']?.toString();
+      }
+    } catch (_) {}
+
+    final phone = (supportPhone != null && supportPhone.isNotEmpty)
+        ? supportPhone.replaceAll(RegExp(r'[^0-9+]'), '')
+        : null;
+
+    final msg =
+        'السلام عليكم، أنا ولي أمر الطالب $childName (كود: $childCode) المسجل في مجموعة $groupName. أود الاستفسار بخصوص المستوى الدراسي والدرجات.';
+
+    if (phone != null && phone.isNotEmpty) {
+      final uri = Uri.parse(
+          'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+
+    if (mounted) {
+      Clipboard.setData(ClipboardData(text: msg));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم نسخ رسالة الاستفسار إلى الحافظة!'),
+          behavior: SnackBarBehavior.floating,
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.chat_rounded, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'خدمة أولياء الأمور عبر واتساب 💬',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'تواصل فوري مع إدارة السنتر للاستفسار عن $childName',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF065F46),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            ),
-            onPressed: () async {
-              HapticFeedback.lightImpact();
-              String? supportPhone;
-              try {
-                final branchId = _selectedChild?.primaryBranchId;
-                if (branchId != null && branchId.isNotEmpty) {
-                  final branchRow = await Supabase.instance.client
-                      .from('branches')
-                      .select('phone, contact_phone')
-                      .eq('id', branchId)
-                      .maybeSingle();
-                  supportPhone = branchRow?['contact_phone']?.toString() ??
-                      branchRow?['phone']?.toString();
-                }
-              } catch (_) {}
-
-              final phone = (supportPhone != null && supportPhone.isNotEmpty)
-                  ? supportPhone.replaceAll(RegExp(r'[^0-9+]'), '')
-                  : null;
-
-              final msg =
-                  'السلام عليكم، أنا ولي أمر الطالب $childName (كود: $childCode) المسجل في مجموعة $groupName. أود الاستفسار بخصوص المستوى الدراسي والدرجات.';
-
-              if (phone != null && phone.isNotEmpty) {
-                final uri = Uri.parse(
-                    'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}');
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  return;
-                }
-              }
-
-              if (mounted) {
-                Clipboard.setData(ClipboardData(text: msg));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم نسخ رسالة الاستفسار إلى الحافظة!'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.send_rounded, size: 16),
-            label: const Text(
-              'محادثة',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
   Widget _buildOverviewPage() {
@@ -799,7 +757,24 @@ class _ParentDashboardState extends State<ParentDashboard> {
           learningSnapshot: _learningSnapshot,
           onExcuseRequest: _createLeaveRequest,
         ),
-        _buildWhatsAppHelplineCard(),
+        const SizedBox(height: 14),
+        _ParentQuickActionsGrid(
+          onOpenSchedule: () {
+            final child = _selectedChild;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChildScheduleScreen(
+                  studentId: child?.id,
+                  studentName: child?.fullName,
+                ),
+              ),
+            );
+          },
+          onOpenAttendance: () => setState(() => _selectedIndex = 2),
+          onOpenProgress: () => setState(() => _selectedIndex = 1),
+          onOpenWhatsApp: _launchWhatsAppSupport,
+        ),
+        const SizedBox(height: 18),
         PortalMetricGrid(
           children: [
             PortalMetricCard(
@@ -1921,6 +1896,242 @@ class _ReceiptDetailLine extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ParentQuickActionsGrid extends StatelessWidget {
+  final VoidCallback onOpenSchedule;
+  final VoidCallback onOpenAttendance;
+  final VoidCallback onOpenProgress;
+  final VoidCallback onOpenWhatsApp;
+
+  const _ParentQuickActionsGrid({
+    required this.onOpenSchedule,
+    required this.onOpenAttendance,
+    required this.onOpenProgress,
+    required this.onOpenWhatsApp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final actions = [
+      _ParentActionData(
+        title: 'جدول المواعيد',
+        subtitle: 'الحصص والقاعات الأسبوعية',
+        badge: 'مواعيد 📅',
+        icon: Icons.calendar_month_rounded,
+        gradient: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+        borderAccent: const Color(0xFF38BDF8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenSchedule();
+        },
+      ),
+      _ParentActionData(
+        title: 'سجل الحضور',
+        subtitle: 'نسبة الالتزام والغياب',
+        badge: 'متابعة 📊',
+        icon: Icons.fact_check_rounded,
+        gradient: const [Color(0xFF0D9488), Color(0xFF14B8A6)],
+        borderAccent: const Color(0xFF14B8A6),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenAttendance();
+        },
+      ),
+      _ParentActionData(
+        title: 'الواجبات والدرجات',
+        subtitle: 'متابعة الحل والتسليم',
+        badge: 'أكاديمي ✍️',
+        icon: Icons.assignment_rounded,
+        gradient: const [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        borderAccent: const Color(0xFF818CF8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenProgress();
+        },
+      ),
+      _ParentActionData(
+        title: 'خدمة واتساب',
+        subtitle: 'تواصل مباشر مع السنتر',
+        badge: 'دعم 💬',
+        icon: Icons.chat_rounded,
+        gradient: const [Color(0xFF059669), Color(0xFF10B981)],
+        borderAccent: const Color(0xFF10B981),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenWhatsApp();
+        },
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 640;
+        final crossAxisCount = isWide ? 4 : 2;
+        final childAspectRatio = isWide ? 1.6 : 1.35;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: actions.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemBuilder: (context, index) {
+            return _ParentActionTile(action: actions[index], isDark: isDark);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ParentActionData {
+  final String title;
+  final String subtitle;
+  final String badge;
+  final IconData icon;
+  final List<Color> gradient;
+  final Color borderAccent;
+  final VoidCallback onTap;
+
+  const _ParentActionData({
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.icon,
+    required this.gradient,
+    required this.borderAccent,
+    required this.onTap,
+  });
+}
+
+class _ParentActionTile extends StatelessWidget {
+  final _ParentActionData action;
+  final bool isDark;
+
+  const _ParentActionTile({
+    required this.action,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.9)
+                : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: action.borderAccent.withValues(alpha: isDark ? 0.35 : 0.25),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: action.borderAccent.withValues(alpha: isDark ? 0.12 : 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: action.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: action.gradient.first.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(action.icon, color: Colors.white, size: 19),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: action.borderAccent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: action.borderAccent.withValues(alpha: 0.3),
+                        width: 0.7,
+                      ),
+                    ),
+                    child: Text(
+                      action.badge,
+                      style: TextStyle(
+                        color: action.borderAccent,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    action.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    action.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

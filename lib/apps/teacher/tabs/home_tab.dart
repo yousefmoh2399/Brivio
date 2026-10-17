@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/whatsapp_service.dart';
 import '../../../design_system/components/glass_card.dart';
@@ -56,39 +57,65 @@ class HomeTab extends StatelessWidget {
     final textPrimary = isDark
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1100),
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              backgroundColor: isDark
-                  ? AppColors.darkBackground
-                  : AppColors.lightBackground,
-          surfaceTintColor: Colors.transparent,
-          pinned: true,
-          title: Text(
-            'بوابة المعلم',
-            style: AppTypography.displaySmall(
-              textPrimary,
-            ).copyWith(fontWeight: FontWeight.w800, fontSize: 20),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.add_business_rounded),
-              tooltip: 'الانضمام لسنتر جديد بكود',
-              onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
-            ),
-            CenterSwitcherWidget(onCenterChanged: onRetry),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: onRetry,
-              tooltip: 'تحديث',
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
+        child: RefreshIndicator(
+          onRefresh: () async => onRetry(),
+          color: AppColors.teacherRole,
+          backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                backgroundColor: isDark
+                    ? AppColors.darkBackground
+                    : AppColors.lightBackground,
+                surfaceTintColor: Colors.transparent,
+                pinned: true,
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'أهلاً بك،',
+                          style: AppTypography.caption(textSecondary).copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          (user?.fullName ?? "معلمنا الفاضل").split(' ').first,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.titleLarge(textPrimary).copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 6),
+                    const Text('👨‍🏫', style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, size: 22),
+                    onPressed: onRetry,
+                    tooltip: 'تحديث',
+                  ),
+                  CenterSwitcherWidget(onCenterChanged: onRetry),
+                  const SizedBox(width: 6),
+                ],
+              ),
         if (isLoading)
           const SliverFillRemaining(
             child: Center(
@@ -174,221 +201,40 @@ class HomeTab extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // Code Playground Shortcut
+                // ── Responsive 4-Tile Quick Actions Grid ──
                 FadeInSlide(
-                  duration: const Duration(milliseconds: 500),
-                  delay: const Duration(milliseconds: 150),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CodePlaygroundScreen(),
-                        ),
-                      );
-                    },
-                    child: GlassCard(
-                      padding: const EdgeInsets.all(20),
-                      color: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.lightSurface,
-                      borderColor: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.teacherRole.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.code,
-                              color: AppColors.teacherRole,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'المختبر البرمجي التفاعلي',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'تجربة الأكواد البرمجية ومتابعة الشرح التفاعلي مع الطلاب',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.caption(
-                                    isDark
-                                        ? AppColors.darkTextSecondary
-                                        : AppColors.lightTextSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Tooltip(
-                            message: 'فتح المختبر البرمجي',
-                            child: Icon(
-                              Icons.play_circle_fill_rounded,
-                              color: AppColors.teacherRole,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Egyptian Center Quick Operations
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 500),
-                  delay: const Duration(milliseconds: 180),
+                  duration: const Duration(milliseconds: 550),
+                  delay: const Duration(milliseconds: 140),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'إدارة السنتر والحصة السريعة',
+                        'إدارة الحصة والسنتر السريعة',
                         style: AppTypography.titleLarge(textPrimary).copyWith(
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.4,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth >= 720;
-                          final cardBoard = _TeacherQuickActionCard(
-                            title: 'السبورة الذكية للشرح',
-                            subtitle: 'شروحات حية، رسم وتصدير PDF',
-                            icon: Icons.draw_rounded,
-                            color: Colors.teal,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => TeacherSessionBoardScreen(
-                                    teacherId: user?.id ?? '',
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                          final card1 = _TeacherQuickActionCard(
-                            title: 'بوابة الحضور السريع',
-                            subtitle: 'مسح QR وتحصيل المصاريف',
-                            icon: Icons.qr_code_scanner_rounded,
-                            color: AppColors.primary,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ReceptionQrGateScreen(),
-                                ),
-                              );
-                            },
-                          );
-                          final card2 = _TeacherQuickActionCard(
-                            title: 'تصفية أرباح الحصة',
-                            subtitle: 'حساب نسبة المدرس والمصاريف',
-                            icon: Icons.calculate_rounded,
-                            color: AppColors.teacherRole,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const TeacherSettlementScreen(),
-                                ),
-                              );
-                            },
-                          );
-                          final card3 = _TeacherQuickActionCard(
-                            title: 'كشف الحضور (PDF)',
-                            subtitle: 'تصدير وطباعة كشوفات الغياب',
-                            icon: Icons.print_rounded,
-                            color: AppColors.staffRole,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const AttendanceReportsScreen(),
-                                ),
-                              );
-                            },
-                          );
-                          final card4 = _TeacherQuickActionCard(
-                            title: 'انضمام لسنتر بكود',
-                            subtitle: 'الربط مع سنتر آخر بسهولة',
-                            icon: Icons.add_business_rounded,
-                            color: AppColors.warning,
-                            onTap: () {
-                              JoinCenterDialog.show(context, onJoined: onRetry);
-                            },
-                          );
-
-                          if (isWide) {
-                            return Row(
-                              children: [
-                                Expanded(child: cardBoard),
-                                const SizedBox(width: 12),
-                                Expanded(child: card1),
-                                const SizedBox(width: 12),
-                                Expanded(child: card2),
-                                const SizedBox(width: 12),
-                                Expanded(child: card3),
-                                const SizedBox(width: 12),
-                                Expanded(child: card4),
-                              ],
-                            );
-                          }
-
-                          return Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(child: cardBoard),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: card1),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(child: card2),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: card3),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(child: card4),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
+                      _TeacherQuickActionsGrid(
+                        teacherId: user?.id ?? '',
+                        teacherName: user?.fullName ?? 'معلمنا الفاضل',
+                        onRetry: onRetry,
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 12),
+
+                // ── Secondary Quick Tools Pills ──
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 550),
+                  delay: const Duration(milliseconds: 160),
+                  child: _TeacherSecondaryToolsBar(onRetry: onRetry),
+                ),
+
+                const SizedBox(height: 24),
 
                 // At-Risk Students Alert & Predictive Academic Intervention Radar
                 FadeInSlide(
@@ -448,6 +294,7 @@ class HomeTab extends StatelessWidget {
           ),
       ],
     ),
+  ),
   ),
 );
 }
@@ -622,95 +469,362 @@ class _AnalyticsMiniMetric extends StatelessWidget {
   }
 }
 
-class _TeacherQuickActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
+class _TeacherQuickActionsGrid extends StatelessWidget {
+  final String teacherId;
+  final String teacherName;
+  final VoidCallback onRetry;
 
-  const _TeacherQuickActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
+  const _TeacherQuickActionsGrid({
+    required this.teacherId,
+    required this.teacherName,
+    required this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final actions = [
+      _TeacherActionData(
+        title: 'السبورة الذكية للشرح',
+        subtitle: 'شروحات حية ورسم وتصدير',
+        badge: 'مباشر 🎨',
+        icon: Icons.draw_rounded,
+        gradient: const [Color(0xFF0D9488), Color(0xFF14B8A6)],
+        borderAccent: const Color(0xFF14B8A6),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TeacherSessionBoardScreen(teacherId: teacherId),
+            ),
+          );
+        },
+      ),
+      _TeacherActionData(
+        title: 'تصفية وحساب الأرباح',
+        subtitle: 'حساب نسبة المدرس والمصاريف',
+        badge: 'مالية 💰',
+        icon: Icons.calculate_rounded,
+        gradient: const [Color(0xFF059669), Color(0xFF10B981)],
+        borderAccent: const Color(0xFF10B981),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const TeacherSettlementScreen(),
+            ),
+          );
+        },
+      ),
+      _TeacherActionData(
+        title: 'كشف الحضور (PDF)',
+        subtitle: 'تصدير وطباعة كشوفات الغياب',
+        badge: 'تقارير 📄',
+        icon: Icons.print_rounded,
+        gradient: const [Color(0xFF4F46E5), Color(0xFF6366F1)],
+        borderAccent: const Color(0xFF818CF8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AttendanceReportsScreen(),
+            ),
+          );
+        },
+      ),
+      _TeacherActionData(
+        title: 'شاشة البروجيكتور',
+        subtitle: 'وضع التركيز وشاشة العرض',
+        badge: 'عرض 📽️',
+        icon: Icons.co_present_rounded,
+        gradient: const [Color(0xFF7C3AED), Color(0xFF9333EA)],
+        borderAccent: const Color(0xFFA855F7),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => LiveClassFocusModeScreen(
+                teacherId: teacherId,
+                teacherName: teacherName,
+              ),
+            ),
+          );
+        },
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 640;
+        final crossAxisCount = isWide ? 4 : 2;
+        final childAspectRatio = isWide ? 1.6 : 1.35;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: actions.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemBuilder: (context, index) {
+            return _TeacherActionTile(action: actions[index], isDark: isDark);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _TeacherActionData {
+  final String title;
+  final String subtitle;
+  final String badge;
+  final IconData icon;
+  final List<Color> gradient;
+  final Color borderAccent;
+  final VoidCallback onTap;
+
+  const _TeacherActionData({
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.icon,
+    required this.gradient,
+    required this.borderAccent,
+    required this.onTap,
+  });
+}
+
+class _TeacherActionTile extends StatelessWidget {
+  final _TeacherActionData action;
+  final bool isDark;
+
+  const _TeacherActionTile({
+    required this.action,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: action.onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          padding: const EdgeInsets.all(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkCard : AppColors.lightCard,
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.9)
+                : AppColors.lightSurface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-              width: 0.8,
+              color: action.borderAccent.withValues(alpha: isDark ? 0.35 : 0.25),
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: isDark
-                    ? Colors.black.withValues(alpha: 0.25)
-                    : color.withValues(alpha: 0.04),
-                blurRadius: 8,
+                color: action.borderAccent.withValues(alpha: isDark ? 0.12 : 0.06),
+                blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.titleSmall(
-                        isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary,
-                      ).copyWith(fontWeight: FontWeight.w700),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: action.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: action.gradient.first.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption(
-                        isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
+                    child: Icon(action.icon, color: Colors.white, size: 19),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: action.borderAccent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: action.borderAccent.withValues(alpha: 0.3),
+                        width: 0.7,
                       ),
                     ),
-                  ],
-                ),
+                    child: Text(
+                      action.badge,
+                      style: TextStyle(
+                        color: action.borderAccent,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 12,
-                color: isDark
-                    ? AppColors.darkTextTertiary
-                    : AppColors.lightTextTertiary,
+              const SizedBox(height: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    action.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    action.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TeacherSecondaryToolsBar extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _TeacherSecondaryToolsBar({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _buildChip(
+            context,
+            icon: Icons.qr_code_scanner_rounded,
+            color: AppColors.primary,
+            label: 'بوابة الحضور والاستقبال 📷',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ReceptionQrGateScreen(),
+                ),
+              );
+            },
+            isDark: isDark,
+          ),
+          const SizedBox(width: 8),
+          _buildChip(
+            context,
+            icon: Icons.code_rounded,
+            color: AppColors.teacherRole,
+            label: 'المختبر البرمجي التفاعلي 💻',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CodePlaygroundScreen(),
+                ),
+              );
+            },
+            isDark: isDark,
+          ),
+          const SizedBox(width: 8),
+          _buildChip(
+            context,
+            icon: Icons.add_business_rounded,
+            color: AppColors.warning,
+            label: 'ربط سنتر جديد بكود 🏫',
+            onTap: () => JoinCenterDialog.show(context, onJoined: onRetry),
+            isDark: isDark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.8)
+                : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(
+              color: color.withValues(alpha: 0.35),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white70 : AppColors.lightTextPrimary,
+                ),
               ),
             ],
           ),
@@ -1068,64 +1182,76 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
           const SizedBox(height: 16),
 
           // Dual Action Buttons: Live Class Focus Mode / Projector + Absence Alert
-          Row(
-            children: [
-              Expanded(
-                flex: 5,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D9488),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 2,
-                  ),
-                  icon: const Icon(Icons.co_present_rounded, size: 20),
-                  label: const Text(
-                    'بدء وضع الحصة والبروجيكتور 📽️',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => LiveClassFocusModeScreen(
-                          teacherId: widget.teacherId,
-                          teacherName: widget.teacherName,
-                          groupName: _currentGroup,
-                          roomName: _roomName,
-                          groupId: _currentGroupId,
-                          sessionId: _currentSessionId,
-                          totalStudents: _totalEnrolled,
-                          initialPresent: _presentCount,
-                          initialAbsent: _absentCount,
-                          absentStudents: _absentStudents,
-                        ),
+          LayoutBuilder(
+            builder: (context, btnConstraints) {
+              final isSmall = btnConstraints.maxWidth < 360;
+              final focusBtn = FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D9488),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
+                ),
+                icon: const Icon(Icons.co_present_rounded, size: 20),
+                label: const Text(
+                  'وضع البروجيكتور 📽️',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LiveClassFocusModeScreen(
+                        teacherId: widget.teacherId,
+                        teacherName: widget.teacherName,
+                        groupName: _currentGroup,
+                        roomName: _roomName,
+                        groupId: _currentGroupId,
+                        sessionId: _currentSessionId,
+                        totalStudents: _totalEnrolled,
+                        initialPresent: _presentCount,
+                        initialAbsent: _absentCount,
+                        absentStudents: _absentStudents,
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              );
+              final absenceBtn = FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 4,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 2,
-                  ),
-                  icon: const Icon(Icons.campaign_rounded, size: 18),
-                  label: Text(
-                    'إنذار الغياب ($_absentCount) 🚨',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  onPressed: _openAbsenceBroadcastDialog,
+                icon: const Icon(Icons.campaign_rounded, size: 18),
+                label: Text(
+                  'إنذار الغياب ($_absentCount) 🚨',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
-              ),
-            ],
+                onPressed: _openAbsenceBroadcastDialog,
+              );
+
+              if (isSmall) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    focusBtn,
+                    const SizedBox(height: 8),
+                    absenceBtn,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(flex: 5, child: focusBtn),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 4, child: absenceBtn),
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 16),

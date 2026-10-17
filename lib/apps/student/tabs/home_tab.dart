@@ -95,275 +95,48 @@ class HomeTab extends StatelessWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // ── Large Title App Bar ──
+              // ── Responsive Minimal App Bar ──
               SliverAppBar(
-            backgroundColor: isDark
-                ? AppColors.darkBackground
-                : AppColors.lightBackground,
-            surfaceTintColor: Colors.transparent,
-            floating: true,
-            pinned: false,
-            expandedHeight: 120,
-            actions: [
-              IconButton(
-                tooltip: 'بوابة تسجيل الحضور بالـ QR 📷',
-                onPressed: () {
-                  if (onScanQr != null) {
-                    onScanQr!();
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const StudentQrAttendanceScreen(),
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(
-                  Icons.qr_code_scanner_rounded,
-                  color: Color(0xFF0D9488),
-                  size: 24,
-                ),
-              ),
-              IconButton(
-                tooltip: 'بطاقة هويتي بالسنتر (QR)',
-                onPressed: () {
-                  final authId = Supabase.instance.client.auth.currentUser?.id;
-                  final stuCode = authId != null && authId.length >= 8
-                      ? 'STU-${authId.substring(0, 8).toUpperCase()}'
-                      : 'STU-BRIVIO';
-                  final totalSessions = attendanceItems.length;
-                  final attended = attendanceItems
-                      .where((a) =>
-                          a.status.toLowerCase() == 'present' ||
-                          a.status.toLowerCase() == 'attended')
-                      .length;
-                  final rate = totalSessions > 0 ? (attended / totalSessions) : 1.0;
-                  StudentDigitalIdCard.show(
-                    context,
-                    studentName: userName,
-                    studentCode: stuCode,
-                    gradeLevel: enrolledGroups.isNotEmpty
-                        ? enrolledGroups.first.name
-                        : null,
-                    centerName: centerName?.trim().isNotEmpty == true
-                        ? centerName!
-                        : 'المركز التعليمي',
-                    centerCode: centerCode,
-                    attendanceRate: rate,
-                    activeCoursesCount: enrolledGroups.length,
-                    seatNumber: seatNumber ?? 'مقعد عام',
-                  );
-                },
-                icon: const Icon(
-                  Icons.badge_rounded,
-                  color: AppColors.studentRole,
-                ),
-              ),
-              if (MediaQuery.of(context).size.width >= 540) ...[
-                IconButton(
-                  tooltip: 'سبورتي ومسودتي الشخصية',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const StudentPersonalBoardScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.draw_rounded,
-                    color: AppColors.studentRole,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'الانضمام لسنتر جديد بكود',
-                  onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
-                  icon: const Icon(
-                    Icons.add_business_rounded,
-                    color: AppColors.studentRole,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'لوحة شرف الأوائل (Hall of Fame)',
-                  onPressed: () {
-                    GroupLeaderboardWidget.show(
-                      context,
-                      groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
-                      groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
-                      availableGroups: enrolledGroups,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.emoji_events_rounded,
-                    color: Colors.amber,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'كويز 5 دقائق المباشر (أدخل الكود)',
-                  onPressed: () {
-                    StudentBlitzQuizJoinDialog.show(
-                      context,
-                      studentName: userName,
-                      groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.bolt_rounded,
-                    color: Colors.amberAccent,
-                  ),
-                ),
-              ] else ...[
-                PopupMenuButton<String>(
-                  tooltip: 'المزيد من الأدوات',
-                  icon: const Icon(Icons.more_vert_rounded),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  onSelected: (val) {
-                    switch (val) {
-                      case 'blitz':
-                        StudentBlitzQuizJoinDialog.show(
-                          context,
-                          studentName: userName,
-                          groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
-                        );
-                        break;
-                      case 'leaderboard':
-                        GroupLeaderboardWidget.show(
-                          context,
-                          groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
-                          groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
-                          availableGroups: enrolledGroups,
-                        );
-                        break;
-                      case 'board':
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const StudentPersonalBoardScreen(),
+                backgroundColor: isDark
+                    ? AppColors.darkBackground
+                    : AppColors.lightBackground,
+                surfaceTintColor: Colors.transparent,
+                pinned: true,
+                floating: false,
+                elevation: 0,
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'أهلاً بك،',
+                          style: AppTypography.caption(textSecondary).copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
-                        );
-                        break;
-                      case 'join_center':
-                        JoinCenterDialog.show(context, onJoined: onRetry);
-                        break;
-                    }
-                  },
-                  itemBuilder: (ctx) => [
-                    const PopupMenuItem(
-                      value: 'blitz',
-                      child: Row(
-                        children: [
-                          Icon(Icons.bolt_rounded, color: Colors.amber, size: 20),
-                          SizedBox(width: 10),
-                          Text('كويز 5 دقائق المباشر ⚡', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          userName.split(' ').first,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.titleLarge(textPrimary).copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
-                    const PopupMenuItem(
-                      value: 'leaderboard',
-                      child: Row(
-                        children: [
-                          Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 20),
-                          SizedBox(width: 10),
-                          Text('لوحة شرف الأوائل 🏆', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'board',
-                      child: Row(
-                        children: [
-                          Icon(Icons.draw_rounded, color: AppColors.studentRole, size: 20),
-                          SizedBox(width: 10),
-                          Text('سبورتي ومسودتي الشخصية 🎨'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'join_center',
-                      child: Row(
-                        children: [
-                          Icon(Icons.add_business_rounded, color: AppColors.studentRole, size: 20),
-                          SizedBox(width: 10),
-                          Text('الانضمام لسنتر جديد 🏫'),
-                        ],
-                      ),
-                    ),
+                    const SizedBox(width: 6),
+                    const Text('👋', style: TextStyle(fontSize: 16)),
                   ],
                 ),
-              ],
-              CenterSwitcherWidget(onCenterChanged: onRetry),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(
-                start: 24,
-                bottom: 8,
-              ),
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  FadeInSlide(
-                    duration: const Duration(milliseconds: 500),
-                    child: Text(
-                      'أهلاً بك،',
-                      style: AppTypography.caption(
-                        textSecondary,
-                      ).copyWith(fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  FadeInSlide(
-                    duration: const Duration(milliseconds: 600),
-                    delay: const Duration(milliseconds: 100),
-                    child: Text(
-                      userName.split(' ').first,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.displayMedium(textPrimary).copyWith(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                if (errorMessage != null) ...[
-                  PortalErrorBanner(message: errorMessage!, onRetry: onRetry),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── Live Countdown Hero Card ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 150),
-                  child: LiveCountdownHeroCard(
-                    isLoading: isLoading,
-                    lesson: nextLesson,
-                    gamification: gamification,
-                    onOpen: onOpenWorkspace,
-                    groupName: enrolledGroups.isNotEmpty
-                        ? enrolledGroups.first.name
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Live Automatic Attendance Gate Hero Card ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 155),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () {
+                actions: [
+                  IconButton(
+                    tooltip: 'مسح كود الحضور بالـ QR',
+                    onPressed: () {
                       if (onScanQr != null) {
                         onScanQr!();
                       } else {
@@ -375,452 +148,120 @@ class HomeTab extends StatelessWidget {
                         );
                       }
                     },
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [
-                                  const Color(0xFF042F2E),
-                                  const Color(0xFF134E4A),
-                                  const Color(0xFF0F172A),
-                                ]
-                              : [
-                                  const Color(0xFFF0FDFA),
-                                  const Color(0xFFCCFBF1),
-                                  Colors.white,
-                                ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF14B8A6).withValues(alpha: 0.15),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF14B8A6).withValues(alpha: 0.4),
-                                  blurRadius: 12,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.qr_code_scanner_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'بوابة تسجيل الحضور التلقائي 📷',
-                                      style: AppTypography.titleMedium(textPrimary).copyWith(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF14B8A6).withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: const Color(0xFF14B8A6), width: 0.8),
-                                      ),
-                                      child: const Text(
-                                        'تلقائي ⚡',
-                                        style: TextStyle(
-                                          color: Color(0xFF0D9488),
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'امسح رمز QR المعروض في قاعة الحصة لتأكيد حضورك فوراً',
-                                  style: AppTypography.caption(textSecondary).copyWith(
-                                    fontSize: 12,
-                                    height: 1.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0D9488),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'تسجيل الحضور',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    icon: const Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: Color(0xFF0D9488),
+                      size: 22,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Live Blitz Quiz 5-Min Hero Card ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 160),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => StudentBlitzQuizJoinDialog.show(
-                      context,
-                      studentName: userName,
-                      groupId: enrolledGroups.isNotEmpty
-                          ? enrolledGroups.first.id
-                          : null,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [
-                                  const Color(0xFF311042),
-                                  const Color(0xFF1E1B4B),
-                                  const Color(0xFF0F172A),
-                                ]
-                              : [
-                                  const Color(0xFFFAF5FF),
-                                  const Color(0xFFEEF2FF),
-                                  Colors.white,
-                                ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFA855F7).withValues(alpha: 0.4),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFA855F7).withValues(alpha: 0.15),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.purpleAccent.withValues(alpha: 0.4),
-                                  blurRadius: 12,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.bolt_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'كويز الـ 5 دقائق المباشر ⚡',
-                                      style: AppTypography.titleMedium(textPrimary).copyWith(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.redAccent.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.redAccent, width: 0.8),
-                                      ),
-                                      child: const Text(
-                                        'LIVE',
-                                        style: TextStyle(
-                                          color: Colors.redAccent,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'انضم لكويز الحصة التفاعلي السريع عبر إدخال كود الـ PIN السري',
-                                  style: AppTypography.caption(textSecondary).copyWith(
-                                    fontSize: 12,
-                                    height: 1.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'أدخل الكود',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── 3-Minute Quick Review Flashcard Deck (Only shown when enrolled in groups with an active lesson) ──
-                if (enrolledGroups.isNotEmpty && nextLesson != null) ...[
-                  FadeInSlide(
-                    duration: const Duration(milliseconds: 700),
-                    delay: const Duration(milliseconds: 165),
-                    child: QuickReviewFlashcardDeck(
-                      lesson: nextLesson,
-                      groupName: enrolledGroups.first.name,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // ── Code Playground Shortcut ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 175),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
+                  IconButton(
+                    tooltip: 'بطاقة هويتي بالسنتر (QR)',
+                    onPressed: () {
+                      final authId = Supabase.instance.client.auth.currentUser?.id;
+                      final stuCode = authId != null && authId.length >= 8
+                          ? 'STU-${authId.substring(0, 8).toUpperCase()}'
+                          : 'STU-BRIVIO';
+                      final totalSessions = attendanceItems.length;
+                      final attended = attendanceItems
+                          .where((a) =>
+                              a.status.toLowerCase() == 'present' ||
+                              a.status.toLowerCase() == 'attended')
+                          .length;
+                      final rate = totalSessions > 0 ? (attended / totalSessions) : 1.0;
+                      StudentDigitalIdCard.show(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const CodePlaygroundScreen(),
-                        ),
+                        studentName: userName,
+                        studentCode: stuCode,
+                        gradeLevel: enrolledGroups.isNotEmpty
+                            ? enrolledGroups.first.name
+                            : null,
+                        centerName: centerName?.trim().isNotEmpty == true
+                            ? centerName!
+                            : 'المركز التعليمي',
+                        centerCode: centerCode,
+                        attendanceRate: rate,
+                        activeCoursesCount: enrolledGroups.length,
+                        seatNumber: seatNumber ?? 'مقعد عام',
                       );
                     },
-                    child: GlassCard(
-                      padding: const EdgeInsets.all(20),
-                      color: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.lightSurface,
-                      borderColor: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.code,
-                              color: AppColors.primary,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'منصة التجارب التفاعلية (Playground)',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.titleMedium(
-                                    textPrimary,
-                                  ).copyWith(fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'شغّل الأكواد وشاهد الشرح التفاعلي خطوة بخطوة',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.caption(textSecondary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Tooltip(
-                            message: 'فتح منصة التجارب',
-                            child: Icon(
-                              Icons.play_circle_fill_rounded,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
+                    icon: const Icon(
+                      Icons.badge_rounded,
+                      color: AppColors.studentRole,
+                      size: 22,
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
+                  CenterSwitcherWidget(onCenterChanged: onRetry),
+                  const SizedBox(width: 6),
+                ],
+              ),
 
-                // ── Personal Board Shortcut ──
-                FadeInSlide(
-                  duration: const Duration(milliseconds: 700),
-                  delay: const Duration(milliseconds: 185),
-                  child: GestureDetector(
-                    onTap: () {
-                      if (onOpenPersonalBoard != null) {
-                        onOpenPersonalBoard!();
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const StudentPersonalBoardScreen(),
-                          ),
-                        );
-                      }
-                    },
-                    child: GlassCard(
-                      padding: const EdgeInsets.all(20),
-                      color: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.lightSurface,
-                      borderColor: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.purple.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.draw_rounded,
-                              color: AppColors.purple,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'سبورتي ومسودتي الحرة',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.titleMedium(
-                                        textPrimary,
-                                      ).copyWith(fontWeight: FontWeight.w800),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.success.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'خاصة وسريعة',
-                                        style: AppTypography.caption(
-                                          AppColors.success,
-                                        ).copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'كشكول وسبورة ذكية لحل المسائل وتدوين الملاحظات بحرية تامة',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.caption(textSecondary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            color: AppColors.purple,
-                            size: 16,
-                          ),
-                        ],
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    if (errorMessage != null) ...[
+                      PortalErrorBanner(message: errorMessage!, onRetry: onRetry),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // ── Live Countdown Academic Hero Card ──
+                    FadeInSlide(
+                      duration: const Duration(milliseconds: 600),
+                      delay: const Duration(milliseconds: 100),
+                      child: LiveCountdownHeroCard(
+                        isLoading: isLoading,
+                        lesson: nextLesson,
+                        gamification: gamification,
+                        onOpen: onOpenWorkspace,
+                        groupName: enrolledGroups.isNotEmpty
+                            ? enrolledGroups.first.name
+                            : null,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
+                    // ── Responsive 4-Tile Quick Actions Grid ──
+                    FadeInSlide(
+                      duration: const Duration(milliseconds: 600),
+                      delay: const Duration(milliseconds: 150),
+                      child: _StudentQuickActionsGrid(
+                        onScanQr: onScanQr,
+                        onOpenPersonalBoard: onOpenPersonalBoard,
+                        onRetry: onRetry,
+                        userName: userName,
+                        enrolledGroups: enrolledGroups,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ── Secondary Quick Tools Pills ──
+                    FadeInSlide(
+                      duration: const Duration(milliseconds: 550),
+                      delay: const Duration(milliseconds: 180),
+                      child: _StudentSecondaryToolsBar(
+                        enrolledGroups: enrolledGroups,
+                        userName: userName,
+                        onRetry: onRetry,
+                        centerName: centerName,
+                        centerCode: centerCode,
+                        attendanceItems: attendanceItems,
+                        seatNumber: seatNumber,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── 3-Minute Quick Review Flashcard Deck (When available) ──
+                    if (enrolledGroups.isNotEmpty && nextLesson != null) ...[
+                      FadeInSlide(
+                        duration: const Duration(milliseconds: 600),
+                        delay: const Duration(milliseconds: 200),
+                        child: QuickReviewFlashcardDeck(
+                          lesson: nextLesson,
+                          groupName: enrolledGroups.first.name,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                 // ── Quick Stats ──
                 FadeInSlide(
@@ -997,6 +438,413 @@ class HomeTab extends StatelessWidget {
   ),
 );
 }
+}
+
+class _StudentQuickActionsGrid extends StatelessWidget {
+  final VoidCallback? onScanQr;
+  final VoidCallback? onOpenPersonalBoard;
+  final VoidCallback onRetry;
+  final String userName;
+  final List<GroupEntity> enrolledGroups;
+
+  const _StudentQuickActionsGrid({
+    required this.onScanQr,
+    required this.onOpenPersonalBoard,
+    required this.onRetry,
+    required this.userName,
+    required this.enrolledGroups,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final actions = [
+      _StudentActionData(
+        title: 'بوابة الحضور',
+        subtitle: 'مسح كود القاعة',
+        badge: 'تلقائي ⚡',
+        icon: Icons.qr_code_scanner_rounded,
+        gradient: const [Color(0xFF0D9488), Color(0xFF14B8A6)],
+        borderAccent: const Color(0xFF14B8A6),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          if (onScanQr != null) {
+            onScanQr!();
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const StudentQrAttendanceScreen(),
+              ),
+            );
+          }
+        },
+      ),
+      _StudentActionData(
+        title: 'كويز 5 دقائق',
+        subtitle: 'أدخل كود الـ PIN',
+        badge: 'LIVE ⚡',
+        icon: Icons.bolt_rounded,
+        gradient: const [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+        borderAccent: const Color(0xFFA855F7),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          StudentBlitzQuizJoinDialog.show(
+            context,
+            studentName: userName,
+            groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+          );
+        },
+      ),
+      _StudentActionData(
+        title: 'سبورتي ومسودتي',
+        subtitle: 'كشكول حل المسائل',
+        badge: 'خاصة 🎨',
+        icon: Icons.draw_rounded,
+        gradient: const [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        borderAccent: const Color(0xFF818CF8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          if (onOpenPersonalBoard != null) {
+            onOpenPersonalBoard!();
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const StudentPersonalBoardScreen(),
+              ),
+            );
+          }
+        },
+      ),
+      _StudentActionData(
+        title: 'المختبر البرمجي',
+        subtitle: 'تجارب وأكواد حية',
+        badge: 'تفاعلي 💻',
+        icon: Icons.code_rounded,
+        gradient: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+        borderAccent: const Color(0xFF38BDF8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CodePlaygroundScreen(),
+            ),
+          );
+        },
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 640;
+        final crossAxisCount = isWide ? 4 : 2;
+        final childAspectRatio = isWide ? 1.6 : 1.35;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: actions.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: childAspectRatio,
+          ),
+          itemBuilder: (context, index) {
+            return _StudentActionTile(action: actions[index], isDark: isDark);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _StudentActionData {
+  final String title;
+  final String subtitle;
+  final String badge;
+  final IconData icon;
+  final List<Color> gradient;
+  final Color borderAccent;
+  final VoidCallback onTap;
+
+  const _StudentActionData({
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.icon,
+    required this.gradient,
+    required this.borderAccent,
+    required this.onTap,
+  });
+}
+
+class _StudentActionTile extends StatelessWidget {
+  final _StudentActionData action;
+  final bool isDark;
+
+  const _StudentActionTile({
+    required this.action,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.9)
+                : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: action.borderAccent.withValues(alpha: isDark ? 0.35 : 0.25),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: action.borderAccent.withValues(alpha: isDark ? 0.12 : 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: action.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: action.gradient.first.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(action.icon, color: Colors.white, size: 19),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: action.borderAccent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: action.borderAccent.withValues(alpha: 0.3),
+                        width: 0.7,
+                      ),
+                    ),
+                    child: Text(
+                      action.badge,
+                      style: TextStyle(
+                        color: action.borderAccent,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    action.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    action.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StudentSecondaryToolsBar extends StatelessWidget {
+  final List<GroupEntity> enrolledGroups;
+  final String userName;
+  final VoidCallback onRetry;
+  final String? centerName;
+  final String? centerCode;
+  final List<StudentAttendanceItem> attendanceItems;
+  final String? seatNumber;
+
+  const _StudentSecondaryToolsBar({
+    required this.enrolledGroups,
+    required this.userName,
+    required this.onRetry,
+    required this.centerName,
+    required this.centerCode,
+    required this.attendanceItems,
+    required this.seatNumber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          _buildChip(
+            context,
+            icon: Icons.emoji_events_rounded,
+            color: Colors.amber,
+            label: 'لوحة الشرف 🏆',
+            onTap: () {
+              GroupLeaderboardWidget.show(
+                context,
+                groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+                groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
+                availableGroups: enrolledGroups,
+              );
+            },
+            isDark: isDark,
+          ),
+          const SizedBox(width: 8),
+          _buildChip(
+            context,
+            icon: Icons.add_business_rounded,
+            color: AppColors.studentRole,
+            label: 'انضمام بكود سنتر 🏫',
+            onTap: () => JoinCenterDialog.show(context, onJoined: onRetry),
+            isDark: isDark,
+          ),
+          const SizedBox(width: 8),
+          _buildChip(
+            context,
+            icon: Icons.badge_rounded,
+            color: const Color(0xFF0D9488),
+            label: 'بطاقة هويتي بالسنتر 🆔',
+            onTap: () {
+              final authId = Supabase.instance.client.auth.currentUser?.id;
+              final stuCode = authId != null && authId.length >= 8
+                  ? 'STU-${authId.substring(0, 8).toUpperCase()}'
+                  : 'STU-BRIVIO';
+              final totalSessions = attendanceItems.length;
+              final attended = attendanceItems
+                  .where((a) =>
+                      a.status.toLowerCase() == 'present' ||
+                      a.status.toLowerCase() == 'attended')
+                  .length;
+              final rate = totalSessions > 0 ? (attended / totalSessions) : 1.0;
+              StudentDigitalIdCard.show(
+                context,
+                studentName: userName,
+                studentCode: stuCode,
+                gradeLevel: enrolledGroups.isNotEmpty
+                    ? enrolledGroups.first.name
+                    : null,
+                centerName: centerName?.trim().isNotEmpty == true
+                    ? centerName!
+                    : 'المركز التعليمي',
+                centerCode: centerCode,
+                attendanceRate: rate,
+                activeCoursesCount: enrolledGroups.length,
+                seatNumber: seatNumber ?? 'مقعد عام',
+              );
+            },
+            isDark: isDark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.8)
+                : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(
+              color: color.withValues(alpha: 0.35),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white70 : AppColors.lightTextPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class LiveCountdownHeroCard extends StatefulWidget {
