@@ -310,54 +310,73 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             backgroundColor: bgColor,
             body: Row(
               children: [
-                NavigationRail(
-                  backgroundColor: surfaceColor,
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (i) =>
-                      setState(() => _selectedIndex = i),
-                  labelType: NavigationRailLabelType.all,
-                  indicatorColor: AppColors.teacherRole.withValues(alpha: 0.12),
-                  selectedIconTheme: const IconThemeData(
-                    color: AppColors.teacherRole,
-                  ),
-                  destinations: [
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home_rounded),
-                      label: Text('الرئيسية'),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.groups_2_outlined),
-                      selectedIcon: Icon(Icons.groups_2_rounded),
-                      label: Text('المجموعات'),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.dashboard_customize_outlined),
-                      selectedIcon: Icon(
-                        Icons.dashboard_customize_rounded,
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: NavigationRail(
+                            backgroundColor: surfaceColor,
+                            selectedIndex: _selectedIndex,
+                            onDestinationSelected: (i) =>
+                                setState(() => _selectedIndex = i),
+                            labelType: NavigationRailLabelType.all,
+                            indicatorColor:
+                                AppColors.teacherRole.withValues(alpha: 0.12),
+                            selectedIconTheme: const IconThemeData(
+                              color: AppColors.teacherRole,
+                            ),
+                            destinations: [
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.home_outlined),
+                                selectedIcon: Icon(Icons.home_rounded),
+                                label: Text('الرئيسية'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.groups_2_outlined),
+                                selectedIcon: Icon(Icons.groups_2_rounded),
+                                label: Text('المجموعات'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.dashboard_customize_outlined),
+                                selectedIcon: Icon(
+                                  Icons.dashboard_customize_rounded,
+                                ),
+                                label: Text('مساحة العمل'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.insights_outlined),
+                                selectedIcon: Icon(Icons.insights_rounded),
+                                label: Text('التقارير'),
+                              ),
+                              NavigationRailDestination(
+                                icon: Badge(
+                                  isLabelVisible: _unreadCount > 0,
+                                  label: Text(
+                                    _unreadCount > 9 ? '9+' : '$_unreadCount',
+                                  ),
+                                  child: const Icon(
+                                    Icons.notifications_none_rounded,
+                                  ),
+                                ),
+                                selectedIcon:
+                                    const Icon(Icons.notifications_rounded),
+                                label: const Text('الإشعارات'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.person_outline_rounded),
+                                selectedIcon: Icon(Icons.person_rounded),
+                                label: Text('حسابي'),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      label: Text('مساحة العمل'),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.insights_outlined),
-                      selectedIcon: Icon(Icons.insights_rounded),
-                      label: Text('التقارير'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Badge(
-                        isLabelVisible: _unreadCount > 0,
-                        label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
-                        child: const Icon(Icons.notifications_none_rounded),
-                      ),
-                      selectedIcon: const Icon(Icons.notifications_rounded),
-                      label: const Text('الإشعارات'),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.person_outline_rounded),
-                      selectedIcon: Icon(Icons.person_rounded),
-                      label: Text('حسابي'),
-                    ),
-                  ],
+                    );
+                  },
                 ),
                 VerticalDivider(thickness: 1, width: 1, color: borderColor),
                 Expanded(child: body),

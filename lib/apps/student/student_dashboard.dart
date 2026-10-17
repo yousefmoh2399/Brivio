@@ -775,47 +775,66 @@ class _StudentDashboardState extends State<StudentDashboard> {
             backgroundColor: bgColor,
             body: Row(
               children: [
-                NavigationRail(
-                  backgroundColor: surfaceColor,
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (i) =>
-                      setState(() => _selectedIndex = i),
-                  labelType: NavigationRailLabelType.all,
-                  indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-                  selectedIconTheme: const IconThemeData(
-                    color: AppColors.primary,
-                  ),
-                  destinations: [
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.house_outlined),
-                      selectedIcon: Icon(Icons.house_rounded),
-                      label: Text('الرئيسية'),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.menu_book_outlined),
-                      selectedIcon: Icon(Icons.menu_book_rounded),
-                      label: Text('الدروس والمناهج'),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.bolt_outlined),
-                      selectedIcon: Icon(Icons.bolt_rounded),
-                      label: Text('الأنشطة والمهام'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Badge(
-                        isLabelVisible: _unreadCount > 0,
-                        label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
-                        child: const Icon(Icons.notifications_none_rounded),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: NavigationRail(
+                            backgroundColor: surfaceColor,
+                            selectedIndex: _selectedIndex,
+                            onDestinationSelected: (i) =>
+                                setState(() => _selectedIndex = i),
+                            labelType: NavigationRailLabelType.all,
+                            indicatorColor:
+                                AppColors.primary.withValues(alpha: 0.12),
+                            selectedIconTheme: const IconThemeData(
+                              color: AppColors.primary,
+                            ),
+                            destinations: [
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.house_outlined),
+                                selectedIcon: Icon(Icons.house_rounded),
+                                label: Text('الرئيسية'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.menu_book_outlined),
+                                selectedIcon: Icon(Icons.menu_book_rounded),
+                                label: Text('الدروس والمناهج'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.bolt_outlined),
+                                selectedIcon: Icon(Icons.bolt_rounded),
+                                label: Text('الأنشطة والمهام'),
+                              ),
+                              NavigationRailDestination(
+                                icon: Badge(
+                                  isLabelVisible: _unreadCount > 0,
+                                  label: Text(
+                                    _unreadCount > 9 ? '9+' : '$_unreadCount',
+                                  ),
+                                  child: const Icon(
+                                    Icons.notifications_none_rounded,
+                                  ),
+                                ),
+                                selectedIcon:
+                                    const Icon(Icons.notifications_rounded),
+                                label: const Text('الإشعارات'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.person_outline_rounded),
+                                selectedIcon: Icon(Icons.person_rounded),
+                                label: Text('حسابي'),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      selectedIcon: const Icon(Icons.notifications_rounded),
-                      label: const Text('الإشعارات'),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.person_outline_rounded),
-                      selectedIcon: Icon(Icons.person_rounded),
-                      label: Text('حسابي'),
-                    ),
-                  ],
+                    );
+                  },
                 ),
                 VerticalDivider(thickness: 1, width: 1, color: borderColor),
                 Expanded(child: body),
