@@ -319,7 +319,7 @@ class _SnapchatAvatarStudioScreenState
           children: [
             // ── Interactive 3D Stage Viewport ──
             Expanded(
-              flex: 5,
+              flex: 6,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -446,16 +446,15 @@ class _SnapchatAvatarStudioScreenState
               ),
             ),
 
-            // ── Section Tabs Ribbon ──
-            // ── Snapchat Floating Dock Ribbon ──
+            // ── Snapchat Compact Dock Ribbon ──
             Container(
-              height: 60,
+              height: 48,
               decoration: BoxDecoration(
                 color: cardColor,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
                     offset: const Offset(0, -2),
                   ),
                 ],
@@ -472,24 +471,24 @@ class _SnapchatAvatarStudioScreenState
               ),
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 children: [
-                  _buildSectionTab(AvatarCustomizationSection.style, 'النمط والموديل', Icons.auto_awesome_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.style, 'النمط', Icons.auto_awesome_rounded),
                   _buildSectionTab(AvatarCustomizationSection.genderBody, 'الجنس', Icons.wc_rounded),
                   _buildSectionTab(AvatarCustomizationSection.hairStyle, 'الشعر', Icons.content_cut_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.headwear, 'الحجاب والأغطية', Icons.dry_cleaning_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.outfit, 'الملابس والأزياء', Icons.checkroom_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.headwear, 'الحجاب', Icons.dry_cleaning_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.outfit, 'الملابس', Icons.checkroom_rounded),
                   _buildSectionTab(AvatarCustomizationSection.skinTone, 'البشرة', Icons.face_rounded),
                   _buildSectionTab(AvatarCustomizationSection.hairColor, 'لون الشعر', Icons.format_paint_rounded),
                   _buildSectionTab(AvatarCustomizationSection.eyewear, 'النظارات', Icons.visibility_rounded),
                   _buildSectionTab(AvatarCustomizationSection.mouth, 'التعبيرات', Icons.mood_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.facialHair, 'اللحية والشارب', Icons.face_retouching_natural_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.facialHair, 'اللحية', Icons.face_retouching_natural_rounded),
                   _buildSectionTab(AvatarCustomizationSection.background, 'الاستوديو', Icons.wallpaper_rounded),
                 ],
               ),
             ),
 
-            // ── Options Tray ──
+            // ── Compact Options Tray ──
             Expanded(
               flex: 4,
               child: Container(
@@ -512,11 +511,11 @@ class _SnapchatAvatarStudioScreenState
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             HapticFeedback.selectionClick();
             setState(() {
@@ -531,36 +530,36 @@ class _SnapchatAvatarStudioScreenState
             });
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
+            duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
             decoration: BoxDecoration(
               gradient: isSelected
                   ? LinearGradient(
                       colors: [
                         widget.roleColor,
-                        widget.roleColor.withValues(alpha: 0.82),
+                        widget.roleColor.withValues(alpha: 0.85),
                       ],
                     )
                   : null,
               color: isSelected
                   ? null
                   : (isDark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : Colors.black.withValues(alpha: 0.04)),
-              borderRadius: BorderRadius.circular(16),
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.black.withValues(alpha: 0.035)),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected
                     ? Colors.transparent
-                    : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
-                width: 1,
+                    : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+                width: 0.8,
               ),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: widget.roleColor.withValues(alpha: 0.35),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                        color: widget.roleColor.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ]
                   : null,
@@ -570,16 +569,16 @@ class _SnapchatAvatarStudioScreenState
               children: [
                 Icon(
                   icon,
-                  size: 17,
+                  size: 15,
                   color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(
                   title,
                   style: TextStyle(
                     color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 12.5,
+                    fontSize: 11.5,
                   ),
                 ),
               ],
@@ -595,14 +594,14 @@ class _SnapchatAvatarStudioScreenState
       case AvatarCustomizationSection.style:
         return _buildVisualGrid(
           options: const [
-            {'id': 'avataaars', 'title': 'سناب شات كلاسيك 👱', 'subtitle': 'شخصيات Bitmoji الشهيرة بجودة سينمائية'},
-            {'id': 'adventurer', 'title': 'مغامر بيكسار 3D ⚔️', 'subtitle': 'تصميم بيكسار كارتوني ثلاثي الأبعاد'},
-            {'id': 'lorelei', 'title': 'أنمي ولوريلاي 🌸', 'subtitle': 'رسوم أنمي يابانية حديثة وناعمة'},
-            {'id': 'bottts', 'title': 'سايبر روبوتيكس 🤖', 'subtitle': 'شخصيات روبوت ثلاثية الأبعاد لمحبي التقنية'},
+            {'id': 'avataaars', 'title': 'سناب شات 👱'},
+            {'id': 'adventurer', 'title': 'بيكسار 3D ⚔️'},
+            {'id': 'lorelei', 'title': 'أنمي 🌸'},
+            {'id': 'bottts', 'title': 'روبوت 🤖'},
           ],
           selectedId: _traits.style,
-          crossAxisCount: 2,
-          childAspectRatio: 0.95,
+          crossAxisCount: 4,
+          childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(style: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(style: id)),
         );
@@ -613,19 +612,19 @@ class _SnapchatAvatarStudioScreenState
       case AvatarCustomizationSection.hairStyle:
         return _buildVisualGrid(
           options: const [
-            {'id': 'short_curly', 'title': 'كيرلي عصري 👦', 'subtitle': 'شعر كيرلي مجعد وأنيق'},
-            {'id': 'fade_crop', 'title': 'تدريج فيد (Fade) 💈', 'subtitle': 'مدرج جانبي خفيف وعصري'},
-            {'id': 'slick_back', 'title': 'تسريحة كلاسيك ✂️', 'subtitle': 'ممشط للخلف بأناقة رجال الأعمال'},
-            {'id': 'long_wavy', 'title': 'طويل مموج 💁‍♀️', 'subtitle': 'خصلات منسدلة وجميلة'},
-            {'id': 'buzz_cut', 'title': 'قصة قصيرة رياضي 👨', 'subtitle': 'شعر خفيف ونظيف'},
-            {'id': 'hijab_wrapped', 'title': 'حجاب إسلامي 🧕', 'subtitle': 'حجاب ساتر وأنيق متناسق مع الوجه'},
-            {'id': 'bob', 'title': 'قصة بوب عصرية 💇‍♀️', 'subtitle': 'قصة قصيرة جذابة للفتيات'},
-            {'id': 'bun', 'title': 'كعكة مرفوعة 👱‍♀️', 'subtitle': 'مظهر شبابي نشط'},
-            {'id': 'hat', 'title': 'قبعة كاجوال 🧢', 'subtitle': 'ستايل رياضي شبابي'},
+            {'id': 'short_curly', 'title': 'كيرلي عصري 👦'},
+            {'id': 'fade_crop', 'title': 'تدريج فيد 💈'},
+            {'id': 'slick_back', 'title': 'كلاسيك ✂️'},
+            {'id': 'long_wavy', 'title': 'طويل مموج 💁‍♀️'},
+            {'id': 'buzz_cut', 'title': 'قصيرة رياضي 👨'},
+            {'id': 'hijab_wrapped', 'title': 'حجاب إسلامي 🧕'},
+            {'id': 'bob', 'title': 'بوب عصري 💇‍♀️'},
+            {'id': 'bun', 'title': 'كعكة 👱‍♀️'},
+            {'id': 'hat', 'title': 'قبعة 🧢'},
           ],
           selectedId: _traits.hairStyle,
-          crossAxisCount: 3,
-          childAspectRatio: 0.85,
+          crossAxisCount: 4,
+          childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(
             hairStyle: id,
             headwear: id == 'hijab_wrapped' ? 'hijab' : 'none',
@@ -636,12 +635,12 @@ class _SnapchatAvatarStudioScreenState
       case AvatarCustomizationSection.headwear:
         return _buildVisualGrid(
           options: const [
-            {'id': 'none', 'title': 'بدون غطاء', 'subtitle': 'الشعر مكشوف بالكامل'},
-            {'id': 'hijab', 'title': 'حجاب إسلامي أنيق 🧕', 'subtitle': 'لفافة حجاب متناسقة مع لون الملابس'},
+            {'id': 'none', 'title': 'بدون غطاء'},
+            {'id': 'hijab', 'title': 'حجاب إسلامي 🧕'},
           ],
           selectedId: _traits.headwear,
-          crossAxisCount: 2,
-          childAspectRatio: 0.95,
+          crossAxisCount: 4,
+          childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(
             headwear: id,
             hairStyle: id == 'hijab' ? 'hijab_wrapped' : _traits.hairStyle,
@@ -656,20 +655,20 @@ class _SnapchatAvatarStudioScreenState
             Expanded(
               child: _buildVisualGrid(
                 options: const [
-                  {'id': 'hoodie', 'title': 'سويت شيرت هودي 👕', 'subtitle': 'كاجوال شبابي دافئ وعصري'},
-                  {'id': 'formal_blazer', 'title': 'بدلة رسمية وقميص 👔', 'subtitle': 'أناقة أكاديمية للمحاضرات والتفوق'},
-                  {'id': 'polo', 'title': 'بلوفر بياقة كلاسيك 🧶', 'subtitle': 'مظهر راقي وأنيق'},
-                  {'id': 'casual_crew', 'title': 'تيشرت قطني كاجوال 🥋', 'subtitle': 'بسيط وخفيف'},
+                  {'id': 'hoodie', 'title': 'هودي 👕'},
+                  {'id': 'formal_blazer', 'title': 'بدلة رسمية 👔'},
+                  {'id': 'polo', 'title': 'بلوفر 🧶'},
+                  {'id': 'casual_crew', 'title': 'تيشيرت 🥋'},
                 ],
                 selectedId: _traits.outfit,
-                crossAxisCount: 2,
-                childAspectRatio: 0.95,
+                crossAxisCount: 4,
+                childAspectRatio: 0.90,
                 previewTraitsBuilder: (id) => _traits.copyWith(outfit: id),
                 onSelected: (id) => setState(() => _traits = _traits.copyWith(outfit: id)),
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
@@ -681,7 +680,7 @@ class _SnapchatAvatarStudioScreenState
               child: Row(
                 children: [
                   const Text('لون الملابس:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildColorPaletteRibbon(
@@ -714,14 +713,14 @@ class _SnapchatAvatarStudioScreenState
       case AvatarCustomizationSection.eyewear:
         return _buildVisualGrid(
           options: const [
-            {'id': 'none', 'title': 'بدون نظارة', 'subtitle': 'رؤية طبيعية بدون إطارات'},
-            {'id': 'square_frames', 'title': 'إطار مربع طبي 👓', 'subtitle': 'نظارة طبية ذكية وأنيقة'},
-            {'id': 'round_frames', 'title': 'إطار دائري ذكي 🕶️', 'subtitle': 'ستايل فنانين ومبتكرين'},
-            {'id': 'sunglasses', 'title': 'نظارة شمسية كول 😎', 'subtitle': 'عدسات داكنة فخمة'},
+            {'id': 'none', 'title': 'بدون نظارة'},
+            {'id': 'square_frames', 'title': 'إطار مربع 👓'},
+            {'id': 'round_frames', 'title': 'إطار دائري 🕶️'},
+            {'id': 'sunglasses', 'title': 'نظارة شمسية 😎'},
           ],
           selectedId: _traits.eyewear,
-          crossAxisCount: 2,
-          childAspectRatio: 0.95,
+          crossAxisCount: 4,
+          childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(eyewear: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(eyewear: id)),
         );
@@ -729,14 +728,14 @@ class _SnapchatAvatarStudioScreenState
       case AvatarCustomizationSection.mouth:
         return _buildVisualGrid(
           options: const [
-            {'id': 'warm_smile', 'title': 'ابتسامة وسعادة 😊', 'subtitle': 'ملامح ترحيبية دافئة'},
-            {'id': 'confident_smirk', 'title': 'واثقة ومرحة 😏', 'subtitle': 'ابتسامة ذكية هادئة'},
-            {'id': 'wide_grin', 'title': 'ضحكة عريضة وأسنان 😁', 'subtitle': 'ضحكة مليئة بالطاقة والإيجابية'},
-            {'id': 'neutral', 'title': 'تركيز وجدية 🧐', 'subtitle': 'ملامح طالب يدرس باهتمام'},
+            {'id': 'warm_smile', 'title': 'ابتسامة 😊'},
+            {'id': 'confident_smirk', 'title': 'واثق 😏'},
+            {'id': 'wide_grin', 'title': 'ضحكة 😁'},
+            {'id': 'neutral', 'title': 'تركيز 🧐'},
           ],
           selectedId: _traits.mouth,
-          crossAxisCount: 2,
-          childAspectRatio: 0.95,
+          crossAxisCount: 4,
+          childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(mouth: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(mouth: id)),
         );
@@ -744,14 +743,14 @@ class _SnapchatAvatarStudioScreenState
       case AvatarCustomizationSection.facialHair:
         return _buildVisualGrid(
           options: const [
-            {'id': 'none', 'title': 'حلاقة ناعمة 🪒', 'subtitle': 'بدون ذقن أو شوارب'},
-            {'id': 'stubble', 'title': 'ذقن خفيف (Stubble) 🧔', 'subtitle': 'ظل خفيف رجولي'},
-            {'id': 'trimmed_beard', 'title': 'لحية كاملة مهندمة ✨', 'subtitle': 'مشذبة وأنيقة'},
-            {'id': 'mustache', 'title': 'شارب كلاسيكي 👨', 'subtitle': 'أنيق ومرتب'},
+            {'id': 'none', 'title': 'حلاقة ناعمة 🪒'},
+            {'id': 'stubble', 'title': 'ذقن خفيف 🧔'},
+            {'id': 'trimmed_beard', 'title': 'لحية مشذبة ✨'},
+            {'id': 'mustache', 'title': 'شارب 👨'},
           ],
           selectedId: _traits.facialHair,
-          crossAxisCount: 2,
-          childAspectRatio: 0.95,
+          crossAxisCount: 4,
+          childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(facialHair: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(facialHair: id)),
         );
@@ -783,45 +782,45 @@ class _SnapchatAvatarStudioScreenState
       facialHair: 'none',
     );
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildGenderCard(
-              gender: 'male',
-              title: 'شخصية شبابية 👦',
-              subtitle: 'هيكل شبابي وقصات كلاسيكية وعصرية',
-              isSelected: _traits.gender == 'male',
-              previewUrl: malePreview.toImageUrl(size: 160),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildCompactGenderCard(
+                gender: 'male',
+                title: 'شخصية شبابية 👦',
+                isSelected: _traits.gender == 'male',
+                previewUrl: malePreview.toImageUrl(size: 128),
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: _buildGenderCard(
-              gender: 'female',
-              title: 'شخصية فتيات 👧',
-              subtitle: 'خيارات حجاب وتسريحات بنات أنيقة',
-              isSelected: _traits.gender == 'female',
-              previewUrl: femalePreview.toImageUrl(size: 160),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactGenderCard(
+                gender: 'female',
+                title: 'شخصية فتيات 👧',
+                isSelected: _traits.gender == 'female',
+                previewUrl: femalePreview.toImageUrl(size: 128),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGenderCard({
+  Widget _buildCompactGenderCard({
     required String gender,
     required String title,
-    required String subtitle,
     required bool isSelected,
     required String previewUrl,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(16),
       onTap: () {
         HapticFeedback.lightImpact();
         setState(() {
@@ -834,72 +833,73 @@ class _SnapchatAvatarStudioScreenState
         });
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.all(12),
+        duration: const Duration(milliseconds: 200),
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? widget.roleColor.withValues(alpha: 0.12)
-              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-          borderRadius: BorderRadius.circular(22),
+              : cardBg,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? widget.roleColor : Colors.grey.withValues(alpha: 0.22),
-            width: isSelected ? 2.5 : 1,
+            color: isSelected ? widget.roleColor : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
+            width: isSelected ? 1.8 : 0.8,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
                     color: widget.roleColor.withValues(alpha: 0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : null,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
           children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 40,
+                height: 40,
                 child: Image.network(
                   previewUrl,
                   fit: BoxFit.contain,
-                  loadingBuilder: (ctx, child, progress) {
-                    if (progress == null) return child;
-                    return Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: widget.roleColor),
-                      ),
-                    );
-                  },
                   errorBuilder: (_, __, ___) => Icon(
                     gender == 'male' ? Icons.boy_rounded : Icons.girl_rounded,
-                    size: 48,
+                    size: 24,
                     color: widget.roleColor,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? widget.roleColor : null,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? widget.roleColor : (isDark ? Colors.white : Colors.black87),
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10.5, color: Colors.grey),
-            ),
+            if (isSelected)
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: widget.roleColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check,
+                  size: 10,
+                  color: Colors.white,
+                ),
+              ),
           ],
         ),
       ),
@@ -911,20 +911,20 @@ class _SnapchatAvatarStudioScreenState
     required String selectedId,
     required ValueChanged<String> onSelected,
     required BitmojiTraits Function(String optionId) previewTraitsBuilder,
-    int crossAxisCount = 3,
-    double childAspectRatio = 0.85,
+    int crossAxisCount = 4,
+    double childAspectRatio = 0.90,
     IconData fallbackIcon = Icons.auto_awesome_rounded,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
 
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         childAspectRatio: childAspectRatio,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
       ),
       itemCount: options.length,
       itemBuilder: (context, index) {
@@ -936,31 +936,31 @@ class _SnapchatAvatarStudioScreenState
         final previewUrl = previewTraits.toImageUrl(size: 128);
 
         return InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           onTap: () {
             HapticFeedback.lightImpact();
             onSelected(id);
           },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
             decoration: BoxDecoration(
               color: isSelected
                   ? widget.roleColor.withValues(alpha: 0.12)
                   : cardBg,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isSelected
                     ? widget.roleColor
-                    : (isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
-                width: isSelected ? 2.5 : 1.2,
+                    : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
+                width: isSelected ? 1.8 : 0.8,
               ),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: widget.roleColor.withValues(alpha: 0.25),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
+                        color: widget.roleColor.withValues(alpha: 0.22),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ]
                   : null,
@@ -973,10 +973,10 @@ class _SnapchatAvatarStudioScreenState
                     // Visual Preview Area
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                        padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
                         child: Center(
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             child: Image.network(
                               previewUrl,
                               fit: BoxFit.contain,
@@ -984,10 +984,10 @@ class _SnapchatAvatarStudioScreenState
                                 if (progress == null) return child;
                                 return Center(
                                   child: SizedBox(
-                                    width: 18,
-                                    height: 18,
+                                    width: 14,
+                                    height: 14,
                                     child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                                      strokeWidth: 1.5,
                                       color: widget.roleColor,
                                     ),
                                   ),
@@ -995,7 +995,7 @@ class _SnapchatAvatarStudioScreenState
                               },
                               errorBuilder: (ctx, err, stack) => Icon(
                                 fallbackIcon,
-                                size: 28,
+                                size: 22,
                                 color: isSelected ? widget.roleColor : Colors.grey,
                               ),
                             ),
@@ -1004,16 +1004,16 @@ class _SnapchatAvatarStudioScreenState
                       ),
                     ),
 
-                    // Title
+                    // Compact Title
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+                      padding: const EdgeInsets.fromLTRB(2, 0, 2, 4),
                       child: Text(
                         title,
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                           color: isSelected
                               ? widget.roleColor
@@ -1024,26 +1024,21 @@ class _SnapchatAvatarStudioScreenState
                   ],
                 ),
 
-                // Selected Checkmark Badge
+                // Selected Checkmark Badge (Micro circle)
                 if (isSelected)
                   Positioned(
-                    top: 6,
-                    left: 6,
+                    top: 4,
+                    left: 4,
                     child: Container(
-                      padding: const EdgeInsets.all(3),
+                      width: 14,
+                      height: 14,
                       decoration: BoxDecoration(
                         color: widget.roleColor,
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: widget.roleColor.withValues(alpha: 0.4),
-                            blurRadius: 4,
-                          ),
-                        ],
                       ),
                       child: const Icon(
                         Icons.check,
-                        size: 11,
+                        size: 9,
                         color: Colors.white,
                       ),
                     ),
@@ -1063,10 +1058,10 @@ class _SnapchatAvatarStudioScreenState
   }) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Wrap(
-          spacing: 14,
-          runSpacing: 14,
+          spacing: 10,
+          runSpacing: 10,
           alignment: WrapAlignment.center,
           children: colors.map((c) {
             final isSelected = c.toARGB32() == selected.toARGB32();
@@ -1078,27 +1073,27 @@ class _SnapchatAvatarStudioScreenState
                 onChanged(c);
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 48,
-                height: 48,
+                duration: const Duration(milliseconds: 180),
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: c,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected ? widget.roleColor : Colors.white70,
-                    width: isSelected ? 3.5 : 2.0,
+                    width: isSelected ? 3.0 : 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
                     ),
                     if (isSelected)
                       BoxShadow(
-                        color: widget.roleColor.withValues(alpha: 0.45),
-                        blurRadius: 10,
-                        spreadRadius: 2,
+                        color: widget.roleColor.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        spreadRadius: 1,
                       ),
                   ],
                 ),
@@ -1106,7 +1101,7 @@ class _SnapchatAvatarStudioScreenState
                     ? Center(
                         child: Icon(
                           Icons.check_rounded,
-                          size: 22,
+                          size: 18,
                           color: isLight ? Colors.black87 : Colors.white,
                         ),
                       )
@@ -1125,10 +1120,10 @@ class _SnapchatAvatarStudioScreenState
     required ValueChanged<Color> onChanged,
   }) {
     return SizedBox(
-      height: 52,
+      height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         itemCount: colors.length,
         itemBuilder: (context, index) {
           final c = colors[index];
@@ -1140,29 +1135,29 @@ class _SnapchatAvatarStudioScreenState
               onChanged(c);
             },
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 5),
-              width: 38,
-              height: 38,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: c,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected ? widget.roleColor : Colors.white70,
-                  width: isSelected ? 3 : 1.5,
+                  width: isSelected ? 2.5 : 1.2,
                 ),
                 boxShadow: [
                   if (isSelected)
                     BoxShadow(
                       color: widget.roleColor.withValues(alpha: 0.4),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+                      blurRadius: 5,
+                      offset: const Offset(0, 1),
                     ),
                 ],
               ),
               child: isSelected
                   ? Icon(
                       Icons.check_rounded,
-                      size: 18,
+                      size: 16,
                       color: c.computeLuminance() > 0.5
                           ? Colors.black87
                           : Colors.white,
