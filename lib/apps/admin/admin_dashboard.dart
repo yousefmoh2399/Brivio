@@ -331,7 +331,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     .map((j) => SubjectEntity.fromJson(
                         Map<String, dynamic>.from(j as Map)))
                     .toList())
-                .catchError((_) => <SubjectEntity>[])
+                .catchError((_) => subjectRepo.fetchSubjects().catchError((_) => <SubjectEntity>[]))
             : subjectRepo.fetchSubjects().catchError((_) => <SubjectEntity>[]),
         groupRepo.fetchGroups(branchId: activeBranch).catchError((_) => <GroupEntity>[]),
         summaryRepo.fetchSummary().catchError(

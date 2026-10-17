@@ -71,8 +71,10 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
               .toList();
         } catch (_) {}
       }
-      if (res.isEmpty && centerId == null) {
-        res = await _subjectRepo.fetchSubjects();
+      if (res.isEmpty) {
+        try {
+          res = await _subjectRepo.fetchSubjects();
+        } catch (_) {}
       }
 
       if (mounted) {
@@ -206,12 +208,24 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                               ? null
                               : descCtrl.text.trim(),
                           'status': 'active',
-                          if (centerId != null) 'center_id': centerId,
                         };
 
-                        await Supabase.instance.client
-                            .from('subjects')
-                            .insert(subjectPayload);
+                        if (centerId != null) {
+                          try {
+                            await Supabase.instance.client
+                                .from('subjects')
+                                .insert({...subjectPayload, 'center_id': centerId});
+                          } catch (_) {
+                            // Fallback if center_id column does not exist on subjects table
+                            await Supabase.instance.client
+                                .from('subjects')
+                                .insert(subjectPayload);
+                          }
+                        } else {
+                          await Supabase.instance.client
+                              .from('subjects')
+                              .insert(subjectPayload);
+                        }
 
                         nav.pop();
                         _loadSubjects();

@@ -78,12 +78,23 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
           .map((json) => Branch.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      var sQuery = client.from('subjects').select().eq('status', 'active');
-      if (_centerId != null) {
-        sQuery = sQuery.eq('center_id', _centerId!);
+      List<dynamic> sRes = [];
+      try {
+        var sQuery = client.from('subjects').select().eq('status', 'active');
+        if (_centerId != null) {
+          try {
+            sRes = await sQuery.eq('center_id', _centerId!).order('name');
+          } catch (_) {
+            // Fallback if subjects table doesn't have center_id column
+            sRes = await client.from('subjects').select().eq('status', 'active').order('name');
+          }
+        } else {
+          sRes = await sQuery.order('name');
+        }
+      } catch (_) {
+        sRes = [];
       }
-      final sRes = await sQuery.order('name');
-      final subjects = (sRes as List)
+      final subjects = sRes
           .map((json) => SubjectEntity.fromJson(json as Map<String, dynamic>))
           .toList();
 

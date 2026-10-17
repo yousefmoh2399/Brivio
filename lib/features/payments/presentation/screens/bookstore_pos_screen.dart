@@ -274,17 +274,31 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
 
       // If database table is empty for this center, seed from active subjects and persist
       if (_inventory.isEmpty) {
-        var subQuery = Supabase.instance.client
-            .from('subjects')
-            .select('id, name')
-            .eq('status', 'active');
-        if (_centerId != null) {
-          subQuery = subQuery.eq('center_id', _centerId!);
+        List<dynamic> subjectsRes = [];
+        try {
+          var subQuery = Supabase.instance.client
+              .from('subjects')
+              .select('id, name')
+              .eq('status', 'active');
+          if (_centerId != null) {
+            try {
+              subjectsRes = await subQuery.eq('center_id', _centerId!);
+            } catch (_) {
+              // Fallback if subjects table doesn't have center_id column in database
+              subjectsRes = await Supabase.instance.client
+                  .from('subjects')
+                  .select('id, name')
+                  .eq('status', 'active');
+            }
+          } else {
+            subjectsRes = await subQuery;
+          }
+        } catch (e) {
+          debugPrint('Bookstore: subjects query error: $e');
         }
-        final subjectsRes = await subQuery;
 
         final List<Map<String, dynamic>> seeded = [];
-        for (final s in (subjectsRes as List<dynamic>)) {
+        for (final s in subjectsRes) {
           final title = 'ملزمة مادة ${s['name']}';
           final teacher = 'القسم الأكاديمي';
           final price = 40.0;
