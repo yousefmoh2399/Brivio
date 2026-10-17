@@ -14,15 +14,28 @@ BEGIN
               AND table_name = 'subjects' 
               AND column_name = 'center_id'
         ) THEN
-            ALTER TABLE public.subjects 
-            ADD COLUMN center_id UUID REFERENCES public.centers(id) ON DELETE SET NULL;
+            -- Check if educational_centers table exists for FK constraint
+            IF to_regclass('public.educational_centers') IS NOT NULL THEN
+                ALTER TABLE public.subjects 
+                ADD COLUMN center_id UUID REFERENCES public.educational_centers(id) ON DELETE SET NULL;
+            ELSE
+                ALTER TABLE public.subjects 
+                ADD COLUMN center_id UUID;
+            END IF;
+
+            CREATE INDEX IF NOT EXISTS idx_subjects_center_id ON public.subjects(center_id);
             
-            -- Backfill center_id from existing branches if branch_id exists
+            -- Backfill center_id from existing branches if both branch_id and branches.center_id exist
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns 
                 WHERE table_schema = 'public' 
                   AND table_name = 'subjects' 
                   AND column_name = 'branch_id'
+            ) AND EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_schema = 'public' 
+                  AND table_name = 'branches' 
+                  AND column_name = 'center_id'
             ) THEN
                 UPDATE public.subjects s
                 SET center_id = b.center_id
