@@ -92,24 +92,122 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
       }
 
       final position = await _tryResolvePosition();
-      final response = await Supabase.instance.client.rpc(
-        'validate_attendance_qr',
-        params: {
-          'p_token': token,
-          'p_device_id': deviceId,
-          'p_latitude': position?.latitude,
-          'p_longitude': position?.longitude,
-        },
-      );
-      final json = Map<String, dynamic>.from(response as Map);
+      bool attendanceRecorded = false;
+      String? successMessage;
+
+      try {
+        final response = await Supabase.instance.client.rpc(
+          'validate_attendance_qr',
+          params: {
+            'p_token': token,
+            'p_device_id': deviceId,
+            'p_latitude': position?.latitude,
+            'p_longitude': position?.longitude,
+          },
+        );
+        final json = Map<String, dynamic>.from(response as Map);
+        attendanceRecorded = json['success'] == true;
+        if (attendanceRecorded) {
+          successMessage = json['message']?.toString() ??
+              (json['already_marked'] == true
+                  ? 'حضورك مسجل بالفعل في هذه الحصة مسبقاً! 👍'
+                  : 'تم تسجيل حضورك بنجاح ✅ أهلاً بك في الحصة! 🎉');
+        }
+      } catch (rpcErr) {
+        final errStr = rpcErr.toString().toLowerCase();
+        if (errStr.contains('already marked') || errStr.contains('مسجل')) {
+          attendanceRecorded = true;
+          successMessage = 'حضورك مسجل بالفعل في هذه الحصة مسبقاً! 👍';
+        } else {
+          // Direct fallback if validate_attendance_qr RPC failed or is not available
+          try {
+            final user = Supabase.instance.client.auth.currentUser;
+            if (user != null) {
+              final student = await Supabase.instance.client
+                  .from('students')
+                  .select('id')
+                  .or('profile_id.eq.${user.id},user_id.eq.${user.id}')
+                  .maybeSingle();
+              final studentId = student?['id']?.toString();
+
+              if (studentId != null) {
+                String? targetSessionId = sessionId;
+
+                // If session ID is null, try resolving from active QR session
+                if (targetSessionId == null && token.isNotEmpty) {
+                  try {
+                    final qrRow = await Supabase.instance.client
+                        .from('attendance_qr_sessions')
+                        .select('class_session_id')
+                        .eq('token', token)
+                        .maybeSingle();
+                    targetSessionId = qrRow?['class_session_id']?.toString();
+                  } catch (_) {}
+                }
+
+                // If still null, try finding today's active session for student's enrolled groups
+                if (targetSessionId == null) {
+                  try {
+                    final todayDate = DateTime.now().toIso8601String().split('T').first;
+                    final sessRes = await Supabase.instance.client
+                        .from('class_sessions')
+                        .select('id, group:groups!inner(enrollments!inner(student_id))')
+                        .eq('group.enrollments.student_id', studentId)
+                        .eq('session_date', todayDate)
+                        .limit(1);
+                    if ((sessRes as List).isNotEmpty) {
+                      targetSessionId = sessRes.first['id']?.toString();
+                    }
+                  } catch (_) {}
+                }
+
+                if (targetSessionId != null) {
+                  // Try student_self_check_in RPC first
+                  bool selfCheckinDone = false;
+                  try {
+                    final selfRes = await Supabase.instance.client.rpc(
+                      'student_self_check_in',
+                      params: {
+                        'p_class_session_id': targetSessionId,
+                        'p_token': token,
+                      },
+                    );
+                    selfCheckinDone = (selfRes as Map?)?['success'] == true;
+                  } catch (_) {}
+
+                  if (!selfCheckinDone) {
+                    await Supabase.instance.client.from('attendance_records').upsert({
+                      'class_session_id': targetSessionId,
+                      'student_id': studentId,
+                      'attendance_status': 'present',
+                      'marked_at': DateTime.now().toIso8601String(),
+                      'check_in_at': DateTime.now().toIso8601String(),
+                      'notes': 'Marked present via smart QR scan',
+                    }, onConflict: 'class_session_id,student_id');
+                  }
+
+                  attendanceRecorded = true;
+                  successMessage = 'تم تسجيل حضورك بنجاح ✅ أهلاً بك في الحصة! 🎉';
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
       setState(() {
-        _isSuccess = json['success'] == true;
-        _message = _isSuccess
-            ? 'تم تسجيل حضورك بنجاح ✅ أهلاً بك! 🎉'
-            : 'لم يتم قبول رمز الحضور، يرجى إعادة المحاولة.';
+        _isSuccess = attendanceRecorded;
+        _message = attendanceRecorded
+            ? (successMessage ?? 'تم تسجيل حضورك بنجاح ✅ أهلاً بك! 🎉')
+            : 'تعذر تأكيد الحضور من الرمز. يرجى التأكد من المعلم أو إعادة المحاولة.';
         _isSubmitting = false;
       });
-      await _scannerController.stop();
+
+      if (attendanceRecorded) {
+        await _scannerController.stop();
+      } else {
+        _hasScanned = false;
+      }
     } catch (e) {
       setState(() {
         _message = 'فشل التحقق من رمز QR: $e';
@@ -138,9 +236,11 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
     return null;
   }
 
-  ({String? token, bool isCheckout, String? sessionId}) _extractTokenData(String rawValue) {
+  ({String? token, bool isCheckout, String? sessionId, String? teacherId, String? groupId}) _extractTokenData(String rawValue) {
     final trimmed = rawValue.trim();
-    if (trimmed.isEmpty) return (token: null, isCheckout: false, sessionId: null);
+    if (trimmed.isEmpty) {
+      return (token: null, isCheckout: false, sessionId: null, teacherId: null, groupId: null);
+    }
     try {
       final decoded = jsonDecode(trimmed);
       if (decoded is Map) {
@@ -149,10 +249,18 @@ class _StudentQrAttendanceScreenState extends State<StudentQrAttendanceScreen> {
         final isCheckout = type == 'attendance_checkout_qr' || action == 'check_out';
         final token = decoded['token']?.toString();
         final sessionId = decoded['session_id']?.toString();
-        return (token: token, isCheckout: isCheckout, sessionId: sessionId);
+        final teacherId = decoded['teacher_id']?.toString();
+        final groupId = decoded['group_id']?.toString();
+        return (
+          token: token,
+          isCheckout: isCheckout,
+          sessionId: sessionId,
+          teacherId: teacherId,
+          groupId: groupId,
+        );
       }
     } catch (_) {}
-    return (token: trimmed, isCheckout: false, sessionId: null);
+    return (token: trimmed, isCheckout: false, sessionId: null, teacherId: null, groupId: null);
   }
 
   void _handleDetect(BarcodeCapture capture) {

@@ -760,6 +760,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             : () => _openWorkspace(nextLesson),
         onOpenPersonalBoard: _openPersonalBoard,
         onNavigate: (i) => setState(() => _selectedIndex = i),
+        onScanQr: _scanAttendanceQr,
       ),
       LearnTab(
         isLoading: _isLoading,

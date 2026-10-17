@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../design_system/tokens/colors.dart';
+import '../../../attendance/presentation/screens/student_qr_attendance_screen.dart';
 
 /// Next-Generation 3D Holographic Interactive Student Digital ID Pass.
 /// Features:
@@ -242,6 +243,37 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
               ),
 
               const SizedBox(height: 18),
+
+              // QR Gate Attendance Scanner Action
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D9488),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 6,
+                    shadowColor: const Color(0xFF0D9488).withValues(alpha: 0.5),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StudentQrAttendanceScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
+                  label: const Text(
+                    'مسح QR الدخول إلى القاعة (بوابة الحضور) 📷',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 14),
 
               // Bottom Action Buttons
               Row(
@@ -634,11 +666,47 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
                     ],
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   const Text(
                     'قرّب البطاقة من قارئ البوابة الإلكترونية أو أظهرها للاستقبال ⚡',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white60, fontSize: 11, height: 1.4),
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const StudentQrAttendanceScreen(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14B8A6).withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.6)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF14B8A6), size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'مسح QR الدخول إلى الحصة 📷',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),

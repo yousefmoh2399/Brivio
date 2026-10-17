@@ -20,6 +20,7 @@ import '../../../features/student/presentation/widgets/student_digital_id_card.d
 import '../../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
 import '../../../features/assessment/presentation/widgets/group_leaderboard_widget.dart';
 import '../../../features/assessment/presentation/widgets/student_blitz_quiz_dialog.dart';
+import '../../../features/attendance/presentation/screens/student_qr_attendance_screen.dart';
 import '../student_dashboard_models.dart';
 
 String _formatMoney(int amountMinor, String currency) {
@@ -48,6 +49,7 @@ class HomeTab extends StatelessWidget {
   final String? centerName;
   final String? centerCode;
   final String? seatNumber;
+  final VoidCallback? onScanQr;
 
   const HomeTab({
     super.key,
@@ -67,6 +69,7 @@ class HomeTab extends StatelessWidget {
     this.centerName,
     this.centerCode,
     this.seatNumber,
+    this.onScanQr,
   });
 
   @override
@@ -101,6 +104,26 @@ class HomeTab extends StatelessWidget {
             pinned: false,
             expandedHeight: 120,
             actions: [
+              IconButton(
+                tooltip: 'بوابة تسجيل الحضور بالـ QR 📷',
+                onPressed: () {
+                  if (onScanQr != null) {
+                    onScanQr!();
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StudentQrAttendanceScreen(),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: Color(0xFF0D9488),
+                  size: 24,
+                ),
+              ),
               IconButton(
                 tooltip: 'بطاقة هويتي بالسنتر (QR)',
                 onPressed: () {
@@ -330,6 +353,147 @@ class HomeTab extends StatelessWidget {
                     groupName: enrolledGroups.isNotEmpty
                         ? enrolledGroups.first.name
                         : null,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Live Automatic Attendance Gate Hero Card ──
+                FadeInSlide(
+                  duration: const Duration(milliseconds: 700),
+                  delay: const Duration(milliseconds: 155),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      if (onScanQr != null) {
+                        onScanQr!();
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const StudentQrAttendanceScreen(),
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [
+                                  const Color(0xFF042F2E),
+                                  const Color(0xFF134E4A),
+                                  const Color(0xFF0F172A),
+                                ]
+                              : [
+                                  const Color(0xFFF0FDFA),
+                                  const Color(0xFFCCFBF1),
+                                  Colors.white,
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF14B8A6).withValues(alpha: 0.15),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF14B8A6).withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.qr_code_scanner_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'بوابة تسجيل الحضور التلقائي 📷',
+                                      style: AppTypography.titleMedium(textPrimary).copyWith(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF14B8A6).withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF14B8A6), width: 0.8),
+                                      ),
+                                      child: const Text(
+                                        'تلقائي ⚡',
+                                        style: TextStyle(
+                                          color: Color(0xFF0D9488),
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'امسح رمز QR المعروض في قاعة الحصة لتأكيد حضورك فوراً',
+                                  style: AppTypography.caption(textSecondary).copyWith(
+                                    fontSize: 12,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0D9488),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'تسجيل الحضور',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

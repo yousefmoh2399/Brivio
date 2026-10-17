@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -64,6 +65,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
   int _elapsedSeconds = 0; // Starts from 0 seconds
   int _qrTimeRemaining = 20;
   String _currentQrToken = '';
+  String? _activeSessionId;
 
   int _presentCount = 0;
   int _absentCount = 0;
@@ -78,6 +80,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
   @override
   void initState() {
     super.initState();
+    _activeSessionId = widget.sessionId;
     _presentCount = widget.initialPresent;
     _absentCount = widget.initialAbsent;
     _generateNewQrToken();
@@ -127,7 +130,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
 
       List<dynamic> rows = [];
 
-      String? activeSessionId = widget.sessionId;
+      String? activeSessionId = _activeSessionId ?? widget.sessionId;
       if (activeSessionId == null && widget.groupId != null && widget.groupId!.isNotEmpty) {
         final sessRes = await client
             .from('class_sessions')
@@ -137,8 +140,21 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
             .limit(1);
         if ((sessRes as List).isNotEmpty) {
           activeSessionId = sessRes.first['id']?.toString();
+        } else {
+          try {
+            final newSession = await client.from('class_sessions').insert({
+              'group_id': widget.groupId,
+              'teacher_id': widget.teacherId,
+              'session_date': todayDate,
+              'status': 'in_progress',
+              'started_at': DateTime.now().toIso8601String(),
+              'title': 'حصة مباشرة - ${widget.groupName}',
+            }).select('id').single();
+            activeSessionId = newSession['id']?.toString();
+          } catch (_) {}
         }
       }
+      _activeSessionId = activeSessionId;
 
       if (activeSessionId != null && activeSessionId.isNotEmpty) {
         final res = await client
@@ -204,10 +220,51 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
     }
   }
 
-  void _generateNewQrToken() {
+  Future<void> _generateNewQrToken() async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final randomSuffix = math.Random().nextInt(9999).toString().padLeft(4, '0');
-    _currentQrToken = 'BRIVIO:ATTEND:${widget.teacherId}:$timestamp:$randomSuffix';
+    final rawToken = 'BRIVIO:ATTEND:${widget.teacherId}:$timestamp:$randomSuffix';
+
+    String finalToken = rawToken;
+    final currentSess = _activeSessionId ?? widget.sessionId;
+
+    if (currentSess != null && currentSess.isNotEmpty) {
+      try {
+        final res = await Supabase.instance.client.rpc(
+          'get_current_attendance_qr',
+          params: {'p_class_session_id': currentSess},
+        );
+        if (res is Map && res['token'] != null) {
+          finalToken = res['token'].toString();
+        }
+      } catch (_) {
+        try {
+          await Supabase.instance.client.from('attendance_qr_sessions').insert({
+            'class_session_id': currentSess,
+            'group_id': widget.groupId,
+            'teacher_id': widget.teacherId,
+            'token': rawToken,
+            'status': 'active',
+            'expires_at': DateTime.now().add(const Duration(seconds: 120)).toIso8601String(),
+          });
+        } catch (_) {}
+      }
+    }
+
+    final payload = jsonEncode({
+      'type': 'attendance_qr',
+      'token': finalToken,
+      'session_id': currentSess,
+      'teacher_id': widget.teacherId,
+      'group_id': widget.groupId,
+      'action': 'check_in',
+    });
+
+    if (mounted) {
+      setState(() {
+        _currentQrToken = payload;
+      });
+    }
   }
 
   @override
@@ -639,7 +696,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Text(
-              'افتح تطبيق الطالب واضغط "مسح QR الدخول" من بطاقتك الرقمية لتأكيد تسجيلك في القاعة',
+              'افتح تطبيق الطالب واضغط "بوابة الحضور" من الشاشة الرئيسية أو "مسح QR الدخول" من بطاقتك لتأكيد تسجيلك في القاعة ⚡',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
             ),
