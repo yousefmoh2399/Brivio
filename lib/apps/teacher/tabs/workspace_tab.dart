@@ -63,99 +63,222 @@ class _WorkspaceTabState extends State<WorkspaceTab>
             children: [
               FadeInSlide(
                 duration: const Duration(milliseconds: 400),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'مساحة العمل الأكاديمية',
-                      style: AppTypography.displaySmall(textPrimary).copyWith(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    Row(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 640;
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(
-                          tooltip: 'السبورة الذكية للشرح 🎨',
-                          icon: const Icon(Icons.draw_rounded, color: Colors.teal),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => TeacherSessionBoardScreen(
-                                  teacherId: widget.teacherId,
+                        Expanded(
+                          child: Text(
+                            'مساحة العمل الأكاديمية',
+                            style: AppTypography.displaySmall(textPrimary).copyWith(
+                              fontSize: isCompact ? 18 : 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCompact) ...[
+                          IconButton(
+                            tooltip: 'السبورة الذكية للشرح 🎨',
+                            icon: const Icon(Icons.draw_rounded, color: Colors.teal, size: 22),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TeacherSessionBoardScreen(
+                                    teacherId: widget.teacherId,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          PopupMenuButton<int>(
+                            icon: const Icon(Icons.more_horiz_rounded),
+                            tooltip: 'أدوات إضافية',
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            onSelected: (val) async {
+                              switch (val) {
+                                case 1:
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const TeacherAssistantsScreen(),
+                                    ),
+                                  );
+                                  break;
+                                case 2:
+                                  ClassBroadcastDialog.show(
+                                    context,
+                                    groupName: 'المجموعة الدراسية',
+                                  );
+                                  break;
+                                case 3:
+                                  SmartExamGeneratorDialog.show(
+                                    context,
+                                    subjectName: 'المادة الدراسية',
+                                  );
+                                  break;
+                                case 4:
+                                  try {
+                                    await ReportGeneratorService().generateStandaloneBubbleSheetPdf(
+                                      centerName: 'المركز التعليمي',
+                                      teacherName: 'معلم المادة',
+                                      examTitle: 'نموذج إجابة بابل شيت عام',
+                                      questionCount: 30,
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('تم توليد نموذج البابل شيت بنجاح 📑'),
+                                          backgroundColor: Colors.teal,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('فشل توليد البابل شيت: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 1,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.people_outline_rounded, color: AppColors.primary, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('طاقم المساعدين (TAs)'),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          tooltip: 'طاقم المساعدين (TAs) 👥',
-                          icon: const Icon(Icons.people_outline_rounded, color: AppColors.primary),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const TeacherAssistantsScreen(),
+                              const PopupMenuItem(
+                                value: 2,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.campaign_outlined, color: Colors.amber, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('إذاعة تنبيه للمجموعة'),
+                                  ],
+                                ),
                               ),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          tooltip: 'إذاعة تنبيه للمجموعة 📢',
-                          icon: const Icon(Icons.campaign_outlined, color: Colors.amber),
-                          onPressed: () {
-                            ClassBroadcastDialog.show(
-                              context,
-                              groupName: 'المجموعة الدراسية',
-                            );
-                          },
-                        ),
-                        IconButton(
-                          tooltip: 'توليد امتحان ذكي متوازن ⚡',
-                          icon: const Icon(Icons.auto_awesome_rounded, color: Colors.purple),
-                          onPressed: () {
-                            SmartExamGeneratorDialog.show(
-                              context,
-                              subjectName: 'المادة الدراسية',
-                            );
-                          },
-                        ),
-                        IconButton(
-                          tooltip: 'طباعة نموذج بابل شيت فارغ 📑',
-                          icon: const Icon(Icons.fact_check_outlined, color: Colors.teal),
-                          onPressed: () async {
-                            try {
-                              await ReportGeneratorService().generateStandaloneBubbleSheetPdf(
-                                centerName: 'المركز التعليمي',
-                                teacherName: 'معلم المادة',
-                                examTitle: 'نموذج إجابة بابل شيت عام',
-                                questionCount: 30,
-                              );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('تم توليد نموذج البابل شيت بنجاح 📑'),
-                                    backgroundColor: Colors.teal,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('فشل توليد البابل شيت: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                        ),
+                              const PopupMenuItem(
+                                value: 3,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.auto_awesome_rounded, color: Colors.purple, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('توليد امتحان ذكي متوازن'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 4,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.fact_check_outlined, color: Colors.teal, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('طباعة نموذج بابل شيت فارغ'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else
+                          Row(
+                            children: [
+                              IconButton(
+                                tooltip: 'السبورة الذكية للشرح 🎨',
+                                icon: const Icon(Icons.draw_rounded, color: Colors.teal),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => TeacherSessionBoardScreen(
+                                        teacherId: widget.teacherId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                tooltip: 'طاقم المساعدين (TAs) 👥',
+                                icon: const Icon(Icons.people_outline_rounded, color: AppColors.primary),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const TeacherAssistantsScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                tooltip: 'إذاعة تنبيه للمجموعة 📢',
+                                icon: const Icon(Icons.campaign_outlined, color: Colors.amber),
+                                onPressed: () {
+                                  ClassBroadcastDialog.show(
+                                    context,
+                                    groupName: 'المجموعة الدراسية',
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                tooltip: 'توليد امتحان ذكي متوازن ⚡',
+                                icon: const Icon(Icons.auto_awesome_rounded, color: Colors.purple),
+                                onPressed: () {
+                                  SmartExamGeneratorDialog.show(
+                                    context,
+                                    subjectName: 'المادة الدراسية',
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                tooltip: 'طباعة نموذج بابل شيت فارغ 📑',
+                                icon: const Icon(Icons.fact_check_outlined, color: Colors.teal),
+                                onPressed: () async {
+                                  try {
+                                    await ReportGeneratorService().generateStandaloneBubbleSheetPdf(
+                                      centerName: 'المركز التعليمي',
+                                      teacherName: 'معلم المادة',
+                                      examTitle: 'نموذج إجابة بابل شيت عام',
+                                      questionCount: 30,
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('تم توليد نموذج البابل شيت بنجاح 📑'),
+                                          backgroundColor: Colors.teal,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('فشل توليد البابل شيت: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -174,6 +297,7 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                   child: TabBar(
                     controller: _tabCtrl,
                     isScrollable: true,
+                    tabAlignment: TabAlignment.start,
                     dividerColor: Colors.transparent,
                     indicator: BoxDecoration(
                       color: surfaceColor,

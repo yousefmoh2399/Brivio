@@ -1276,63 +1276,58 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
           const SizedBox(height: 14),
 
           // Action Buttons: Focus Mode / Projector + Absence Alert + Broadcast
-          Row(
-            children: [
-              Expanded(
-                flex: 5,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D9488),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  icon: const Icon(Icons.co_present_rounded, size: 18),
-                  label: const Text(
-                    'وضع البروجيكتور 📽️',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => LiveClassFocusModeScreen(
-                          teacherId: widget.teacherId,
-                          teacherName: widget.teacherName,
-                          groupName: _currentGroup,
-                          roomName: _roomName,
-                          groupId: _currentGroupId,
-                          sessionId: _currentSessionId,
-                          totalStudents: _totalEnrolled,
-                          initialPresent: _presentCount,
-                          initialAbsent: _absentCount,
-                          absentStudents: _absentStudents,
-                        ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 420;
+              final focusBtn = FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D9488),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.co_present_rounded, size: 18),
+                label: Text(
+                  isNarrow ? 'البروجيكتور 📽️' : 'وضع البروجيكتور 📽️',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LiveClassFocusModeScreen(
+                        teacherId: widget.teacherId,
+                        teacherName: widget.teacherName,
+                        groupName: _currentGroup,
+                        roomName: _roomName,
+                        groupId: _currentGroupId,
+                        sessionId: _currentSessionId,
+                        totalStudents: _totalEnrolled,
+                        initialPresent: _presentCount,
+                        initialAbsent: _absentCount,
+                        absentStudents: _absentStudents,
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              );
+
+              final absenceBtn = FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 4,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  icon: const Icon(Icons.campaign_rounded, size: 17),
-                  label: Text(
-                    'إنذار الغياب ($_absentCount) 🚨',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
-                  ),
-                  onPressed: _openAbsenceBroadcastDialog,
+                icon: const Icon(Icons.campaign_rounded, size: 17),
+                label: Text(
+                  isNarrow ? 'غياب ($_absentCount) 🚨' : 'إنذار الغياب ($_absentCount) 🚨',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Container(
+                onPressed: _openAbsenceBroadcastDialog,
+              );
+
+              final broadcastBtn = Container(
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
@@ -1349,8 +1344,18 @@ class _LiveSessionCockpitCardState extends State<_LiveSessionCockpitCard>
                     );
                   },
                 ),
-              ),
-            ],
+              );
+
+              return Row(
+                children: [
+                  Expanded(flex: 5, child: focusBtn),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 4, child: absenceBtn),
+                  const SizedBox(width: 8),
+                  broadcastBtn,
+                ],
+              );
+            },
           ),
         ],
       ),

@@ -86,7 +86,7 @@ class AccountTab extends StatelessWidget {
             'حسابي',
             style: AppTypography.displaySmall(
               textPrimary,
-            ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
+            ).copyWith(fontWeight: FontWeight.w800, fontSize: 20),
           ),
         ),
         SliverPadding(

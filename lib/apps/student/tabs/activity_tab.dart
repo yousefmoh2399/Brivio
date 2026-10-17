@@ -881,6 +881,8 @@ class _HomeworkTile extends StatelessWidget {
                       style: AppTypography.caption(
                         textSecondary,
                       ).copyWith(fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -997,6 +999,8 @@ class _ExamTile extends StatelessWidget {
                       style: AppTypography.caption(
                         textSecondary,
                       ).copyWith(fontWeight: FontWeight.w500),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -1088,42 +1092,57 @@ class _AttendanceView extends StatelessWidget {
         // ── Action buttons ──
         FadeInSlide(
           duration: const Duration(milliseconds: 500),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onScanQr,
-                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                  label: const Text(
-                    'مسح QR الحضور',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 360;
+              final scanBtn = FilledButton.icon(
+                onPressed: onScanQr,
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                label: const Text(
+                  'مسح QR الحضور',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onCreateLeaveRequest,
-                  icon: const Icon(Icons.event_busy_rounded, size: 20),
-                  label: const Text(
-                    'طلب إذن غياب',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+              );
+
+              final leaveBtn = OutlinedButton.icon(
+                onPressed: onCreateLeaveRequest,
+                icon: const Icon(Icons.event_busy_rounded, size: 20),
+                label: const Text(
+                  'طلب إذن غياب',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    SizedBox(width: double.infinity, child: scanBtn),
+                    const SizedBox(height: 8),
+                    SizedBox(width: double.infinity, child: leaveBtn),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: scanBtn),
+                  const SizedBox(width: 12),
+                  Expanded(child: leaveBtn),
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 24),

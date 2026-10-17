@@ -240,6 +240,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     if (teacherId == null) {
       return Scaffold(
         resizeToAvoidBottomInset: false,
@@ -396,69 +398,93 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             ),
             child: SafeArea(
               top: false,
-              child: NavigationBar(
-                height: 64,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                indicatorColor: AppColors.teacherRole.withValues(alpha: 0.16),
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (i) =>
-                    setState(() => _selectedIndex = i),
-                labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-                destinations: [
-                  const NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(
-                      Icons.home_rounded,
-                      color: AppColors.teacherRole,
+              child: NavigationBarTheme(
+                data: NavigationBarThemeData(
+                  labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.teacherRole,
+                      );
+                    }
+                    return TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: textSecondary,
+                    );
+                  }),
+                ),
+                child: NavigationBar(
+                  height: 64,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  indicatorColor: AppColors.teacherRole.withValues(alpha: 0.16),
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (i) =>
+                      setState(() => _selectedIndex = i),
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                  destinations: [
+                    const NavigationDestination(
+                      icon: Icon(Icons.home_outlined, size: 21),
+                      selectedIcon: Icon(
+                        Icons.home_rounded,
+                        color: AppColors.teacherRole,
+                        size: 21,
+                      ),
+                      label: 'الرئيسية',
                     ),
-                    label: 'الرئيسية',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.groups_2_outlined),
-                    selectedIcon: Icon(
-                      Icons.groups_2_rounded,
-                      color: AppColors.teacherRole,
+                    const NavigationDestination(
+                      icon: Icon(Icons.groups_2_outlined, size: 21),
+                      selectedIcon: Icon(
+                        Icons.groups_2_rounded,
+                        color: AppColors.teacherRole,
+                        size: 21,
+                      ),
+                      label: 'المجموعات',
                     ),
-                    label: 'المجموعات',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.dashboard_customize_outlined),
-                    selectedIcon: Icon(
-                      Icons.dashboard_customize_rounded,
-                      color: AppColors.teacherRole,
+                    const NavigationDestination(
+                      icon: Icon(Icons.dashboard_customize_outlined, size: 21),
+                      selectedIcon: Icon(
+                        Icons.dashboard_customize_rounded,
+                        color: AppColors.teacherRole,
+                        size: 21,
+                      ),
+                      label: 'مساحة العمل',
                     ),
-                    label: 'مساحة العمل',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.insights_outlined),
-                    selectedIcon: Icon(
-                      Icons.insights_rounded,
-                      color: AppColors.teacherRole,
+                    const NavigationDestination(
+                      icon: Icon(Icons.insights_outlined, size: 21),
+                      selectedIcon: Icon(
+                        Icons.insights_rounded,
+                        color: AppColors.teacherRole,
+                        size: 21,
+                      ),
+                      label: 'التقارير',
                     ),
-                    label: 'التقارير',
-                  ),
-                  NavigationDestination(
-                    icon: Badge(
-                      isLabelVisible: _unreadCount > 0,
-                      label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
-                      child: const Icon(Icons.notifications_none_rounded),
+                    NavigationDestination(
+                      icon: Badge(
+                        isLabelVisible: _unreadCount > 0,
+                        label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
+                        child: const Icon(Icons.notifications_none_rounded, size: 21),
+                      ),
+                      selectedIcon: const Icon(
+                        Icons.notifications_rounded,
+                        color: AppColors.teacherRole,
+                        size: 21,
+                      ),
+                      label: 'الإشعارات',
                     ),
-                    selectedIcon: const Icon(
-                      Icons.notifications_rounded,
-                      color: AppColors.teacherRole,
+                    const NavigationDestination(
+                      icon: Icon(Icons.person_outline_rounded, size: 21),
+                      selectedIcon: Icon(
+                        Icons.person_rounded,
+                        color: AppColors.teacherRole,
+                        size: 21,
+                      ),
+                      label: 'حسابي',
                     ),
-                    label: 'الإشعارات',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.person_outline_rounded),
-                    selectedIcon: Icon(
-                      Icons.person_rounded,
-                      color: AppColors.teacherRole,
-                    ),
-                    label: 'حسابي',
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

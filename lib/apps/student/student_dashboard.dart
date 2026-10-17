@@ -737,6 +737,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         ? AppColors.darkSurface
         : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final user = widget.authViewModel.currentUser;
     final nextLesson = _snapshot?.nextLesson;
 
@@ -904,60 +905,84 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ),
             child: SafeArea(
               top: false,
-              child: NavigationBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (i) =>
-                    setState(() => _selectedIndex = i),
-                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                destinations: [
-                  const NavigationDestination(
-                    icon: Icon(Icons.house_outlined),
-                    selectedIcon: Icon(
-                      Icons.house_rounded,
-                      color: AppColors.primary,
+              child: NavigationBarTheme(
+                data: NavigationBarThemeData(
+                  labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      );
+                    }
+                    return TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: textSecondary,
+                    );
+                  }),
+                ),
+                child: NavigationBar(
+                  height: 64,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (i) =>
+                      setState(() => _selectedIndex = i),
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                  destinations: [
+                    const NavigationDestination(
+                      icon: Icon(Icons.house_outlined, size: 21),
+                      selectedIcon: Icon(
+                        Icons.house_rounded,
+                        color: AppColors.primary,
+                        size: 21,
+                      ),
+                      label: 'الرئيسية',
                     ),
-                    label: 'الرئيسية',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.menu_book_outlined),
-                    selectedIcon: Icon(
-                      Icons.menu_book_rounded,
-                      color: AppColors.primary,
+                    const NavigationDestination(
+                      icon: Icon(Icons.menu_book_outlined, size: 21),
+                      selectedIcon: Icon(
+                        Icons.menu_book_rounded,
+                        color: AppColors.primary,
+                        size: 21,
+                      ),
+                      label: 'الدروس',
                     ),
-                    label: 'الدروس',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.bolt_outlined),
-                    selectedIcon: Icon(
-                      Icons.bolt_rounded,
-                      color: AppColors.primary,
+                    const NavigationDestination(
+                      icon: Icon(Icons.bolt_outlined, size: 21),
+                      selectedIcon: Icon(
+                        Icons.bolt_rounded,
+                        color: AppColors.primary,
+                        size: 21,
+                      ),
+                      label: 'الأنشطة',
                     ),
-                    label: 'الأنشطة',
-                  ),
-                  NavigationDestination(
-                    icon: Badge(
-                      isLabelVisible: _unreadCount > 0,
-                      label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
-                      child: const Icon(Icons.notifications_none_rounded),
+                    NavigationDestination(
+                      icon: Badge(
+                        isLabelVisible: _unreadCount > 0,
+                        label: Text(_unreadCount > 9 ? '9+' : '$_unreadCount'),
+                        child: const Icon(Icons.notifications_none_rounded, size: 21),
+                      ),
+                      selectedIcon: const Icon(
+                        Icons.notifications_rounded,
+                        color: AppColors.primary,
+                        size: 21,
+                      ),
+                      label: 'الإشعارات',
                     ),
-                    selectedIcon: const Icon(
-                      Icons.notifications_rounded,
-                      color: AppColors.primary,
+                    const NavigationDestination(
+                      icon: Icon(Icons.person_outline_rounded, size: 21),
+                      selectedIcon: Icon(
+                        Icons.person_rounded,
+                        color: AppColors.primary,
+                        size: 21,
+                      ),
+                      label: 'حسابي',
                     ),
-                    label: 'الإشعارات',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.person_outline_rounded),
-                    selectedIcon: Icon(
-                      Icons.person_rounded,
-                      color: AppColors.primary,
-                    ),
-                    label: 'حسابي',
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -217,7 +217,6 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
             ),
             const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatColumn(
                   'إجمالي الامتحانات',
@@ -251,17 +250,33 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
     Color textColor,
     Color subtitleColor,
   ) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: AppTypography.displaySmall(
-            textColor,
-          ).copyWith(color: AppColors.teacherRole, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: AppTypography.bodyMedium(subtitleColor)),
-      ],
+    return Expanded(
+      child: Column(
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: AppColors.teacherRole,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTypography.bodySmall(subtitleColor).copyWith(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 

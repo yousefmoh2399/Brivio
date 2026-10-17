@@ -3,7 +3,7 @@ import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../features/academy/domain/models/academy_models.dart';
-import '../../../features/academy/presentation/screens/academy_screens.dart';
+import '../../../design_system/widgets/portal_components.dart';
 import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
 
@@ -51,7 +51,7 @@ class LearnTab extends StatelessWidget {
             'الدروس والمناهج',
             style: AppTypography.displaySmall(
               textPrimary,
-            ).copyWith(fontWeight: FontWeight.w800, fontSize: 24),
+            ).copyWith(fontWeight: FontWeight.w800, fontSize: 20),
           ),
           actions: [
             IconButton(
@@ -160,13 +160,18 @@ class LearnTab extends StatelessWidget {
                   FadeInSlide(
                     duration: const Duration(milliseconds: 600),
                     delay: const Duration(milliseconds: 400),
-                    child: SizedBox(
-                      height: 380,
-                      child: GroupListWidget(
-                        groups: groups,
-                        isLoading: false,
-                        onGroupSelected: onOpenGroup,
-                      ),
+                    child: Column(
+                      children: groups
+                          .map(
+                            (group) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _StudentGroupItemCard(
+                                group: group,
+                                onTap: () => onOpenGroup(group),
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ),
                 ],
@@ -178,6 +183,129 @@ class LearnTab extends StatelessWidget {
   ),
 );
 }
+}
+
+class _StudentGroupItemCard extends StatelessWidget {
+  final GroupEntity group;
+  final VoidCallback onTap;
+
+  const _StudentGroupItemCard({
+    required this.group,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+
+    return GlassCard(
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      padding: EdgeInsets.zero,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.groups_2_rounded,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.name,
+                        style: AppTypography.titleMedium(textPrimary).copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (group.code.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                group.code,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Expanded(
+                            child: Text(
+                              group.maxCapacity != null
+                                  ? 'السعة القصوى: ${group.maxCapacity} طالب'
+                                  : 'المجموعة نشطة',
+                              style: AppTypography.caption(textSecondary).copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    PortalStatusChip(status: group.status),
+                    const SizedBox(height: 6),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 13,
+                      color: textSecondary.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _LearningPathSection extends StatelessWidget {

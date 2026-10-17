@@ -55,16 +55,23 @@ class _ClassesTabState extends State<ClassesTab>
             children: [
               FadeInSlide(
                 duration: const Duration(milliseconds: 400),
-                child: Text(
-                  'المجموعات والحصص الدراسية',
-                  style: AppTypography.displaySmall(textPrimary).copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 450;
+                    return Text(
+                      'المجموعات والحصص الدراسية',
+                      style: AppTypography.displaySmall(textPrimary).copyWith(
+                        fontSize: isCompact ? 18 : 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               FadeInSlide(
                 duration: const Duration(milliseconds: 500),
                 delay: const Duration(milliseconds: 100),
@@ -98,14 +105,14 @@ class _ClassesTabState extends State<ClassesTab>
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     labelColor: textPrimary,
-                    unselectedLabelColor: textPrimary.withValues(alpha: 0.5),
+                    unselectedLabelColor: textPrimary.withValues(alpha: 0.55),
                     labelStyle: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.2,
                     ),
                     unselectedLabelStyle: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                     ),

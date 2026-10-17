@@ -231,10 +231,12 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
           ),
           bottom: TabBar(
             isScrollable: true,
+            tabAlignment: TabAlignment.start,
             indicatorColor: AppColors.primary,
             labelColor: AppColors.primary,
             unselectedLabelColor: textSecondary,
-            labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+            labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             tabs: const [
               Tab(text: 'الملفات والشروحات'),
               Tab(text: 'الواجبات المنزلية'),
