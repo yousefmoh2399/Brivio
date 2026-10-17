@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../../../core/services/avatar_service.dart';
 import '../../../../core/services/saved_accounts_service.dart';
 import '../../../../design_system/components/buttons.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -466,10 +467,9 @@ class _SavedAccountsScreenState extends State<SavedAccountsScreen>
                                               padding: const EdgeInsets.all(2),
                                               child: CircleAvatar(
                                                 backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
-                                                backgroundImage: acc.avatarUrl != null && acc.avatarUrl!.isNotEmpty
-                                                    ? NetworkImage(acc.avatarUrl!)
-                                                    : null,
-                                                child: acc.avatarUrl == null || acc.avatarUrl!.isEmpty
+                                                backgroundImage: AvatarService.getImageProvider(acc.avatarUrl),
+                                                onBackgroundImageError: AvatarService.getImageProvider(acc.avatarUrl) != null ? (_, __) {} : null,
+                                                child: AvatarService.getImageProvider(acc.avatarUrl) == null
                                                     ? Text(
                                                         acc.fullName.isNotEmpty ? acc.fullName[0].toUpperCase() : 'U',
                                                         style: TextStyle(

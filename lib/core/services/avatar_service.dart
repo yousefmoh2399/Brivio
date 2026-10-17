@@ -24,23 +24,48 @@ class PresetAvatar {
 /// Unified Avatar Service handling picking, uploading to Supabase Storage,
 /// fallback data URI encoding, presets, and profile persistence.
 class AvatarService {
-  /// Robust ImageProvider supporting both web URLs and Base64 Data URIs.
+  /// Robust ImageProvider supporting web URLs, Base64 Data URIs, and raw Base64 strings.
   static ImageProvider? getImageProvider(String? avatarUrl) {
     if (avatarUrl == null || avatarUrl.trim().isEmpty) return null;
     final trimmed = avatarUrl.trim();
-    if (trimmed.startsWith('data:image')) {
+
+    // 1. Data URI with base64 (e.g. data:image/png;base64,...)
+    if (trimmed.startsWith('data:image') || trimmed.startsWith('data:application')) {
       try {
         final commaIdx = trimmed.indexOf(',');
         final base64String = commaIdx != -1 ? trimmed.substring(commaIdx + 1) : trimmed;
-        return MemoryImage(base64Decode(base64String));
+        final cleanBase64 = base64String.replaceAll(RegExp(r'\s+'), '');
+        return MemoryImage(base64Decode(cleanBase64));
       } catch (e) {
-        AppLogger.warning('Failed to decode base64 avatar: $e');
+        AppLogger.warning('Failed to decode data URI avatar: $e');
         return null;
       }
     }
+
+    // 2. HTTP / HTTPS Web URL (must have a valid host)
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return NetworkImage(trimmed);
+      try {
+        final uri = Uri.tryParse(trimmed);
+        if (uri != null && uri.hasAuthority && uri.host.isNotEmpty) {
+          return NetworkImage(trimmed);
+        }
+      } catch (_) {}
+      return null;
     }
+
+    // 3. Raw Base64 string fallback (e.g. AAIAB..., iVBOR..., etc.)
+    try {
+      final cleanBase64 = trimmed.replaceAll(RegExp(r'\s+'), '');
+      if (cleanBase64.length > 20) {
+        final bytes = base64Decode(cleanBase64);
+        if (bytes.isNotEmpty) {
+          return MemoryImage(bytes);
+        }
+      }
+    } catch (_) {
+      // Not a valid base64 payload, safely return null
+    }
+
     return null;
   }
 
