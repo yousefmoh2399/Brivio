@@ -31,7 +31,7 @@ BEGIN
   IF v_student_id IS NULL THEN
     SELECT s.id INTO v_student_id
     FROM public.students s
-    WHERE s.profile_id = auth.uid() OR s.user_id = auth.uid()
+    WHERE s.profile_id = auth.uid()
     ORDER BY s.created_at DESC
     LIMIT 1;
   END IF;
@@ -89,8 +89,9 @@ BEGIN
       FROM public.class_sessions cs
       JOIN public.groups g ON g.id = cs.group_id
       JOIN public.enrollments e ON e.group_id = g.id
+      LEFT JOIN public.teachers t ON t.id = g.teacher_id
       WHERE e.student_id = v_student_id
-        AND (g.teacher_id = v_teacher_id OR cs.teacher_id = v_teacher_id)
+        AND (g.teacher_id = v_teacher_id OR t.profile_id = v_teacher_id)
         AND (cs.session_date = CURRENT_DATE OR cs.status = 'in_progress')
       ORDER BY cs.created_at DESC
       LIMIT 1;
@@ -99,7 +100,9 @@ BEGIN
       IF v_session_id IS NULL THEN
         SELECT cs.id, cs.group_id INTO v_session_id, v_group_id
         FROM public.class_sessions cs
-        WHERE (cs.teacher_id = v_teacher_id)
+        JOIN public.groups g ON g.id = cs.group_id
+        LEFT JOIN public.teachers t ON t.id = g.teacher_id
+        WHERE (g.teacher_id = v_teacher_id OR t.profile_id = v_teacher_id)
           AND (cs.session_date = CURRENT_DATE OR cs.status = 'in_progress')
         ORDER BY cs.created_at DESC
         LIMIT 1;
@@ -211,7 +214,7 @@ BEGIN
   IF v_student_id IS NULL THEN
     SELECT s.id INTO v_student_id
     FROM public.students s
-    WHERE s.profile_id = auth.uid() OR s.user_id = auth.uid()
+    WHERE s.profile_id = auth.uid()
     ORDER BY s.created_at DESC
     LIMIT 1;
   END IF;
@@ -279,7 +282,7 @@ WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.students s
     WHERE s.id = attendance_records.student_id
-      AND (s.profile_id = auth.uid() OR s.user_id = auth.uid())
+      AND s.profile_id = auth.uid()
   )
 );
 
@@ -290,14 +293,14 @@ USING (
   EXISTS (
     SELECT 1 FROM public.students s
     WHERE s.id = attendance_records.student_id
-      AND (s.profile_id = auth.uid() OR s.user_id = auth.uid())
+      AND s.profile_id = auth.uid()
   )
 )
 WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.students s
     WHERE s.id = attendance_records.student_id
-      AND (s.profile_id = auth.uid() OR s.user_id = auth.uid())
+      AND s.profile_id = auth.uid()
   )
 );
 
