@@ -927,7 +927,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       Icons.menu_book_rounded,
                       color: AppColors.primary,
                     ),
-                    label: 'الدروس والمناهج',
+                    label: 'الدروس',
                   ),
                   const NavigationDestination(
                     icon: Icon(Icons.bolt_outlined),
@@ -935,7 +935,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       Icons.bolt_rounded,
                       color: AppColors.primary,
                     ),
-                    label: 'الأنشطة والمهام',
+                    label: 'الأنشطة',
                   ),
                   NavigationDestination(
                     icon: Badge(
