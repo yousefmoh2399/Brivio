@@ -15,6 +15,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/services/report_generator_service.dart';
+import '../../../../core/utils/arabic_pdf_helper.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -753,7 +755,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
       }
       return;
     }
-    final doc = pw.Document();
+    final doc = await ReportGeneratorService.createDocument();
     final image = pw.MemoryImage(pngBytes);
     doc.addPage(
       pw.Page(
@@ -766,7 +768,7 @@ class _StudyWorkspaceScreenState extends State<StudyWorkspaceScreen> {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'Brivio Education - ${widget.lesson.title}',
+                    'Brivio Education - ${widget.lesson.title}'.fixArabic,
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       fontSize: 16,

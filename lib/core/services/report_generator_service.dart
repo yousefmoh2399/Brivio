@@ -1,6 +1,8 @@
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../utils/arabic_pdf_helper.dart';
 import 'thermal_printer_service.dart';
 
 class ReportGeneratorService {
@@ -8,27 +10,58 @@ class ReportGeneratorService {
   static pw.Font? _cairoRegular;
   static pw.Font? _cairoBold;
 
+  /// Returns a regular Arabic-compatible font (Cairo or bundled Amiri fallback)
+  static Future<pw.Font> getRegularFont() async {
+    if (_cairoRegular != null) return _cairoRegular!;
+    try {
+      _cairoRegular = await PdfGoogleFonts.cairoRegular();
+      return _cairoRegular!;
+    } catch (_) {
+      try {
+        final data = await rootBundle.load('assets/fonts/Amiri-Regular.ttf');
+        _cairoRegular = pw.Font.ttf(data);
+        return _cairoRegular!;
+      } catch (_) {
+        try {
+          return await PdfGoogleFonts.amiriRegular();
+        } catch (_) {
+          return pw.Font.helvetica();
+        }
+      }
+    }
+  }
+
+  /// Returns a bold Arabic-compatible font (Cairo or bundled Amiri fallback)
+  static Future<pw.Font> getBoldFont() async {
+    if (_cairoBold != null) return _cairoBold!;
+    try {
+      _cairoBold = await PdfGoogleFonts.cairoBold();
+      return _cairoBold!;
+    } catch (_) {
+      try {
+        final data = await rootBundle.load('assets/fonts/Amiri-Bold.ttf');
+        _cairoBold = pw.Font.ttf(data);
+        return _cairoBold!;
+      } catch (_) {
+        try {
+          return await PdfGoogleFonts.amiriBold();
+        } catch (_) {
+          return pw.Font.helveticaBold();
+        }
+      }
+    }
+  }
+
   /// Loads Arabic Unicode fonts (Cairo / Amiri / Noto) so Arabic letters render cleanly without Helvetica crash
   static Future<pw.ThemeData> getArabicPdfTheme() async {
     if (_cachedArabicTheme != null) return _cachedArabicTheme!;
-    try {
-      _cairoRegular ??= await PdfGoogleFonts.cairoRegular();
-      _cairoBold ??= await PdfGoogleFonts.cairoBold();
-      _cachedArabicTheme = pw.ThemeData.withFont(
-        base: _cairoRegular,
-        bold: _cairoBold,
-      );
-      return _cachedArabicTheme!;
-    } catch (_) {
-      try {
-        final amiri = await PdfGoogleFonts.amiriRegular();
-        final amiriBold = await PdfGoogleFonts.amiriBold();
-        _cachedArabicTheme = pw.ThemeData.withFont(base: amiri, bold: amiriBold);
-        return _cachedArabicTheme!;
-      } catch (_) {
-        return pw.ThemeData();
-      }
-    }
+    final reg = await getRegularFont();
+    final bld = await getBoldFont();
+    _cachedArabicTheme = pw.ThemeData.withFont(
+      base: reg,
+      bold: bld,
+    );
+    return _cachedArabicTheme!;
   }
 
   /// Instantiates a new PDF Document pre-configured with Arabic Unicode fonts
@@ -50,14 +83,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Student Grades Report - $className',
+              'Student Grades Report - $className'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               [
                 'Student Name',
                 'Exam Score',
@@ -72,7 +105,7 @@ class ReportGeneratorService {
                   student['missing_assignments']?.toString() ?? '0',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -103,14 +136,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Attendance Report - $className',
+              'Attendance Report - $className'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               [
                 '$personType Name',
                 'Total Present',
@@ -125,7 +158,7 @@ class ReportGeneratorService {
                   record['absence_dates']?.toString() ?? '',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -154,14 +187,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Financial Report',
+              'Financial Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               ['Date', 'Description', 'Type', 'Amount', 'Notes'],
               ...financialData.map(
                 (record) => [
@@ -172,7 +205,7 @@ class ReportGeneratorService {
                   record['notes']?.toString() ?? '',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -201,14 +234,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Teacher Metrics Report',
+              'Teacher Metrics Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               ['Teacher Name', 'Classes Taught', 'Average Attendance (%)'],
               ...teacherData.map(
                 (record) => [
@@ -217,7 +250,7 @@ class ReportGeneratorService {
                   record['avg_attendance']?.toString() ?? '0',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -260,14 +293,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Student Roster Report',
+              'Student Roster Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               ['Student Name', 'Student Code', 'Email', 'Status'],
               ...studentsData.map(
                 (record) => [
@@ -277,7 +310,7 @@ class ReportGeneratorService {
                   record['status']?.toString() ?? '',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -306,14 +339,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Teacher Roster Report',
+              'Teacher Roster Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               ['Teacher Name', 'Email', 'Specialization', 'Status'],
               ...teachersData.map(
                 (record) => [
@@ -323,7 +356,7 @@ class ReportGeneratorService {
                   record['status']?.toString() ?? '',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -353,14 +386,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Exam Report - $groupName',
+              'Exam Report - $groupName'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               ['Exam Title', 'Duration (mins)', 'Pass Score', 'Status'],
               ...examData.map(
                 (record) => [
@@ -370,7 +403,7 @@ class ReportGeneratorService {
                   record['status']?.toString() ?? '',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -399,14 +432,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Groups & Schedules Report',
+              'Groups & Schedules Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               ['Group Name', 'Timing', 'Teacher', 'Active'],
               ...groupsData.map(
                 (record) => [
@@ -416,7 +449,7 @@ class ReportGeneratorService {
                   (record['is_active'] == true) ? 'Yes' : 'No',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -445,14 +478,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Linked Parents Report',
+              'Linked Parents Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               ['Parent Name', 'Linked Students', 'Email', 'Active Status'],
               ...parentsData.map(
                 (record) => [
@@ -462,7 +495,7 @@ class ReportGeneratorService {
                   record['status']?.toString() ?? '',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -493,14 +526,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Homework Completion Report',
+              'Homework Completion Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               [
                 'Class/Group',
                 'Total Assignments',
@@ -515,7 +548,7 @@ class ReportGeneratorService {
                   record['avg_score']?.toString() ?? '0',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -544,14 +577,14 @@ class ReportGeneratorService {
           pw.Header(
             level: 0,
             child: pw.Text(
-              'Curriculum Progress Report',
+              'Curriculum Progress Report'.fixArabic,
               style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
           ),
           pw.SizedBox(height: 20),
           pw.TableHelper.fromTextArray(
             context: context,
-            data: [
+            data: ArabicPdfHelper.fixData([
               [
                 'Subject/Course',
                 'Total Modules',
@@ -566,7 +599,7 @@ class ReportGeneratorService {
                   record['progress']?.toString() ?? '0%',
                 ],
               ),
-            ],
+            ]),
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.white,
@@ -602,6 +635,8 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
     pdf.addPage(
       pw.Page(
@@ -624,8 +659,9 @@ class ReportGeneratorService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        centerName,
+                        centerName.fixArabic,
                         style: pw.TextStyle(
+                          font: boldFont,
                           color: PdfColors.white,
                           fontSize: 20,
                           fontWeight: pw.FontWeight.bold,
@@ -633,8 +669,9 @@ class ReportGeneratorService {
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        'Teacher Settlement Voucher - Brivio Center Suite',
-                        style: const pw.TextStyle(
+                        'Teacher Settlement Voucher - Brivio Center Suite'.fixArabic,
+                        style: pw.TextStyle(
+                          font: regularFont,
                           color: PdfColors.white,
                           fontSize: 10,
                         ),
@@ -645,16 +682,18 @@ class ReportGeneratorService {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        'Receipt #: $receiptNumber',
+                        'Receipt #: $receiptNumber'.fixArabic,
                         style: pw.TextStyle(
+                          font: boldFont,
                           color: PdfColors.amber,
                           fontWeight: pw.FontWeight.bold,
                           fontSize: 12,
                         ),
                       ),
                       pw.Text(
-                        'Date: $dateStr',
-                        style: const pw.TextStyle(
+                        'Date: $dateStr'.fixArabic,
+                        style: pw.TextStyle(
+                          font: regularFont,
                           color: PdfColors.white,
                           fontSize: 10,
                         ),
@@ -679,22 +718,22 @@ class ReportGeneratorService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Teacher / Educator:', style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10)),
-                      pw.Text(teacherName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('Teacher / Educator:'.fixArabic, style: pw.TextStyle(font: regularFont, color: PdfColors.grey700, fontSize: 10)),
+                      pw.Text(teacherName.fixArabic, style: pw.TextStyle(font: boldFont, fontSize: 14, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Group / Class Session:', style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10)),
-                      pw.Text(groupName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('Group / Class Session:'.fixArabic, style: pw.TextStyle(font: regularFont, color: PdfColors.grey700, fontSize: 10)),
+                      pw.Text(groupName.fixArabic, style: pw.TextStyle(font: boldFont, fontSize: 14, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text('Payment Type:', style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10)),
-                      pw.Text('CASH (نقداً بالخزينة)', style: pw.TextStyle(color: PdfColors.green800, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('Payment Type:'.fixArabic, style: pw.TextStyle(font: regularFont, color: PdfColors.grey700, fontSize: 10)),
+                      pw.Text('CASH (نقداً بالخزينة)'.fixArabic, style: pw.TextStyle(font: boldFont, color: PdfColors.green800, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ],
@@ -705,16 +744,17 @@ class ReportGeneratorService {
             // Financial Breakdown Table
             pw.TableHelper.fromTextArray(
               context: context,
-              headers: ['Item / Description', 'Calculation / Rate', 'Amount (EGP / ج.م)'],
-              data: [
+              headers: ArabicPdfHelper.fixHeaders(['Item / Description', 'Calculation / Rate', 'Amount (EGP / ج.م)']),
+              data: ArabicPdfHelper.fixData([
                 ['Total Attending Students', '$studentCount students', '${studentCount}x'],
                 ['Session Price per Student', '$sessionPrice EGP / student', '$sessionPrice EGP'],
                 ['Total Gross Revenue', '$studentCount x $sessionPrice EGP', '${totalRevenue.toStringAsFixed(1)} EGP'],
                 ['Teacher Agreed Share', '$teacherPercent%', '${(totalRevenue * (teacherPercent / 100)).toStringAsFixed(1)} EGP'],
                 ['Center Agreed Share', '${(100 - teacherPercent).toStringAsFixed(0)}%', '${centerShare.toStringAsFixed(1)} EGP'],
                 ['Deductions / Expenses ($deductionReason)', 'Photocopies / Hall fee', '- ${deductions.toStringAsFixed(1)} EGP'],
-              ],
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              ]),
+              headerStyle: pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              cellStyle: pw.TextStyle(font: regularFont),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
               rowDecoration: const pw.BoxDecoration(
                 border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200)),
@@ -734,12 +774,12 @@ class ReportGeneratorService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'NET CASH PAID TO TEACHER / الصافي المنصرف نقداً:',
-                    style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
+                    'NET CASH PAID TO TEACHER / الصافي المنصرف نقداً:'.fixArabic,
+                    style: pw.TextStyle(font: boldFont, fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
                   ),
                   pw.Text(
-                    '${netPayout.toStringAsFixed(1)} EGP (ج.م)',
-                    style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
+                    '${netPayout.toStringAsFixed(1)} EGP (ج.م)'.fixArabic,
+                    style: pw.TextStyle(font: boldFont, fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
                   ),
                 ],
               ),
@@ -753,21 +793,21 @@ class ReportGeneratorService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Center Cashier / مسؤول الخزينة:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Center Cashier / مسؤول الخزينة:'.fixArabic, style: pw.TextStyle(font: regularFont, fontSize: 10)),
                     pw.SizedBox(height: 30),
                     pw.Container(width: 160, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 4),
-                    pw.Text('Authorized Signature', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                    pw.Text('Authorized Signature'.fixArabic, style: pw.TextStyle(font: regularFont, fontSize: 9, color: PdfColors.grey600)),
                   ],
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Teacher Signature / توقيع المدرس بالاستلام:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Teacher Signature / توقيع المدرس بالاستلام:'.fixArabic, style: pw.TextStyle(font: regularFont, fontSize: 10)),
                     pw.SizedBox(height: 30),
                     pw.Container(width: 160, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 4),
-                    pw.Text(teacherName, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                    pw.Text(teacherName.fixArabic, style: pw.TextStyle(font: regularFont, fontSize: 9, color: PdfColors.grey600)),
                   ],
                 ),
               ],
@@ -777,8 +817,8 @@ class ReportGeneratorService {
             // Footer
             pw.Center(
               child: pw.Text(
-                'Brivio Educational Platform • Official Cash Settlement Document',
-                style: const pw.TextStyle(color: PdfColors.grey500, fontSize: 8),
+                'Brivio Educational Platform • Official Cash Settlement Document'.fixArabic,
+                style: pw.TextStyle(font: regularFont, color: PdfColors.grey500, fontSize: 8),
               ),
             ),
           ],
@@ -807,6 +847,8 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
     pdf.addPage(
       pw.Page(
@@ -829,16 +871,17 @@ class ReportGeneratorService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        centerName,
+                        centerName.fixArabic,
                         style: pw.TextStyle(
+                          font: boldFont,
                           color: PdfColors.white,
                           fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
                         ),
                       ),
                       pw.Text(
-                        'Cash Payment Receipt / إيصال استلام نقدية',
-                        style: const pw.TextStyle(color: PdfColors.white, fontSize: 9),
+                        'Cash Payment Receipt / إيصال استلام نقدية'.fixArabic,
+                        style: pw.TextStyle(font: regularFont, color: PdfColors.white, fontSize: 9),
                       ),
                     ],
                   ),
@@ -846,12 +889,12 @@ class ReportGeneratorService {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        'Receipt: $receiptNumber',
-                        style: pw.TextStyle(color: PdfColors.amberAccent, fontWeight: pw.FontWeight.bold, fontSize: 11),
+                        'Receipt: $receiptNumber'.fixArabic,
+                        style: pw.TextStyle(font: boldFont, color: PdfColors.amberAccent, fontWeight: pw.FontWeight.bold, fontSize: 11),
                       ),
                       pw.Text(
-                        dateStr,
-                        style: const pw.TextStyle(color: PdfColors.white, fontSize: 9),
+                        dateStr.fixArabic,
+                        style: pw.TextStyle(font: regularFont, color: PdfColors.white, fontSize: 9),
                       ),
                     ],
                   ),
@@ -863,16 +906,17 @@ class ReportGeneratorService {
             // Details Table
             pw.TableHelper.fromTextArray(
               context: context,
-              headers: ['Detail / البيان', 'Information / القيمة'],
-              data: [
+              headers: ArabicPdfHelper.fixHeaders(['Detail / البيان', 'Information / القيمة']),
+              data: ArabicPdfHelper.fixData([
                 ['Student Name / اسم الطالب', studentName],
                 ['Student Code / كود الطالب', studentCode],
                 ['Group / المجموعة', groupName],
                 ['Payment Method / طريقة الدفع', 'CASH ONLY (نقداً بالخزينة)'],
                 ['Payment Purpose / الغرض', purpose],
                 ['Cashier / المستلم', cashierName],
-              ],
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              ]),
+              headerStyle: pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              cellStyle: pw.TextStyle(font: regularFont),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
               rowDecoration: const pw.BoxDecoration(
                 border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200)),
@@ -892,12 +936,12 @@ class ReportGeneratorService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'TOTAL AMOUNT RECEIVED / المبلغ المستلم:',
-                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
+                    'TOTAL AMOUNT RECEIVED / المبلغ المستلم:'.fixArabic,
+                    style: pw.TextStyle(font: boldFont, fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
                   ),
                   pw.Text(
-                    '${amount.toStringAsFixed(1)} EGP (ج.م)',
-                    style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
+                    '${amount.toStringAsFixed(1)} EGP (ج.م)'.fixArabic,
+                    style: pw.TextStyle(font: boldFont, fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
                   ),
                 ],
               ),
@@ -915,14 +959,14 @@ class ReportGeneratorService {
                     borderRadius: pw.BorderRadius.circular(4),
                   ),
                   child: pw.Text(
-                    'PAID IN CASH • خالص السداد نقداً',
-                    style: pw.TextStyle(color: PdfColors.green700, fontWeight: pw.FontWeight.bold, fontSize: 10),
+                    'PAID IN CASH • خالص السداد نقداً'.fixArabic,
+                    style: pw.TextStyle(font: boldFont, color: PdfColors.green700, fontWeight: pw.FontWeight.bold, fontSize: 10),
                   ),
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text('Cashier Stamp / ختم الخزينة', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                    pw.Text('Cashier Stamp / ختم الخزينة'.fixArabic, style: pw.TextStyle(font: regularFont, fontSize: 9, color: PdfColors.grey600)),
                     pw.SizedBox(height: 16),
                     pw.Container(width: 100, height: 1, color: PdfColors.grey400),
                   ],
@@ -933,8 +977,8 @@ class ReportGeneratorService {
 
             pw.Center(
               child: pw.Text(
-                'Brivio Educational Platform • Thank you for your payment',
-                style: const pw.TextStyle(color: PdfColors.grey500, fontSize: 8),
+                'Brivio Educational Platform • Thank you for your payment'.fixArabic,
+                style: pw.TextStyle(font: regularFont, color: PdfColors.grey500, fontSize: 8),
               ),
             ),
           ],
@@ -959,16 +1003,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     // 8 cards per A4 page (2 columns x 4 rows)
     const int cardsPerPage = 8;
@@ -999,12 +1038,11 @@ class ReportGeneratorService {
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Text(
-                            '$centerName • كروت هوية الطلاب المعتمدة',
+                            '$centerName • كروت هوية الطلاب المعتمدة'.fixArabic,
                             style: boldStyle.copyWith(fontSize: 12, color: PdfColors.blueGrey900),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                           pw.Text(
-                            'Bulk Student ID Passes - Group: ${groupName ?? "All Students"}',
+                            'Bulk Student ID Passes - Group: ${groupName ?? "All Students"}'.fixArabic,
                             style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey700),
                           ),
                         ],
@@ -1013,14 +1051,12 @@ class ReportGeneratorService {
                         crossAxisAlignment: pw.CrossAxisAlignment.end,
                         children: [
                           pw.Text(
-                            'العام الدراسي: $academicYear',
+                            'العام الدراسي: $academicYear'.fixArabic,
                             style: boldStyle.copyWith(fontSize: 9, color: PdfColors.blue800),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                           pw.Text(
-                            'مجهزة للقص والتغليف الحراري (8 بطاقات / صفحة)',
+                            'مجهزة للقص والتغليف الحراري (8 بطاقات / صفحة)'.fixArabic,
                             style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                         ],
                       ),
@@ -1065,14 +1101,12 @@ class ReportGeneratorService {
                                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                                   children: [
                                     pw.Text(
-                                      centerName,
+                                      centerName.fixArabic,
                                       style: boldStyle.copyWith(color: PdfColors.white, fontSize: 8),
-                                      textDirection: pw.TextDirection.rtl,
                                     ),
                                     pw.Text(
-                                      'بطاقة سنتر معتمدة',
+                                      'بطاقة سنتر معتمدة'.fixArabic,
                                       style: boldStyle.copyWith(color: PdfColors.amberAccent, fontSize: 7),
-                                      textDirection: pw.TextDirection.rtl,
                                     ),
                                   ],
                                 ),
@@ -1104,9 +1138,8 @@ class ReportGeneratorService {
                                           ),
                                           pw.SizedBox(height: 3),
                                           pw.Text(
-                                            'مسح البوابة',
+                                            'مسح البوابة'.fixArabic,
                                             style: regularStyle.copyWith(fontSize: 6, color: PdfColors.grey700),
-                                            textDirection: pw.TextDirection.rtl,
                                           ),
                                         ],
                                       ),
@@ -1119,13 +1152,12 @@ class ReportGeneratorService {
                                           mainAxisAlignment: pw.MainAxisAlignment.center,
                                           children: [
                                             pw.Text(
-                                              name,
+                                              name.fixArabic,
                                               maxLines: 1,
                                               style: boldStyle.copyWith(
                                                 fontSize: 10,
                                                 color: PdfColors.black,
                                               ),
-                                              textDirection: pw.TextDirection.rtl,
                                             ),
                                             pw.SizedBox(height: 4),
                                             pw.Container(
@@ -1135,33 +1167,30 @@ class ReportGeneratorService {
                                                 borderRadius: pw.BorderRadius.circular(3),
                                               ),
                                               child: pw.Text(
-                                                'الكود: $code',
+                                                'الكود: $code'.fixArabic,
                                                 style: boldStyle.copyWith(
                                                   fontSize: 8,
                                                   color: PdfColors.indigo800,
                                                 ),
-                                                textDirection: pw.TextDirection.rtl,
                                               ),
                                             ),
                                             pw.SizedBox(height: 3),
                                             pw.Text(
-                                              'المرحلة: $grade',
+                                              'المرحلة: $grade'.fixArabic,
                                               maxLines: 1,
                                               style: regularStyle.copyWith(
                                                 fontSize: 7,
                                                 color: PdfColors.grey800,
                                               ),
-                                              textDirection: pw.TextDirection.rtl,
                                             ),
                                             if (phone.isNotEmpty) ...[
                                               pw.SizedBox(height: 2),
                                               pw.Text(
-                                                'هاتف ولي الأمر: $phone',
+                                                'هاتف ولي الأمر: $phone'.fixArabic,
                                                 style: regularStyle.copyWith(
                                                   fontSize: 6.5,
                                                   color: PdfColors.grey700,
                                                 ),
-                                                textDirection: pw.TextDirection.rtl,
                                               ),
                                             ],
                                           ],
@@ -1181,12 +1210,11 @@ class ReportGeneratorService {
                                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                                   children: [
                                     pw.Text(
-                                      'صالحة للعام: $academicYear',
+                                      'صالحة للعام: $academicYear'.fixArabic,
                                       style: regularStyle.copyWith(fontSize: 6, color: PdfColors.grey700),
-                                      textDirection: pw.TextDirection.rtl,
                                     ),
                                     pw.Text(
-                                      'Brivio Center Pass',
+                                      'Brivio Center Pass'.fixArabic,
                                       style: regularStyle.copyWith(fontSize: 6, color: PdfColors.grey600),
                                     ),
                                   ],
@@ -1232,16 +1260,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     pdf.addPage(
       pw.Page(
@@ -1268,15 +1291,13 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          centerName,
+                          centerName.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 18),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.SizedBox(height: 3),
                         pw.Text(
-                          'محضر جرد وتقفيل الخزينة النقدية اليومية (Daily Shift Closing Voucher)',
+                          'محضر جرد وتقفيل الخزينة النقدية اليومية (Daily Shift Closing Voucher)'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.amberAccent, fontSize: 9),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -1284,19 +1305,16 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text(
-                          'الوردية: $shiftName',
+                          'الوردية: $shiftName'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 10),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'التاريخ: $dateStr',
+                          'التاريخ: $dateStr'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.grey300, fontSize: 9),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'مسؤول الخزينة: $cashierName',
+                          'مسؤول الخزينة: $cashierName'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.grey300, fontSize: 9),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -1376,21 +1394,20 @@ class ReportGeneratorService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text(
-                      isDiscrepancyZero
+                      (isDiscrepancyZero
                           ? 'حالة الجرد: الدرج مطابق تماماً لسجلات النظام الإلكتروني (مطابقة تامة 100%)'
                           : (isSurplus
                               ? 'حالة الجرد: يوجد فائض/زيادة نقدية بالدرج بمقدار: +${discrepancy.toStringAsFixed(1)} ج.م'
-                              : 'حالة الجرد: يوجد عجز نقدي بالدرج بمقدار: -${discrepancy.abs().toStringAsFixed(1)} ج.م'),
+                              : 'حالة الجرد: يوجد عجز نقدي بالدرج بمقدار: -${discrepancy.abs().toStringAsFixed(1)} ج.م')).fixArabic,
                       style: boldStyle.copyWith(
                         fontSize: 9.5,
                         color: isDiscrepancyZero
                             ? PdfColors.green900
                             : (isSurplus ? PdfColors.blue900 : PdfColors.red900),
                       ),
-                      textDirection: pw.TextDirection.rtl,
                     ),
                     pw.Text(
-                      'الفارق: ${discrepancy.toStringAsFixed(1)} EGP',
+                      'الفارق: ${discrepancy.toStringAsFixed(1)} EGP'.fixArabic,
                       style: boldStyle.copyWith(
                         fontSize: 10,
                         color: isDiscrepancyZero ? PdfColors.green900 : PdfColors.red900,
@@ -1403,22 +1420,21 @@ class ReportGeneratorService {
 
               // Banknotes Denominations Breakdown
               pw.Text(
-                'تفصيل فئات النقدية المعدودة بالدرج (Banknote Denomination Breakdown):',
+                'تفصيل فئات النقدية المعدودة بالدرج (Banknote Denomination Breakdown):'.fixArabic,
                 style: boldStyle.copyWith(fontSize: 9, color: PdfColors.blueGrey800),
-                textDirection: pw.TextDirection.rtl,
               ),
               pw.SizedBox(height: 4),
               pw.TableHelper.fromTextArray(
                 context: context,
-                headers: ['الفئة النقدية', 'عدد الأوراق', 'المبلغ الإجمالي (ج.م)'],
-                data: [
+                headers: ArabicPdfHelper.fixHeaders(['الفئة النقدية', 'عدد الأوراق', 'المبلغ الإجمالي (ج.م)']),
+                data: ArabicPdfHelper.fixData([
                   ['فئة 200 ج.م', '${denominationsCount['200'] ?? 0} ورقة', '${((denominationsCount['200'] ?? 0) * 200).toStringAsFixed(1)} ج.م'],
                   ['فئة 100 ج.م', '${denominationsCount['100'] ?? 0} ورقة', '${((denominationsCount['100'] ?? 0) * 100).toStringAsFixed(1)} ج.م'],
                   ['فئة 50 ج.م', '${denominationsCount['50'] ?? 0} ورقة', '${((denominationsCount['50'] ?? 0) * 50).toStringAsFixed(1)} ج.م'],
                   ['فئة 20 ج.م', '${denominationsCount['20'] ?? 0} ورقة', '${((denominationsCount['20'] ?? 0) * 20).toStringAsFixed(1)} ج.م'],
                   ['فئة 10 ج.م', '${denominationsCount['10'] ?? 0} ورقة', '${((denominationsCount['10'] ?? 0) * 10).toStringAsFixed(1)} ج.م'],
                   ['فئات معدنية / أخرى', '-', '${(denominationsCount['coins'] ?? 0).toStringAsFixed(1)} ج.م'],
-                ],
+                ]),
                 headerStyle: boldStyle.copyWith(color: PdfColors.white, fontSize: 8),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
                 cellStyle: regularStyle.copyWith(fontSize: 8),
@@ -1437,9 +1453,8 @@ class ReportGeneratorService {
                     borderRadius: pw.BorderRadius.circular(4),
                   ),
                   child: pw.Text(
-                    'ملاحظات مسؤول الوردية: $notes',
+                    'ملاحظات مسؤول الوردية: $notes'.fixArabic,
                     style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey800),
-                    textDirection: pw.TextDirection.rtl,
                   ),
                 ),
                 pw.SizedBox(height: 8),
@@ -1453,31 +1468,31 @@ class ReportGeneratorService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text('توقيع مسؤول الخزينة (الكاشير)', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('توقيع مسؤول الخزينة (الكاشير)'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 140, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text(cashierName, style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey700), textDirection: pw.TextDirection.rtl),
+                      pw.Text(cashierName.fixArabic, style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey700)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text('توقيع المشرف المالي / المحاسب', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('توقيع المشرف المالي / المحاسب'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 140, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text('المراجعة والاعتماد', style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey700), textDirection: pw.TextDirection.rtl),
+                      pw.Text('المراجعة والاعتماد'.fixArabic, style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey700)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text('اعتماد الإدارة العامة للسنتر', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('اعتماد الإدارة العامة للسنتر'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 140, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text('ختم السنتر الرسمي', style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey700), textDirection: pw.TextDirection.rtl),
+                      pw.Text('ختم السنتر الرسمي'.fixArabic, style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey700)),
                     ],
                   ),
                 ],
@@ -1485,9 +1500,8 @@ class ReportGeneratorService {
               pw.SizedBox(height: 10),
               pw.Center(
                 child: pw.Text(
-                  'Brivio Educational Platform • وثيقة تقفيل وردية رسمية معتمدة',
+                  'Brivio Educational Platform • وثيقة تقفيل وردية رسمية معتمدة'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey500),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
             ],
@@ -1522,14 +1536,13 @@ class ReportGeneratorService {
         crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
           pw.Text(
-            title,
+            title.fixArabic,
             style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey800),
-            textDirection: pw.TextDirection.rtl,
             textAlign: pw.TextAlign.center,
           ),
           pw.SizedBox(height: 3),
           pw.Text(
-            value,
+            value.fixArabic,
             style: boldStyle.copyWith(fontSize: 10.5, color: color),
             textAlign: pw.TextAlign.center,
           ),
@@ -1555,15 +1568,11 @@ class ReportGeneratorService {
   }) async {
     final pdf = await createDocument();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     double totalPoints = 0;
     for (final q in questions) {
@@ -1594,14 +1603,12 @@ class ReportGeneratorService {
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             pw.Text(
-                              centerName,
+                              centerName.fixArabic,
                               style: boldStyle.copyWith(fontSize: 14, color: PdfColors.blueGrey900),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                             pw.Text(
-                              'المادة: $subjectName • الأستاذ: $teacherName',
+                              'المادة: $subjectName • الأستاذ: $teacherName'.fixArabic,
                               style: regularStyle.copyWith(fontSize: 9, color: PdfColors.grey800),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ],
                         ),
@@ -1615,16 +1622,14 @@ class ReportGeneratorService {
                                 borderRadius: pw.BorderRadius.circular(4),
                               ),
                               child: pw.Text(
-                                examTitle,
+                                examTitle.fixArabic,
                                 style: boldStyle.copyWith(fontSize: 12, color: PdfColors.white),
-                                textDirection: pw.TextDirection.rtl,
                               ),
                             ),
                             pw.SizedBox(height: 2),
                             pw.Text(
-                              groupName != null ? 'المجموعة: $groupName' : 'العام الدراسي: $academicYear',
+                              (groupName != null ? 'المجموعة: $groupName' : 'العام الدراسي: $academicYear').fixArabic,
                               style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey700),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ],
                         ),
@@ -1632,19 +1637,16 @@ class ReportGeneratorService {
                           crossAxisAlignment: pw.CrossAxisAlignment.end,
                           children: [
                             pw.Text(
-                              'الزمن: $durationMinutes دقيقة',
+                              'الزمن: $durationMinutes دقيقة'.fixArabic,
                               style: boldStyle.copyWith(fontSize: 9, color: PdfColors.blueGrey900),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                             pw.Text(
-                              'الدرجة الكلية: ${totalPoints.toStringAsFixed(0)} درجة',
+                              'الدرجة الكلية: ${totalPoints.toStringAsFixed(0)} درجة'.fixArabic,
                               style: boldStyle.copyWith(fontSize: 9, color: PdfColors.blue800),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                             pw.Text(
-                              'درجة النجاح: ${passScore.toStringAsFixed(0)}',
+                              'درجة النجاح: ${passScore.toStringAsFixed(0)}'.fixArabic,
                               style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey700),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ],
                         ),
@@ -1662,14 +1664,12 @@ class ReportGeneratorService {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            'اسم الطالب: .............................................................',
+                            'اسم الطالب: .............................................................'.fixArabic,
                             style: regularStyle.copyWith(fontSize: 8.5, color: PdfColors.black),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                           pw.Text(
-                            'رقم الجلوس / الكود: ...................',
+                            'رقم الجلوس / الكود: ...................'.fixArabic,
                             style: regularStyle.copyWith(fontSize: 8.5, color: PdfColors.black),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1678,9 +1678,8 @@ class ReportGeneratorService {
                               color: PdfColors.white,
                             ),
                             child: pw.Text(
-                              'الدرجة المستحقة: [     / ${totalPoints.toStringAsFixed(0)} ]',
+                              'الدرجة المستحقة: [     / ${totalPoints.toStringAsFixed(0)} ]'.fixArabic,
                               style: boldStyle.copyWith(fontSize: 8.5, color: PdfColors.blue900),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ),
                         ],
@@ -1695,9 +1694,8 @@ class ReportGeneratorService {
                 padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 color: PdfColors.grey200,
                 child: pw.Text(
-                  'تعليمات: $instructions',
+                  'تعليمات: $instructions'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 7.5, color: PdfColors.grey800),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
               pw.SizedBox(height: 12),
@@ -1709,14 +1707,12 @@ class ReportGeneratorService {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
-                'Brivio Educational Platform • ورقة اختبار رسمي',
+                'Brivio Educational Platform • ورقة اختبار رسمي'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
               pw.Text(
-                'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                'صفحة ${context.pageNumber} من ${context.pagesCount}'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
             ],
           );
@@ -1752,24 +1748,21 @@ class ReportGeneratorService {
                             borderRadius: pw.BorderRadius.circular(3),
                           ),
                           child: pw.Text(
-                            'س $idx',
+                            'س $idx'.fixArabic,
                             style: boldStyle.copyWith(color: PdfColors.white, fontSize: 8),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                         ),
                         pw.SizedBox(width: 8),
                         pw.Expanded(
                           child: pw.Text(
-                            prompt,
+                            prompt.fixArabic,
                             style: boldStyle.copyWith(fontSize: 9.5, color: PdfColors.black),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                         ),
                         pw.SizedBox(width: 8),
                         pw.Text(
-                          '(${points.toStringAsFixed(0)} درجات)',
+                          '(${points.toStringAsFixed(0)} درجات)'.fixArabic,
                           style: regularStyle.copyWith(fontSize: 8, color: PdfColors.blue800),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -1799,18 +1792,16 @@ class ReportGeneratorService {
                                   ),
                                   child: pw.Center(
                                     child: pw.Text(
-                                      letter,
+                                      letter.fixArabic,
                                       style: boldStyle.copyWith(fontSize: 7),
-                                      textDirection: pw.TextDirection.rtl,
                                     ),
                                   ),
                                 ),
                                 pw.SizedBox(width: 6),
                                 pw.Expanded(
                                   child: pw.Text(
-                                    optText,
+                                    optText.fixArabic,
                                     style: regularStyle.copyWith(fontSize: 8.5),
-                                    textDirection: pw.TextDirection.rtl,
                                   ),
                                 ),
                               ],
@@ -1822,9 +1813,9 @@ class ReportGeneratorService {
                       pw.Row(
                         children: [
                           pw.SizedBox(width: 20),
-                          pw.Text('[      ]  صواب (True)', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                          pw.Text('[      ]  صواب (True)'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                           pw.SizedBox(width: 40),
-                          pw.Text('[      ]  خطأ (False)', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                          pw.Text('[      ]  خطأ (False)'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                         ],
                       ),
                     ] else ...[
@@ -1871,14 +1862,12 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          '$centerName • نموذج الإجابة الرسمي وتوزيع الدرجات',
+                          '$centerName • نموذج الإجابة الرسمي وتوزيع الدرجات'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 13),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'مخصص لمساعدي المدرس والسكرتارية لتصحيح الاختبار',
+                          'مخصص لمساعدي المدرس والسكرتارية لتصحيح الاختبار'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.amberAccent, fontSize: 8),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -1886,14 +1875,12 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text(
-                          'اختبار: $examTitle',
+                          'اختبار: $examTitle'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 10),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'المدرس: $teacherName',
+                          'المدرس: $teacherName'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.grey300, fontSize: 8),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -1905,8 +1892,8 @@ class ReportGeneratorService {
               // Answer Table
               pw.TableHelper.fromTextArray(
                 context: context,
-                headers: ['رقم السؤال', 'نوع السؤال', 'الإجابة النموذجية الصحيحة', 'الدرجة'],
-                data: questions.asMap().entries.map((entry) {
+                headers: ArabicPdfHelper.fixHeaders(['رقم السؤال', 'نوع السؤال', 'الإجابة النموذجية الصحيحة', 'الدرجة']),
+                data: ArabicPdfHelper.fixData(questions.asMap().entries.map((entry) {
                   final idx = entry.key + 1;
                   final q = entry.value;
                   final type = q['type']?.toString() ?? 'multiple_choice';
@@ -1935,7 +1922,7 @@ class ReportGeneratorService {
                     answerStr.isNotEmpty ? answerStr : 'حسب تقدير المساعد',
                     '${points.toStringAsFixed(0)} درجات',
                   ];
-                }).toList(),
+                }).toList()),
                 headerStyle: boldStyle.copyWith(color: PdfColors.white, fontSize: 8.5),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.teal800),
                 cellStyle: regularStyle.copyWith(fontSize: 8),
@@ -1957,12 +1944,11 @@ class ReportGeneratorService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text(
-                      'إجمالي درجات الامتحان: ${totalPoints.toStringAsFixed(0)} درجة • درجة الاجتياز والنجاح: ${passScore.toStringAsFixed(0)} درجة',
+                      'إجمالي درجات الامتحان: ${totalPoints.toStringAsFixed(0)} درجة • درجة الاجتياز والنجاح: ${passScore.toStringAsFixed(0)} درجة'.fixArabic,
                       style: boldStyle.copyWith(fontSize: 9, color: PdfColors.teal900),
-                      textDirection: pw.TextDirection.rtl,
                     ),
                     pw.Text(
-                      'Total: ${totalPoints.toStringAsFixed(0)} Marks',
+                      'Total: ${totalPoints.toStringAsFixed(0)} Marks'.fixArabic,
                       style: boldStyle.copyWith(fontSize: 9, color: PdfColors.teal900),
                     ),
                   ],
@@ -1977,31 +1963,31 @@ class ReportGeneratorService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text('توقيع المدرس المعتمد', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('توقيع المدرس المعتمد'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 130, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text(teacherName, style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                      pw.Text(teacherName.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text('توقيع مساعد التصحيح', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('توقيع مساعد التصحيح'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 130, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text('مساعد المادة', style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                      pw.Text('مساعد المادة'.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                     ],
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text('ختم السنتر الرسمي', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('ختم السنتر الرسمي'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 130, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text(centerName, style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                      pw.Text(centerName.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                     ],
                   ),
                 ],
@@ -2048,16 +2034,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     pdf.addPage(
       _buildBubbleSheetPage(
@@ -2107,9 +2088,8 @@ class ReportGeneratorService {
               children: [
                 pw.Container(width: 14, height: 14, color: PdfColors.black),
                 pw.Text(
-                  'نظام التصحيح الإلكتروني والماسح الضوئي (OMR) • معتمد لدى السنتر',
+                  'نظام التصحيح الإلكتروني والماسح الضوئي (OMR) • معتمد لدى السنتر'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 7.5, color: PdfColors.grey700),
-                  textDirection: pw.TextDirection.rtl,
                 ),
                 pw.Container(width: 14, height: 14, color: PdfColors.black),
               ],
@@ -2130,14 +2110,12 @@ class ReportGeneratorService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        centerName,
+                        centerName.fixArabic,
                         style: boldStyle.copyWith(fontSize: 12, color: PdfColors.black),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                       pw.Text(
-                        'المادة: $subjectName • الأستاذ: $teacherName',
+                        'المادة: $subjectName • الأستاذ: $teacherName'.fixArabic,
                         style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey900),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                     ],
                   ),
@@ -2148,23 +2126,20 @@ class ReportGeneratorService {
                       borderRadius: pw.BorderRadius.circular(3),
                     ),
                     child: pw.Text(
-                      'ورقة إجابة البابل شيت (Bubble Sheet)',
+                      'ورقة إجابة البابل شيت (Bubble Sheet)'.fixArabic,
                       style: boldStyle.copyWith(fontSize: 10, color: PdfColors.white),
-                      textDirection: pw.TextDirection.rtl,
                     ),
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        'اختبار: $examTitle',
+                        'اختبار: $examTitle'.fixArabic,
                         style: boldStyle.copyWith(fontSize: 9, color: PdfColors.black),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                       pw.Text(
-                        groupName != null && groupName.isNotEmpty ? 'المجموعة: $groupName' : 'العام: 2025/2026',
+                        (groupName != null && groupName.isNotEmpty ? 'المجموعة: $groupName' : 'العام: 2025/2026').fixArabic,
                         style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey800),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                     ],
                   ),
@@ -2189,15 +2164,15 @@ class ReportGeneratorService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text('اسم الطالب: ..............................................................', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                        pw.Text('اسم الطالب: ..............................................................'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                         pw.SizedBox(height: 6),
-                        pw.Text('المدرسة / الإدارة: .....................................................', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                        pw.Text('المدرسة / الإدارة: .....................................................'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                         pw.SizedBox(height: 6),
                         pw.Row(
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
-                            pw.Text('رقم القاعة: ...........', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
-                            pw.Text('رقم المقعد: ...........', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                            pw.Text('رقم القاعة: ...........'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
+                            pw.Text('رقم المقعد: ...........'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                           ],
                         ),
                         pw.SizedBox(height: 8),
@@ -2211,7 +2186,7 @@ class ReportGeneratorService {
                           ),
                           child: pw.Row(
                             children: [
-                              pw.Text('نموذج الاختبار:', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                              pw.Text('نموذج الاختبار:'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                               pw.SizedBox(width: 8),
                               ...['أ', 'ب', 'ج', 'د'].map((formLetter) {
                                 return pw.Padding(
@@ -2226,7 +2201,7 @@ class ReportGeneratorService {
                                           border: pw.Border.all(color: PdfColors.black, width: 0.8),
                                         ),
                                         child: pw.Center(
-                                          child: pw.Text(formLetter, style: boldStyle.copyWith(fontSize: 6.5)),
+                                          child: pw.Text(formLetter.fixArabic, style: boldStyle.copyWith(fontSize: 6.5)),
                                         ),
                                       ),
                                     ],
@@ -2251,7 +2226,7 @@ class ReportGeneratorService {
                   ),
                   child: pw.Column(
                     children: [
-                      pw.Text('رقم الجلوس / كود الطالب', style: boldStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
+                      pw.Text('رقم الجلوس / كود الطالب'.fixArabic, style: boldStyle.copyWith(fontSize: 7.5)),
                       pw.SizedBox(height: 3),
                       // Top Row: Digits Write Boxes
                       pw.Row(
@@ -2300,10 +2275,9 @@ class ReportGeneratorService {
                 color: PdfColors.grey200,
               ),
               child: pw.Text(
-                'تعليمات التظليل: استخدم قلم جاف أزرق أو أسود • ظلل الدائرة بالكامل هكذا • تجنب علامات (X) والتظليل الجزئي • ممنوع استخدام الكوريكتور',
+                'تعليمات التظليل: استخدم قلم جاف أزرق أو أسود • ظلل الدائرة بالكامل هكذا • تجنب علامات (X) والتظليل الجزئي • ممنوع استخدام الكوريكتور'.fixArabic,
                 textAlign: pw.TextAlign.center,
                 style: boldStyle.copyWith(fontSize: 7, color: PdfColors.black),
-                textDirection: pw.TextDirection.rtl,
               ),
             ),
             pw.SizedBox(height: 8),
@@ -2335,11 +2309,11 @@ class ReportGeneratorService {
                             child: pw.Row(
                               mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
                               children: [
-                                pw.Text('رقم', style: boldStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
-                                pw.Text('أ', style: boldStyle.copyWith(fontSize: 7)),
-                                pw.Text('ب', style: boldStyle.copyWith(fontSize: 7)),
-                                pw.Text('ج', style: boldStyle.copyWith(fontSize: 7)),
-                                pw.Text('د', style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('رقم'.fixArabic, style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('أ'.fixArabic, style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('ب'.fixArabic, style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('ج'.fixArabic, style: boldStyle.copyWith(fontSize: 7)),
+                                pw.Text('د'.fixArabic, style: boldStyle.copyWith(fontSize: 7)),
                               ],
                             ),
                           ),
@@ -2405,7 +2379,7 @@ class ReportGeneratorService {
                                       ),
                                       child: pw.Center(
                                         child: pw.Text(
-                                          letters[optIdx],
+                                          letters[optIdx].fixArabic,
                                           style: boldStyle.copyWith(
                                             fontSize: 6.5,
                                             color: isThisCorrect ? PdfColors.white : PdfColors.black,
@@ -2437,17 +2411,17 @@ class ReportGeneratorService {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('خاص بلجنة التصحيح والكنترول:', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
-                  pw.Text('الإجابات الصحيحة: [       ]', style: regularStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
-                  pw.Text('الخاطئة: [       ]', style: regularStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
+                  pw.Text('خاص بلجنة التصحيح والكنترول:'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
+                  pw.Text('الإجابات الصحيحة: [       ]'.fixArabic, style: regularStyle.copyWith(fontSize: 7.5)),
+                  pw.Text('الخاطئة: [       ]'.fixArabic, style: regularStyle.copyWith(fontSize: 7.5)),
                   pw.Container(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: pw.BoxDecoration(
                       border: pw.Border.all(color: PdfColors.black, width: 0.8),
                     ),
-                    child: pw.Text('الدرجة النهائية: [       / $effectiveCount ]', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                    child: pw.Text('الدرجة النهائية: [       / $effectiveCount ]'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                   ),
-                  pw.Text('توقيع المصحح: ...................', style: regularStyle.copyWith(fontSize: 7.5), textDirection: pw.TextDirection.rtl),
+                  pw.Text('توقيع المصحح: ...................'.fixArabic, style: regularStyle.copyWith(fontSize: 7.5)),
                 ],
               ),
             ),
@@ -2459,7 +2433,7 @@ class ReportGeneratorService {
               children: [
                 pw.Container(width: 14, height: 14, color: PdfColors.black),
                 pw.Text(
-                  'Brivio Assessment Engine • كود النموذج: B-OMR-${effectiveCount}Q',
+                  'Brivio Assessment Engine • كود النموذج: B-OMR-${effectiveCount}Q'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
                 ),
                 pw.Container(width: 14, height: 14, color: PdfColors.black),
@@ -2485,15 +2459,11 @@ class ReportGeneratorService {
   }) async {
     final pdf = await createDocument();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     final totalStudents = submissionsData.length;
     final submittedCount = submissionsData.where((s) => s['is_submitted'] == true).length;
@@ -2532,14 +2502,12 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          '$centerName • كشف تسليمات وتصحيح الواجب',
+                          '$centerName • كشف تسليمات وتصحيح الواجب'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 13),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'المادة: $subjectName • الأستاذ: $teacherName • المجموعة: $groupName',
+                          'المادة: $subjectName • الأستاذ: $teacherName • المجموعة: $groupName'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.amberAccent, fontSize: 8),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -2547,14 +2515,12 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text(
-                          'واجب: $homeworkTitle',
+                          'واجب: $homeworkTitle'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 10),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'موعد التسليم: $formattedDue • الدرجة: ${maxScore.toStringAsFixed(0)}',
+                          'موعد التسليم: $formattedDue • الدرجة: ${maxScore.toStringAsFixed(0)}'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.grey300, fontSize: 8),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -2619,14 +2585,12 @@ class ReportGeneratorService {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
-                'Brivio Educational Platform • تقرير رسمي معتمد',
+                'Brivio Educational Platform • تقرير رسمي معتمد'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
               pw.Text(
-                'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                'صفحة ${context.pageNumber} من ${context.pagesCount}'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
             ],
           );
@@ -2635,8 +2599,8 @@ class ReportGeneratorService {
           return [
             pw.TableHelper.fromTextArray(
               context: context,
-              headers: ['م', 'كود الطالب', 'اسم الطالب', 'حالة التسليم', 'تاريخ التسليم', 'الدرجة', 'ملاحظات المعلم'],
-              data: submissionsData.asMap().entries.map((entry) {
+              headers: ArabicPdfHelper.fixHeaders(['م', 'كود الطالب', 'اسم الطالب', 'حالة التسليم', 'تاريخ التسليم', 'الدرجة', 'ملاحظات المعلم']),
+              data: ArabicPdfHelper.fixData(submissionsData.asMap().entries.map((entry) {
                 final idx = entry.key + 1;
                 final s = entry.value;
                 final isSubmitted = s['is_submitted'] == true;
@@ -2657,7 +2621,7 @@ class ReportGeneratorService {
                   scoreVal,
                   feedback,
                 ];
-              }).toList(),
+              }).toList()),
               headerStyle: boldStyle.copyWith(color: PdfColors.white, fontSize: 8),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo800),
               cellStyle: regularStyle.copyWith(fontSize: 7.5),
@@ -2672,29 +2636,29 @@ class ReportGeneratorService {
               children: [
                 pw.Column(
                   children: [
-                    pw.Text('توقيع المدرس المعتمد', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                    pw.Text('توقيع المدرس المعتمد'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                     pw.SizedBox(height: 25),
                     pw.Container(width: 130, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 2),
-                    pw.Text(teacherName, style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                    pw.Text(teacherName.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                   ],
                 ),
                 pw.Column(
                   children: [
-                    pw.Text('توقيع المشرف التعليمي', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                    pw.Text('توقيع المشرف التعليمي'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                     pw.SizedBox(height: 25),
                     pw.Container(width: 130, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 2),
-                    pw.Text('إدارة المتابعة والتنسيق', style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                    pw.Text('إدارة المتابعة والتنسيق'.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                   ],
                 ),
                 pw.Column(
                   children: [
-                    pw.Text('ختم السنتر الرسمي', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                    pw.Text('ختم السنتر الرسمي'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                     pw.SizedBox(height: 25),
                     pw.Container(width: 130, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 2),
-                    pw.Text(centerName, style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                    pw.Text(centerName.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                   ],
                 ),
               ],
@@ -2725,16 +2689,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     final formattedDue = dueAt != null ? '${dueAt.year}-${dueAt.month.toString().padLeft(2, '0')}-${dueAt.day.toString().padLeft(2, '0')}' : 'الحصة القادمة';
 
@@ -2760,14 +2719,12 @@ class ReportGeneratorService {
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             pw.Text(
-                              centerName,
+                              centerName.fixArabic,
                               style: boldStyle.copyWith(fontSize: 13, color: PdfColors.deepPurple900),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                             pw.Text(
-                              'المادة: $subjectName • الأستاذ: $teacherName',
+                              'المادة: $subjectName • الأستاذ: $teacherName'.fixArabic,
                               style: regularStyle.copyWith(fontSize: 9, color: PdfColors.grey800),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ],
                         ),
@@ -2781,16 +2738,14 @@ class ReportGeneratorService {
                                 borderRadius: pw.BorderRadius.circular(4),
                               ),
                               child: pw.Text(
-                                homeworkTitle,
+                                homeworkTitle.fixArabic,
                                 style: boldStyle.copyWith(fontSize: 11, color: PdfColors.white),
-                                textDirection: pw.TextDirection.rtl,
                               ),
                             ),
                             pw.SizedBox(height: 2),
                             pw.Text(
-                              groupName != null ? 'المجموعة: $groupName' : 'العام الدراسي: $academicYear',
+                              (groupName != null ? 'المجموعة: $groupName' : 'العام الدراسي: $academicYear').fixArabic,
                               style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey700),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ],
                         ),
@@ -2798,14 +2753,12 @@ class ReportGeneratorService {
                           crossAxisAlignment: pw.CrossAxisAlignment.end,
                           children: [
                             pw.Text(
-                              'الدرجة الكلية: ${maxScore.toStringAsFixed(0)} درجة',
+                              'الدرجة الكلية: ${maxScore.toStringAsFixed(0)} درجة'.fixArabic,
                               style: boldStyle.copyWith(fontSize: 9, color: PdfColors.deepPurple900),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                             pw.Text(
-                              'تسليم حتى: $formattedDue',
+                              'تسليم حتى: $formattedDue'.fixArabic,
                               style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey700),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ],
                         ),
@@ -2823,14 +2776,12 @@ class ReportGeneratorService {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            'اسم الطالب: .............................................................',
+                            'اسم الطالب: .............................................................'.fixArabic,
                             style: regularStyle.copyWith(fontSize: 8.5, color: PdfColors.black),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                           pw.Text(
-                            'كود الطالب: ...................',
+                            'كود الطالب: ...................'.fixArabic,
                             style: regularStyle.copyWith(fontSize: 8.5, color: PdfColors.black),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -2839,9 +2790,8 @@ class ReportGeneratorService {
                               color: PdfColors.white,
                             ),
                             child: pw.Text(
-                              'الدرجة: [     / ${maxScore.toStringAsFixed(0)} ]',
+                              'الدرجة: [     / ${maxScore.toStringAsFixed(0)} ]'.fixArabic,
                               style: boldStyle.copyWith(fontSize: 8.5, color: PdfColors.deepPurple900),
-                              textDirection: pw.TextDirection.rtl,
                             ),
                           ),
                         ],
@@ -2859,14 +2809,12 @@ class ReportGeneratorService {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
-                'Brivio Educational Platform • شيت واجب منزلي',
+                'Brivio Educational Platform • شيت واجب منزلي'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
               pw.Text(
-                'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                'صفحة ${context.pageNumber} من ${context.pagesCount}'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
             ],
           );
@@ -2901,24 +2849,21 @@ class ReportGeneratorService {
                             borderRadius: pw.BorderRadius.circular(3),
                           ),
                           child: pw.Text(
-                            'س $idx',
+                            'س $idx'.fixArabic,
                             style: boldStyle.copyWith(color: PdfColors.white, fontSize: 8),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                         ),
                         pw.SizedBox(width: 8),
                         pw.Expanded(
                           child: pw.Text(
-                            prompt,
+                            prompt.fixArabic,
                             style: boldStyle.copyWith(fontSize: 9.5, color: PdfColors.black),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                         ),
                         pw.SizedBox(width: 8),
                         pw.Text(
-                          '(${points.toStringAsFixed(0)} درجات)',
+                          '(${points.toStringAsFixed(0)} درجات)'.fixArabic,
                           style: regularStyle.copyWith(fontSize: 8, color: PdfColors.deepPurple800),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -2946,18 +2891,16 @@ class ReportGeneratorService {
                                   ),
                                   child: pw.Center(
                                     child: pw.Text(
-                                      letter,
+                                      letter.fixArabic,
                                       style: boldStyle.copyWith(fontSize: 7),
-                                      textDirection: pw.TextDirection.rtl,
                                     ),
                                   ),
                                 ),
                                 pw.SizedBox(width: 6),
                                 pw.Expanded(
                                   child: pw.Text(
-                                    optText,
+                                    optText.fixArabic,
                                     style: regularStyle.copyWith(fontSize: 8.5),
-                                    textDirection: pw.TextDirection.rtl,
                                   ),
                                 ),
                               ],
@@ -2969,9 +2912,9 @@ class ReportGeneratorService {
                       pw.Row(
                         children: [
                           pw.SizedBox(width: 20),
-                          pw.Text('[      ]  صواب (True)', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                          pw.Text('[      ]  صواب (True)'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                           pw.SizedBox(width: 40),
-                          pw.Text('[      ]  خطأ (False)', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                          pw.Text('[      ]  خطأ (False)'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                         ],
                       ),
                     ] else ...[
@@ -3016,16 +2959,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     pdf.addPage(
       pw.MultiPage(
@@ -3047,14 +2985,12 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          '$centerName • كشف الحساب المالي لولي الأمر',
+                          '$centerName • كشف الحساب المالي لولي الأمر'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 13),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'الطالب: $studentName ($studentCode) • المجموعة: $groupName',
+                          'الطالب: $studentName ($studentCode) • المجموعة: $groupName'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.amberAccent, fontSize: 8),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -3062,14 +2998,12 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text(
-                          'كشف رسمي معتمد',
+                          'كشف رسمي معتمد'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 10),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'العام الدراسي: $academicYear',
+                          'العام الدراسي: $academicYear'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.grey300, fontSize: 8),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -3123,14 +3057,12 @@ class ReportGeneratorService {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
-                'Brivio Educational Platform • كشف حساب مالي معتمد',
+                'Brivio Educational Platform • كشف حساب مالي معتمد'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
               pw.Text(
-                'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                'صفحة ${context.pageNumber} من ${context.pagesCount}'.fixArabic,
                 style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey600),
-                textDirection: pw.TextDirection.rtl,
               ),
             ],
           );
@@ -3138,8 +3070,8 @@ class ReportGeneratorService {
         build: (context) {
           return [
             pw.TableHelper.fromTextArray(
-              headers: ['رقم الإيصال', 'تاريخ السداد', 'البيان والتفاصيل', 'المبلغ المدفوع', 'المستلم كاش', 'الحالة'],
-              data: records.map((r) {
+              headers: ArabicPdfHelper.fixHeaders(['رقم الإيصال', 'تاريخ السداد', 'البيان والتفاصيل', 'المبلغ المدفوع', 'المستلم كاش', 'الحالة']),
+              data: ArabicPdfHelper.fixData(records.map((r) {
                 return [
                   r['receipt_number']?.toString() ?? '-',
                   r['date']?.toString() ?? '-',
@@ -3148,7 +3080,7 @@ class ReportGeneratorService {
                   r['collector_name']?.toString() ?? 'الاستقبال',
                   'مدفوع كاش ✔️',
                 ];
-              }).toList(),
+              }).toList()),
               headerStyle: boldStyle.copyWith(color: PdfColors.white, fontSize: 8),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.teal800),
               cellStyle: regularStyle.copyWith(fontSize: 7.5),
@@ -3163,20 +3095,20 @@ class ReportGeneratorService {
               children: [
                 pw.Column(
                   children: [
-                    pw.Text('توقيع مسؤول الخزينة', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                    pw.Text('توقيع مسؤول الخزينة'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                     pw.SizedBox(height: 25),
                     pw.Container(width: 130, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 2),
-                    pw.Text('حسابات ومراجعة الخزينة', style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                    pw.Text('حسابات ومراجعة الخزينة'.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                   ],
                 ),
                 pw.Column(
                   children: [
-                    pw.Text('ختم السنتر المعتمد', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                    pw.Text('ختم السنتر المعتمد'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                     pw.SizedBox(height: 25),
                     pw.Container(width: 130, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 2),
-                    pw.Text(centerName, style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                    pw.Text(centerName.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                   ],
                 ),
               ],
@@ -3211,16 +3143,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     pdf.addPage(
       pw.Page(
@@ -3244,14 +3171,12 @@ class ReportGeneratorService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          '$centerName • التقرير الشهري لمستوى الطالب',
+                          '$centerName • التقرير الشهري لمستوى الطالب'.fixArabic,
                           style: boldStyle.copyWith(color: PdfColors.white, fontSize: 15),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                         pw.Text(
-                          'تقرير شهر: $monthName • الأستاذ: $teacherName',
+                          'تقرير شهر: $monthName • الأستاذ: $teacherName'.fixArabic,
                           style: regularStyle.copyWith(color: PdfColors.amberAccent, fontSize: 10),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ],
                     ),
@@ -3262,9 +3187,8 @@ class ReportGeneratorService {
                         borderRadius: pw.BorderRadius.circular(4),
                       ),
                       child: pw.Text(
-                        'كارت المتابعة الشهري',
+                        'كارت المتابعة الشهري'.fixArabic,
                         style: boldStyle.copyWith(color: PdfColors.white, fontSize: 9),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                     ),
                   ],
@@ -3283,9 +3207,9 @@ class ReportGeneratorService {
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('الطالب: $studentName', style: boldStyle.copyWith(fontSize: 10), textDirection: pw.TextDirection.rtl),
-                    pw.Text('الكود: $studentCode', style: boldStyle.copyWith(fontSize: 10), textDirection: pw.TextDirection.rtl),
-                    pw.Text('المجموعة: $groupName', style: boldStyle.copyWith(fontSize: 10), textDirection: pw.TextDirection.rtl),
+                    pw.Text('الطالب: $studentName'.fixArabic, style: boldStyle.copyWith(fontSize: 10)),
+                    pw.Text('الكود: $studentCode'.fixArabic, style: boldStyle.copyWith(fontSize: 10)),
+                    pw.Text('المجموعة: $groupName'.fixArabic, style: boldStyle.copyWith(fontSize: 10)),
                   ],
                 ),
               ),
@@ -3343,12 +3267,12 @@ class ReportGeneratorService {
                   children: [
                     pw.Row(
                       children: [
-                        pw.Text('التقييم السلوكي والتفاعل داخل الحصة: ', style: boldStyle.copyWith(fontSize: 10), textDirection: pw.TextDirection.rtl),
-                        pw.Text(conductEvaluation, style: boldStyle.copyWith(fontSize: 10, color: PdfColors.green900), textDirection: pw.TextDirection.rtl),
+                        pw.Text('التقييم السلوكي والتفاعل داخل الحصة: '.fixArabic, style: boldStyle.copyWith(fontSize: 10)),
+                        pw.Text(conductEvaluation.fixArabic, style: boldStyle.copyWith(fontSize: 10, color: PdfColors.green900)),
                       ],
                     ),
                     pw.SizedBox(height: 10),
-                    pw.Text('ملاحظات وتوجيهات الأستاذ لولي الأمر:', style: boldStyle.copyWith(fontSize: 9), textDirection: pw.TextDirection.rtl),
+                    pw.Text('ملاحظات وتوجيهات الأستاذ لولي الأمر:'.fixArabic, style: boldStyle.copyWith(fontSize: 9)),
                     pw.SizedBox(height: 4),
                     pw.Container(
                       padding: const pw.EdgeInsets.all(10),
@@ -3357,9 +3281,8 @@ class ReportGeneratorService {
                         borderRadius: pw.BorderRadius.circular(4),
                       ),
                       child: pw.Text(
-                        teacherNotes ?? 'الطالب يظهر التزاماً متميزاً ومتابعة مستمرة. نوصي باستمرار حل الواجبات والمراجعة الأسبوعية.',
+                        (teacherNotes ?? 'الطالب يظهر التزاماً متميزاً ومتابعة مستمرة. نوصي باستمرار حل الواجبات والمراجعة الأسبوعية.').fixArabic,
                         style: regularStyle.copyWith(fontSize: 8.5),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                     ),
                   ],
@@ -3374,29 +3297,29 @@ class ReportGeneratorService {
                 children: [
                   pw.Column(
                     children: [
-                      pw.Text('توقيع الأستاذ', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('توقيع الأستاذ'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 120, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text(teacherName, style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                      pw.Text(teacherName.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                     ],
                   ),
                   pw.Column(
                     children: [
-                      pw.Text('توقيع الإدارة والتنسيق', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('توقيع الإدارة والتنسيق'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 120, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text('إدارة شؤون الطلاب', style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                      pw.Text('إدارة شؤون الطلاب'.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                     ],
                   ),
                   pw.Column(
                     children: [
-                      pw.Text('ختم السنتر الرسمي', style: boldStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                      pw.Text('ختم السنتر الرسمي'.fixArabic, style: boldStyle.copyWith(fontSize: 8)),
                       pw.SizedBox(height: 25),
                       pw.Container(width: 120, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 2),
-                      pw.Text(centerName, style: regularStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
+                      pw.Text(centerName.fixArabic, style: regularStyle.copyWith(fontSize: 7)),
                     ],
                   ),
                 ],
@@ -3428,16 +3351,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     final dateStr = '${saleDate.year}-${saleDate.month.toString().padLeft(2, '0')}-${saleDate.day.toString().padLeft(2, '0')} ${saleDate.hour.toString().padLeft(2, '0')}:${saleDate.minute.toString().padLeft(2, '0')}';
 
@@ -3450,29 +3368,27 @@ class ReportGeneratorService {
             children: [
               pw.Center(
                 child: pw.Text(
-                  centerName,
+                  centerName.fixArabic,
                   style: boldStyle.copyWith(fontSize: 12),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
               pw.Center(
                 child: pw.Text(
-                  'إيصال مبيعات مذكرات وكتب (كاش)',
+                  'إيصال مبيعات مذكرات وكتب (كاش)'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey700),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
               pw.Divider(thickness: 0.8),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('الإيصال: #$receiptNumber', style: boldStyle.copyWith(fontSize: 7.5)),
-                  pw.Text(dateStr, style: regularStyle.copyWith(fontSize: 6.5)),
+                  pw.Text('الإيصال: #$receiptNumber'.fixArabic, style: boldStyle.copyWith(fontSize: 7.5)),
+                  pw.Text(dateStr.fixArabic, style: regularStyle.copyWith(fontSize: 6.5)),
                 ],
               ),
               pw.SizedBox(height: 2),
-              pw.Text('الطالب: $studentName ($studentCode)', style: boldStyle.copyWith(fontSize: 7), textDirection: pw.TextDirection.rtl),
-              pw.Text('أمين المخزن: $cashierName', style: regularStyle.copyWith(fontSize: 6.5), textDirection: pw.TextDirection.rtl),
+              pw.Text('الطالب: $studentName ($studentCode)'.fixArabic, style: boldStyle.copyWith(fontSize: 7)),
+              pw.Text('أمين المخزن: $cashierName'.fixArabic, style: regularStyle.copyWith(fontSize: 6.5)),
               pw.Divider(thickness: 0.5),
 
               // Items table
@@ -3488,12 +3404,11 @@ class ReportGeneratorService {
                     children: [
                       pw.Expanded(
                         child: pw.Text(
-                          '$title (×$qty)',
+                          '$title (×$qty)'.fixArabic,
                           style: regularStyle.copyWith(fontSize: 7),
-                          textDirection: pw.TextDirection.rtl,
                         ),
                       ),
-                      pw.Text('${subtotal.toStringAsFixed(1)} ج.م', style: boldStyle.copyWith(fontSize: 7)),
+                      pw.Text('${subtotal.toStringAsFixed(1)} ج.م'.fixArabic, style: boldStyle.copyWith(fontSize: 7)),
                     ],
                   ),
                 );
@@ -3503,24 +3418,22 @@ class ReportGeneratorService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('الإجمالي المدفوع نقداً:', style: boldStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
-                  pw.Text('${totalAmount.toStringAsFixed(1)} ج.م', style: boldStyle.copyWith(fontSize: 9, color: PdfColors.green900)),
+                  pw.Text('الإجمالي المدفوع نقداً:'.fixArabic, style: boldStyle.copyWith(fontSize: 8.5)),
+                  pw.Text('${totalAmount.toStringAsFixed(1)} ج.م'.fixArabic, style: boldStyle.copyWith(fontSize: 9, color: PdfColors.green900)),
                 ],
               ),
               pw.SizedBox(height: 6),
               pw.Center(
                 child: pw.Text(
-                  'الدفع كاش فقط • لا تُرد المذكرات بعد استلامها',
+                  'الدفع كاش فقط • لا تُرد المذكرات بعد استلامها'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 5.5, color: PdfColors.grey700),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
               pw.SizedBox(height: 2),
               pw.Center(
                 child: pw.Text(
-                  'شكراً لتعاملكم مع سنتر $centerName 🌟',
+                  'شكراً لتعاملكم مع سنتر $centerName 🌟'.fixArabic,
                   style: boldStyle.copyWith(fontSize: 6),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
             ],
@@ -3550,16 +3463,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     // Chunk into pages of 8 labels per A4 page (4 rows x 2 columns)
     const labelsPerPage = 8;
@@ -3585,14 +3493,12 @@ class ReportGeneratorService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text(
-                        'كروت تسكين مقاعد الطلاب (Desk Labels) • قص والصق على ديسك الطالب ✂️',
+                        'كروت تسكين مقاعد الطلاب (Desk Labels) • قص والصق على ديسك الطالب ✂️'.fixArabic,
                         style: boldStyle.copyWith(color: PdfColors.white, fontSize: 8.5),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                       pw.Text(
-                        '$centerName • $hallName • $groupName',
+                        '$centerName • $hallName • $groupName'.fixArabic,
                         style: regularStyle.copyWith(color: PdfColors.amberAccent, fontSize: 8),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                     ],
                   ),
@@ -3633,9 +3539,8 @@ class ReportGeneratorService {
                                 mainAxisAlignment: pw.MainAxisAlignment.center,
                                 children: [
                                   pw.Text(
-                                    'مقعد',
+                                    'مقعد'.fixArabic,
                                     style: regularStyle.copyWith(color: PdfColors.amberAccent, fontSize: 7),
-                                    textDirection: pw.TextDirection.rtl,
                                   ),
                                   pw.Text(
                                     '#$seatNumber',
@@ -3661,46 +3566,40 @@ class ReportGeneratorService {
                                 mainAxisAlignment: pw.MainAxisAlignment.center,
                                 children: [
                                   pw.Text(
-                                    studentName,
+                                    studentName.fixArabic,
                                     maxLines: 1,
                                     style: boldStyle.copyWith(fontSize: 10, color: PdfColors.black),
-                                    textDirection: pw.TextDirection.rtl,
                                   ),
                                   pw.SizedBox(height: 2),
                                   pw.Text(
-                                    'كود: $studentCode',
+                                    'كود: $studentCode'.fixArabic,
                                     style: boldStyle.copyWith(fontSize: 8, color: PdfColors.indigo800),
-                                    textDirection: pw.TextDirection.rtl,
                                   ),
                                   pw.SizedBox(height: 2),
                                   pw.Text(
-                                    '$hallName • $groupName',
+                                    '$hallName • $groupName'.fixArabic,
                                     maxLines: 1,
                                     style: regularStyle.copyWith(fontSize: 6.5, color: PdfColors.grey700),
-                                    textDirection: pw.TextDirection.rtl,
                                   ),
                                   if (teacherName != null && teacherName.isNotEmpty) ...[
                                     pw.Text(
-                                      'المدرس: $teacherName',
+                                      'المدرس: $teacherName'.fixArabic,
                                       maxLines: 1,
                                       style: regularStyle.copyWith(fontSize: 6.5, color: PdfColors.grey700),
-                                      textDirection: pw.TextDirection.rtl,
                                     ),
                                   ],
                                   if (notes.isNotEmpty) ...[
                                     pw.SizedBox(height: 2),
                                     pw.Text(
-                                      notes,
+                                      notes.fixArabic,
                                       maxLines: 1,
                                       style: regularStyle.copyWith(fontSize: 6, color: PdfColors.deepOrange800),
-                                      textDirection: pw.TextDirection.rtl,
                                     ),
                                   ],
                                   pw.Spacer(),
                                   pw.Text(
-                                    'يرجى الالتزام برقم المقعد المحدد 📌',
+                                    'يرجى الالتزام برقم المقعد المحدد 📌'.fixArabic,
                                     style: regularStyle.copyWith(fontSize: 6, color: PdfColors.grey600),
-                                    textDirection: pw.TextDirection.rtl,
                                   ),
                                 ],
                               ),
@@ -3741,101 +3640,90 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         header: (context) {
-          return pw.Directionality(
-            textDirection: pw.TextDirection.rtl,
-            child: pw.Column(
-              children: [
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.grey100,
-                    borderRadius: pw.BorderRadius.circular(8),
-                    border: pw.Border.all(color: PdfColors.blueGrey800, width: 1.5),
-                  ),
-                  child: pw.Column(
-                    children: [
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Text(centerName, style: boldStyle.copyWith(fontSize: 14, color: PdfColors.blueGrey900)),
-                              pw.Text('المدرس: $teacherName', style: regularStyle.copyWith(fontSize: 11, color: PdfColors.grey800)),
-                            ],
-                          ),
-                          pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: pw.BoxDecoration(
-                              color: PdfColors.blueGrey900,
-                              borderRadius: pw.BorderRadius.circular(6),
-                            ),
-                            child: pw.Text(
-                              examTitle,
-                              style: boldStyle.copyWith(fontSize: 12, color: PdfColors.white),
-                            ),
-                          ),
-                          pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.end,
-                            children: [
-                              pw.Text('المجموعة: $groupName', style: boldStyle.copyWith(fontSize: 11)),
-                              pw.Text('الزمن: $durationMinutes دقيقة | الدرجة: $totalMarks', style: regularStyle.copyWith(fontSize: 10)),
-                            ],
-                          ),
-                        ],
-                      ),
-                      pw.Divider(thickness: 0.8, color: PdfColors.grey400, height: 12),
-                      pw.Row(
-                        children: [
-                          pw.Expanded(
-                            flex: 3,
-                            child: pw.Text('اسم الطالب: ................................................................', style: regularStyle.copyWith(fontSize: 10)),
-                          ),
-                          pw.Expanded(
-                            flex: 2,
-                            child: pw.Text('رقم الجلوس / الكود: ....................', style: regularStyle.copyWith(fontSize: 10)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+          return pw.Column(
+            children: [
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(color: PdfColors.blueGrey800, width: 1.5),
                 ),
-                pw.SizedBox(height: 14),
-              ],
-            ),
+                child: pw.Column(
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(centerName.fixArabic, style: boldStyle.copyWith(fontSize: 14, color: PdfColors.blueGrey900)),
+                            pw.Text('المدرس: $teacherName'.fixArabic, style: regularStyle.copyWith(fontSize: 11, color: PdfColors.grey800)),
+                          ],
+                        ),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.blueGrey900,
+                            borderRadius: pw.BorderRadius.circular(6),
+                          ),
+                          child: pw.Text(
+                            examTitle.fixArabic,
+                            style: boldStyle.copyWith(fontSize: 12, color: PdfColors.white),
+                          ),
+                        ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.end,
+                          children: [
+                            pw.Text('المجموعة: $groupName'.fixArabic, style: boldStyle.copyWith(fontSize: 11)),
+                            pw.Text('الزمن: $durationMinutes دقيقة | الدرجة: $totalMarks'.fixArabic, style: regularStyle.copyWith(fontSize: 10)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    pw.Divider(thickness: 0.8, color: PdfColors.grey400, height: 12),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Text('اسم الطالب: ................................................................'.fixArabic, style: regularStyle.copyWith(fontSize: 10)),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text('رقم الجلوس / الكود: ....................'.fixArabic, style: regularStyle.copyWith(fontSize: 10)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 14),
+            ],
           );
         },
         footer: (context) {
-          return pw.Directionality(
-            textDirection: pw.TextDirection.rtl,
-            child: pw.Column(
-              children: [
-                pw.Divider(thickness: 0.5, color: PdfColors.grey300),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('مع أطيب تمنياتنا بالتفوق والنجاح • $teacherName', style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey600)),
-                    pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}', style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey600)),
-                  ],
-                ),
-              ],
-            ),
+          return pw.Column(
+            children: [
+              pw.Divider(thickness: 0.5, color: PdfColors.grey300),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('مع أطيب تمنياتنا بالتفوق والنجاح • $teacherName'.fixArabic, style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey600)),
+                  pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}'.fixArabic, style: regularStyle.copyWith(fontSize: 8, color: PdfColors.grey600)),
+                ],
+              ),
+            ],
           );
         },
         build: (context) {
@@ -3849,103 +3737,100 @@ class ReportGeneratorService {
             final isMcq = options.isNotEmpty;
 
             items.add(
-              pw.Directionality(
-                textDirection: pw.TextDirection.rtl,
-                child: pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 12),
-                  padding: const pw.EdgeInsets.all(10),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
-                    borderRadius: pw.BorderRadius.circular(6),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      // Question header
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Expanded(
-                            child: pw.Text(
-                              '(${i + 1}) $prompt',
-                              style: boldStyle.copyWith(fontSize: 11, color: PdfColors.black),
-                            ),
+              pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 12),
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
+                  borderRadius: pw.BorderRadius.circular(6),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // Question header
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Expanded(
+                          child: pw.Text(
+                            '(${i + 1}) $prompt'.fixArabic,
+                            style: boldStyle.copyWith(fontSize: 11, color: PdfColors.black),
                           ),
-                          pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: pw.BoxDecoration(
-                              color: PdfColors.grey200,
-                              borderRadius: pw.BorderRadius.circular(4),
-                            ),
-                            child: pw.Text('[$points درجة]', style: regularStyle.copyWith(fontSize: 9)),
-                          ),
-                        ],
-                      ),
-                      pw.SizedBox(height: 8),
-
-                      if (isMcq) ...[
-                        // MCQ Options in 2 cols
-                        pw.Wrap(
-                          spacing: 16,
-                          runSpacing: 6,
-                          children: options.asMap().entries.map((entry) {
-                            final optIndex = entry.key;
-                            final opt = entry.value is Map ? entry.value : {'text': entry.value.toString()};
-                            final optText = opt['text']?.toString() ?? opt['title']?.toString() ?? '';
-                            final isCorrect = opt['is_correct'] == true || opt['isCorrect'] == true;
-                            final letter = String.fromCharCode(0x0623 + optIndex); // أ, ب, ج, د
-
-                            return pw.Container(
-                              width: 220,
-                              child: pw.Row(
-                                children: [
-                                  pw.Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: pw.BoxDecoration(
-                                      shape: pw.BoxShape.circle,
-                                      border: pw.Border.all(color: (includeAnswerKey && isCorrect) ? PdfColors.green700 : PdfColors.grey700),
-                                      color: (includeAnswerKey && isCorrect) ? PdfColors.green100 : PdfColors.white,
-                                    ),
-                                    child: pw.Center(
-                                      child: pw.Text(
-                                        letter,
-                                        style: boldStyle.copyWith(fontSize: 8, color: (includeAnswerKey && isCorrect) ? PdfColors.green800 : PdfColors.black),
-                                      ),
-                                    ),
-                                  ),
-                                  pw.SizedBox(width: 6),
-                                  pw.Expanded(
-                                    child: pw.Text(
-                                      optText,
-                                      style: (includeAnswerKey && isCorrect)
-                                          ? boldStyle.copyWith(fontSize: 9.5, color: PdfColors.green900)
-                                          : regularStyle.copyWith(fontSize: 9.5),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
                         ),
-                      ] else ...[
-                        // Essay lines for student answer
-                        pw.SizedBox(height: 4),
                         pw.Container(
-                          height: 44,
-                          decoration: const pw.BoxDecoration(
-                            border: pw.Border(
-                              bottom: pw.BorderSide(color: PdfColors.grey300, style: pw.BorderStyle.dashed),
-                            ),
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey200,
+                            borderRadius: pw.BorderRadius.circular(4),
                           ),
-                          child: pw.Align(
-                            alignment: pw.Alignment.topRight,
-                            child: pw.Text('الإجابة: ....................................................................................................................................................................', style: regularStyle.copyWith(color: PdfColors.grey400, fontSize: 8)),
-                          ),
+                          child: pw.Text('[$points درجة]'.fixArabic, style: regularStyle.copyWith(fontSize: 9)),
                         ),
                       ],
+                    ),
+                    pw.SizedBox(height: 8),
+
+                    if (isMcq) ...[
+                      // MCQ Options in 2 cols
+                      pw.Wrap(
+                        spacing: 16,
+                        runSpacing: 6,
+                        children: options.asMap().entries.map((entry) {
+                          final optIndex = entry.key;
+                          final opt = entry.value is Map ? entry.value : {'text': entry.value.toString()};
+                          final optText = opt['text']?.toString() ?? opt['title']?.toString() ?? '';
+                          final isCorrect = opt['is_correct'] == true || opt['isCorrect'] == true;
+                          final letter = String.fromCharCode(0x0623 + optIndex); // أ, ب, ج, د
+
+                          return pw.Container(
+                            width: 220,
+                            child: pw.Row(
+                              children: [
+                                pw.Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: pw.BoxDecoration(
+                                    shape: pw.BoxShape.circle,
+                                    border: pw.Border.all(color: (includeAnswerKey && isCorrect) ? PdfColors.green700 : PdfColors.grey700),
+                                    color: (includeAnswerKey && isCorrect) ? PdfColors.green100 : PdfColors.white,
+                                  ),
+                                  child: pw.Center(
+                                    child: pw.Text(
+                                      letter.fixArabic,
+                                      style: boldStyle.copyWith(fontSize: 8, color: (includeAnswerKey && isCorrect) ? PdfColors.green800 : PdfColors.black),
+                                    ),
+                                  ),
+                                ),
+                                pw.SizedBox(width: 6),
+                                pw.Expanded(
+                                  child: pw.Text(
+                                    optText.fixArabic,
+                                    style: (includeAnswerKey && isCorrect)
+                                        ? boldStyle.copyWith(fontSize: 9.5, color: PdfColors.green900)
+                                        : regularStyle.copyWith(fontSize: 9.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ] else ...[
+                      // Essay lines for student answer
+                      pw.SizedBox(height: 4),
+                      pw.Container(
+                        height: 44,
+                        decoration: const pw.BoxDecoration(
+                          border: pw.Border(
+                            bottom: pw.BorderSide(color: PdfColors.grey300, style: pw.BorderStyle.dashed),
+                          ),
+                        ),
+                        child: pw.Align(
+                          alignment: pw.Alignment.topRight,
+                          child: pw.Text('الإجابة: ....................................................................................................................................................................'.fixArabic, style: regularStyle.copyWith(color: PdfColors.grey400, fontSize: 8)),
+                        ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             );
@@ -3953,24 +3838,21 @@ class ReportGeneratorService {
 
           if (includeAnswerKey) {
             items.add(
-              pw.Directionality(
-                textDirection: pw.TextDirection.rtl,
-                child: pw.Container(
-                  margin: const pw.EdgeInsets.only(top: 16),
-                  padding: const pw.EdgeInsets.all(12),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.green50,
-                    borderRadius: pw.BorderRadius.circular(8),
-                    border: pw.Border.all(color: PdfColors.green400),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text('📌 نموذج الإجابة الرسمي الخاص بالمدرس والمساعدين:', style: boldStyle.copyWith(fontSize: 11, color: PdfColors.green900)),
-                      pw.SizedBox(height: 6),
-                      pw.Text('هذه النسخة مخصصة لطاقم التصحيح والمساعدين (TAs) لمراجعة أوراق إجابات الطلاب بدقة.', style: regularStyle.copyWith(fontSize: 9)),
-                    ],
-                  ),
+              pw.Container(
+                margin: const pw.EdgeInsets.only(top: 16),
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.green50,
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(color: PdfColors.green400),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('📌 نموذج الإجابة الرسمي الخاص بالمدرس والمساعدين:'.fixArabic, style: boldStyle.copyWith(fontSize: 11, color: PdfColors.green900)),
+                    pw.SizedBox(height: 6),
+                    pw.Text('هذه النسخة مخصصة لطاقم التصحيح والمساعدين (TAs) لمراجعة أوراق إجابات الطلاب بدقة.'.fixArabic, style: regularStyle.copyWith(fontSize: 9)),
+                  ],
                 ),
               ),
             );
@@ -3997,16 +3879,11 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = pw.TextStyle(font: cairoBold ?? _cairoBold, fontWeight: pw.FontWeight.bold);
-    final regularStyle = pw.TextStyle(font: cairoRegular ?? _cairoRegular);
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     final expandedList = <Map<String, dynamic>>[];
     for (final it in items) {
@@ -4047,9 +3924,8 @@ class ReportGeneratorService {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            centerName,
+                            centerName.fixArabic,
                             style: boldStyle.copyWith(fontSize: 7, color: PdfColors.blueGrey900),
-                            textDirection: pw.TextDirection.rtl,
                           ),
                           if (price.isNotEmpty)
                             pw.Container(
@@ -4059,26 +3935,23 @@ class ReportGeneratorService {
                                 borderRadius: pw.BorderRadius.circular(2),
                               ),
                               child: pw.Text(
-                                price,
+                                price.fixArabic,
                                 style: boldStyle.copyWith(fontSize: 7.5, color: PdfColors.white),
-                                textDirection: pw.TextDirection.rtl,
                               ),
                             ),
                         ],
                       ),
                       pw.Text(
-                        title,
+                        title.fixArabic,
                         style: boldStyle.copyWith(fontSize: 8.5),
                         textAlign: pw.TextAlign.center,
                         maxLines: 1,
-                        textDirection: pw.TextDirection.rtl,
                       ),
                       pw.Text(
-                        teacher,
+                        teacher.fixArabic,
                         style: regularStyle.copyWith(fontSize: 7, color: PdfColors.grey800),
                         textAlign: pw.TextAlign.center,
                         maxLines: 1,
-                        textDirection: pw.TextDirection.rtl,
                       ),
                       pw.Container(
                         height: 34,
@@ -4115,9 +3988,10 @@ class ReportGeneratorService {
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
-    final theme = await getArabicPdfTheme();
-    final boldStyle = theme.defaultTextStyle.copyWith(fontWeight: pw.FontWeight.bold);
-    final regularStyle = theme.defaultTextStyle;
+    final boldFont = await getBoldFont();
+    final regularFont = await getRegularFont();
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     final now = DateTime.now();
     final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -4159,15 +4033,13 @@ class ReportGeneratorService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        '🛡️ تقرير التدقيق والرقابة الأمنية والمعاملات الحساسة',
+                        '🛡️ تقرير التدقيق والرقابة الأمنية والمعاملات الحساسة'.fixArabic,
                         style: boldStyle.copyWith(color: PdfColors.white, fontSize: 16),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        '$centerName • $branchName | تصنيف العرض: $filterName',
+                        '$centerName • $branchName | تصنيف العرض: $filterName'.fixArabic,
                         style: regularStyle.copyWith(color: PdfColors.grey300, fontSize: 10),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                     ],
                   ),
@@ -4175,15 +4047,13 @@ class ReportGeneratorService {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        'تاريخ التصدير: $dateStr',
+                        'تاريخ التصدير: $dateStr'.fixArabic,
                         style: regularStyle.copyWith(color: PdfColors.white, fontSize: 10),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        'وثيقة إدارية مشفرة وسرية للغاية 🔒',
+                        'وثيقة إدارية مشفرة وسرية للغاية 🔒'.fixArabic,
                         style: boldStyle.copyWith(color: PdfColors.amber300, fontSize: 9),
-                        textDirection: pw.TextDirection.rtl,
                       ),
                     ],
                   ),
@@ -4205,7 +4075,7 @@ class ReportGeneratorService {
                     ),
                     child: pw.Column(
                       children: [
-                        pw.Text('إجمالي العمليات الموثقة', style: regularStyle.copyWith(fontSize: 9), textDirection: pw.TextDirection.rtl),
+                        pw.Text('إجمالي العمليات الموثقة'.fixArabic, style: regularStyle.copyWith(fontSize: 9)),
                         pw.SizedBox(height: 2),
                         pw.Text('$totalCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.blueGrey800)),
                       ],
@@ -4223,7 +4093,7 @@ class ReportGeneratorService {
                     ),
                     child: pw.Column(
                       children: [
-                        pw.Text('عمليات حرجة / حذف 🚨', style: regularStyle.copyWith(fontSize: 9, color: PdfColors.red900), textDirection: pw.TextDirection.rtl),
+                        pw.Text('عمليات حرجة / حذف 🚨'.fixArabic, style: regularStyle.copyWith(fontSize: 9, color: PdfColors.red900)),
                         pw.SizedBox(height: 2),
                         pw.Text('$criticalCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.red700)),
                       ],
@@ -4241,7 +4111,7 @@ class ReportGeneratorService {
                     ),
                     child: pw.Column(
                       children: [
-                        pw.Text('حركات مالية واسترداد 💸', style: regularStyle.copyWith(fontSize: 9, color: PdfColors.green900), textDirection: pw.TextDirection.rtl),
+                        pw.Text('حركات مالية واسترداد 💸'.fixArabic, style: regularStyle.copyWith(fontSize: 9, color: PdfColors.green900)),
                         pw.SizedBox(height: 2),
                         pw.Text('$financialCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.green700)),
                       ],
@@ -4259,7 +4129,7 @@ class ReportGeneratorService {
                     ),
                     child: pw.Column(
                       children: [
-                        pw.Text('تعديلات درجات وامتحانات 📝', style: regularStyle.copyWith(fontSize: 9, color: PdfColors.purple900), textDirection: pw.TextDirection.rtl),
+                        pw.Text('تعديلات درجات وامتحانات 📝'.fixArabic, style: regularStyle.copyWith(fontSize: 9, color: PdfColors.purple900)),
                         pw.SizedBox(height: 2),
                         pw.Text('$gradeCount', style: boldStyle.copyWith(fontSize: 14, color: PdfColors.purple700)),
                       ],
@@ -4273,13 +4143,13 @@ class ReportGeneratorService {
             // Audit Table
             pw.TableHelper.fromTextArray(
               context: context,
-              headers: ['التفاصيل والبيانات', 'مستوى الخطورة', 'المنفّذ (المستخدم)', 'الكيان / الجدول', 'نوع العملية', 'التاريخ والوقت'],
+              headers: ArabicPdfHelper.fixHeaders(['التفاصيل والبيانات', 'مستوى الخطورة', 'المنفّذ (المستخدم)', 'الكيان / الجدول', 'نوع العملية', 'التاريخ والوقت']),
               headerStyle: boldStyle.copyWith(color: PdfColors.white, fontSize: 9),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
               headerAlignment: pw.Alignment.center,
               cellAlignment: pw.Alignment.centerRight,
               cellStyle: regularStyle.copyWith(fontSize: 8),
-              data: auditItems.map((item) {
+              data: ArabicPdfHelper.fixData(auditItems.map((item) {
                 final date = item['createdAt']?.toString() ?? item['createdLabel']?.toString() ?? '-';
                 final action = item['actionLabel']?.toString() ?? item['action']?.toString() ?? '-';
                 final table = item['tableName']?.toString() ?? item['table']?.toString() ?? '-';
@@ -4295,7 +4165,7 @@ class ReportGeneratorService {
                   action,
                   date,
                 ];
-              }).toList(),
+              }).toList()),
               columnWidths: {
                 0: const pw.FlexColumnWidth(3.0),
                 1: const pw.FlexColumnWidth(1.0),
@@ -4316,9 +4186,8 @@ class ReportGeneratorService {
                   style: regularStyle.copyWith(color: PdfColors.grey600, fontSize: 8),
                 ),
                 pw.Text(
-                  'ختم الاعتماد الرقمي للمنظومة: #BRV-SEC-${now.millisecondsSinceEpoch}',
+                  'ختم الاعتماد الرقمي للمنظومة: #BRV-SEC-${now.millisecondsSinceEpoch}'.fixArabic,
                   style: boldStyle.copyWith(color: PdfColors.grey700, fontSize: 8),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ],
             ),

@@ -3,6 +3,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/arabic_pdf_helper.dart';
+import 'report_generator_service.dart';
 
 enum ThermalPaperWidth {
   mm80(80, '80 مم (الافتراضي لنقاط البيع)'),
@@ -155,17 +157,12 @@ class ThermalPrinterService {
     required String centerName,
     Printer? printer,
   }) async {
-    final pdf = pw.Document();
+    final pdf = await ReportGeneratorService.createDocument();
+    final boldFont = await ReportGeneratorService.getBoldFont();
+    final regularFont = await ReportGeneratorService.getRegularFont();
 
-    pw.Font? cairoBold;
-    pw.Font? cairoRegular;
-    try {
-      cairoBold = await PdfGoogleFonts.cairoBold();
-      cairoRegular = await PdfGoogleFonts.cairoRegular();
-    } catch (_) {}
-
-    final boldStyle = cairoBold != null ? pw.TextStyle(font: cairoBold) : const pw.TextStyle();
-    final regularStyle = cairoRegular != null ? pw.TextStyle(font: cairoRegular) : const pw.TextStyle();
+    final boldStyle = pw.TextStyle(font: boldFont, fontWeight: pw.FontWeight.bold);
+    final regularStyle = pw.TextStyle(font: regularFont);
 
     final widthMm = paperWidth.value.mm.toDouble();
 
@@ -178,48 +175,46 @@ class ThermalPrinterService {
             children: [
               pw.Center(
                 child: pw.Text(
-                  centerName,
+                  centerName.fixArabic,
                   style: boldStyle.copyWith(fontSize: 13),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
               pw.SizedBox(height: 4),
               pw.Center(
                 child: pw.Text(
-                  'اختبار اتصال الطابعة الحرارية 🖨️',
+                  'اختبار اتصال الطابعة الحرارية 🖨️'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 9),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
               pw.Divider(height: 12),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('الحالة:', style: boldStyle.copyWith(fontSize: 9), textDirection: pw.TextDirection.rtl),
-                  pw.Text('متصل وجاهز للطباعة ✅', style: boldStyle.copyWith(fontSize: 9, color: PdfColors.green800), textDirection: pw.TextDirection.rtl),
+                  pw.Text('الحالة:'.fixArabic, style: boldStyle.copyWith(fontSize: 9)),
+                  pw.Text('متصل وجاهز للطباعة ✅'.fixArabic, style: boldStyle.copyWith(fontSize: 9, color: PdfColors.green800)),
                 ],
               ),
               pw.SizedBox(height: 3),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('عرض الورق:', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
-                  pw.Text('${paperWidth.value.mm} مم', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                  pw.Text('عرض الورق:'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
+                  pw.Text('${paperWidth.value.mm} مم'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                 ],
               ),
               pw.SizedBox(height: 3),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('الطباعة الصامتة:', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
-                  pw.Text(directPrintEnabled.value ? 'مفعلة ⚡' : 'معطلة (معاينة)', style: regularStyle.copyWith(fontSize: 8.5), textDirection: pw.TextDirection.rtl),
+                  pw.Text('الطباعة الصامتة:'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
+                  pw.Text(directPrintEnabled.value ? 'مفعلة ⚡'.fixArabic : 'معطلة (معاينة)'.fixArabic, style: regularStyle.copyWith(fontSize: 8.5)),
                 ],
               ),
               pw.SizedBox(height: 3),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('التاريخ والوقت:', style: regularStyle.copyWith(fontSize: 8), textDirection: pw.TextDirection.rtl),
+                  pw.Text('التاريخ والوقت:'.fixArabic, style: regularStyle.copyWith(fontSize: 8)),
                   pw.Text('${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}', style: regularStyle.copyWith(fontSize: 8)),
                 ],
               ),
@@ -235,9 +230,8 @@ class ThermalPrinterService {
               pw.SizedBox(height: 6),
               pw.Center(
                 child: pw.Text(
-                  'منظومة Brivio لإدارة السناتر التعليمية',
+                  'منظومة Brivio لإدارة السناتر التعليمية'.fixArabic,
                   style: regularStyle.copyWith(fontSize: 7.5, color: PdfColors.grey700),
-                  textDirection: pw.TextDirection.rtl,
                 ),
               ),
             ],

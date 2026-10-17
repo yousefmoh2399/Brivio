@@ -3,6 +3,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/report_generator_service.dart';
+import '../../../../core/utils/arabic_pdf_helper.dart';
 
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -313,7 +315,7 @@ class _TeacherFinanceRosterSheetState
   }
 
   Future<void> _printReceipt(_TeacherReceipt receipt) async {
-    final pdf = pw.Document();
+    final pdf = await ReportGeneratorService.createDocument();
     final amount = _money(receipt.amountMinor, receipt.currency);
     final issuedAt = _formatDateTime(receipt.issuedAt);
 
@@ -331,7 +333,7 @@ class _TeacherFinanceRosterSheetState
           children: [
             pw.Center(
               child: pw.Text(
-                'إيصال استلام نقدية',
+                'إيصال استلام نقدية'.fixArabic,
                 style: pw.TextStyle(
                   fontSize: 14,
                   fontWeight: pw.FontWeight.bold,
@@ -339,7 +341,7 @@ class _TeacherFinanceRosterSheetState
               ),
             ),
             pw.SizedBox(height: 4),
-            pw.Center(child: pw.Text('نظام إدارة المركز التعليمي')),
+            pw.Center(child: pw.Text('نظام إدارة المركز التعليمي'.fixArabic)),
             pw.Divider(thickness: 1),
             _receiptLine('رقم الإيصال', receipt.receiptNumber),
             _receiptLine('التاريخ', issuedAt),
@@ -356,17 +358,17 @@ class _TeacherFinanceRosterSheetState
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'الإجمالي',
+                  'الإجمالي'.fixArabic,
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
                 pw.Text(
-                  amount,
+                  amount.fixArabic,
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
               ],
             ),
             pw.SizedBox(height: 10),
-            pw.Center(child: pw.Text('شكراً لكم')),
+            pw.Center(child: pw.Text('شكراً لكم'.fixArabic)),
           ],
         ),
       ),
@@ -846,11 +848,11 @@ pw.Widget _receiptLine(String label, String value) {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label),
+        pw.Text(label.fixArabic),
         pw.SizedBox(width: 8),
         pw.Expanded(
           child: pw.Text(
-            value.isEmpty ? '-' : value,
+            (value.isEmpty ? '-' : value).fixArabic,
             textAlign: pw.TextAlign.right,
           ),
         ),

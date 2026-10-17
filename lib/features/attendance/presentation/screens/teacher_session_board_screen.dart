@@ -10,6 +10,7 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../attendance/domain/models/attendance_models.dart';
 
@@ -457,7 +458,7 @@ class _TeacherSessionBoardScreenState extends State<TeacherSessionBoardScreen> {
       }
       return;
     }
-    final doc = pw.Document();
+    final doc = await ReportGeneratorService.createDocument();
     final image = pw.MemoryImage(pngBytes);
     doc.addPage(
       pw.Page(

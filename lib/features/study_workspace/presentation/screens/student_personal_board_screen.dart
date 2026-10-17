@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
 
 enum _BoardBackgroundTheme {
@@ -342,7 +343,7 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
       }
       return;
     }
-    final doc = pw.Document();
+    final doc = await ReportGeneratorService.createDocument();
     final image = pw.MemoryImage(pngBytes);
     doc.addPage(
       pw.Page(
