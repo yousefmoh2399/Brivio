@@ -395,13 +395,30 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                         setStateDialog(() => isSaving = true);
                         final nav = Navigator.of(ctx);
                         try {
-                          await Supabase.instance.client.rpc(
-                            'assign_student_subscription',
-                            params: {
-                              'p_student_id': selectedStudent.id,
-                              'p_plan_id': selectedPlanId,
-                            },
-                          );
+                          try {
+                            await Supabase.instance.client.rpc(
+                              'assign_student_subscription',
+                              params: {
+                                'p_student_id': selectedStudent.id,
+                                'p_plan_id': selectedPlanId,
+                              },
+                            );
+                          } catch (rpcErr) {
+                            final errStr = rpcErr.toString();
+                            if (errStr.contains('PGRST202') ||
+                                errStr.contains('p_subscription_plan_id') ||
+                                errStr.contains('schema cache')) {
+                              await Supabase.instance.client.rpc(
+                                'assign_student_subscription',
+                                params: {
+                                  'p_student_id': selectedStudent.id,
+                                  'p_subscription_plan_id': selectedPlanId,
+                                },
+                              );
+                            } else {
+                              rethrow;
+                            }
+                          }
                           nav.pop();
                           _loadFinanceData();
                           if (mounted) {
