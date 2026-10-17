@@ -446,9 +446,25 @@ class _ParentDashboardState extends State<ParentDashboard> {
           emptyIcon: Icons.family_restroom,
           onRetry: _openLinkChildScreen,
           child: _selectedIndex == 6
-              ? const ParentHelpdeskScreen()
+              ? Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                      child: _buildHeader(),
+                    ),
+                    const Expanded(child: ParentHelpdeskScreen()),
+                  ],
+                )
               : _selectedIndex == 8
-                  ? const AppSettingsPanel()
+                  ? Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                          child: _buildHeader(),
+                        ),
+                        const Expanded(child: AppSettingsPanel()),
+                      ],
+                    )
                   : ListView(
                       padding: const EdgeInsets.all(20),
                       children: [
@@ -475,98 +491,97 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   Widget _buildHeader() {
     final parentUser = widget.authViewModel.currentUser;
-    return PortalHeader(
-      eyebrow: 'بوابة أولياء الأمور',
-      title: _selectedChild?.fullName ?? 'لوحة متابعة ولي الأمر',
-      subtitle: _selectedChild == null
-          ? '${_linkedChildren.length} طلاب مسجلين'
-          : '${_selectedChild!.studentCode} • ${_childGroups.length} مجموعات نشطة',
-      icon: Icons.family_restroom,
-      accentColor: AppColors.parentRole,
-      leading: EditableAvatar(
-        avatarUrl: parentUser?.avatarUrl,
-        name: parentUser?.fullName ?? 'ولي الأمر',
-        role: 'parent',
-        userId: parentUser?.id,
-        userEmail: parentUser?.email,
-        radius: 23,
-        onAvatarChanged: (_) async {
-          if (mounted) {
-            await widget.authViewModel.restoreSession();
-            setState(() {});
-          }
-        },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PortalHeader(
+          eyebrow: 'بوابة أولياء الأمور',
+          title: parentUser?.fullName ?? 'ولي الأمر',
+          subtitle: _selectedChild == null
+              ? '${_linkedChildren.length} طلاب مسجلين بالمنظومة'
+              : 'متابعة شؤون: ${_selectedChild!.fullName} (${_selectedChild!.studentCode}) • ${_childGroups.length} مجموعات',
+          icon: Icons.family_restroom,
+          accentColor: AppColors.parentRole,
+          leading: EditableAvatar(
+            avatarUrl: parentUser?.avatarUrl,
+            name: parentUser?.fullName ?? 'ولي الأمر',
+            role: 'parent',
+            userId: parentUser?.id,
+            userEmail: parentUser?.email,
+            radius: 23,
+            onAvatarChanged: (_) async {
+              if (mounted) {
+                await widget.authViewModel.restoreSession();
+                setState(() {});
+              }
+            },
+          ),
+          trailing: FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: _openLinkChildScreen,
+            icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+            label: const Text('ربط طالب جديد', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+          ),
+        ),
+        if (_linkedChildren.length > 1) ...[
+          const SizedBox(height: 10),
+          _buildChildSelectorBar(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildChildSelectorBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
       ),
-      trailing: LayoutBuilder(
-        builder: (context, constraints) {
-          final isNarrow = MediaQuery.sizeOf(context).width < 500;
-          return Row(
-            mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
-            children: [
-              if (_linkedChildren.isNotEmpty)
-                isNarrow
-                    ? Expanded(
-                        child: DropdownButtonFormField<Student>(
-                          initialValue: _selectedChild,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'اختر الطالب',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          ),
-                          items: _linkedChildren
-                              .map(
-                                (child) => DropdownMenuItem<Student>(
-                                  value: child,
-                                  child: Text(
-                                    '${child.fullName} (${child.studentCode})',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (child) {
-                            if (child == null) return;
-                            setState(() => _selectedChild = child);
-                            _loadChildDetails(child);
-                          },
-                        ),
-                      )
-                    : SizedBox(
-                        width: 210,
-                        child: DropdownButtonFormField<Student>(
-                          initialValue: _selectedChild,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'اختر الطالب',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          ),
-                          items: _linkedChildren
-                              .map(
-                                (child) => DropdownMenuItem<Student>(
-                                  value: child,
-                                  child: Text(
-                                    '${child.fullName} (${child.studentCode})',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (child) {
-                            if (child == null) return;
-                            setState(() => _selectedChild = child);
-                            _loadChildDetails(child);
-                          },
+      child: Row(
+        children: [
+          const Icon(Icons.swap_horiz_rounded, size: 18, color: AppColors.parentRole),
+          const SizedBox(width: 8),
+          const Text(
+            'الطالب الحالي:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<Student>(
+                value: _selectedChild,
+                isExpanded: true,
+                icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.parentRole),
+                items: _linkedChildren
+                    .map(
+                      (child) => DropdownMenuItem<Student>(
+                        value: child,
+                        child: Text(
+                          '${child.fullName} (${child.studentCode})',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
-                tooltip: 'ربط طالب جديد بكود السنتر',
-                icon: const Icon(Icons.person_add_alt_1_rounded),
-                onPressed: _openLinkChildScreen,
+                    )
+                    .toList(),
+                onChanged: (child) {
+                  if (child == null) return;
+                  setState(() => _selectedChild = child);
+                  _loadChildDetails(child);
+                },
               ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -579,9 +594,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
       3 => _buildPaymentsPage(),
       4 => _buildMonthlyReportPage(),
       5 => _buildNotificationsPage(),
-      6 => const SizedBox.shrink(),
+      6 => const ParentHelpdeskScreen(),
       7 => _buildAccountPage(),
-      8 => const SizedBox.shrink(),
+      8 => const AppSettingsPanel(),
       _ => _buildOverviewPage(),
     };
   }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -74,18 +75,18 @@ class _StaffDashboardState extends State<StaffDashboard> {
   List<AppNotification> get notifications => _notifications;
 
   static const _destinations = [
-    PortalDestination(icon: Icons.dashboard_customize, label: 'Overview'),
-    PortalDestination(icon: Icons.assignment_late, label: 'Queues'),
-    PortalDestination(icon: Icons.school, label: 'Students'),
-    PortalDestination(icon: Icons.family_restroom, label: 'Parents'),
-    PortalDestination(icon: Icons.co_present, label: 'Teachers'),
-    PortalDestination(icon: Icons.group_work, label: 'Groups'),
-    PortalDestination(icon: Icons.fact_check, label: 'Attendance'),
-    PortalDestination(icon: Icons.receipt_long, label: 'Finance'),
-    PortalDestination(icon: Icons.support_agent, label: 'Helpdesk'),
-    PortalDestination(icon: Icons.notifications, label: 'Notifications'),
-    PortalDestination(icon: Icons.analytics, label: 'Reports'),
-    PortalDestination(icon: Icons.settings, label: 'Settings'),
+    PortalDestination(icon: Icons.dashboard_customize, label: 'لوحة العمليات'),
+    PortalDestination(icon: Icons.assignment_late, label: 'طوابير المهام'),
+    PortalDestination(icon: Icons.school, label: 'الطلاب'),
+    PortalDestination(icon: Icons.family_restroom, label: 'أولياء الأمور'),
+    PortalDestination(icon: Icons.co_present, label: 'المعلمون'),
+    PortalDestination(icon: Icons.group_work, label: 'المجموعات'),
+    PortalDestination(icon: Icons.fact_check, label: 'الحضور والغياب'),
+    PortalDestination(icon: Icons.receipt_long, label: 'الخزينة والمالية'),
+    PortalDestination(icon: Icons.support_agent, label: 'الدعم الفني'),
+    PortalDestination(icon: Icons.notifications, label: 'الإشعارات'),
+    PortalDestination(icon: Icons.analytics, label: 'التقارير'),
+    PortalDestination(icon: Icons.settings, label: 'الإعدادات'),
   ];
 
   @override
@@ -269,7 +270,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               ? row['invoice_number'].toString()
               : _studentLabel(row['students']),
           subtitle:
-              '${_studentLabel(row['students'])} • ${_money(total - paid, currency)} remaining',
+              '${_studentLabel(row['students'])} • متبقي ${_money(total - paid, currency)}',
           status: row['status']?.toString() ?? 'issued',
           createdAt: DateTime.tryParse(row['due_at']?.toString() ?? ''),
           amountMinor: total - paid,
@@ -597,19 +598,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         isEmpty: false,
-        emptyTitle: 'No operations data',
-        emptySubtitle: 'Refresh after staff permissions are assigned.',
+        emptyTitle: 'لا توجد بيانات عمليات حالياً',
+        emptySubtitle: 'قم بتحديث الصفحة بعد مراجعة الصلاحيات المخصصة لك من إدارة السنتر.',
         emptyIcon: Icons.badge,
         onRetry: _loadStaffData,
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             PortalHeader(
-              eyebrow: 'Operations Portal',
-              title: user?.fullName ?? 'Staff Member',
-              subtitle: 'Students, groups, attendance, leave, and payments',
+              eyebrow: 'منظومة بريفيو لإدارة السناتر',
+              title: user?.fullName ?? 'فريق العمل والاستقبال',
+              subtitle: 'إدارة شؤون الطلاب، تسجيل الحضور، الخزينة، والمبيعات',
               icon: Icons.badge,
-              accentColor: AppColors.primary,
+              accentColor: AppColors.staffRole,
               leading: EditableAvatar(
                 avatarUrl: user?.avatarUrl,
                 name: user?.fullName ?? 'Staff Member',
@@ -619,93 +620,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 radius: 23,
                 onAvatarChanged: (_) => _loadStaffData(),
               ),
-              trailing: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  CenterSwitcherWidget(
-                    onCenterChanged: _loadStaffData,
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'بوابة الاستقبال والباركود',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ReceptionQrGateScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.qr_code_scanner_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'تصفية أرباح المدرسين',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const TeacherSettlementScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.calculate_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'كشوفات الحضور للطباعة (PDF)',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AttendanceReportsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.print_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'جرد وتقفيل الخزينة والوردية (Shift Closing)',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const DailyCashRegisterScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.point_of_sale_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'بيع الملازم والمخزن (POS)',
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const BookstorePosScreen(),
-                        ),
-                      );
-                      _loadStaffData();
-                    },
-                    icon: const Icon(Icons.shopping_bag_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'سعة القاعات والمقاعد',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ClassroomCapacityScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.meeting_room_rounded),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'شاشة العرض التلفزيونية للاستقبال (TV)',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ReceptionLiveTvKioskScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.tv_rounded),
-                  ),
-                ],
+              trailing: CenterSwitcherWidget(
+                onCenterChanged: _loadStaffData,
               ),
             ),
             if (_dataWarnings.isNotEmpty) ...[
@@ -763,13 +679,27 @@ class _StaffDashboardState extends State<StaffDashboard> {
         // Staff Front Desk & Instant Student Lookup HUD
         _StaffFrontDeskHud(
           students: _students,
-          onOpenExpressRegister: () {
-            ExpressStudentRegistrationDialog.show(
-              context: context,
-              availableGroups: _groups,
-              onRegistered: (newStudent) {
-                _loadStaffData();
-              },
+          onOpenTvKiosk: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ReceptionLiveTvKioskScreen(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 20),
+
+        const PortalSectionTitle(
+          title: 'مركز عمليات الاستقبال والخدمات',
+          subtitle: 'الأدوات المركزية للموظف: بوابات الحضور، الكاشير، المبيعات وتصفية الحسابات',
+        ),
+        const SizedBox(height: 12),
+        _StaffOperationsHub(
+          onOpenQrGate: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ReceptionQrGateScreen(),
+              ),
             );
           },
           onOpenExpressCashier: () {
@@ -779,18 +709,13 @@ class _StaffDashboardState extends State<StaffDashboard> {
               onSuccess: () => _loadStaffData(),
             );
           },
-          onOpenQrGate: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const ReceptionQrGateScreen(),
-              ),
-            );
-          },
-          onOpenTvKiosk: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const ReceptionLiveTvKioskScreen(),
-              ),
+          onOpenExpressRegister: () {
+            ExpressStudentRegistrationDialog.show(
+              context: context,
+              availableGroups: _groups,
+              onRegistered: (newStudent) {
+                _loadStaffData();
+              },
             );
           },
           onOpenBookstorePos: () async {
@@ -808,6 +733,13 @@ class _StaffDashboardState extends State<StaffDashboard> {
               ),
             );
           },
+          onOpenTeacherSettlement: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const TeacherSettlementScreen(),
+              ),
+            );
+          },
           onOpenAttendanceReports: () {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -815,99 +747,38 @@ class _StaffDashboardState extends State<StaffDashboard> {
               ),
             );
           },
+          onOpenClassroomCapacity: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ClassroomCapacityScreen(),
+              ),
+            );
+          },
+          onOpenJoinCenter: () {
+            JoinCenterDialog.show(context, onJoined: _loadStaffData);
+          },
         ),
         const SizedBox(height: 24),
 
         const PortalSectionTitle(
-          title: 'العمليات السريعة للاستقبال',
-          subtitle: 'مسح الباركود، تحصيل فوري، وتصفية مستحقات المدرسين',
+          title: 'المؤشرات التشغيلية والمهام',
+          subtitle: 'متابعة الطلبات المعلقة والطلاب والمجموعات الحالية',
         ),
         const SizedBox(height: 12),
         PortalMetricGrid(
           children: [
             PortalMetricCard(
-              label: 'بوابة الاستقبال (QR)',
-              value: 'مسح فوري',
-              icon: Icons.qr_code_scanner_rounded,
-              accentColor: AppColors.primary,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ReceptionQrGateScreen(),
-                  ),
-                );
-              },
-            ),
-            PortalMetricCard(
-              label: 'تصفية أرباح المدرسين',
-              value: 'حساب النسب',
-              icon: Icons.calculate_rounded,
-              accentColor: AppColors.teacherRole,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const TeacherSettlementScreen(),
-                  ),
-                );
-              },
-            ),
-            PortalMetricCard(
-              label: 'كشوفات الحضور (PDF)',
-              value: 'تصدير وطباعة',
-              icon: Icons.print_rounded,
-              accentColor: AppColors.staffRole,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const AttendanceReportsScreen(),
-                  ),
-                );
-              },
-            ),
-            PortalMetricCard(
-              label: 'تقفيل الخزينة اليومية',
-              value: 'جرد الوردية',
-              icon: Icons.point_of_sale_rounded,
-              accentColor: AppColors.success,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DailyCashRegisterScreen(),
-                  ),
-                );
-              },
-            ),
-            PortalMetricCard(
-              label: 'انضمام لسنتر بكود',
-              value: 'ربط الفروع',
-              icon: Icons.add_business_rounded,
-              accentColor: AppColors.warning,
-              onTap: () {
-                JoinCenterDialog.show(context, onJoined: _loadStaffData);
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        const PortalSectionTitle(
-          title: 'ملخص العمليات والمهام',
-          subtitle: 'متابعة الطلبات المعلقة والطلاب والمجموعات',
-        ),
-        const SizedBox(height: 12),
-        PortalMetricGrid(
-          children: [
-            PortalMetricCard(
-              label: 'Open tasks',
+              label: 'المهام المعلقة',
               value: openTasks.toString(),
               icon: Icons.assignment_late,
               accentColor: AppColors.warning,
               onTap: () => setState(() => _selectedIndex = 1),
             ),
             PortalMetricCard(
-              label: 'Students visible',
+              label: 'إجمالي الطلاب',
               value: _has(Permission.studentsView)
                   ? _students.length.toString()
-                  : 'No access',
+                  : 'غير مصرح',
               icon: Icons.school,
               accentColor: AppColors.info,
               onTap: _has(Permission.studentsView)
@@ -915,10 +786,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   : null,
             ),
             PortalMetricCard(
-              label: 'Groups visible',
+              label: 'المجموعات النشطة',
               value: _has(Permission.groupsView)
                   ? _groups.length.toString()
-                  : 'No access',
+                  : 'غير مصرح',
               icon: Icons.group_work,
               accentColor: AppColors.primary,
               onTap: _has(Permission.groupsView)
@@ -926,35 +797,35 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   : null,
             ),
             PortalMetricCard(
-              label: 'Parents visible',
+              label: 'أولياء الأمور',
               value: _parents.length.toString(),
               icon: Icons.family_restroom,
               accentColor: AppColors.secondary,
               onTap: () => setState(() => _selectedIndex = 3),
             ),
             PortalMetricCard(
-              label: 'Teachers visible',
+              label: 'هيئة التدريس',
               value: _teachers.length.toString(),
               icon: Icons.co_present,
               accentColor: AppColors.success,
               onTap: () => setState(() => _selectedIndex = 4),
             ),
             PortalMetricCard(
-              label: 'Recent enrollments',
+              label: 'تسجيلات حديثة',
               value: _enrollmentQueue.length.toString(),
               icon: Icons.person_add,
               accentColor: AppColors.success,
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
         const PortalSectionTitle(
-          title: 'Priority queue',
-          subtitle: 'Pending items that usually need staff follow-up.',
+          title: 'طابور المهام ذات الأولوية',
+          subtitle: 'الطلبات والمهام التي تتطلب تدخلاً أو متابعة فورية من موظف الاستقبال',
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         _QueueList(
-          emptyText: 'No priority items right now.',
+          emptyText: 'لا توجد مهام ذات أولوية معلقة حالياً.',
           items: _operationsQueue.isNotEmpty
               ? _operationsQueue.take(12).toList()
               : [
@@ -978,44 +849,43 @@ class _StaffDashboardState extends State<StaffDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const PortalSectionTitle(title: 'Leave requests'),
+        const PortalSectionTitle(title: 'طلبات إذن الغياب'),
         const SizedBox(height: 8),
         _QueueList(
-          emptyText: 'No pending leave requests.',
+          emptyText: 'لا توجد طلبات إذن غياب معلقة حالياً.',
           items: _leaveQueue,
           onApproveLeave: (item) => _reviewLeaveQueueItem(item, 'approved'),
           onRejectLeave: (item) => _reviewLeaveQueueItem(item, 'rejected'),
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Payment follow-up'),
+        const PortalSectionTitle(title: 'متابعة الاشتراكات والمدفوعات'),
         const SizedBox(height: 8),
         _QueueList(
-          emptyText: 'No invoices need follow-up.',
+          emptyText: 'لا توجد فواتير أو متأخرات معلقة.',
           items: _invoiceQueue,
           onRecordPayment: _recordCashPayment,
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Attendance exceptions'),
+        const PortalSectionTitle(title: 'ملاحظات واستثناءات الحضور'),
         const SizedBox(height: 8),
         _QueueList(
-          emptyText: 'No recent absent or late records.',
+          emptyText: 'لا توجد حالات غياب أو تأخير حديثة.',
           items: _attendanceQueue,
           onMarkExcused: (item) => _resolveAttendanceException(item, 'excused'),
           onMarkPresent: (item) => _resolveAttendanceException(item, 'present'),
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Recent enrollments'),
+        const PortalSectionTitle(title: 'أحدث التسجيلات بالمنظومة'),
         const SizedBox(height: 8),
         _QueueList(
-          emptyText: 'No recent enrollments visible.',
+          emptyText: 'لا توجد تسجيلات حديثة.',
           items: _enrollmentQueue,
         ),
         const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'Unified operations queue'),
+        const PortalSectionTitle(title: 'طابور العمليات الموحد'),
         const SizedBox(height: 8),
         _QueueList(
-          emptyText:
-              'Run the latest operations migration to enable this queue.',
+          emptyText: 'طابور العمليات فارغ أو لا توجد مهام معلقة.',
           items: _operationsQueue,
           onApproveLeave: (item) => _reviewLeaveQueueItem(item, 'approved'),
           onRejectLeave: (item) => _reviewLeaveQueueItem(item, 'rejected'),
@@ -1032,7 +902,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   Widget _studentsPage() {
     if (!_has(Permission.studentsView)) {
       return const _AccessCard(
-        message: 'students.view permission is required.',
+        message: 'يتطلب هذا القسم صلاحية عرض الطلاب (students.view).',
       );
     }
     final filteredStudents = _filteredStudents();
@@ -1040,7 +910,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PortalSectionTitle(
-          title: 'Students Directory',
+          title: 'دليل شؤون الطلاب',
           subtitle: '${filteredStudents.length}/${_students.length}',
         ),
         const SizedBox(height: 8),
@@ -1062,7 +932,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   Widget _parentsPage() {
     if (!_has(Permission.parentsView)) {
       return const _AccessCard(
-        message: 'parents.view permission is required.',
+        message: 'يتطلب هذا القسم صلاحية عرض أولياء الأمور (parents.view).',
       );
     }
     final filteredParents = _filteredParents();
@@ -1070,7 +940,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PortalSectionTitle(
-          title: 'Parents Directory',
+          title: 'دليل أولياء الأمور',
           subtitle: '${filteredParents.length}/${_parents.length}',
         ),
         const SizedBox(height: 8),
@@ -1093,13 +963,13 @@ class _StaffDashboardState extends State<StaffDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PortalSectionTitle(
-          title: 'Teachers Directory',
+          title: 'دليل المعلمين',
           subtitle: '${filteredTeachers.length}/${_teachers.length}',
         ),
         const SizedBox(height: 8),
         PortalSearchField(
           controller: _teacherSearchController,
-          label: 'Search teachers',
+          label: 'بحث باسم المعلم أو التخصص...',
           onChanged: (value) =>
               setState(() => _teacherSearch = value.trim().toLowerCase()),
         ),
@@ -1117,20 +987,22 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
   Widget _groupsPage() {
     if (!_has(Permission.groupsView)) {
-      return const _AccessCard(message: 'groups.view permission is required.');
+      return const _AccessCard(
+        message: 'يتطلب هذا القسم صلاحية عرض المجموعات (groups.view).',
+      );
     }
     final filteredGroups = _filteredGroups();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PortalSectionTitle(
-          title: 'Groups Roster',
+          title: 'قائمة المجموعات الدراسية',
           subtitle: '${filteredGroups.length}/${_groups.length}',
         ),
         const SizedBox(height: 8),
         PortalSearchField(
           controller: _groupSearchController,
-          label: 'Search groups',
+          label: 'بحث باسم أو كود المجموعة...',
           onChanged: (value) =>
               setState(() => _groupSearch = value.trim().toLowerCase()),
         ),
@@ -1605,23 +1477,11 @@ int _asInt(Object? value) {
 
 class _StaffFrontDeskHud extends StatefulWidget {
   final List<Student> students;
-  final VoidCallback onOpenExpressRegister;
-  final VoidCallback onOpenExpressCashier;
-  final VoidCallback onOpenQrGate;
   final VoidCallback onOpenTvKiosk;
-  final VoidCallback onOpenBookstorePos;
-  final VoidCallback onOpenCashRegister;
-  final VoidCallback onOpenAttendanceReports;
 
   const _StaffFrontDeskHud({
     required this.students,
-    required this.onOpenExpressRegister,
-    required this.onOpenExpressCashier,
-    required this.onOpenQrGate,
     required this.onOpenTvKiosk,
-    required this.onOpenBookstorePos,
-    required this.onOpenCashRegister,
-    required this.onOpenAttendanceReports,
   });
 
   @override
@@ -1961,86 +1821,318 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
             ),
           ],
 
-          const SizedBox(height: 16),
-
-          // Reception Quick Tools Dock
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildStaffDockPill(
-                label: 'تسجيل طالب في 30 ثانية ⚡',
-                color: const Color(0xFFF59E0B),
-                icon: Icons.person_add_alt_1_rounded,
-                onTap: widget.onOpenExpressRegister,
-              ),
-              _buildStaffDockPill(
-                label: 'كاشير الاستقبال السريع 💵',
-                color: Colors.green.shade700,
-                icon: Icons.point_of_sale_rounded,
-                onTap: widget.onOpenExpressCashier,
-              ),
-              _buildStaffDockPill(
-                label: 'بوابة الاستقبال الصوتية QR 🔊',
-                color: AppColors.primary,
-                icon: Icons.qr_code_scanner_rounded,
-                onTap: widget.onOpenQrGate,
-              ),
-              _buildStaffDockPill(
-                label: 'منفذ بيع الملازم والكتب 📚',
-                color: Colors.purple.shade700,
-                icon: Icons.menu_book_rounded,
-                onTap: widget.onOpenBookstorePos,
-              ),
-              _buildStaffDockPill(
-                label: 'تقفيل الخزينة اليومية 💵',
-                color: Colors.teal.shade700,
-                icon: Icons.receipt_long_rounded,
-                onTap: widget.onOpenCashRegister,
-              ),
-              _buildStaffDockPill(
-                label: 'كشوفات الحضور PDF 🖨️',
-                color: Colors.blueGrey,
-                icon: Icons.print_rounded,
-                onTap: widget.onOpenAttendanceReports,
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildStaffDockPill({
-    required String label,
-    required Color color,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: color,
+class _StaffOperationsHub extends StatelessWidget {
+  final VoidCallback onOpenQrGate;
+  final VoidCallback onOpenExpressCashier;
+  final VoidCallback onOpenExpressRegister;
+  final VoidCallback onOpenBookstorePos;
+  final VoidCallback onOpenCashRegister;
+  final VoidCallback onOpenTeacherSettlement;
+  final VoidCallback onOpenAttendanceReports;
+  final VoidCallback onOpenClassroomCapacity;
+  final VoidCallback onOpenJoinCenter;
+
+  const _StaffOperationsHub({
+    required this.onOpenQrGate,
+    required this.onOpenExpressCashier,
+    required this.onOpenExpressRegister,
+    required this.onOpenBookstorePos,
+    required this.onOpenCashRegister,
+    required this.onOpenTeacherSettlement,
+    required this.onOpenAttendanceReports,
+    required this.onOpenClassroomCapacity,
+    required this.onOpenJoinCenter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final tools = [
+      _StaffToolItem(
+        title: 'بوابة الاستقبال والـ QR',
+        subtitle: 'مسح حضور وانصراف فوري بالباركود',
+        badge: 'حضور 🪪',
+        icon: Icons.qr_code_scanner_rounded,
+        gradient: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+        borderAccent: const Color(0xFF38BDF8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenQrGate();
+        },
+      ),
+      _StaffToolItem(
+        title: 'كاشير الاستقبال السريع',
+        subtitle: 'تحصيل فوري وإصدار إيصال واتساب',
+        badge: 'خزينة 💵',
+        icon: Icons.point_of_sale_rounded,
+        gradient: const [Color(0xFF059669), Color(0xFF10B981)],
+        borderAccent: const Color(0xFF34D399),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenExpressCashier();
+        },
+      ),
+      _StaffToolItem(
+        title: 'تسجيل طالب جديد',
+        subtitle: 'إضافة فورية وتوليد كود وكارنيه في 30 ثانية',
+        badge: 'تسجيل ⚡',
+        icon: Icons.person_add_alt_1_rounded,
+        gradient: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+        borderAccent: const Color(0xFFFBBF24),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenExpressRegister();
+        },
+      ),
+      _StaffToolItem(
+        title: 'منفذ بيع الملازم والكتب',
+        subtitle: 'مبيعات الكتيبات والمذكرات ونظام الباركود',
+        badge: 'مبيعات 📚',
+        icon: Icons.shopping_bag_rounded,
+        gradient: const [Color(0xFF7C3AED), Color(0xFF8B5CF6)],
+        borderAccent: const Color(0xFFA78BFA),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenBookstorePos();
+        },
+      ),
+      _StaffToolItem(
+        title: 'تقفيل الخزينة والوردية',
+        subtitle: 'جرد درج النقدية وترحيل الوردية اليومية',
+        badge: 'جرد 💼',
+        icon: Icons.receipt_long_rounded,
+        gradient: const [Color(0xFF0F766E), Color(0xFF14B8A6)],
+        borderAccent: const Color(0xFF2DD4BF),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenCashRegister();
+        },
+      ),
+      _StaffToolItem(
+        title: 'تصفية مستحقات المعلمين',
+        subtitle: 'حساب النسب وتصفية أرباح الحصص والسنتر',
+        badge: 'حسابات 🧮',
+        icon: Icons.calculate_rounded,
+        gradient: const [Color(0xFF4338CA), Color(0xFF6366F1)],
+        borderAccent: const Color(0xFF818CF8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenTeacherSettlement();
+        },
+      ),
+      _StaffToolItem(
+        title: 'كشوفات الحضور للطباعة',
+        subtitle: 'تصدير وطباعة كشوفات الغياب والمجاميع PDF',
+        badge: 'تقارير 🖨️',
+        icon: Icons.print_rounded,
+        gradient: const [Color(0xFF475569), Color(0xFF64748B)],
+        borderAccent: const Color(0xFF94A3B8),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenAttendanceReports();
+        },
+      ),
+      _StaffToolItem(
+        title: 'سعة القاعات والمقاعد',
+        subtitle: 'متابعة إشغال الحجرات الدراسية والأماكن الشاغرة',
+        badge: 'قاعات 🏫',
+        icon: Icons.meeting_room_rounded,
+        gradient: const [Color(0xFFC026D3), Color(0xFFD946EF)],
+        borderAccent: const Color(0xFFE879F9),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onOpenClassroomCapacity();
+        },
+      ),
+    ];
+
+    return Column(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 720;
+            final isMedium = constraints.maxWidth >= 480;
+            final crossAxisCount = isWide ? 4 : (isMedium ? 3 : 2);
+            final childAspectRatio = isWide ? 1.6 : (isMedium ? 1.45 : 1.35);
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: tools.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: childAspectRatio,
               ),
+              itemBuilder: (context, index) {
+                return _StaffToolCard(tool: tools[index], isDark: isDark);
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: onOpenJoinCenter,
+          icon: const Icon(Icons.add_business_rounded, size: 18),
+          label: const Text(
+            'الانضمام إلى سنتر آخر بواسطة كود الربط 🏢',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StaffToolItem {
+  final String title;
+  final String subtitle;
+  final String badge;
+  final IconData icon;
+  final List<Color> gradient;
+  final Color borderAccent;
+  final VoidCallback onTap;
+
+  const _StaffToolItem({
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.icon,
+    required this.gradient,
+    required this.borderAccent,
+    required this.onTap,
+  });
+}
+
+class _StaffToolCard extends StatelessWidget {
+  final _StaffToolItem tool;
+  final bool isDark;
+
+  const _StaffToolCard({
+    required this.tool,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: tool.onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.9)
+                : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: tool.borderAccent.withValues(alpha: isDark ? 0.35 : 0.25),
+              width: 1.2,
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: tool.borderAccent.withValues(alpha: isDark ? 0.10 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: tool.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: tool.gradient.first.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(tool.icon, color: Colors.white, size: 19),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: tool.borderAccent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: tool.borderAccent.withValues(alpha: 0.3),
+                        width: 0.7,
+                      ),
+                    ),
+                    child: Text(
+                      tool.badge,
+                      style: TextStyle(
+                        color: tool.borderAccent,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    tool.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    tool.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                      fontSize: 10.5,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
