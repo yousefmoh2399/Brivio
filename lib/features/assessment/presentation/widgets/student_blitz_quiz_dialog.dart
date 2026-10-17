@@ -331,17 +331,20 @@ class _StudentBlitzQuizJoinDialogState
             width: 1.5,
           ),
         ),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(
-            padding: const EdgeInsets.all(22.0),
-            child: switch (_currentStep) {
-              _BlitzStep.enterPin => _buildPinEntryView(textPrimary, isDark),
-              _BlitzStep.connecting => _buildConnectingView(textPrimary, isDark),
-              _BlitzStep.inProgress => _buildQuizRunnerView(textPrimary, isDark),
-              _BlitzStep.finished => _buildFinishedView(textPrimary, isDark),
-            },
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: switch (_currentStep) {
+                _BlitzStep.enterPin => _buildPinEntryView(textPrimary, isDark),
+                _BlitzStep.connecting => _buildConnectingView(textPrimary, isDark),
+                _BlitzStep.inProgress => _buildQuizRunnerView(textPrimary, isDark),
+                _BlitzStep.finished => _buildFinishedView(textPrimary, isDark),
+              },
+            ),
           ),
         ),
       ),
@@ -431,11 +434,11 @@ class _StudentBlitzQuizJoinDialogState
           ],
         ),
 
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
 
         // PIN Input Section
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             color: isDark
                 ? const Color(0xFF1E293B)
@@ -455,11 +458,11 @@ class _StudentBlitzQuizJoinDialogState
                   color: Colors.indigoAccent,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               TextField(
                 controller: _pinController,
                 focusNode: _pinFocusNode,
-                autofocus: true,
+                autofocus: false,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 onChanged: _formatPinInput,
