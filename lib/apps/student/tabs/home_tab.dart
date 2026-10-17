@@ -136,60 +136,140 @@ class HomeTab extends StatelessWidget {
                   color: AppColors.studentRole,
                 ),
               ),
-              IconButton(
-                tooltip: 'سبورتي ومسودتي الشخصية',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const StudentPersonalBoardScreen(),
+              if (MediaQuery.of(context).size.width >= 540) ...[
+                IconButton(
+                  tooltip: 'سبورتي ومسودتي الشخصية',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StudentPersonalBoardScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.draw_rounded,
+                    color: AppColors.studentRole,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'الانضمام لسنتر جديد بكود',
+                  onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
+                  icon: const Icon(
+                    Icons.add_business_rounded,
+                    color: AppColors.studentRole,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'لوحة شرف الأوائل (Hall of Fame)',
+                  onPressed: () {
+                    GroupLeaderboardWidget.show(
+                      context,
+                      groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+                      groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
+                      availableGroups: enrolledGroups,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.emoji_events_rounded,
+                    color: Colors.amber,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'كويز 5 دقائق المباشر (أدخل الكود)',
+                  onPressed: () {
+                    StudentBlitzQuizJoinDialog.show(
+                      context,
+                      studentName: userName,
+                      groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.bolt_rounded,
+                    color: Colors.amberAccent,
+                  ),
+                ),
+              ] else ...[
+                PopupMenuButton<String>(
+                  tooltip: 'المزيد من الأدوات',
+                  icon: const Icon(Icons.more_vert_rounded),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  onSelected: (val) {
+                    switch (val) {
+                      case 'blitz':
+                        StudentBlitzQuizJoinDialog.show(
+                          context,
+                          studentName: userName,
+                          groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+                        );
+                        break;
+                      case 'leaderboard':
+                        GroupLeaderboardWidget.show(
+                          context,
+                          groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
+                          groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
+                          availableGroups: enrolledGroups,
+                        );
+                        break;
+                      case 'board':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const StudentPersonalBoardScreen(),
+                          ),
+                        );
+                        break;
+                      case 'join_center':
+                        JoinCenterDialog.show(context, onJoined: onRetry);
+                        break;
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'blitz',
+                      child: Row(
+                        children: [
+                          Icon(Icons.bolt_rounded, color: Colors.amber, size: 20),
+                          SizedBox(width: 10),
+                          Text('كويز 5 دقائق المباشر ⚡', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
                     ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.draw_rounded,
-                  color: AppColors.studentRole,
+                    const PopupMenuItem(
+                      value: 'leaderboard',
+                      child: Row(
+                        children: [
+                          Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 20),
+                          SizedBox(width: 10),
+                          Text('لوحة شرف الأوائل 🏆', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'board',
+                      child: Row(
+                        children: [
+                          Icon(Icons.draw_rounded, color: AppColors.studentRole, size: 20),
+                          SizedBox(width: 10),
+                          Text('سبورتي ومسودتي الشخصية 🎨'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'join_center',
+                      child: Row(
+                        children: [
+                          Icon(Icons.add_business_rounded, color: AppColors.studentRole, size: 20),
+                          SizedBox(width: 10),
+                          Text('الانضمام لسنتر جديد 🏫'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              IconButton(
-                tooltip: 'الانضمام لسنتر جديد بكود',
-                onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
-                icon: const Icon(
-                  Icons.add_business_rounded,
-                  color: AppColors.studentRole,
-                ),
-              ),
-              IconButton(
-                tooltip: 'لوحة شرف الأوائل (Hall of Fame)',
-                onPressed: () {
-                  GroupLeaderboardWidget.show(
-                    context,
-                    groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
-                    groupName: enrolledGroups.isNotEmpty ? enrolledGroups.first.name : null,
-                    availableGroups: enrolledGroups,
-                  );
-                },
-                icon: const Icon(
-                  Icons.emoji_events_rounded,
-                  color: Colors.amber,
-                ),
-              ),
-              IconButton(
-                tooltip: 'كويز 5 دقائق المباشر (أدخل الكود)',
-                onPressed: () {
-                  StudentBlitzQuizJoinDialog.show(
-                    context,
-                    studentName: userName,
-                    groupId: enrolledGroups.isNotEmpty ? enrolledGroups.first.id : null,
-                  );
-                },
-                icon: const Icon(
-                  Icons.bolt_rounded,
-                  color: Colors.amberAccent,
-                ),
-              ),
+              ],
               CenterSwitcherWidget(onCenterChanged: onRetry),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsetsDirectional.only(

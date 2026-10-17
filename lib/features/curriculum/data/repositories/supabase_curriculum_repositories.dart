@@ -109,6 +109,22 @@ class SupabaseUnitRepository implements IUnitRepository {
   }
 
   @override
+  Future<List<Unit>> fetchUnitsForSubject(String subjectId) async {
+    try {
+      final response = await _wrapper.client
+          .from('units')
+          .select()
+          .eq('subject_id', subjectId)
+          .order('order_number');
+      return (response as List)
+          .map((j) => Unit.fromJson(j as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw DatabaseFailure(message: 'Failed to fetch units: ${e.toString()}');
+    }
+  }
+
+  @override
   Future<Unit> createUnit(Unit unit) async {
     try {
       final response = await _wrapper.client

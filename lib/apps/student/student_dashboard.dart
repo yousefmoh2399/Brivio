@@ -68,6 +68,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<StudentLeaveItem> _leaveItems = [];
   int _unreadCount = 0;
   StreamSubscription<AppNotification>? _notificationSubscription;
+  RealtimeChannel? _realtimeChannel;
   late final NotificationCenterViewModel _notificationCenterViewModel;
 
   @override
@@ -78,12 +79,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
     _notificationCenterViewModel.addListener(_syncNotificationCenterState);
     _subscribeToNotifications();
+    _subscribeToRealtimeFeeds();
     _loadAll();
   }
 
   @override
   void dispose() {
     _notificationSubscription?.cancel();
+    _realtimeChannel?.unsubscribe();
     _notificationCenterViewModel.removeListener(_syncNotificationCenterState);
     _notificationCenterViewModel.dispose();
     super.dispose();
@@ -98,6 +101,54 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _unreadCount = _notificationCenterViewModel.unreadCount;
       });
     });
+  }
+
+  void _subscribeToRealtimeFeeds() {
+    try {
+      _realtimeChannel = Supabase.instance.client
+          .channel('public:student_feed_live')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'homework',
+            callback: (payload) {
+              if (mounted) {
+                _fetchHomeworkFeed().then((hw) {
+                  if (mounted) setState(() => _homeworkItems = hw);
+                });
+              }
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'exams',
+            callback: (payload) {
+              if (mounted) {
+                _fetchExamFeed().then((ex) {
+                  if (mounted) setState(() => _examItems = ex);
+                });
+              }
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'app_notifications',
+            callback: (payload) {
+              if (mounted) {
+                final notificationRepo = getIt<INotificationRepository>();
+                notificationRepo.getNotifications().then((list) {
+                  if (mounted) setState(() => _notifications = list);
+                });
+                notificationRepo.getUnreadCount().then((count) {
+                  if (mounted) setState(() => _unreadCount = count);
+                });
+              }
+            },
+          )
+          .subscribe();
+    } catch (_) {}
   }
 
   void _subscribeToNotifications() {
@@ -778,59 +829,58 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     return SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           minHeight: constraints.maxHeight,
                         ),
-                        child: IntrinsicHeight(
-                          child: NavigationRail(
-                            backgroundColor: surfaceColor,
-                            selectedIndex: _selectedIndex,
-                            onDestinationSelected: (i) =>
-                                setState(() => _selectedIndex = i),
-                            labelType: NavigationRailLabelType.all,
-                            indicatorColor:
-                                AppColors.primary.withValues(alpha: 0.12),
-                            selectedIconTheme: const IconThemeData(
-                              color: AppColors.primary,
-                            ),
-                            destinations: [
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.house_outlined),
-                                selectedIcon: Icon(Icons.house_rounded),
-                                label: Text('الرئيسية'),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.menu_book_outlined),
-                                selectedIcon: Icon(Icons.menu_book_rounded),
-                                label: Text('الدروس والمناهج'),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.bolt_outlined),
-                                selectedIcon: Icon(Icons.bolt_rounded),
-                                label: Text('الأنشطة والمهام'),
-                              ),
-                              NavigationRailDestination(
-                                icon: Badge(
-                                  isLabelVisible: _unreadCount > 0,
-                                  label: Text(
-                                    _unreadCount > 9 ? '9+' : '$_unreadCount',
-                                  ),
-                                  child: const Icon(
-                                    Icons.notifications_none_rounded,
-                                  ),
-                                ),
-                                selectedIcon:
-                                    const Icon(Icons.notifications_rounded),
-                                label: const Text('الإشعارات'),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.person_outline_rounded),
-                                selectedIcon: Icon(Icons.person_rounded),
-                                label: Text('حسابي'),
-                              ),
-                            ],
+                        child: NavigationRail(
+                          backgroundColor: surfaceColor,
+                          selectedIndex: _selectedIndex,
+                          onDestinationSelected: (i) =>
+                              setState(() => _selectedIndex = i),
+                          labelType: NavigationRailLabelType.all,
+                          indicatorColor:
+                              AppColors.primary.withValues(alpha: 0.12),
+                          selectedIconTheme: const IconThemeData(
+                            color: AppColors.primary,
                           ),
+                          destinations: [
+                            const NavigationRailDestination(
+                              icon: Icon(Icons.house_outlined),
+                              selectedIcon: Icon(Icons.house_rounded),
+                              label: Text('الرئيسية'),
+                            ),
+                            const NavigationRailDestination(
+                              icon: Icon(Icons.menu_book_outlined),
+                              selectedIcon: Icon(Icons.menu_book_rounded),
+                              label: Text('الدروس والمناهج'),
+                            ),
+                            const NavigationRailDestination(
+                              icon: Icon(Icons.bolt_outlined),
+                              selectedIcon: Icon(Icons.bolt_rounded),
+                              label: Text('الأنشطة والمهام'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Badge(
+                                isLabelVisible: _unreadCount > 0,
+                                label: Text(
+                                  _unreadCount > 9 ? '9+' : '$_unreadCount',
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_none_rounded,
+                                ),
+                              ),
+                              selectedIcon:
+                                  const Icon(Icons.notifications_rounded),
+                              label: const Text('الإشعارات'),
+                            ),
+                            const NavigationRailDestination(
+                              icon: Icon(Icons.person_outline_rounded),
+                              selectedIcon: Icon(Icons.person_rounded),
+                              label: Text('حسابي'),
+                            ),
+                          ],
                         ),
                       ),
                     );

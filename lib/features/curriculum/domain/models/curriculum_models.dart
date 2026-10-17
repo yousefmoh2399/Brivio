@@ -106,7 +106,8 @@ class Semester extends Equatable {
 
 class Unit extends Equatable {
   final String id;
-  final String semesterId;
+  final String? subjectId;
+  final String? semesterId;
   final String name;
   final String code;
   final int orderNumber;
@@ -115,7 +116,8 @@ class Unit extends Equatable {
 
   const Unit({
     required this.id,
-    required this.semesterId,
+    this.subjectId,
+    this.semesterId,
     required this.name,
     required this.code,
     required this.orderNumber,
@@ -127,10 +129,11 @@ class Unit extends Equatable {
     Map<String, dynamic> json, [
     List<Lesson> l = const [],
   ]) => Unit(
-    id: json['id'] as String,
-    semesterId: json['semester_id'] as String,
-    name: json['name'] as String,
-    code: json['code'] as String,
+    id: json['id'] as String? ?? '',
+    subjectId: json['subject_id']?.toString(),
+    semesterId: json['semester_id']?.toString(),
+    name: json['name'] as String? ?? '',
+    code: json['code'] as String? ?? '',
     orderNumber: json['order_number'] as int? ?? 1,
     status: json['status'] as String? ?? 'active',
     lessons: l,
@@ -139,6 +142,7 @@ class Unit extends Equatable {
   @override
   List<Object?> get props => [
     id,
+    subjectId,
     semesterId,
     name,
     code,

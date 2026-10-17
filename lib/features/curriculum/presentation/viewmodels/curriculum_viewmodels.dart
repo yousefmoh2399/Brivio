@@ -125,13 +125,31 @@ class UnitViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> fetchUnitsForSubject(String subjectId) async {
+    _status = CurriculumViewState.loading;
+    notifyListeners();
+
+    try {
+      _units = await _repository.fetchUnitsForSubject(subjectId);
+      _status = CurriculumViewState.loaded;
+    } on Failure catch (f) {
+      _failure = f;
+      _status = CurriculumViewState.failure;
+    }
+    notifyListeners();
+  }
+
   Future<void> createUnit(Unit unit) async {
     _status = CurriculumViewState.submitting;
     notifyListeners();
 
     try {
       await _repository.createUnit(unit);
-      await fetchUnits(unit.semesterId);
+      if (unit.semesterId != null && unit.semesterId!.isNotEmpty) {
+        await fetchUnits(unit.semesterId!);
+      } else if (unit.subjectId != null && unit.subjectId!.isNotEmpty) {
+        await fetchUnitsForSubject(unit.subjectId!);
+      }
     } on Failure catch (f) {
       _failure = f;
       _status = CurriculumViewState.failure;

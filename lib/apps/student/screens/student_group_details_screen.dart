@@ -112,6 +112,7 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             populatedUnits.add(
               Unit(
                 id: unit.id,
+                subjectId: unit.subjectId,
                 semesterId: unit.semesterId,
                 name: unit.name,
                 code: unit.code,
@@ -137,6 +138,49 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
             ),
           );
         }
+
+        // Also fetch any units attached directly to the subject
+        try {
+          final allSubjectUnits = await unitRepo.fetchUnitsForSubject(widget.group.subjectId);
+          final directUnits = <Unit>[];
+          for (final unit in allSubjectUnits) {
+            final alreadyAdded = populatedSemesters.any((s) => s.units.any((u) => u.id == unit.id));
+            if (alreadyAdded) continue;
+
+            final lessons = (await lessonRepo.fetchLessonsForUnit(unit.id))
+                .where((lesson) => lesson.status == LessonStatus.published)
+                .toList()
+              ..sort((a, b) => a.orderNumber.compareTo(b.orderNumber));
+
+            if (lessons.isEmpty) continue;
+            directUnits.add(
+              Unit(
+                id: unit.id,
+                subjectId: unit.subjectId ?? widget.group.subjectId,
+                semesterId: unit.semesterId,
+                name: unit.name,
+                code: unit.code,
+                orderNumber: unit.orderNumber,
+                status: unit.status,
+                lessons: lessons,
+              ),
+            );
+          }
+
+          if (directUnits.isNotEmpty) {
+            populatedSemesters.add(
+              Semester(
+                id: 'direct_subject_${widget.group.subjectId}',
+                subjectId: widget.group.subjectId,
+                name: 'الوحدات والدروس العامة',
+                code: 'GEN',
+                orderNumber: 0,
+                status: 'active',
+                units: directUnits,
+              ),
+            );
+          }
+        } catch (_) {}
 
         semesterRes = populatedSemesters;
       } catch (e) {

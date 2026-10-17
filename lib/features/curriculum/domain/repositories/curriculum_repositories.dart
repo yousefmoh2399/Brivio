@@ -9,6 +9,7 @@ abstract class ISemesterRepository {
 
 abstract class IUnitRepository {
   Future<List<Unit>> fetchUnitsForSemester(String semesterId);
+  Future<List<Unit>> fetchUnitsForSubject(String subjectId);
   Future<Unit> createUnit(Unit unit);
   Future<Unit> updateUnit(Unit unit);
   Future<void> deleteUnit(String id);

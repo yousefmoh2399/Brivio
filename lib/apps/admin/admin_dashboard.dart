@@ -139,32 +139,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       // 1. Core receipts from Supabase
       try {
-        var query = Supabase.instance.client
-            .from('receipts')
-            .select('receipt_number, amount, amount_minor, center_id');
+        List<dynamic> res = [];
+        try {
+          var query = Supabase.instance.client
+              .from('receipts')
+              .select('receipt_number, amount_minor, center_id');
 
-        if (centerId != null) {
-          query = query.or('center_id.eq.$centerId,center_id.is.null');
+          if (centerId != null) {
+            query = query.or('center_id.eq.$centerId,center_id.is.null');
+          }
+
+          res = await query
+              .gte('issued_at', startOfDayUtc)
+              .lte('issued_at', endOfDayUtc)
+              .catchError((_) async {
+                return await query
+                    .gte('issued_at', startOfDayLocal)
+                    .lte('issued_at', endOfDayLocal);
+              });
+        } catch (_) {
+          var fallbackQuery = Supabase.instance.client
+              .from('receipts')
+              .select('receipt_number, amount_minor');
+          res = await fallbackQuery
+              .gte('issued_at', startOfDayUtc)
+              .lte('issued_at', endOfDayUtc)
+              .catchError((_) async {
+                return await fallbackQuery
+                    .gte('issued_at', startOfDayLocal)
+                    .lte('issued_at', endOfDayLocal);
+              });
         }
-
-        final res = await query
-            .gte('issued_at', startOfDayUtc)
-            .lte('issued_at', endOfDayUtc)
-            .catchError((_) async {
-              return await query
-                  .gte('issued_at', startOfDayLocal)
-                  .lte('issued_at', endOfDayLocal);
-            });
 
         for (final row in res) {
           final recNum = row['receipt_number']?.toString() ?? '';
           if (recNum.isNotEmpty && countedReceiptNumbers.contains(recNum)) continue;
           if (recNum.isNotEmpty) countedReceiptNumbers.add(recNum);
 
-          if (row['amount'] != null) {
-            sum += (row['amount'] as num).toDouble();
-            count++;
-          } else if (row['amount_minor'] != null) {
+          if (row['amount_minor'] != null) {
             sum += ((row['amount_minor'] as num).toDouble() / 100.0);
             count++;
           }
@@ -368,12 +380,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         try {
           final trans = await Supabase.instance.client
               .from('payment_transactions')
-              .select('amount, amount_minor')
-              .limit(100);
+              .select('amount_minor')
+              .limit(200);
           for (final r in trans as List) {
-            if (r['amount'] != null) {
-              fallbackTreasury += (r['amount'] as num).toDouble();
-            } else if (r['amount_minor'] != null) {
+            if (r['amount_minor'] != null) {
               fallbackTreasury += ((r['amount_minor'] as num).toDouble() / 100.0);
             }
           }

@@ -18,10 +18,10 @@ class TeacherSettlementScreen extends StatefulWidget {
 class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
   late final SupabaseTeacherRepository _teacherRepo;
   late final SupabaseGroupRepository _groupRepo;
-  late final SupabaseStudentRepository _studentRepo;
 
   List<Teacher> _teachers = [];
   Teacher? _selectedTeacher;
+  List<GroupEntity> _allGroups = [];
   List<GroupEntity> _groups = [];
   GroupEntity? _selectedGroup;
 
@@ -35,6 +35,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
   bool _isLoading = true;
   bool _isSettling = false;
   String _centerName = 'المركز التعليمي';
+  String? _centerId;
 
   @override
   void initState() {
@@ -42,7 +43,6 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
     final wrapper = SupabaseClientWrapper(Supabase.instance.client);
     _teacherRepo = SupabaseTeacherRepository(wrapper);
     _groupRepo = SupabaseGroupRepository(wrapper);
-    _studentRepo = SupabaseStudentRepository(wrapper);
     _loadInitialData();
   }
 
@@ -57,18 +57,78 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
     super.dispose();
   }
 
-  Future<void> _updateStudentCountForGroup(String groupId) async {
+  void _onTeacherChanged(Teacher? t) {
+    setState(() {
+      _selectedTeacher = t;
+      if (t != null) {
+        final teacherGroups = _allGroups.where((g) => g.teacherId == t.id).toList();
+        _groups = teacherGroups.isNotEmpty ? teacherGroups : _allGroups;
+        _selectedGroup = _groups.isNotEmpty ? _groups.first : null;
+      } else {
+        _groups = _allGroups;
+        _selectedGroup = _groups.isNotEmpty ? _groups.first : null;
+      }
+    });
+    if (_selectedGroup != null) {
+      _updateGroupFinancialDetails(_selectedGroup!.id);
+    }
+  }
+
+  Future<void> _updateGroupFinancialDetails(String groupId) async {
     try {
-      final students = await _studentRepo.fetchStudentsForGroup(groupId);
-      if (students.isNotEmpty && mounted) {
+      final client = Supabase.instance.client;
+      final enrollments = await client
+          .from('enrollments')
+          .select('id, base_price_minor, final_price_minor, payment_status, payment_exempt')
+          .eq('group_id', groupId)
+          .eq('status', 'active');
+
+      final list = enrollments as List<dynamic>;
+      final studentCount = list.length;
+      double detectedSessionPrice = 0.0;
+
+      for (final e in list) {
+        final fPrice = (e['final_price_minor'] as num?)?.toDouble() ?? 
+                       (e['base_price_minor'] as num?)?.toDouble() ?? 0.0;
+        final price = fPrice > 0 ? (fPrice / 100.0) : 0.0;
+        if (price > 0 && detectedSessionPrice == 0.0) {
+          detectedSessionPrice = price;
+        }
+      }
+
+      if (detectedSessionPrice == 0.0 && _selectedTeacher != null) {
+        try {
+          final ov = await client.rpc(
+            'get_teacher_financial_overview',
+            params: {'p_teacher_id': _selectedTeacher!.id},
+          );
+          if (ov is List && ov.isNotEmpty) {
+            for (final row in ov) {
+              if (row['group_id'] == groupId) {
+                final totalMinor = (row['total_amount_minor'] as num?)?.toDouble() ?? 0.0;
+                final totStudents = (row['total_students'] as num?)?.toInt() ?? 0;
+                if (totStudents > 0 && totalMinor > 0) {
+                  detectedSessionPrice = (totalMinor / 100.0) / totStudents;
+                }
+                break;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (detectedSessionPrice == 0.0) {
+        detectedSessionPrice = 75.0;
+      }
+
+      if (mounted) {
         setState(() {
-          _studentCountCtrl.text = students.length.toString();
+          _studentCountCtrl.text = studentCount.toString();
+          _sessionPriceCtrl.text = detectedSessionPrice.toStringAsFixed(0);
         });
       }
     } catch (_) {}
   }
-
-  String? _centerId;
 
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
@@ -94,18 +154,30 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
         }
       } catch (_) {}
 
+      final initialTeacher = teachers.isNotEmpty ? teachers.first : null;
+      List<GroupEntity> filteredGroups = groups;
+      if (initialTeacher != null) {
+        final teacherGroups = groups.where((g) => g.teacherId == initialTeacher.id).toList();
+        if (teacherGroups.isNotEmpty) {
+          filteredGroups = teacherGroups;
+        }
+      }
+
+      final initialGroup = filteredGroups.isNotEmpty ? filteredGroups.first : null;
+
       if (mounted) {
         setState(() {
           _centerId = centerId;
           _centerName = resolvedCenterName;
           _teachers = teachers;
-          _selectedTeacher = teachers.isNotEmpty ? teachers.first : null;
-          _groups = groups;
-          _selectedGroup = groups.isNotEmpty ? groups.first : null;
+          _selectedTeacher = initialTeacher;
+          _allGroups = groups;
+          _groups = filteredGroups;
+          _selectedGroup = initialGroup;
           _isLoading = false;
         });
-        if (groups.isNotEmpty) {
-          _updateStudentCountForGroup(groups.first.id);
+        if (initialGroup != null) {
+          _updateGroupFinancialDetails(initialGroup.id);
         }
       }
     } catch (_) {
@@ -133,27 +205,15 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
 
     try {
       final client = Supabase.instance.client;
+      final txRef = 'TCH-PAY-${DateTime.now().millisecondsSinceEpoch}';
       await client.from('payment_transactions').insert({
-        'amount': _netTeacherPayout,
+        'provider_transaction_id': txRef,
         'amount_minor': (_netTeacherPayout * 100).toInt(),
-        'direction': 'payout',
+        'currency': 'EGP',
         'provider': 'cash',
-        'status': 'settled',
+        'status': 'succeeded',
+        'transaction_type': 'payment',
         if (_centerId != null) 'center_id': _centerId,
-        'metadata': {
-          'type': 'teacher_settlement',
-          'teacher_id': _selectedTeacher!.id,
-          'teacher_name': _selectedTeacher!.fullName,
-          'group_name': _selectedGroup?.name ?? '',
-          'students_count': _studentCount,
-          'session_price': _sessionPrice,
-          'total_revenue': _totalRevenue,
-          'teacher_share': _netTeacherPayout,
-          'center_share': _netCenterProfit,
-          'deductions': _deductions,
-          'deduction_reason': _deductionReasonCtrl.text,
-          'settled_at': DateTime.now().toIso8601String(),
-        },
       });
 
       if (!mounted) return;
@@ -335,7 +395,8 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
               builder: (context, constraints) {
                 final isNarrow = constraints.maxWidth < 420;
                 final teacherField = DropdownButtonFormField<Teacher>(
-                  initialValue: _selectedTeacher,
+                  // ignore: deprecated_member_use
+                  value: _teachers.contains(_selectedTeacher) ? _selectedTeacher : null,
                   isExpanded: true,
                   hint: Text(_teachers.isEmpty ? 'لا يوجد مدرسين مسجلين بالسنتر' : 'اختر المدرس'),
                   decoration: const InputDecoration(
@@ -348,13 +409,12 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                       child: Text(t.fullName, overflow: TextOverflow.ellipsis),
                     );
                   }).toList(),
-                  onChanged: (t) {
-                    setState(() => _selectedTeacher = t);
-                  },
+                  onChanged: _onTeacherChanged,
                 );
 
                 final groupField = DropdownButtonFormField<GroupEntity>(
-                  initialValue: _selectedGroup,
+                  // ignore: deprecated_member_use
+                  value: _groups.contains(_selectedGroup) ? _selectedGroup : null,
                   isExpanded: true,
                   hint: Text(_groups.isEmpty ? 'لا توجد مجموعات نشطة' : 'اختر المجموعة'),
                   decoration: const InputDecoration(
@@ -370,7 +430,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                   onChanged: (g) {
                     setState(() => _selectedGroup = g);
                     if (g != null) {
-                      _updateStudentCountForGroup(g.id);
+                      _updateGroupFinancialDetails(g.id);
                     }
                   },
                 );

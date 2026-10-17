@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../domain/models/assessment_models.dart';
@@ -39,6 +41,7 @@ class _ScannedPage {
 
 /// Advanced Student Homework Submission Dialog with CamScanner Mode.
 /// Features:
+/// - Homework Instructions & Attached Questions Viewer
 /// - Multi-Page Notebook Capture & Scanning (Page 1, 2, 3...)
 /// - CamScanner Handwriting & Ink Enhancement Filters (Smart B&W / Color / Data Saver)
 /// - Bandwidth Saver indicator (80%+ compression)
@@ -80,6 +83,48 @@ class _StudentHomeworkSubmissionDialogState
 
   // Filter mode: 'camscanner_bw', 'original_color', 'data_saver'
   String _selectedFilter = 'camscanner_bw';
+
+  List<Question> _questions = [];
+  bool _isLoadingQuestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _questions = List.from(widget.homework.questions);
+    if (_questions.isEmpty) {
+      _loadHomeworkQuestions();
+    }
+  }
+
+  Future<void> _loadHomeworkQuestions() async {
+    setState(() => _isLoadingQuestions = true);
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('homework_questions')
+          .select('points, order_number, questions(id, subject_id, prompt, question_type, explanation, difficulty, default_points, status, student_question_options(id, text, is_correct, order_number), question_options(id, text, is_correct, order_number))')
+          .eq('homework_id', widget.homework.id)
+          .order('order_number');
+      final loaded = <Question>[];
+      for (final row in (res as List<dynamic>)) {
+        final qMap = row['questions'] as Map<String, dynamic>?;
+        if (qMap != null) {
+          final rawOpts = qMap['student_question_options'] as List<dynamic>? ??
+              qMap['question_options'] as List<dynamic>? ??
+              [];
+          final opts = rawOpts
+              .map((o) => QuestionOption.fromJson(Map<String, dynamic>.from(o as Map)))
+              .toList();
+          loaded.add(Question.fromJson(qMap, opts));
+        }
+      }
+      if (mounted && loaded.isNotEmpty) {
+        setState(() => _questions = loaded);
+      }
+    } catch (_) {} finally {
+      if (mounted) setState(() => _isLoadingQuestions = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -254,9 +299,223 @@ class _StudentHomeworkSubmissionDialogState
                 ),
               ),
 
+              // ── 0. Homework Details & Instructions ──
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.indigo.shade50.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : Colors.indigo.shade100,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.homework.title,
+                            style: AppTypography.titleSmall(textPrimary).copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${widget.homework.maxScore.toStringAsFixed(0)} درجة',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule_rounded, size: 14, color: Colors.orange),
+                        const SizedBox(width: 4),
+                        Text(
+                          'آخر موعد للتسليم: ${DateFormat('yyyy-MM-dd - hh:mm a').format(widget.homework.dueAt)}',
+                          style: AppTypography.caption(textSecondary),
+                        ),
+                      ],
+                    ),
+                    if (widget.homework.description != null &&
+                        widget.homework.description!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.black26 : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark ? Colors.white10 : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.info_outline_rounded, size: 15, color: Colors.blueAccent),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'تعليمات الأستاذ:',
+                                  style: AppTypography.caption(textPrimary).copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.homework.description!.trim(),
+                              style: AppTypography.bodySmall(textPrimary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 16),
 
-              // ── 1. CamScanner Filter Mode Switcher ──
+              // ── 0.5. Assigned Questions List ──
+              if (_isLoadingQuestions) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 10),
+                        Text('جاري تحميل أسئلة الواجب...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else if (_questions.isNotEmpty) ...[
+                Text(
+                  '📝 أسئلة الواجب المطلوب حلها (${_questions.length} أسئلة)',
+                  style: AppTypography.bodySmall(textPrimary).copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _questions.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (ctx, qIdx) {
+                    final q = _questions[qIdx];
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.studentRole.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'س ${qIdx + 1}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: AppColors.studentRole,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  q.prompt,
+                                  style: AppTypography.bodyMedium(textPrimary).copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (q.defaultPoints > 0)
+                                Text(
+                                  '(${q.defaultPoints.toStringAsFixed(0)} درجات)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (q.options.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            ...q.options.asMap().entries.map((optEntry) {
+                              final optLetter = ['أ', 'ب', 'ج', 'د', 'هـ'][optEntry.key.clamp(0, 4)];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 22,
+                                      height: 22,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isDark ? Colors.white12 : Colors.grey.shade200,
+                                      ),
+                                      child: Text(
+                                        optLetter,
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        optEntry.value.text,
+                                        style: AppTypography.bodySmall(textPrimary),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
               Text(
                 '🎨 نمط الماسح الضوئي (CamScanner Filter)',
                 style: AppTypography.bodySmall(textPrimary).copyWith(

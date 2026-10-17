@@ -283,6 +283,7 @@ class GroupEntity extends Equatable {
   final String code;
   final String subjectId;
   final String branchId;
+  final String? teacherId;
   final int? maxCapacity;
   final String status;
 
@@ -292,6 +293,7 @@ class GroupEntity extends Equatable {
     required this.code,
     required this.subjectId,
     required this.branchId,
+    this.teacherId,
     this.maxCapacity,
     required this.status,
   });
@@ -302,6 +304,7 @@ class GroupEntity extends Equatable {
     code: json['code'] as String? ?? '',
     subjectId: json['subject_id'] as String? ?? '',
     branchId: json['branch_id'] as String? ?? '',
+    teacherId: json['teacher_id']?.toString(),
     maxCapacity:
         (json['capacity'] as num?)?.toInt() ??
         (json['max_capacity'] as num?)?.toInt(),
@@ -314,6 +317,7 @@ class GroupEntity extends Equatable {
       'code': code,
       'subject_id': subjectId,
       'branch_id': branchId,
+      if (teacherId != null) 'teacher_id': teacherId,
       'capacity': maxCapacity,
       'status': status,
     };
@@ -328,6 +332,7 @@ class GroupEntity extends Equatable {
     code,
     subjectId,
     branchId,
+    teacherId,
     maxCapacity,
     status,
   ];

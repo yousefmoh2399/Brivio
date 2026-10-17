@@ -135,40 +135,54 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
       final endOfDayLocal = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59).toIso8601String();
 
       // Fetch today's receipts from Supabase
-      var receiptsQuery = Supabase.instance.client
-          .from('receipts')
-          .select('id, receipt_number, amount, amount_minor, currency, issued_at, center_id, student:students!left(profiles!left(full_name))');
+      List<dynamic> receiptsRes = [];
+      try {
+        var receiptsQuery = Supabase.instance.client
+            .from('receipts')
+            .select('id, receipt_number, amount_minor, currency, issued_at, center_id, student:students!left(profiles!left(full_name))');
 
-      if (_centerId != null) {
-        receiptsQuery = receiptsQuery.or('center_id.eq.$_centerId,center_id.is.null');
+        if (_centerId != null) {
+          receiptsQuery = receiptsQuery.or('center_id.eq.$_centerId,center_id.is.null');
+        }
+
+        receiptsRes = await receiptsQuery
+            .gte('issued_at', startOfDayUtc)
+            .lte('issued_at', endOfDayUtc)
+            .order('issued_at', ascending: false)
+            .catchError((_) async {
+              return await receiptsQuery
+                  .gte('issued_at', startOfDayLocal)
+                  .lte('issued_at', endOfDayLocal)
+                  .order('issued_at', ascending: false);
+            });
+      } catch (_) {
+        var fallbackReceiptsQuery = Supabase.instance.client
+            .from('receipts')
+            .select('id, receipt_number, amount_minor, currency, issued_at, student:students!left(profiles!left(full_name))');
+        receiptsRes = await fallbackReceiptsQuery
+            .gte('issued_at', startOfDayUtc)
+            .lte('issued_at', endOfDayUtc)
+            .order('issued_at', ascending: false)
+            .catchError((_) async {
+              return await fallbackReceiptsQuery
+                  .gte('issued_at', startOfDayLocal)
+                  .lte('issued_at', endOfDayLocal)
+                  .order('issued_at', ascending: false);
+            });
       }
-
-      final receiptsRes = await receiptsQuery
-          .gte('issued_at', startOfDayUtc)
-          .lte('issued_at', endOfDayUtc)
-          .order('issued_at', ascending: false)
-          .catchError((_) async {
-            // Fallback with local time bounds if UTC didn't match
-            return await receiptsQuery
-                .gte('issued_at', startOfDayLocal)
-                .lte('issued_at', endOfDayLocal)
-                .order('issued_at', ascending: false);
-          });
 
       double grossInflow = 0.0;
       int countInflow = 0;
       final List<Map<String, dynamic>> logs = [];
       final Set<String> seenReceiptNumbers = {};
 
-      for (final r in (receiptsRes as List<dynamic>)) {
+      for (final r in receiptsRes) {
         final recNum = r['receipt_number']?.toString() ?? r['id'].toString().substring(0, 8);
         if (seenReceiptNumbers.contains(recNum)) continue;
         seenReceiptNumbers.add(recNum);
 
         double amt = 0.0;
-        if (r['amount'] != null) {
-          amt = (r['amount'] as num).toDouble();
-        } else if (r['amount_minor'] != null) {
+        if (r['amount_minor'] != null) {
           amt = ((r['amount_minor'] as num).toDouble() / 100.0);
         }
 

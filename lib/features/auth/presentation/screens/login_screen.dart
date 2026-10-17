@@ -194,6 +194,7 @@ class _LoginScreenState extends State<LoginScreen>
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
+          scrollable: true,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
           title: Column(

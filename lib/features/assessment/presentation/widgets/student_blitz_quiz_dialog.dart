@@ -74,63 +74,7 @@ class _StudentBlitzQuizJoinDialogState
   Timer? _countdownTimer;
 
   // Loaded questions
-  final List<_BlitzQuestionData> _questions = [
-    const _BlitzQuestionData(
-      prompt: 'في الدائرة الكهربية، ما هي قراءة الأميتر عند غلق المفتاح K؟',
-      options: [
-        'تزداد للضعف',
-        'تقل للنصف',
-        'تظل ثابتة',
-        'تنعدم تماماً',
-      ],
-      correctIndex: 0,
-      subject: 'الفيزياء الحديثة',
-    ),
-    const _BlitzQuestionData(
-      prompt: 'أي من العوامل الآتية لا يؤثر على معامل الحث الذاتي للملف؟',
-      options: [
-        'شدة التيار المار بالملف',
-        'عدد لفات الملف',
-        'المساحة المقطعية للملف',
-        'النفاذية المغناطيسية للوسط',
-      ],
-      correctIndex: 0,
-      subject: 'الفيزياء الكهربية',
-    ),
-    const _BlitzQuestionData(
-      prompt: 'ما النسبة بين طاقة فوتون أشعة إكس وطاقة فوتون الضوء المرئي؟',
-      options: [
-        'أكبر من الواحد الصحيح',
-        'أقل من الواحد الصحيح',
-        'تساوي الواحد الصحيح',
-        'تساوي صفر دائماً',
-      ],
-      correctIndex: 0,
-      subject: 'الفيزياء الحديثة',
-    ),
-    const _BlitzQuestionData(
-      prompt: 'عند زيادة تردد الضوء الساقط على مهبط خلية كهروضوئية، ما الذي يزداد حتماً؟',
-      options: [
-        'طاقة حركة الإلكترونات المنبعثة',
-        'عدد الإلكترونات المنبعثة في الثانية',
-        'شدة تيار التشبع',
-        'دالة الشغل لسطح المعدن',
-      ],
-      correctIndex: 0,
-      subject: 'الفيزياء',
-    ),
-    const _BlitzQuestionData(
-      prompt: 'ما هي وظيفة أسطوانة الحديد المطاوع المقسمة إلى شرائح في المحول الكهربي؟',
-      options: [
-        'الحد من التيارات الدوامية وفقد الطاقة',
-        'زيادة مقاومة الأسلاك',
-        'رفع التردد الناتج',
-        'تبريد الدائرة الثانوية فقط',
-      ],
-      correctIndex: 0,
-      subject: 'الفيزياء التطبيقية',
-    ),
-  ];
+  final List<_BlitzQuestionData> _questions = [];
 
   @override
   void initState() {
@@ -186,40 +130,68 @@ class _StudentBlitzQuizJoinDialogState
 
     HapticFeedback.lightImpact();
 
-    // Try fetching live questions or verify connection
+    // Fetch live questions from database for student's group/subject with real options
     try {
       final client = Supabase.instance.client;
-      final res = await client
+      var qQuery = client
           .from('questions')
-          .select('id, prompt, options')
-          .order('created_at', ascending: false)
-          .limit(5);
+          .select('id, prompt, difficulty, question_options(id, text, is_correct, order_number)')
+          .eq('status', 'active');
 
-      if (res.isNotEmpty) {
-        final loaded = <_BlitzQuestionData>[];
-        for (final row in res) {
-          final prompt = row['prompt']?.toString() ?? '';
-          final rawOptions = row['options'] as List<dynamic>? ?? [];
-          if (prompt.isNotEmpty && rawOptions.length >= 2) {
-            final opts = rawOptions.map((o) => o.toString()).toList();
-            loaded.add(_BlitzQuestionData(
-              prompt: prompt,
-              options: opts,
-              correctIndex: 0,
-              subject: 'كويز الحصة المباشر',
-            ));
+      if (widget.groupId != null && widget.groupId!.isNotEmpty) {
+        try {
+          final gRes = await client.from('groups').select('subject_id').eq('id', widget.groupId!).maybeSingle();
+          if (gRes != null && gRes['subject_id'] != null) {
+            qQuery = qQuery.eq('subject_id', gRes['subject_id']);
           }
+        } catch (_) {}
+      }
+
+      final res = await qQuery
+          .order('created_at', ascending: false)
+          .limit(10);
+
+      final loaded = <_BlitzQuestionData>[];
+      for (final row in (res as List<dynamic>)) {
+        final prompt = row['prompt']?.toString() ?? '';
+        final rawOptions = row['question_options'] as List<dynamic>? ?? [];
+        if (prompt.isNotEmpty && rawOptions.length >= 2) {
+          final opts = <String>[];
+          int correctIdx = 0;
+          for (int i = 0; i < rawOptions.length; i++) {
+            final opt = Map<String, dynamic>.from(rawOptions[i] as Map);
+            opts.add(opt['text']?.toString() ?? '');
+            if (opt['is_correct'] == true) {
+              correctIdx = i;
+            }
+          }
+          loaded.add(_BlitzQuestionData(
+            prompt: prompt,
+            options: opts,
+            correctIndex: correctIdx,
+            subject: 'كويز الحصة التفاعلي',
+          ));
         }
-        if (loaded.isNotEmpty) {
-          _questions.clear();
-          _questions.addAll(loaded);
-        }
+      }
+
+      if (loaded.isNotEmpty) {
+        _questions.clear();
+        _questions.addAll(loaded);
       }
     } catch (_) {}
 
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(const Duration(milliseconds: 600));
 
     if (!mounted) return;
+
+    if (_questions.isEmpty) {
+      setState(() {
+        _errorMessage = 'لم يتم العثور على أسئلة منشورة في بنك الأسئلة لهذا الكود أو المادة.\nيرجى التأكد من المعلم من تفعيل أسئلة الحصة.';
+        _currentStep = _BlitzStep.enterPin;
+      });
+      return;
+    }
+
     setState(() {
       _currentStep = _BlitzStep.inProgress;
       _currentQuestionIndex = 0;

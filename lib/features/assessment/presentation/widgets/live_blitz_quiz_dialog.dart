@@ -56,11 +56,9 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   Timer? _countdownTimer;
 
   final List<String> _defaultQuestions = [
-    'في الدائرة الموضحة، ما هي قراءة الأميتر عند غلق المفتاح K؟',
-    'أي من العوامل الآتية لا يؤثر على معامل الحث الذاتي للملف؟',
-    'ما هي النسبة بين طاقة فوتون أشعة إكس وطاقة فوتون الضوء المرئي؟',
-    'عند زيادة تردد الضوء الساقط على مهبط خلية كهروضوئية، ما الذي يزداد؟',
-    'ما هي وظيفة أسطوانة الحديد المطاوع المقسمة إلى شرائح في المحول الكهربي؟',
+    'سؤال تفاعلي 1: اختر الإجابة الصحيحة بناءً على شرح الدرس اليوم',
+    'سؤال تفاعلي 2: ما هي النتيجة المتوقعة للتطبيق العملي؟',
+    'سؤال تفاعلي 3: حل المسألة السريعة خلال الوقت المحدد',
   ];
   List<String> _questions = [];
 
@@ -88,11 +86,22 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
 
   Future<void> _loadQuestions() async {
     try {
-      final res = await Supabase.instance.client
+      final client = Supabase.instance.client;
+      var q = client
           .from('questions')
           .select('prompt')
-          .order('created_at', ascending: false)
-          .limit(10);
+          .eq('status', 'active');
+
+      if (widget.groupId != null && widget.groupId!.isNotEmpty) {
+        try {
+          final gRes = await client.from('groups').select('subject_id').eq('id', widget.groupId!).maybeSingle();
+          if (gRes != null && gRes['subject_id'] != null) {
+            q = q.eq('subject_id', gRes['subject_id']);
+          }
+        } catch (_) {}
+      }
+
+      final res = await q.order('created_at', ascending: false).limit(10);
       final prompts = (res as List)
           .map((r) => r['prompt']?.toString() ?? '')
           .where((p) => p.trim().isNotEmpty)
