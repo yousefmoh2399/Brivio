@@ -59,6 +59,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   List<_ParentAttendanceItem> _attendance = [];
   List<_ParentLeaveItem> _leaveRequests = [];
   List<_ParentHomeworkItem> _homeworkItems = [];
+  List<_ParentScheduleItem> _scheduleItems = [];
   List<AppNotification> _notifications = [];
   int _unreadCount = 0;
   StreamSubscription<AppNotification>? _notificationSubscription;
@@ -171,12 +172,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _safeList(_fetchAttendance(child.id)),
         _safeList(_fetchLeaveRequests(child.id)),
         _safeList(_fetchHomeworkFeed(child.id)),
+        _safeList(_fetchSchedule(child.id)),
         notificationRepo.getNotifications(),
       ]);
 
       if (!mounted || _selectedChild?.id != child.id) return;
       final childNotifications = _filterNotificationsForChild(
-        results[9] as List<AppNotification>,
+        results[10] as List<AppNotification>,
         child.id,
       );
       setState(() {
@@ -189,6 +191,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _attendance = results[6] as List<_ParentAttendanceItem>;
         _leaveRequests = results[7] as List<_ParentLeaveItem>;
         _homeworkItems = results[8] as List<_ParentHomeworkItem>;
+        _scheduleItems = results[9] as List<_ParentScheduleItem>;
         _notifications = childNotifications;
         _unreadCount = childNotifications.where((n) => !n.isRead).length;
         _isChildLoading = false;
@@ -221,6 +224,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       _attendance = [];
       _leaveRequests = [];
       _homeworkItems = [];
+      _scheduleItems = [];
       _notifications = [];
       _unreadCount = 0;
     });
@@ -272,6 +276,20 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return (response as List)
         .map((row) => _ParentHomeworkItem.fromJson(row as Map))
         .toList();
+  }
+
+  Future<List<_ParentScheduleItem>> _fetchSchedule(String studentId) async {
+    try {
+      final response = await _wrapper.client.rpc(
+        'get_parent_child_schedule',
+        params: {'p_student_id': studentId},
+      );
+      return (response as List)
+          .map((row) => _ParentScheduleItem.fromJson(row as Map))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> _openLinkChildScreen() async {
@@ -1665,22 +1683,59 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
   }
 
+  _ParentScheduleItem? get _nextClassSession {
+    if (_scheduleItems.isEmpty) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final futureSessions = _scheduleItems.where((s) {
+      if (s.sessionDate != null) {
+        return !s.sessionDate!.isBefore(today);
+      }
+      return true;
+    }).toList();
+    return futureSessions.isNotEmpty ? futureSessions.first : _scheduleItems.first;
+  }
+
   Widget _buildNextLessonCard() {
-    final lesson = _learningSnapshot?.nextLesson;
-    if (lesson == null) {
-      return const _InfoList(
-        isEmpty: true,
-        emptyText: 'لا توجد حصة قادمة مجدولة.',
-        children: [],
+    final nextClass = _nextClassSession;
+    final child = _selectedChild;
+    if (nextClass != null) {
+      return PortalListCard(
+        icon: Icons.access_time_filled_rounded,
+        accentColor: AppColors.primary,
+        title: '${nextClass.subjectName} (${nextClass.groupName})',
+        subtitle:
+            '${nextClass.formattedTiming} • ${nextClass.location} • ${nextClass.teacherName}',
+        trailing: [PortalStatusChip(status: nextClass.statusLabel)],
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ChildScheduleScreen(
+                studentId: child?.id,
+                studentName: child?.fullName,
+              ),
+            ),
+          );
+        },
       );
     }
-    return PortalListCard(
-      icon: lesson.hasPdf ? Icons.picture_as_pdf : Icons.menu_book,
-      accentColor: AppColors.studentRole,
-      title: lesson.title,
-      subtitle:
-          '${lesson.pathName} • ${lesson.unitName} • ${lesson.progressPercentage}% • ${_formatStudyTime(lesson.timeSpentSeconds)}',
-      trailing: [PortalStatusChip(status: lesson.hasPdf ? 'ملف PDF' : 'شرح')],
+
+    final lesson = _learningSnapshot?.nextLesson;
+    if (lesson != null) {
+      return PortalListCard(
+        icon: lesson.hasPdf ? Icons.picture_as_pdf : Icons.menu_book,
+        accentColor: AppColors.studentRole,
+        title: lesson.title,
+        subtitle:
+            '${lesson.pathName} • ${lesson.unitName} • ${lesson.progressPercentage}% • ${_formatStudyTime(lesson.timeSpentSeconds)}',
+        trailing: [PortalStatusChip(status: lesson.hasPdf ? 'ملف PDF' : 'شرح')],
+      );
+    }
+
+    return const _InfoList(
+      isEmpty: true,
+      emptyText: 'لا توجد حصص قادمة مجدولة لهذا الطالب حالياً.',
+      children: [],
     );
   }
 
@@ -2188,6 +2243,83 @@ class _ParentHomeworkItem {
       submissionStatus: json['submission_status']?.toString(),
       score: (json['score'] as num?)?.toDouble(),
       submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
+    );
+  }
+}
+
+class _ParentScheduleItem {
+  final String id;
+  final String subjectName;
+  final String groupName;
+  final String teacherName;
+  final String location;
+  final String? startTime;
+  final String? endTime;
+  final DateTime? sessionDate;
+  final int? dayOfWeek;
+  final String status;
+
+  const _ParentScheduleItem({
+    required this.id,
+    required this.subjectName,
+    required this.groupName,
+    required this.teacherName,
+    required this.location,
+    this.startTime,
+    this.endTime,
+    this.sessionDate,
+    this.dayOfWeek,
+    required this.status,
+  });
+
+  String get formattedTiming {
+    final time = (startTime != null && endTime != null)
+        ? '$startTime - $endTime'
+        : (startTime ?? 'الموعد المحدد');
+    final dateStr = sessionDate != null
+        ? '${sessionDate!.day}/${sessionDate!.month}'
+        : _dayName(dayOfWeek ?? 6);
+    return '$dateStr • $time';
+  }
+
+  static String _dayName(int day) {
+    return switch (day) {
+      6 => 'السبت',
+      7 || 0 => 'الأحد',
+      1 => 'الإثنين',
+      2 => 'الثلاثاء',
+      3 => 'الأربعاء',
+      4 => 'الخميس',
+      5 => 'الجمعة',
+      _ => 'يوم الحصة',
+    };
+  }
+
+  String get statusLabel => switch (status.toLowerCase()) {
+    'scheduled' || 'active' => 'مجدولة',
+    'cancelled' => 'ملغاة',
+    'completed' => 'مكتملة',
+    'in_progress' => 'جارية الآن',
+    _ => status,
+  };
+
+  factory _ParentScheduleItem.fromJson(Map json) {
+    return _ParentScheduleItem(
+      id: json['class_session_id']?.toString() ??
+          json['schedule_id']?.toString() ??
+          json['id']?.toString() ??
+          '',
+      subjectName: json['subject_name']?.toString() ?? 'حصة دراسية',
+      groupName: json['group_name']?.toString() ?? 'المجموعة',
+      teacherName: json['teacher_name']?.toString() ?? 'معلم المادة',
+      location: json['location']?.toString() ??
+          json['room_name']?.toString() ??
+          'القاعة الرئيسية',
+      startTime: json['start_time']?.toString(),
+      endTime: json['end_time']?.toString(),
+      sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
+      dayOfWeek: (json['day_of_week'] as num?)?.toInt(),
+      status: json['status']?.toString() ?? 'scheduled',
     );
   }
 }

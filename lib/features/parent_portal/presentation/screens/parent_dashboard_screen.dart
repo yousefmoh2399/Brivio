@@ -379,11 +379,15 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                               textSecondary: textSecondary,
                               onTap: () {
                                 if (_children.isNotEmpty) {
+                                  final firstChild = _children.first;
+                                  final childId = firstChild['id']?.toString() ?? '';
+                                  final childName = firstChild['full_name']?.toString() ?? firstChild['name']?.toString();
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => ChildScheduleScreen(
-                                        studentId: _children.first['id'] as String,
+                                        studentId: childId,
+                                        studentName: childName,
                                       ),
                                     ),
                                   );

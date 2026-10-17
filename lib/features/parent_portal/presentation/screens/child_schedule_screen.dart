@@ -45,6 +45,7 @@ class ChildScheduleScreenState extends State<ChildScheduleScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Directionality(
@@ -59,6 +60,17 @@ class ChildScheduleScreenState extends State<ChildScheduleScreen>
                 : 'جدول الحصص والمواعيد 📅',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
+          actions: [
+            IconButton(
+              tooltip: 'تحديث المواعيد',
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () {
+                if (widget.studentId != null) {
+                  _viewModel.loadForChild(widget.studentId!);
+                }
+              },
+            ),
+          ],
           bottom: TabBar(
             controller: _tabController,
             isScrollable: true,
@@ -66,87 +78,252 @@ class ChildScheduleScreenState extends State<ChildScheduleScreen>
             indicatorColor: AppColors.primary,
             labelColor: AppColors.primary,
             unselectedLabelColor: textSecondary,
-            tabs: const [
-              Tab(text: 'حصص اليوم'),
-              Tab(text: 'الامتحانات القادمة'),
-              Tab(text: 'العطلات والإجازات'),
+            tabs: [
+              Tab(
+                child: Row(
+                  children: [
+                    const Text('حصص اليوم'),
+                    if (_viewModel.todaySchedule.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_viewModel.todaySchedule.length}',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  children: [
+                    const Text('الجدول الأسبوعي والقادم'),
+                    if (_viewModel.weeklySchedule.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_viewModel.weeklySchedule.length}',
+                          style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  children: [
+                    const Text('الامتحانات والتقييمات'),
+                    if (_viewModel.upcomingExams.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${_viewModel.upcomingExams.length}',
+                          style: const TextStyle(color: Colors.purple, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),
         body: _viewModel.isLoading
             ? const Center(child: CircularProgressIndicator())
             : _viewModel.errorMessage != null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                          const SizedBox(height: 12),
+                          Text(
+                            'تعذر تحميل جدول المواعيد: ${_viewModel.errorMessage}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: textSecondary),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () {
+                              if (widget.studentId != null) {
+                                _viewModel.loadForChild(widget.studentId!);
+                              }
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('إعادة المحاولة'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : TabBarView(
+                    controller: _tabController,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                      const SizedBox(height: 12),
-                      Text(
-                        'تعذر تحميل جدول المواعيد: ${_viewModel.errorMessage}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: textSecondary),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: () {
-                          if (widget.studentId != null) {
-                            _viewModel.loadForChild(widget.studentId!);
-                          }
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('إعادة المحاولة'),
-                      ),
+                      _buildTodayTab(textPrimary, textSecondary),
+                      _buildWeeklyTab(textPrimary, textSecondary),
+                      _buildExamsTab(textPrimary, textSecondary),
                     ],
                   ),
-                ),
-              )
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildEventList(
-                    _viewModel.todaySchedule,
-                    'لا توجد حصص دراسية مجدولة لهذا اليوم 🌟',
-                    Icons.event_available,
-                  ),
-                  _buildEventList(
-                    _viewModel.upcomingExams,
-                    'لا توجد اختبارات معلنة في الفترة القادمة.',
-                    Icons.quiz_outlined,
-                  ),
-                  _buildEventList(
-                    _viewModel.holidays,
-                    'لا توجد عطلات رسمية مسجلة حالياً.',
-                    Icons.beach_access_outlined,
-                  ),
-                ],
-              ),
       ),
     );
   }
 
-  Widget _buildEventList(
-    List<ScheduleEvent> events,
-    String emptyMessage,
-    IconData emptyIcon,
-  ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+  Widget _buildTodayTab(Color textPrimary, Color textSecondary) {
+    if (_viewModel.todaySchedule.isEmpty) {
+      final nextSession = _viewModel.nextClassSession;
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            Icon(Icons.event_available_rounded, size: 56, color: textSecondary.withValues(alpha: 0.5)),
+            const SizedBox(height: 14),
+            Text(
+              'لا توجد حصص دراسية مجدولة لهذا اليوم 🌟',
+              textAlign: TextAlign.center,
+              style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'يمكنك تصفح المواعيد الأسبوعية وحصص الأيام القادمة من تبويب الجدول الأسبوعي.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: textSecondary),
+            ),
+            if (nextSession != null) ...[
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'الحصة القادمة للطالب:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textSecondary),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildEventCard(nextSession, textPrimary, textSecondary),
+            ],
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              onPressed: () => _tabController.animateTo(1),
+              icon: const Icon(Icons.calendar_month_rounded, size: 18),
+              label: const Text('عرض الجدول الأسبوعي الكامل'),
+            ),
+          ],
+        ),
+      );
+    }
 
-    if (events.isEmpty) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.today_rounded, color: Colors.green, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'حصص اليوم (${_viewModel.todaySchedule.length} حصة) • يرجى التواجد بالقاعة قبل الموعد بـ 10 دقائق',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        ..._viewModel.todaySchedule.map((e) => _buildEventCard(e, textPrimary, textSecondary)),
+      ],
+    );
+  }
+
+  Widget _buildWeeklyTab(Color textPrimary, Color textSecondary) {
+    if (_viewModel.weeklySchedule.isEmpty && _viewModel.upcomingSchedule.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(emptyIcon, size: 56, color: textSecondary.withValues(alpha: 0.5)),
+              Icon(Icons.calendar_month_outlined, size: 56, color: textSecondary.withValues(alpha: 0.5)),
               const SizedBox(height: 14),
               Text(
-                emptyMessage,
+                'لا توجد مواعيد حصص مسجلة لمجموعات الطالب حالياً.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, color: textSecondary),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (_viewModel.weeklySchedule.isNotEmpty) ...[
+          Text(
+            'المواعيد الأسبوعية الثابتة للمجموعات 🗓️',
+            style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'أيام وساعات انعقاد الحصص أسبوعياً بالقاعات الرسمية.',
+            style: AppTypography.caption(textSecondary),
+          ),
+          const SizedBox(height: 12),
+          ..._viewModel.weeklySchedule.map((e) => _buildEventCard(e, textPrimary, textSecondary)),
+        ],
+        if (_viewModel.upcomingSchedule.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(
+            'الحصص المجدولة خلال الـ 30 يوماً القادمة ⏳',
+            style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          ..._viewModel.upcomingSchedule.map((e) => _buildEventCard(e, textPrimary, textSecondary)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildExamsTab(Color textPrimary, Color textSecondary) {
+    if (_viewModel.upcomingExams.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.quiz_outlined, size: 56, color: textSecondary.withValues(alpha: 0.5)),
+              const SizedBox(height: 14),
+              Text(
+                'لا توجد اختبارات معلنة في الفترة القادمة.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, color: textSecondary),
               ),
@@ -157,66 +334,136 @@ class ChildScheduleScreenState extends State<ChildScheduleScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      itemCount: events.length,
+      padding: const EdgeInsets.all(16),
+      itemCount: _viewModel.upcomingExams.length,
       itemBuilder: (context, index) {
-        final event = events[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: GlassCard(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 4,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: event.color,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        final exam = _viewModel.upcomingExams[index];
+        return _buildEventCard(exam, textPrimary, textSecondary);
+      },
+    );
+  }
+
+  Widget _buildEventCard(ScheduleEvent event, Color textPrimary, Color textSecondary) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 5,
+              height: 64,
+              decoration: BoxDecoration(
+                color: event.color,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        event.title,
-                        style: AppTypography.titleMedium(textPrimary).copyWith(
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          event.title,
+                          style: AppTypography.titleMedium(textPrimary).copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time_rounded,
-                            size: 16,
-                            color: textSecondary,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: event.color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: event.color.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          event.statusText,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: event.color,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            event.time,
-                            style: AppTypography.bodySmall(textSecondary).copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        event.description,
-                        style: AppTypography.caption(textSecondary),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          event.dayName,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 15,
+                        color: textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        event.time,
+                        style: AppTypography.bodySmall(textSecondary).copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.meeting_room_outlined,
+                        size: 14,
+                        color: textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        event.roomName,
+                        style: AppTypography.caption(textSecondary),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.person_outline_rounded,
+                        size: 14,
+                        color: textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          event.teacherName,
+                          style: AppTypography.caption(textSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }

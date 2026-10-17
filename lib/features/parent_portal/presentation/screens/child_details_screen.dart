@@ -6,6 +6,7 @@ import '../../../student/presentation/widgets/student_digital_id_card.dart';
 import 'parent_financial_ledger_screen.dart';
 import 'monthly_report_card_screen.dart';
 import 'absence_excuse_dialog.dart';
+import 'child_schedule_screen.dart';
 
 class AcademicsViewModel {
   final String childName;
@@ -415,6 +416,42 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
                             SizedBox(height: 4),
                             Text(
                               'عذر غياب 🗓️',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChildScheduleScreen(
+                              studentId: widget.childData['id']?.toString(),
+                              studentName: _viewModel.childName,
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.calendar_month_rounded, color: Colors.white, size: 22),
+                            SizedBox(height: 4),
+                            Text(
+                              'جدول الحصص 📅',
                               style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                               textAlign: TextAlign.center,
                             ),
