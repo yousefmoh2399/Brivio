@@ -185,42 +185,110 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
           radius: 0.95,
           colors: [
             widget.traits.backgroundColor.withValues(alpha: 0.9),
-            widget.traits.backgroundColor.withValues(alpha: 0.3),
+            widget.traits.backgroundColor.withValues(alpha: 0.35),
           ],
         ),
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Ambient Studio Spotlight Cone
+          Positioned(
+            top: 0,
+            bottom: h * 0.08,
+            width: w * 0.85,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 0.75,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.16),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           // 3D Elliptical Pedestal Platform
-          if (widget.showPedestal)
+          if (widget.showPedestal) ...[
+            // Soft Floor Contact Shadow
             Positioned(
-              bottom: h * 0.04,
+              bottom: h * 0.02,
               child: Container(
-                width: w * 0.76,
-                height: h * 0.12,
+                width: w * 0.82,
+                height: h * 0.08,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.all(
-                    Radius.elliptical(w * 0.38, h * 0.06),
-                  ),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.85),
-                      Colors.white.withValues(alpha: 0.35),
-                    ],
+                    Radius.elliptical(w * 0.41, h * 0.04),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 18,
-                      offset: const Offset(0, 10),
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 20,
+                      spreadRadius: 2,
                     ),
                   ],
                 ),
               ),
             ),
+
+            // Pedestal Lower Cylinder Body
+            Positioned(
+              bottom: h * 0.045,
+              child: Container(
+                width: w * 0.74,
+                height: h * 0.065,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(
+                    Radius.elliptical(w * 0.37, h * 0.032),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.grey.shade400.withValues(alpha: 0.85),
+                      Colors.grey.shade700.withValues(alpha: 0.95),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Pedestal Upper Disc Surface with Neon Bevel
+            Positioned(
+              bottom: h * 0.065,
+              child: Container(
+                width: w * 0.74,
+                height: h * 0.075,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(
+                    Radius.elliptical(w * 0.37, h * 0.037),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.95),
+                      Colors.white.withValues(alpha: 0.65),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: widget.traits.outfitColor.withValues(alpha: 0.55),
+                    width: 2.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.traits.outfitColor.withValues(alpha: 0.3),
+                      blurRadius: 14,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           // Main Character with Camera Zoom
           ClipRect(

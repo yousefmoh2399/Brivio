@@ -186,7 +186,7 @@ class BitmojiTraits {
   );
 
   /// Generates the high-resolution, commercial-grade avatar URL
-  String toImageUrl({int size = 512}) {
+  String toImageUrl({int size = 512, bool includeBackground = false}) {
     final hexBg = backgroundColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
     final hexSkin = skinColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
     final hexHair = hairColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
@@ -196,7 +196,7 @@ class BitmojiTraits {
       final queryParams = <String, String>{
         'seed': seed,
         'size': size.toString(),
-        'backgroundColor': hexBg,
+        if (includeBackground) 'backgroundColor': hexBg,
         'skinColor': hexSkin,
         'hairColor': hexHair,
       };
@@ -227,7 +227,7 @@ class BitmojiTraits {
         queryParams['glassesProbability'] = '0';
       }
 
-      final uri = Uri.https('api.dicebear.com', '/7.x/adventurer/png', queryParams);
+      final uri = Uri.https('api.dicebear.com', '/9.x/adventurer/png', queryParams);
       return uri.toString();
     }
 
@@ -235,10 +235,10 @@ class BitmojiTraits {
       final queryParams = <String, String>{
         'seed': seed,
         'size': size.toString(),
-        'backgroundColor': hexBg,
+        if (includeBackground) 'backgroundColor': hexBg,
         'hairColor': hexHair,
       };
-      final uri = Uri.https('api.dicebear.com', '/7.x/lorelei/png', queryParams);
+      final uri = Uri.https('api.dicebear.com', '/9.x/lorelei/png', queryParams);
       return uri.toString();
     }
 
@@ -246,9 +246,9 @@ class BitmojiTraits {
       final queryParams = <String, String>{
         'seed': seed,
         'size': size.toString(),
-        'backgroundColor': hexBg,
+        if (includeBackground) 'backgroundColor': hexBg,
       };
-      final uri = Uri.https('api.dicebear.com', '/7.x/bottts/png', queryParams);
+      final uri = Uri.https('api.dicebear.com', '/9.x/bottts/png', queryParams);
       return uri.toString();
     }
 
@@ -298,7 +298,7 @@ class BitmojiTraits {
     final queryParams = <String, String>{
       'seed': seed,
       'size': size.toString(),
-      'backgroundColor': hexBg,
+      if (includeBackground) 'backgroundColor': hexBg,
       'skinColor': hexSkin,
       'top': topChoice,
       if (hatColorChoice != null) 'hatColor': hatColorChoice,
@@ -338,7 +338,7 @@ class BitmojiTraits {
       queryParams['facialHairProbability'] = '0';
     }
 
-    final uri = Uri.https('api.dicebear.com', '/7.x/avataaars/png', queryParams);
+    final uri = Uri.https('api.dicebear.com', '/9.x/avataaars/png', queryParams);
     return uri.toString();
   }
 

@@ -157,8 +157,8 @@ class _SnapchatAvatarStudioScreenState
     HapticFeedback.heavyImpact();
 
     try {
-      // 1. Direct high-res PNG image URL
-      final highResUrl = _traits.toImageUrl(size: 512);
+      // 1. Direct high-res PNG image URL with background
+      final highResUrl = _traits.toImageUrl(size: 512, includeBackground: true);
 
       // 2. Capture high-res PNG bytes from native Canvas if available
       final Uint8List? pngBytes = await BitmojiRenderer.capturePng(
@@ -447,26 +447,34 @@ class _SnapchatAvatarStudioScreenState
             ),
 
             // ── Section Tabs Ribbon ──
+            // ── Snapchat Floating Dock Ribbon ──
             Container(
-              height: 52,
+              height: 60,
               decoration: BoxDecoration(
                 color: cardColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
                 border: Border(
                   top: BorderSide(
                     color: isDark ? Colors.white10 : Colors.black12,
-                    width: 0.5,
+                    width: 0.8,
                   ),
                   bottom: BorderSide(
                     color: isDark ? Colors.white10 : Colors.black12,
-                    width: 0.5,
+                    width: 0.8,
                   ),
                 ),
               ),
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 children: [
-                  _buildSectionTab(AvatarCustomizationSection.style, 'النمط والموديل', Icons.palette_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.style, 'النمط والموديل', Icons.auto_awesome_rounded),
                   _buildSectionTab(AvatarCustomizationSection.genderBody, 'الجنس', Icons.wc_rounded),
                   _buildSectionTab(AvatarCustomizationSection.hairStyle, 'الشعر', Icons.content_cut_rounded),
                   _buildSectionTab(AvatarCustomizationSection.headwear, 'الحجاب والأغطية', Icons.dry_cleaning_rounded),
@@ -501,37 +509,83 @@ class _SnapchatAvatarStudioScreenState
     IconData icon,
   ) {
     final isSelected = _currentSection == section;
-    final color = isSelected ? widget.roleColor : Colors.grey;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: ChoiceChip(
-        avatar: Icon(icon, size: 16, color: isSelected ? Colors.white : color),
-        label: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 12,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() {
+              _currentSection = section;
+              if (section == AvatarCustomizationSection.outfit ||
+                  section == AvatarCustomizationSection.genderBody ||
+                  section == AvatarCustomizationSection.style) {
+                _cameraFocus = AvatarCameraFocus.fullBody;
+              } else {
+                _cameraFocus = AvatarCameraFocus.face;
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? LinearGradient(
+                      colors: [
+                        widget.roleColor,
+                        widget.roleColor.withValues(alpha: 0.82),
+                      ],
+                    )
+                  : null,
+              color: isSelected
+                  ? null
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.04)),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? Colors.transparent
+                    : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
+                width: 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: widget.roleColor.withValues(alpha: 0.35),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        selected: isSelected,
-        selectedColor: widget.roleColor,
-        showCheckmark: false,
-        onSelected: (_) {
-          HapticFeedback.selectionClick();
-          setState(() {
-            _currentSection = section;
-            // Auto focus camera depending on section
-            if (section == AvatarCustomizationSection.outfit ||
-                section == AvatarCustomizationSection.genderBody ||
-                section == AvatarCustomizationSection.style) {
-              _cameraFocus = AvatarCameraFocus.fullBody;
-            } else {
-              _cameraFocus = AvatarCameraFocus.face;
-            }
-          });
-        },
       ),
     );
   }
@@ -539,14 +593,17 @@ class _SnapchatAvatarStudioScreenState
   Widget _buildSectionContent() {
     switch (_currentSection) {
       case AvatarCustomizationSection.style:
-        return _buildChoiceCards(
+        return _buildVisualGrid(
           options: const [
-            {'id': 'avataaars', 'title': 'سناب شات كلاسيك 👱', 'subtitle': 'نمط شخصيات Bitmoji الشهيرة بجودة سينمائية'},
-            {'id': 'adventurer', 'title': 'مغامر بيكسار 3D ⚔️', 'subtitle': 'تصميم بيكسار كارتوني ثلاثي الأبعاد مبهج'},
+            {'id': 'avataaars', 'title': 'سناب شات كلاسيك 👱', 'subtitle': 'شخصيات Bitmoji الشهيرة بجودة سينمائية'},
+            {'id': 'adventurer', 'title': 'مغامر بيكسار 3D ⚔️', 'subtitle': 'تصميم بيكسار كارتوني ثلاثي الأبعاد'},
             {'id': 'lorelei', 'title': 'أنمي ولوريلاي 🌸', 'subtitle': 'رسوم أنمي يابانية حديثة وناعمة'},
-            {'id': 'bottts', 'title': 'سايبر روبوتيكس 🤖', 'subtitle': 'شخصيات روبوت ثلاثية الأبعاد لمحبي البرمجة'},
+            {'id': 'bottts', 'title': 'سايبر روبوتيكس 🤖', 'subtitle': 'شخصيات روبوت ثلاثية الأبعاد لمحبي التقنية'},
           ],
           selectedId: _traits.style,
+          crossAxisCount: 2,
+          childAspectRatio: 0.95,
+          previewTraitsBuilder: (id) => _traits.copyWith(style: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(style: id)),
         );
 
@@ -554,7 +611,7 @@ class _SnapchatAvatarStudioScreenState
         return _buildGenderSelector();
 
       case AvatarCustomizationSection.hairStyle:
-        return _buildChoiceCards(
+        return _buildVisualGrid(
           options: const [
             {'id': 'short_curly', 'title': 'كيرلي عصري 👦', 'subtitle': 'شعر كيرلي مجعد وأنيق'},
             {'id': 'fade_crop', 'title': 'تدريج فيد (Fade) 💈', 'subtitle': 'مدرج جانبي خفيف وعصري'},
@@ -567,26 +624,37 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'hat', 'title': 'قبعة كاجوال 🧢', 'subtitle': 'ستايل رياضي شبابي'},
           ],
           selectedId: _traits.hairStyle,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(hairStyle: id)),
+          crossAxisCount: 3,
+          childAspectRatio: 0.85,
+          previewTraitsBuilder: (id) => _traits.copyWith(
+            hairStyle: id,
+            headwear: id == 'hijab_wrapped' ? 'hijab' : 'none',
+          ),
+          onSelected: (id) => setState(() => _traits = _traits.copyWith(hairStyle: id)),
         );
 
       case AvatarCustomizationSection.headwear:
-        return _buildChoiceCards(
+        return _buildVisualGrid(
           options: const [
             {'id': 'none', 'title': 'بدون غطاء', 'subtitle': 'الشعر مكشوف بالكامل'},
             {'id': 'hijab', 'title': 'حجاب إسلامي أنيق 🧕', 'subtitle': 'لفافة حجاب متناسقة مع لون الملابس'},
           ],
           selectedId: _traits.headwear,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(headwear: id)),
+          crossAxisCount: 2,
+          childAspectRatio: 0.95,
+          previewTraitsBuilder: (id) => _traits.copyWith(
+            headwear: id,
+            hairStyle: id == 'hijab' ? 'hijab_wrapped' : _traits.hairStyle,
+          ),
+          onSelected: (id) => setState(() => _traits = _traits.copyWith(headwear: id)),
         );
 
       case AvatarCustomizationSection.outfit:
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Column(
           children: [
             Expanded(
-              child: _buildChoiceCards(
+              child: _buildVisualGrid(
                 options: const [
                   {'id': 'hoodie', 'title': 'سويت شيرت هودي 👕', 'subtitle': 'كاجوال شبابي دافئ وعصري'},
                   {'id': 'formal_blazer', 'title': 'بدلة رسمية وقميص 👔', 'subtitle': 'أناقة أكاديمية للمحاضرات والتفوق'},
@@ -594,17 +662,26 @@ class _SnapchatAvatarStudioScreenState
                   {'id': 'casual_crew', 'title': 'تيشرت قطني كاجوال 🥋', 'subtitle': 'بسيط وخفيف'},
                 ],
                 selectedId: _traits.outfit,
-                onSelected: (id) =>
-                    setState(() => _traits = _traits.copyWith(outfit: id)),
+                crossAxisCount: 2,
+                childAspectRatio: 0.95,
+                previewTraitsBuilder: (id) => _traits.copyWith(outfit: id),
+                onSelected: (id) => setState(() => _traits = _traits.copyWith(outfit: id)),
               ),
             ),
-            const Divider(height: 1),
-            Padding(
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: isDark ? Colors.white10 : Colors.black12,
+                    width: 0.8,
+                  ),
+                ),
+              ),
               child: Row(
                 children: [
                   const Text('لون الملابس:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildColorPaletteRibbon(
@@ -621,21 +698,21 @@ class _SnapchatAvatarStudioScreenState
         );
 
       case AvatarCustomizationSection.skinTone:
-        return _buildColorPaletteRibbon(
+        return _buildColorGrid(
           colors: BitmojiTraits.skinPalette,
           selected: _traits.skinColor,
           onChanged: (c) => setState(() => _traits = _traits.copyWith(skinColor: c)),
         );
 
       case AvatarCustomizationSection.hairColor:
-        return _buildColorPaletteRibbon(
+        return _buildColorGrid(
           colors: BitmojiTraits.hairPalette,
           selected: _traits.hairColor,
           onChanged: (c) => setState(() => _traits = _traits.copyWith(hairColor: c)),
         );
 
       case AvatarCustomizationSection.eyewear:
-        return _buildChoiceCards(
+        return _buildVisualGrid(
           options: const [
             {'id': 'none', 'title': 'بدون نظارة', 'subtitle': 'رؤية طبيعية بدون إطارات'},
             {'id': 'square_frames', 'title': 'إطار مربع طبي 👓', 'subtitle': 'نظارة طبية ذكية وأنيقة'},
@@ -643,12 +720,14 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'sunglasses', 'title': 'نظارة شمسية كول 😎', 'subtitle': 'عدسات داكنة فخمة'},
           ],
           selectedId: _traits.eyewear,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(eyewear: id)),
+          crossAxisCount: 2,
+          childAspectRatio: 0.95,
+          previewTraitsBuilder: (id) => _traits.copyWith(eyewear: id),
+          onSelected: (id) => setState(() => _traits = _traits.copyWith(eyewear: id)),
         );
 
       case AvatarCustomizationSection.mouth:
-        return _buildChoiceCards(
+        return _buildVisualGrid(
           options: const [
             {'id': 'warm_smile', 'title': 'ابتسامة وسعادة 😊', 'subtitle': 'ملامح ترحيبية دافئة'},
             {'id': 'confident_smirk', 'title': 'واثقة ومرحة 😏', 'subtitle': 'ابتسامة ذكية هادئة'},
@@ -656,24 +735,29 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'neutral', 'title': 'تركيز وجدية 🧐', 'subtitle': 'ملامح طالب يدرس باهتمام'},
           ],
           selectedId: _traits.mouth,
+          crossAxisCount: 2,
+          childAspectRatio: 0.95,
+          previewTraitsBuilder: (id) => _traits.copyWith(mouth: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(mouth: id)),
         );
 
       case AvatarCustomizationSection.facialHair:
-        return _buildChoiceCards(
+        return _buildVisualGrid(
           options: const [
-            {'id': 'none', 'title': 'حلاقة ناعمة', 'subtitle': 'بدون ذقن أو شوارب'},
-            {'id': 'stubble', 'title': 'ذقن خفيف (Stubble)', 'subtitle': 'ظل خفيف رجولي'},
-            {'id': 'trimmed_beard', 'title': 'لحية كاملة مهندمة', 'subtitle': 'مشذبة وأنيقة'},
-            {'id': 'mustache', 'title': 'شارب كلاسيكي', 'subtitle': 'أنيق ومرتب'},
+            {'id': 'none', 'title': 'حلاقة ناعمة 🪒', 'subtitle': 'بدون ذقن أو شوارب'},
+            {'id': 'stubble', 'title': 'ذقن خفيف (Stubble) 🧔', 'subtitle': 'ظل خفيف رجولي'},
+            {'id': 'trimmed_beard', 'title': 'لحية كاملة مهندمة ✨', 'subtitle': 'مشذبة وأنيقة'},
+            {'id': 'mustache', 'title': 'شارب كلاسيكي 👨', 'subtitle': 'أنيق ومرتب'},
           ],
           selectedId: _traits.facialHair,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(facialHair: id)),
+          crossAxisCount: 2,
+          childAspectRatio: 0.95,
+          previewTraitsBuilder: (id) => _traits.copyWith(facialHair: id),
+          onSelected: (id) => setState(() => _traits = _traits.copyWith(facialHair: id)),
         );
 
       case AvatarCustomizationSection.background:
-        return _buildColorPaletteRibbon(
+        return _buildColorGrid(
           colors: BitmojiTraits.backgroundPalette,
           selected: _traits.backgroundColor,
           onChanged: (c) =>
@@ -686,25 +770,40 @@ class _SnapchatAvatarStudioScreenState
   }
 
   Widget _buildGenderSelector() {
+    final malePreview = _traits.copyWith(
+      gender: 'male',
+      hairStyle: 'short_curly',
+      headwear: 'none',
+      facialHair: 'none',
+    );
+    final femalePreview = _traits.copyWith(
+      gender: 'female',
+      hairStyle: 'hijab_wrapped',
+      headwear: 'hijab',
+      facialHair: 'none',
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Expanded(
             child: _buildGenderCard(
               gender: 'male',
               title: 'شخصية شبابية 👦',
-              subtitle: 'هيكل شبابي وملامح كلاسيكية وهودي عصري',
+              subtitle: 'هيكل شبابي وقصات كلاسيكية وعصرية',
               isSelected: _traits.gender == 'male',
+              previewUrl: malePreview.toImageUrl(size: 160),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: _buildGenderCard(
               gender: 'female',
               title: 'شخصية فتيات 👧',
               subtitle: 'خيارات حجاب وتسريحات بنات أنيقة',
               isSelected: _traits.gender == 'female',
+              previewUrl: femalePreview.toImageUrl(size: 160),
             ),
           ),
         ],
@@ -717,11 +816,12 @@ class _SnapchatAvatarStudioScreenState
     required String title,
     required String subtitle,
     required bool isSelected,
+    required String previewUrl,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(22),
       onTap: () {
         HapticFeedback.lightImpact();
         setState(() {
@@ -733,33 +833,72 @@ class _SnapchatAvatarStudioScreenState
           );
         });
       },
-      child: Container(
-        padding: const EdgeInsets.all(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected
               ? widget.roleColor.withValues(alpha: 0.12)
               : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: isSelected ? widget.roleColor : Colors.grey.withValues(alpha: 0.25),
-            width: isSelected ? 2 : 1,
+            color: isSelected ? widget.roleColor : Colors.grey.withValues(alpha: 0.22),
+            width: isSelected ? 2.5 : 1,
           ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: widget.roleColor.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? widget.roleColor : null,
-                )),
-            const SizedBox(height: 6),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  previewUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (ctx, child, progress) {
+                    if (progress == null) return child;
+                    return Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: widget.roleColor),
+                      ),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => Icon(
+                    gender == 'male' ? Icons.boy_rounded : Icons.girl_rounded,
+                    size: 48,
+                    color: widget.roleColor,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? widget.roleColor : null,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10.5, color: Colors.grey),
             ),
           ],
         ),
@@ -767,91 +906,216 @@ class _SnapchatAvatarStudioScreenState
     );
   }
 
-  Widget _buildChoiceCards({
+  Widget _buildVisualGrid({
     required List<Map<String, String>> options,
     required String selectedId,
     required ValueChanged<String> onSelected,
+    required BitmojiTraits Function(String optionId) previewTraitsBuilder,
+    int crossAxisCount = 3,
+    double childAspectRatio = 0.85,
+    IconData fallbackIcon = Icons.auto_awesome_rounded,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: childAspectRatio,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
       itemCount: options.length,
       itemBuilder: (context, index) {
         final opt = options[index];
         final id = opt['id']!;
         final title = opt['title']!;
-        final subtitle = opt['subtitle']!;
         final isSelected = id == selectedId;
+        final previewTraits = previewTraitsBuilder(id);
+        final previewUrl = previewTraits.toImageUrl(size: 128);
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              onSelected(id);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
+        return InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onSelected(id);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? widget.roleColor.withValues(alpha: 0.12)
+                  : cardBg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
                 color: isSelected
-                    ? widget.roleColor.withValues(alpha: 0.12)
-                    : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected
-                      ? widget.roleColor
-                      : Colors.grey.withValues(alpha: 0.2),
-                  width: isSelected ? 2 : 1,
-                ),
+                    ? widget.roleColor
+                    : (isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
+                width: isSelected ? 2.5 : 1.2,
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isSelected ? widget.roleColor : Colors.transparent,
-                      border: Border.all(
-                        color: isSelected ? widget.roleColor : Colors.grey,
-                        width: 2,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: widget.roleColor.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Visual Preview Area
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                        child: Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              previewUrl,
+                              fit: BoxFit.contain,
+                              loadingBuilder: (ctx, child, progress) {
+                                if (progress == null) return child;
+                                return Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: widget.roleColor,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (ctx, err, stack) => Icon(
+                                fallbackIcon,
+                                size: 28,
+                                color: isSelected ? widget.roleColor : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    child: isSelected
-                        ? const Icon(Icons.check, size: 16, color: Colors.white)
-                        : null,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? widget.roleColor : null,
-                          ),
+
+                    // Title
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          color: isSelected
+                              ? widget.roleColor
+                              : (isDark ? Colors.white : const Color(0xFF0F172A)),
                         ),
-                        Text(
-                          subtitle,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Selected Checkmark Badge
+                if (isSelected)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: widget.roleColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: widget.roleColor.withValues(alpha: 0.4),
+                            blurRadius: 4,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 11,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildColorGrid({
+    required List<Color> colors,
+    required Color selected,
+    required ValueChanged<Color> onChanged,
+  }) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          alignment: WrapAlignment.center,
+          children: colors.map((c) {
+            final isSelected = c.toARGB32() == selected.toARGB32();
+            final isLight = c.computeLuminance() > 0.5;
+
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onChanged(c);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: c,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? widget.roleColor : Colors.white70,
+                    width: isSelected ? 3.5 : 2.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                    if (isSelected)
+                      BoxShadow(
+                        color: widget.roleColor.withValues(alpha: 0.45),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                  ],
+                ),
+                child: isSelected
+                    ? Center(
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 22,
+                          color: isLight ? Colors.black87 : Colors.white,
+                        ),
+                      )
+                    : null,
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
@@ -861,10 +1125,10 @@ class _SnapchatAvatarStudioScreenState
     required ValueChanged<Color> onChanged,
   }) {
     return SizedBox(
-      height: 64,
+      height: 52,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         itemCount: colors.length,
         itemBuilder: (context, index) {
           final c = colors[index];
@@ -876,9 +1140,9 @@ class _SnapchatAvatarStudioScreenState
               onChanged(c);
             },
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 6),
-              width: 44,
-              height: 44,
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: c,
                 shape: BoxShape.circle,
@@ -890,7 +1154,7 @@ class _SnapchatAvatarStudioScreenState
                   if (isSelected)
                     BoxShadow(
                       color: widget.roleColor.withValues(alpha: 0.4),
-                      blurRadius: 8,
+                      blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
                 ],
@@ -898,7 +1162,7 @@ class _SnapchatAvatarStudioScreenState
               child: isSelected
                   ? Icon(
                       Icons.check_rounded,
-                      size: 22,
+                      size: 18,
                       color: c.computeLuminance() > 0.5
                           ? Colors.black87
                           : Colors.white,
