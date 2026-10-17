@@ -63,10 +63,11 @@ class PortalScaffold extends StatelessWidget {
       drawer: isWide
           ? null
           : Drawer(
+              width: 280,
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+                  topRight: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
                 ),
               ),
               child: drawer,
@@ -84,14 +85,14 @@ class PortalScaffold extends StatelessWidget {
                 context.l10n.t(destinations[selectedIndex].label),
                 style: AppTypography.titleMedium(
                   textPrimary,
-                ).copyWith(fontWeight: FontWeight.w700, fontSize: 17),
+                ).copyWith(fontWeight: FontWeight.w700, fontSize: 15.5),
               ),
               actions: [
                 if (onRefresh != null)
                   IconButton(
                     tooltip: context.tr('refresh'),
                     onPressed: onRefresh,
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    icon: const Icon(Icons.refresh_rounded, size: 19),
                   ),
               ],
             ),
@@ -307,10 +308,12 @@ class PortalHeader extends StatelessWidget {
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(isMobile ? 14 : 18),
         border: Border.all(
           color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           width: 0.8,
@@ -323,57 +326,66 @@ class PortalHeader extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 18,
+        vertical: isMobile ? 11 : 16,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 920;
+          final isNarrow = constraints.maxWidth < 700;
 
           final headerInfo = Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               leading ??
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: isMobile ? 36 : 44,
+                    height: isMobile ? 36 : 44,
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: .14),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: accentColor.withValues(alpha: .25),
                         width: 0.8,
                       ),
                     ),
-                    child: Icon(icon, color: accentColor, size: 24),
+                    child: Icon(icon, color: accentColor, size: isMobile ? 19 : 22),
                   ),
-              const SizedBox(width: 14),
+              SizedBox(width: isMobile ? 10 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       context.l10n.t(eyebrow).toUpperCase(),
-                      style: AppTypography.caption(accentColor).copyWith(
+                      style: TextStyle(
+                        fontSize: isMobile ? 9.5 : 11,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      context.l10n.t(title),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.titleLarge(textPrimary).copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        letterSpacing: -0.4,
+                        color: accentColor,
+                        letterSpacing: 0.4,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
+                      context.l10n.t(title),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isMobile ? 15.5 : 18.5,
+                        fontWeight: FontWeight.w800,
+                        color: textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
                       context.l10n.t(subtitle),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption(textSecondary),
+                      style: TextStyle(
+                        fontSize: isMobile ? 10.5 : 12,
+                        color: textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -387,7 +399,7 @@ class PortalHeader extends StatelessWidget {
               children: [
                 headerInfo,
                 if (trailing != null) ...[
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
                     child: trailing!,
@@ -402,7 +414,7 @@ class PortalHeader extends StatelessWidget {
             children: [
               Expanded(child: headerInfo),
               if (trailing != null) ...[
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Flexible(
                   child: Align(
                     alignment: AlignmentDirectional.centerEnd,
@@ -502,7 +514,7 @@ class _PortalMetricCardState extends State<PortalMetricCard>
                     ),
                   ],
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -510,31 +522,31 @@ class _PortalMetricCardState extends State<PortalMetricCard>
               Row(
                 children: [
                   Container(
-                    width: 38,
-                    height: 38,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: widget.accentColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(9),
                     ),
                     alignment: Alignment.center,
                     child: Icon(
                       widget.icon,
                       color: widget.accentColor,
-                      size: 20,
+                      size: 17,
                     ),
                   ),
                   const Spacer(),
                   if (widget.onTap != null)
                     Container(
-                      width: 24,
-                      height: 24,
+                      width: 20,
+                      height: 20,
                       decoration: BoxDecoration(
                         color: widget.accentColor.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.arrow_forward_rounded,
-                        size: 12,
+                        size: 11,
                         color: widget.accentColor,
                       ),
                     ),
@@ -542,26 +554,29 @@ class _PortalMetricCardState extends State<PortalMetricCard>
               ),
               const Spacer(),
               // Value
-              Text(
-                widget.value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: textPrimary,
-                  letterSpacing: -0.8,
-                  height: 1.1,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  widget.value,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: textPrimary,
+                    letterSpacing: -0.6,
+                    height: 1.1,
+                  ),
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               // Label
               Text(
                 context.l10n.t(widget.label),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: textSecondary,
                   letterSpacing: -0.1,
@@ -585,20 +600,19 @@ class PortalMetricGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final isMobile = width < 600;
         final columns = width >= 1180
             ? 4
             : width >= 760
             ? 3
-            : width >= 520
-            ? 2
             : 2; // always 2 on mobile for cleaner look
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          mainAxisExtent: 128,
+          crossAxisSpacing: isMobile ? 8 : 10,
+          mainAxisSpacing: isMobile ? 8 : 10,
+          mainAxisExtent: isMobile ? 98 : 120,
           children: children,
         );
       },
@@ -627,15 +641,21 @@ class PortalSectionTitle extends StatelessWidget {
       children: [
         Text(
           context.l10n.t(title),
-          style: AppTypography.titleLarge(
-            textPrimary,
-          ).copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.3),
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w800,
+            color: textPrimary,
+            letterSpacing: -0.3,
+          ),
         ),
         if (subtitle != null) ...[
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             context.l10n.t(subtitle!),
-            style: AppTypography.bodySmall(textSecondary),
+            style: TextStyle(
+              fontSize: 11,
+              color: textSecondary,
+            ),
           ),
         ],
       ],
@@ -771,6 +791,7 @@ class PortalPageShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
     final canPop = showBackButton && Navigator.of(context).canPop();
     final primaryActions = actions.where((a) => a.primary).toList();
     final secondaryActions = actions.where((a) => !a.primary).toList();
@@ -782,43 +803,55 @@ class PortalPageShell extends StatelessWidget {
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            minimumSize: const Size(48, 38),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 10 : 14,
+              vertical: isMobile ? 6 : 8,
+            ),
+            minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           onPressed: action.onPressed,
-          icon: Icon(action.icon, size: 18),
+          icon: Icon(action.icon, size: isMobile ? 15 : 18),
           label: Text(
             context.l10n.t(action.label),
-            style: AppTypography.labelLarge(Colors.white).copyWith(fontSize: 13),
+            style: TextStyle(
+              fontSize: isMobile ? 11.5 : 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         );
       }
       return OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          minimumSize: const Size(48, 38),
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 9 : 12,
+            vertical: isMobile ? 6 : 8,
+          ),
+          minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onPressed: action.onPressed,
-        icon: Icon(action.icon, size: 18),
+        icon: Icon(action.icon, size: isMobile ? 15 : 18),
         label: Text(
           context.l10n.t(action.label),
-          style: const TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: isMobile ? 11.5 : 13),
         ),
       );
     }
 
     final effectiveEyebrow = eyebrow ?? 'منظومة بريفيو التعليمية';
+    final effectivePadding = isMobile
+        ? const EdgeInsets.fromLTRB(12, 10, 12, 14)
+        : padding;
 
     return SafeArea(
       child: Padding(
-        padding: padding,
+        padding: effectivePadding,
         child: Column(
           children: [
             PortalHeader(
@@ -829,15 +862,16 @@ class PortalPageShell extends StatelessWidget {
               accentColor: accentColor,
               trailing: (canPop || actions.isNotEmpty)
                   ? Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 6,
+                      runSpacing: 6,
                       alignment: WrapAlignment.end,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (canPop)
                           IconButton.filledTonal(
                             tooltip: 'رجوع',
-                            icon: const Icon(Icons.arrow_back_rounded),
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.arrow_back_rounded, size: 18),
                             onPressed: () => Navigator.of(context).maybePop(),
                           ),
                         ...secondaryActions.map(buildAction),
@@ -846,7 +880,7 @@ class PortalPageShell extends StatelessWidget {
                     )
                   : null,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 10 : 16),
             Expanded(child: child),
           ],
         ),
@@ -869,16 +903,24 @@ class PortalSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+
     return TextField(
       controller: controller,
+      style: TextStyle(fontSize: isMobile ? 12.5 : 14),
       decoration: InputDecoration(
+        isDense: isMobile,
+        contentPadding: isMobile
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+            : null,
         labelText: context.l10n.t(label),
-        prefixIcon: const Icon(Icons.search_rounded),
+        labelStyle: TextStyle(fontSize: isMobile ? 12 : 13.5),
+        prefixIcon: Icon(Icons.search_rounded, size: isMobile ? 20 : 24),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
                 tooltip: context.l10n.t('Clear search'),
-                icon: const Icon(Icons.close_rounded),
+                icon: Icon(Icons.close_rounded, size: isMobile ? 18 : 20),
                 onPressed: () {
                   controller.clear();
                   onChanged?.call('');
@@ -1021,7 +1063,7 @@ class PortalListCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           width: 0.8,
@@ -1029,20 +1071,21 @@ class PortalListCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           onTap: onTap,
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
               final leading = Container(
-                width: 44,
-                height: 44,
+                width: isMobile ? 36 : 44,
+                height: isMobile ? 36 : 44,
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                 ),
-                child: Icon(icon, color: accentColor, size: 22),
+                child: Icon(icon, color: accentColor, size: isMobile ? 18 : 22),
               );
               final textBlock = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1051,33 +1094,38 @@ class PortalListCard extends StatelessWidget {
                     context.l10n.t(title),
                     maxLines: constraints.maxWidth < 460 ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.titleSmall(
-                      textPrimary,
-                    ).copyWith(fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      fontSize: isMobile ? 12.5 : 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     context.l10n.t(subtitle),
                     maxLines: constraints.maxWidth < 460 ? 3 : 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption(textSecondary),
+                    style: TextStyle(
+                      fontSize: isMobile ? 10.5 : 12,
+                      color: textSecondary,
+                    ),
                   ),
                 ],
               );
               if (constraints.maxWidth < 520 && trailing.isNotEmpty) {
                 return Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: EdgeInsets.all(isMobile ? 10 : 14),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       leading,
-                      const SizedBox(width: 14),
+                      SizedBox(width: isMobile ? 10 : 14),
                       Expanded(child: textBlock),
                       const SizedBox(width: 6),
                       IconButton.filledTonal(
                         visualDensity: VisualDensity.compact,
                         tooltip: context.tr('Actions'),
-                        icon: const Icon(Icons.more_vert_rounded),
+                        icon: const Icon(Icons.more_vert_rounded, size: 18),
                         onPressed: () => showModalBottomSheet<void>(
                           context: context,
                           showDragHandle: true,
@@ -1107,11 +1155,11 @@ class PortalListCard extends StatelessWidget {
               );
 
               return Padding(
-                padding: const EdgeInsets.all(14),
+                padding: EdgeInsets.all(isMobile ? 10 : 14),
                 child: Row(
                   children: [
                     leading,
-                    const SizedBox(width: 14),
+                    SizedBox(width: isMobile ? 10 : 14),
                     Expanded(child: textBlock),
                     if (trailing.isNotEmpty) ...[
                       const SizedBox(width: 8),

@@ -866,7 +866,7 @@ class _AdminOverview extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async => onRetry(),
       child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         children: [
           // ── 1. Executive Master Hero Header ──
           FadeInSlide(
@@ -881,7 +881,7 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // ── Multi-Branch Federation Selector Bar (العزل السحابي والتشغيل متعدد الفروع) ──
           FadeInSlide(
@@ -893,110 +893,33 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 16),
-
-          // ── Day-End Settlement & Cash Drawer Reconciliation HUD (تقفيل الخزينة وجرد الدرج) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 40),
-            child: _DayEndSettlementHUD(
-              todayCollected: treasuryTodayCollected,
-              totalCollected: treasuryTotalCollected,
-              receiptsCount: treasuryReceiptsCount,
-              onOpenCashRegister: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DailyCashRegisterScreen(),
-                  ),
-                );
-              },
-              onOpenBookstorePos: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BookstorePosScreen(),
-                  ),
-                );
-                onRetry();
-              },
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── Security Audit Alert Radar (رادار التدقيق الأمني والرقابة الإدارية) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 45),
-            child: _SecurityAuditRadarCard(
-              onOpenAuditLog: () => onNavigate(16),
-            ),
-          ),
+          const SizedBox(height: 14),
 
           if (isLoading) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 4),
             const LinearProgressIndicator(color: AppColors.adminRole),
+            const SizedBox(height: 10),
           ],
           if (errorMessage != null) ...[
-            const SizedBox(height: 14),
             FadeInSlide(
               child: PortalErrorBanner(
                 message: errorMessage!,
                 onRetry: onRetry,
               ),
             ),
+            const SizedBox(height: 14),
           ],
-
-          const SizedBox(height: 20),
-
-          // ── Live Center Command & Operations Radar (رادار المراقبة الميدانية الحية) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 50),
-            child: _LiveCenterCommandRadarCard(
-              onOpenReceptionTv: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ReceptionLiveTvKioskScreen(),
-                  ),
-                );
-              },
-              onOpenQrGate: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ReceptionQrGateScreen(),
-                  ),
-                );
-              },
-              onOpenCashRegister: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DailyCashRegisterScreen(),
-                  ),
-                );
-              },
-              onOpenBookstorePos: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BookstorePosScreen(),
-                  ),
-                );
-                onRetry();
-              },
-              onOpenAuditLog: () => onNavigate(16),
-              onOpenEmergencyBroadcast: () => _openCenterEmergencyBroadcastDialog(context),
-              onOpenQuickFloat: () => _openQuickCashDepositDialog(context),
-            ),
-          ),
-
-          const SizedBox(height: 24),
 
           // ── 2. Primary Executive KPI Cards (4 Cards Grid) ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 60),
+            delay: const Duration(milliseconds: 40),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'المؤشرات الحيوية للمنظومة 📊',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.bold,
                     color: textPrimary,
                   ),
@@ -1004,7 +927,7 @@ class _AdminOverview extends StatelessWidget {
                 Text(
                   'تحديث لحظي',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: AppColors.adminRole,
                   ),
@@ -1012,9 +935,9 @@ class _AdminOverview extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           FadeInSlide(
-            delay: const Duration(milliseconds: 100),
+            delay: const Duration(milliseconds: 60),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth > 700;
@@ -1031,7 +954,7 @@ class _AdminOverview extends StatelessWidget {
                           onTap: () => onNavigate(5),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _ExecutiveKpiCard(
                           title: 'المعلمون المعتمدون',
@@ -1042,7 +965,7 @@ class _AdminOverview extends StatelessWidget {
                           onTap: () => onNavigate(7),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _ExecutiveKpiCard(
                           title: 'أولياء الأمور',
@@ -1053,7 +976,7 @@ class _AdminOverview extends StatelessWidget {
                           onTap: () => onNavigate(6),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _ExecutiveKpiCard(
                           title: 'الخزينة والتحصيل',
@@ -1083,7 +1006,7 @@ class _AdminOverview extends StatelessWidget {
                             onTap: () => onNavigate(5),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: _ExecutiveKpiCard(
                             title: 'المعلمون المعتمدون',
@@ -1096,7 +1019,7 @@ class _AdminOverview extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
@@ -1109,7 +1032,7 @@ class _AdminOverview extends StatelessWidget {
                             onTap: () => onNavigate(6),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: _ExecutiveKpiCard(
                             title: 'الخزينة والتحصيل',
@@ -1128,18 +1051,18 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
           // ── 3. Operational Command Hub (العمليات اليومية السريعة) ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 140),
+            delay: const Duration(milliseconds: 80),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'مركز العمليات والتشغيل السريع ⚡',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.bold,
                     color: textPrimary,
                   ),
@@ -1147,16 +1070,16 @@ class _AdminOverview extends StatelessWidget {
                 Text(
                   'أدوات السنتر الميدانية',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     color: textSecondary,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           FadeInSlide(
-            delay: const Duration(milliseconds: 180),
+            delay: const Duration(milliseconds: 100),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth > 700;
@@ -1266,9 +1189,9 @@ class _AdminOverview extends StatelessWidget {
                     crossAxisCount: 3,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 2.2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 2.3,
                     children: tiles,
                   );
                 }
@@ -1277,7 +1200,7 @@ class _AdminOverview extends StatelessWidget {
                   children: tiles
                       .map(
                         (tile) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: tile,
                         ),
                       )
@@ -1287,32 +1210,110 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
-          // ── 4. Operational Pulse & Queue (نبض التشغيل والحالات المعلقة) ──
+          // ── 4. Live Center Command & Operations Radar (رادار المراقبة الميدانية الحية) ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 220),
+            delay: const Duration(milliseconds: 120),
+            child: _LiveCenterCommandRadarCard(
+              onOpenReceptionTv: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ReceptionLiveTvKioskScreen(),
+                  ),
+                );
+              },
+              onOpenQrGate: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ReceptionQrGateScreen(),
+                  ),
+                );
+              },
+              onOpenCashRegister: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DailyCashRegisterScreen(),
+                  ),
+                );
+              },
+              onOpenBookstorePos: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const BookstorePosScreen(),
+                  ),
+                );
+                onRetry();
+              },
+              onOpenAuditLog: () => onNavigate(16),
+              onOpenEmergencyBroadcast: () => _openCenterEmergencyBroadcastDialog(context),
+              onOpenQuickFloat: () => _openQuickCashDepositDialog(context),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── 5. Day-End Settlement & Cash Drawer Reconciliation HUD (تقفيل الخزينة وجرد الدرج) ──
+          FadeInSlide(
+            delay: const Duration(milliseconds: 140),
+            child: _DayEndSettlementHUD(
+              todayCollected: treasuryTodayCollected,
+              totalCollected: treasuryTotalCollected,
+              receiptsCount: treasuryReceiptsCount,
+              onOpenCashRegister: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DailyCashRegisterScreen(),
+                  ),
+                );
+              },
+              onOpenBookstorePos: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const BookstorePosScreen(),
+                  ),
+                );
+                onRetry();
+              },
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── 6. Security Audit Alert Radar (رادار التدقيق الأمني والرقابة الإدارية) ──
+          FadeInSlide(
+            delay: const Duration(milliseconds: 160),
+            child: _SecurityAuditRadarCard(
+              onOpenAuditLog: () => onNavigate(16),
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          // ── 7. Operational Pulse & Queue (نبض التشغيل والحالات المعلقة) ──
+          FadeInSlide(
+            delay: const Duration(milliseconds: 180),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'نبض التشغيل والحالات المعلقة 🔔',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.bold,
                     color: textPrimary,
                   ),
                 ),
                 Text(
                   'إجراءات معلقة',
-                  style: TextStyle(fontSize: 11, color: textSecondary),
+                  style: TextStyle(fontSize: 10.5, color: textSecondary),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           FadeInSlide(
-            delay: const Duration(milliseconds: 260),
+            delay: const Duration(milliseconds: 200),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -1370,11 +1371,11 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
-          // ── 5. Quick Data Tools (تصدير البيانات) ──
+          // ── 8. Quick Data Tools (تصدير البيانات) ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 300),
+            delay: const Duration(milliseconds: 220),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1384,21 +1385,21 @@ class _AdminOverview extends StatelessWidget {
                     Text(
                       'أدوات استخراج البيانات (CSV) 💾',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.bold,
                         color: textPrimary,
                       ),
                     ),
                     Text(
                       'نسخ للحافظة',
-                      style: TextStyle(fontSize: 11, color: textSecondary),
+                      style: TextStyle(fontSize: 10.5, color: textSecondary),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     _ExportButton(
                       onPressed: () => _copyStudentsCsv(context),
@@ -1421,35 +1422,35 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
-          // ── 6. Live Activity Stream ──
+          // ── 9. Live Activity Stream ──
           FadeInSlide(
-            delay: const Duration(milliseconds: 340),
+            delay: const Duration(milliseconds: 240),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'أحدث الأنشطة والعمليات الميدانية ⏱️',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.bold,
                     color: textPrimary,
                   ),
                 ),
                 Text(
                   'آخر 12 حركة',
-                  style: TextStyle(fontSize: 11, color: textSecondary),
+                  style: TextStyle(fontSize: 10.5, color: textSecondary),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           FadeInSlide(
-            delay: const Duration(milliseconds: 380),
+            delay: const Duration(milliseconds: 260),
             child: _ActivityList(items: recentActivity),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -1463,6 +1464,7 @@ class _AdminOverview extends StatelessWidget {
     int teacherCount,
     String treasuryValue,
   ) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
     final activeBranch = selectedBranchId != null
         ? branches.where((b) => b.id == selectedBranchId).firstOrNull
         : null;
@@ -1483,20 +1485,20 @@ class _AdminOverview extends StatelessWidget {
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
         border: Border.all(
           color: isDark ? Colors.white12 : Colors.black12,
-          width: 1,
+          width: 0.9,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 13 : 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1504,28 +1506,28 @@ class _AdminOverview extends StatelessWidget {
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircleAvatar(
-                      radius: 4,
+                      radius: 3.5,
                       backgroundColor: Colors.greenAccent,
                     ),
-                    SizedBox(width: 6),
+                    SizedBox(width: 5),
                     Text(
                       'السنتر نشط الآن • مباشر',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
                       ),
@@ -1537,7 +1539,7 @@ class _AdminOverview extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CenterSwitcherWidget(onCenterChanged: onRetry),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   IconButton(
                     tooltip: 'إدارة السنتر والشراكات',
                     visualDensity: VisualDensity.compact,
@@ -1548,25 +1550,25 @@ class _AdminOverview extends StatelessWidget {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.handshake_rounded, size: 20),
+                    icon: const Icon(Icons.handshake_rounded, size: 18),
                   ),
                   IconButton(
                     tooltip: 'الانضمام لسنتر بكود',
                     visualDensity: VisualDensity.compact,
                     onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
-                    icon: const Icon(Icons.add_business_rounded, size: 20),
+                    icon: const Icon(Icons.add_business_rounded, size: 18),
                   ),
                   IconButton(
                     tooltip: 'تحديث البيانات',
                     visualDensity: VisualDensity.compact,
                     onPressed: onRetry,
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Main Greeting with Avatar
           Row(
@@ -1578,27 +1580,31 @@ class _AdminOverview extends StatelessWidget {
                 role: 'admin',
                 userId: user?.id,
                 userEmail: user?.email,
-                radius: 28,
+                radius: isMobile ? 22 : 26,
                 onAvatarChanged: (_) => onRetry(),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'أهلاً بك، ${user?.fullName ?? "مدير المنظومة"} 👋',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
+                        fontSize: isMobile ? 16 : 19,
+                        fontWeight: FontWeight.bold,
                         color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       '${authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • $branchName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: isMobile ? 11 : 12,
                         color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1608,26 +1614,51 @@ class _AdminOverview extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
 
-          // Quick Live Summary Strip
+          // Quick Live Summary Strip (Responsive 2x2 grid on mobile or 4-item row on desktop)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Wrap(
-              alignment: WrapAlignment.spaceAround,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                _buildHeroStat('الطلاب المسجلون', '$studentCount طالب', Icons.school_rounded, AppColors.primary),
-                _buildHeroStat('المعلمون', '$teacherCount معلم', Icons.person_rounded, AppColors.purple),
-                _buildHeroStat('حصص اليوم', '${opsMetrics.todaySessions} حصة', Icons.today_rounded, AppColors.warning),
-                _buildHeroStat('الخزينة', treasuryValue, Icons.account_balance_wallet_rounded, AppColors.success),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 520;
+                final stats = [
+                  _buildHeroStat('الطلاب المسجلون', '$studentCount طالب', Icons.school_rounded, AppColors.primary),
+                  _buildHeroStat('المعلمون', '$teacherCount معلم', Icons.person_rounded, AppColors.purple),
+                  _buildHeroStat('حصص اليوم', '${opsMetrics.todaySessions} حصة', Icons.today_rounded, AppColors.warning),
+                  _buildHeroStat('الخزينة', treasuryValue, Icons.account_balance_wallet_rounded, AppColors.success),
+                ];
+
+                if (isWide) {
+                  return Row(
+                    children: stats.map((s) => Expanded(child: s)).toList(),
+                  );
+                }
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: stats[0]),
+                        const SizedBox(width: 8),
+                        Expanded(child: stats[1]),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: stats[2]),
+                        const SizedBox(width: 8),
+                        Expanded(child: stats[3]),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -1639,20 +1670,37 @@ class _AdminOverview extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: color),
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Icon(icon, size: 14, color: color),
+        ),
         const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 9.5, color: Colors.grey),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1757,71 +1805,82 @@ class _ExecutiveKpiCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isDark
                   ? accentColor.withValues(alpha: 0.25)
                   : accentColor.withValues(alpha: 0.2),
-              width: 1.2,
+              width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: accentColor.withValues(alpha: isDark ? 0.12 : 0.06),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+                color: accentColor.withValues(alpha: isDark ? 0.1 : 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(9),
                     ),
-                    child: Icon(icon, color: accentColor, size: 22),
+                    alignment: Alignment.center,
+                    child: Icon(icon, color: accentColor, size: 17),
                   ),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
-                    size: 13,
-                    color: textSecondary.withValues(alpha: 0.6),
+                    size: 10,
+                    color: textSecondary.withValues(alpha: 0.5),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: textPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: textPrimary,
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: textPrimary,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                subtitle,
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
                   color: textSecondary,
                 ),
               ),
@@ -1862,40 +1921,41 @@ class _ExecutiveActionTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(13),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(13),
             border: Border.all(
               color: isDark ? AppColors.darkBorder : Colors.black12,
-              width: 0.9,
+              width: 0.8,
             ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: accentColor.withValues(alpha: 0.3),
                     width: 0.8,
                   ),
                 ),
-                child: Icon(icon, color: accentColor, size: 22),
+                alignment: Alignment.center,
+                child: Icon(icon, color: accentColor, size: 18),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1909,26 +1969,26 @@ class _ExecutiveActionTile extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13.5,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.bold,
                               color: textPrimary,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 5),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                            horizontal: 5,
+                            vertical: 1.5,
                           ),
                           decoration: BoxDecoration(
                             color: accentColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: Text(
                             badge,
                             style: TextStyle(
-                              fontSize: 9.5,
+                              fontSize: 8.5,
                               fontWeight: FontWeight.bold,
                               color: accentColor,
                             ),
@@ -1936,23 +1996,23 @@ class _ExecutiveActionTile extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         color: textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Icon(
                 Icons.arrow_forward_ios_rounded,
-                size: 14,
+                size: 11,
                 color: textSecondary.withValues(alpha: 0.5),
               ),
             ],
@@ -1988,43 +2048,43 @@ class _ExecutivePulseChip extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: count > 0
                   ? accentColor.withValues(alpha: 0.4)
                   : (isDark ? AppColors.darkBorder : Colors.black12),
-              width: count > 0 ? 1.2 : 0.8,
+              width: count > 0 ? 1.0 : 0.8,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: accentColor),
-              const SizedBox(width: 8),
+              Icon(icon, size: 14, color: accentColor),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: textPrimary,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   count.toString(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: accentColor,
                   ),
@@ -2186,11 +2246,13 @@ class _ExportButton extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return ActionChip(
       onPressed: onPressed,
-      avatar: Icon(icon, color: AppColors.adminRole, size: 18),
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+      avatar: Icon(icon, color: AppColors.adminRole, size: 15),
+      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
       backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-      side: BorderSide(color: AppColors.adminRole.withValues(alpha: 0.4)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      side: BorderSide(color: AppColors.adminRole.withValues(alpha: 0.3)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      visualDensity: VisualDensity.compact,
     );
   }
 }
@@ -2329,13 +2391,14 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -2345,17 +2408,17 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
         ),
         border: Border.all(
           color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
-          width: 1.5,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(13),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2366,26 +2429,26 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
               final headerContent = Row(
                 children: [
                   _CenterPulseBeacon(controller: _pulseController),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
+                          spacing: 6,
                           runSpacing: 4,
                           children: [
                             const Text(
                               'رادار المراقبة والعمليات الحية للسنتر 📡',
                               style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
                                 color: Color(0xFF2563EB),
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: _activeSessionsCount > 0
                                     ? Colors.green.withValues(alpha: 0.15)
@@ -2397,7 +2460,7 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                                     ? '$_activeSessionsCount حصص نشطة الآن 🟢'
                                     : (_rooms.isNotEmpty ? 'المنظومة جاهزة 🟢' : 'بانتظار التهيئة ⚪'),
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 9.5,
                                   fontWeight: FontWeight.bold,
                                   color: _activeSessionsCount > 0 ? Colors.green : Colors.blue,
                                 ),
@@ -2411,7 +2474,7 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                               ? '${_rooms.length} قاعات دراسية مسجلة • بوابات الدخول مؤمنة • الخزينة نشطة'
                               : 'لا توجد قاعات دراسية مضافة بعد • انقر لإدارة المقاعد والقاعات',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                           ),
                         ),
@@ -2423,12 +2486,14 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
 
               final tvButton = FilledButton.tonalIcon(
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: widget.onOpenReceptionTv,
-                icon: const Icon(Icons.tv_rounded, size: 16),
-                label: const Text('شاشة العرض (TV)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.tv_rounded, size: 15),
+                label: const Text('شاشة العرض (TV)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
               );
 
               if (isNarrow) {
@@ -2436,7 +2501,7 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     headerContent,
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Align(alignment: Alignment.centerLeft, child: tvButton),
                   ],
                 );
@@ -2452,9 +2517,9 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
             },
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           const Divider(height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Live Classrooms Occupancy Strip
           Row(
@@ -2463,7 +2528,11 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
               Expanded(
                 child: Text(
                   'حالة القاعات الدراسية في الوقت الحقيقي الآن:',
-                  style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -2476,20 +2545,20 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                 },
                 child: const Text(
                   'إدارة القاعات 🪑',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.primary),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           if (_isLoading)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(12),
                 child: SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: 18,
+                  height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
@@ -2500,20 +2569,20 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                 final isNarrow = constraints.maxWidth < 450;
                 final info = Row(
                   children: [
-                    const Icon(Icons.meeting_room_outlined, color: Colors.blueGrey, size: 24),
-                    const SizedBox(width: 12),
+                    const Icon(Icons.meeting_room_outlined, color: Colors.blueGrey, size: 20),
+                    const SizedBox(width: 10),
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'لم يتم إضافة قاعات دراسية بالسنتر بعد',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 2),
                           Text(
                             'أضف قاعات السنتر ومقاعدها لتتبع نسب الإشغال والحصص الحية فورياً',
-                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                            style: TextStyle(fontSize: 10, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -2523,8 +2592,9 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
 
                 final addBtn = OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                     minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () {
@@ -2532,15 +2602,15 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                       MaterialPageRoute(builder: (_) => const ClassroomCapacityScreen()),
                     );
                   },
-                  icon: const Icon(Icons.add_rounded, size: 16),
-                  label: const Text('إضافة قاعة', style: TextStyle(fontSize: 11)),
+                  icon: const Icon(Icons.add_rounded, size: 15),
+                  label: const Text('إضافة قاعة', style: TextStyle(fontSize: 10.5)),
                 );
 
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
                     color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
                   ),
                   child: isNarrow
@@ -2548,7 +2618,7 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             info,
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Align(alignment: Alignment.centerLeft, child: addBtn),
                           ],
                         )
@@ -2611,30 +2681,30 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
               },
             ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Smart Gates & Turnstiles Metric
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
               color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
             ),
             child: Row(
               children: [
-                const Icon(Icons.sensor_door_rounded, color: Color(0xFF2563EB), size: 20),
-                const SizedBox(width: 10),
+                const Icon(Icons.sensor_door_rounded, color: Color(0xFF2563EB), size: 17),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _todayGateEntries > 0
                         ? '+$_todayGateEntries عملية دخول ذكية مسجلة اليوم عبر البوابات ومطابقة الاشتراكات'
                         : '0 عمليات دخول مسجلة اليوم عبر البوابات (بانتظار بدء الحصص)',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
                     color: _todayGateEntries > 0
                         ? Colors.green.withValues(alpha: 0.15)
@@ -2644,7 +2714,7 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                   child: Text(
                     _todayGateEntries > 0 ? 'نشط 🟢' : 'في الانتظار ⚪',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: _todayGateEntries > 0 ? Colors.green : Colors.grey,
                     ),
@@ -2654,12 +2724,12 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Executive Command Actions Toolbar
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               _buildCommandPill(
                 label: 'بوابة الاستقبال QR 🪪',
@@ -2713,7 +2783,7 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
     required bool isLive,
   }) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
@@ -2725,26 +2795,26 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: statusColor)),
+              Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: statusColor)),
               if (isLive)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text('بث حي', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: statusColor)),
+                  child: Text('بث حي', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: statusColor)),
                 ),
             ],
           ),
+          const SizedBox(height: 2),
+          Text(subject, style: const TextStyle(fontSize: 9.5, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 3),
-          Text(subject, style: const TextStyle(fontSize: 10, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(students, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              Text(rate, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor)),
+              Text(students, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+              Text(rate, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: statusColor)),
             ],
           ),
         ],
@@ -2760,23 +2830,23 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5.5),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -3207,10 +3277,10 @@ class _MultiBranchFederationBar extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isDark ? Colors.white12 : Colors.black12,
         ),
@@ -3220,28 +3290,28 @@ class _MultiBranchFederationBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.account_tree_rounded, size: 16, color: AppColors.primary),
-              const SizedBox(width: 8),
+              const Icon(Icons.account_tree_rounded, size: 15, color: AppColors.primary),
+              const SizedBox(width: 7),
               const Expanded(
                 child: Text(
                   'إدارة الفروع المتعددة (Multi-Branch)',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   selectedBranchId == null
                       ? 'المنظومة الموحدة 🌐'
                       : 'فرع معزول 🏛️',
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
@@ -3249,7 +3319,7 @@ class _MultiBranchFederationBar extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -3260,11 +3330,11 @@ class _MultiBranchFederationBar extends StatelessWidget {
                   onTap: () => onBranchChanged(null),
                 ),
                 if (branches.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   ...branches.map((branch) {
                     final isSelected = selectedBranchId == branch.id;
                     return Padding(
-                      padding: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.only(left: 6),
                       child: _buildBranchChip(
                         label: '🏛️ ${branch.name}',
                         isSelected: isSelected,
@@ -3288,21 +3358,21 @@ class _MultiBranchFederationBar extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.35),
-            width: isSelected ? 1.5 : 1.0,
+            width: isSelected ? 1.4 : 0.9,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             color: isSelected ? Colors.white : null,
           ),
@@ -3425,7 +3495,7 @@ class _DayEndSettlementHUD extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
@@ -3435,17 +3505,17 @@ class _DayEndSettlementHUD extends StatelessWidget {
         ),
         border: Border.all(
           color: Colors.green.withValues(alpha: 0.4),
-          width: 1.5,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.green.withValues(alpha: 0.08),
-            blurRadius: 16,
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(13),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3453,28 +3523,28 @@ class _DayEndSettlementHUD extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.point_of_sale_rounded, color: Colors.green, size: 22),
+                child: const Icon(Icons.point_of_sale_rounded, color: Colors.green, size: 18),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
+                      spacing: 6,
                       runSpacing: 4,
                       children: [
                         const Text(
                           'مركز الإغلاق اليومي للخزينة ومطابقة الدرج 💵',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
                             color: Colors.green,
                           ),
                         ),
@@ -3486,7 +3556,7 @@ class _DayEndSettlementHUD extends StatelessWidget {
                           ),
                           child: const Text(
                             'الوردية نشطة 🟢',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
+                            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.green),
                           ),
                         ),
                       ],
@@ -3495,7 +3565,7 @@ class _DayEndSettlementHUD extends StatelessWidget {
                     Text(
                       'جرد لحظي للفئات النقدية ومطابقة إيصالات بوابات السنتر مع المقبوضات الفعلية',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                       ),
                     ),
@@ -3504,65 +3574,77 @@ class _DayEndSettlementHUD extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Cash summary numbers with responsive LayoutBuilder
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 520;
               final col1 = Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('متحصلات اليوم الفعلية', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(height: 4),
-                    Text(
-                      '+${_formatMoney(todayCollected)} ج.م',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.green),
+                    const Text('متحصلات اليوم الفعلية', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '+${_formatMoney(todayCollected)} ج.م',
+                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Colors.green),
+                      ),
                     ),
                   ],
                 ),
               );
               final col2 = Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('سندات وإيصالات التحصيل', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$receiptsCount إيصال معتمد',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue),
+                    const Text('سندات وإيصالات التحصيل', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '$receiptsCount إيصال معتمد',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
                     ),
                   ],
                 ),
               );
               final col3 = Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('حالة المطابقة والعجز', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(height: 4),
-                    Text(
-                      todayCollected > 0 ? 'مطابق 0.00 ج.م ✔️' : '0.00 ج.م',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.amber),
+                    const Text('حالة المطابقة والعجز', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        todayCollected > 0 ? 'مطابق 0.00 ج.م ✔️' : '0.00 ج.م',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber),
+                      ),
                     ),
                   ],
                 ),
@@ -3572,9 +3654,9 @@ class _DayEndSettlementHUD extends StatelessWidget {
                 return Row(
                   children: [
                     Expanded(child: col1),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(child: col2),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(child: col3),
                   ],
                 );
@@ -3595,41 +3677,47 @@ class _DayEndSettlementHUD extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Action buttons
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.green.shade700,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: onOpenCashRegister,
-                icon: const Icon(Icons.calculate_rounded, size: 16),
-                label: const Text('جرد النقدية وإقفال الخزينة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.calculate_rounded, size: 14),
+                label: const Text('جرد النقدية وإقفال الخزينة', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () => _exportQuickZReport(context),
-                icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Colors.red),
-                label: const Text('طباعة Z-Report معتمد (PDF)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 14, color: Colors.red),
+                label: const Text('طباعة Z-Report معتمد (PDF)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: onOpenBookstorePos,
-                icon: const Icon(Icons.menu_book_rounded, size: 16, color: Colors.deepOrange),
-                label: const Text('كاشير الملازم وطباعة الباركود', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.menu_book_rounded, size: 14, color: Colors.deepOrange),
+                label: const Text('كاشير الملازم وطباعة الباركود', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -3726,11 +3814,11 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         color: isDark ? const Color(0xFF1E1E2D) : const Color(0xFFF8FAFC),
         border: Border.all(
           color: Colors.red.withValues(alpha: 0.35),
-          width: 1.5,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
@@ -3740,7 +3828,7 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(13),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3750,14 +3838,14 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
               final headerInfo = Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
                       color: Colors.red.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.shield_rounded, color: Colors.red, size: 20),
+                    child: const Icon(Icons.shield_rounded, color: Colors.red, size: 17),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3765,8 +3853,8 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
                         const Text(
                           'رادار التدقيق الأمني ومراقبة العمليات الحساسة 🚨',
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
                             color: Colors.red,
                           ),
                         ),
@@ -3774,7 +3862,7 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
                         Text(
                           'تتبع لحظي لعمليات الحذف، استرداد الأموال، وتعديل النتائج والصلاحيات',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                           ),
                         ),
@@ -3786,12 +3874,14 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
 
               final auditBtn = FilledButton.tonalIcon(
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: widget.onOpenAuditLog,
-                icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                label: const Text('سجل التدقيق الكامل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.open_in_new_rounded, size: 13),
+                label: const Text('سجل التدقيق الكامل', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
               );
 
               if (isNarrow) {
@@ -3814,7 +3904,7 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           if (_isLoading)
             const Center(
               child: Padding(
@@ -3828,20 +3918,20 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
             )
           else if (_recentLogs.isEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.verified_user_rounded, color: Colors.green, size: 22),
-                  SizedBox(width: 10),
+                  Icon(Icons.verified_user_rounded, color: Colors.green, size: 18),
+                  SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'المنظومة مؤمنة بالكامل: لا توجد عمليات خطرة أو استردادات مسجلة حديثاً 🛡️',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
                     ),
                   ),
                 ],
@@ -3855,7 +3945,7 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
               final actor = log['actor_id']?.toString() ?? 'نظام';
               final shortActor = actor.length >= 8 ? actor.substring(0, 8) : actor;
               return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 5),
                 child: _buildAlertRow(
                   icon: _iconForAction(action),
                   color: _colorForAction(action),
@@ -3876,22 +3966,22 @@ class _SecurityAuditRadarCardState extends State<_SecurityAuditRadarCard> {
     required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
+          Icon(icon, color: color, size: 15),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                Text(title, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                Text(subtitle, style: const TextStyle(fontSize: 9.5, color: Colors.grey)),
               ],
             ),
           ),

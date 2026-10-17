@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/tokens/colors.dart';
-import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../widgets/account_login_qr_dialog.dart';
 import '../widgets/account_password_dialog.dart';
@@ -497,13 +496,13 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
           width: 0.8,
         ),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(11),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -513,32 +512,37 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             role: role,
             userId: p['id']?.toString(),
             userEmail: p['email']?.toString(),
-            radius: 22,
+            radius: 19,
             onAvatarChanged: (_) => _loadStaff(),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   (p['full_name'] as String?) ?? 'موظف',
-                  style: AppTypography.titleMedium(textPrimary).copyWith(
+                  style: TextStyle(
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
+                    color: textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   p['email']?.toString() ?? '',
-                  style: AppTypography.caption(textSecondary),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: textSecondary,
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: (isAdmin ? AppColors.adminRole : AppColors.info).withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
@@ -546,7 +550,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       child: Text(
                         _roleInArabic(role),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10.5,
                           color: isAdmin ? AppColors.adminRole : AppColors.info,
                           fontWeight: FontWeight.bold,
                         ),
@@ -554,14 +558,14 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     ),
                     if (p['phone_number'] != null && p['phone_number'].toString().isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'هاتف: ${p['phone_number']}',
-                          style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 10.5, color: textSecondary, fontWeight: FontWeight.w500),
                         ),
                       ),
                   ],
@@ -569,7 +573,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
