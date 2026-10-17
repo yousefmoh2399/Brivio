@@ -324,8 +324,9 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => ParentFinancialLedgerScreen(
+                              studentId: widget.childData['id']?.toString(),
                               studentName: _viewModel.childName,
-                              studentCode: (widget.childData['student_code'] ?? widget.childData['id'] ?? 'STU-101').toString(),
+                              studentCode: (widget.childData['student_code'] ?? widget.childData['id'] ?? '').toString(),
                             ),
                           ),
                         );
@@ -360,8 +361,9 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => MonthlyReportCardScreen(
+                              studentId: widget.childData['id']?.toString(),
                               studentName: _viewModel.childName,
-                              studentCode: (widget.childData['student_code'] ?? widget.childData['id'] ?? 'STU-101').toString(),
+                              studentCode: (widget.childData['student_code'] ?? widget.childData['id'] ?? '').toString(),
                             ),
                           ),
                         );
@@ -680,10 +682,11 @@ class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => MonthlyReportCardScreen(
+                    studentId: widget.childData['id']?.toString(),
                     studentName: _viewModel.childName,
                     studentCode: (widget.childData['student_code'] ??
                             widget.childData['id'] ??
-                            'STU-101')
+                            '')
                         .toString(),
                   ),
                 ),

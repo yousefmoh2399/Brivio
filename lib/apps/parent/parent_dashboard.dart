@@ -58,6 +58,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   List<_ParentExamItem> _examItems = [];
   List<_ParentAttendanceItem> _attendance = [];
   List<_ParentLeaveItem> _leaveRequests = [];
+  List<_ParentHomeworkItem> _homeworkItems = [];
   List<AppNotification> _notifications = [];
   int _unreadCount = 0;
   StreamSubscription<AppNotification>? _notificationSubscription;
@@ -169,12 +170,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _safeList(_fetchExamFeed(child.id)),
         _safeList(_fetchAttendance(child.id)),
         _safeList(_fetchLeaveRequests(child.id)),
+        _safeList(_fetchHomeworkFeed(child.id)),
         notificationRepo.getNotifications(),
       ]);
 
       if (!mounted || _selectedChild?.id != child.id) return;
       final childNotifications = _filterNotificationsForChild(
-        results[8] as List<AppNotification>,
+        results[9] as List<AppNotification>,
         child.id,
       );
       setState(() {
@@ -186,6 +188,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _examItems = results[5] as List<_ParentExamItem>;
         _attendance = results[6] as List<_ParentAttendanceItem>;
         _leaveRequests = results[7] as List<_ParentLeaveItem>;
+        _homeworkItems = results[8] as List<_ParentHomeworkItem>;
         _notifications = childNotifications;
         _unreadCount = childNotifications.where((n) => !n.isRead).length;
         _isChildLoading = false;
@@ -217,6 +220,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       _examItems = [];
       _attendance = [];
       _leaveRequests = [];
+      _homeworkItems = [];
       _notifications = [];
       _unreadCount = 0;
     });
@@ -260,6 +264,16 @@ class _ParentDashboardState extends State<ParentDashboard> {
         .toList();
   }
 
+  Future<List<_ParentHomeworkItem>> _fetchHomeworkFeed(String studentId) async {
+    final response = await _wrapper.client.rpc(
+      'get_parent_child_homework_feed',
+      params: {'p_student_id': studentId},
+    );
+    return (response as List)
+        .map((row) => _ParentHomeworkItem.fromJson(row as Map))
+        .toList();
+  }
+
   Future<void> _openLinkChildScreen() async {
     final linked = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const LinkChildScreen()),
@@ -272,14 +286,23 @@ class _ParentDashboardState extends State<ParentDashboard> {
   void _exportFinancialLedger() {
     final child = _selectedChild;
     if (child == null) return;
+    final paid = _financialSummary != null
+        ? _financialSummary!.totalPaidMinor / 100.0
+        : null;
+    final remaining = _financialSummary != null
+        ? _financialSummary!.remainingBalanceMinor / 100.0
+        : null;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ParentFinancialLedgerScreen(
+          studentId: child.id,
           studentName: child.fullName,
           studentCode: child.studentCode,
           parentName: widget.authViewModel.currentUser?.fullName ?? 'ولي الأمر',
           parentPhone: widget.authViewModel.currentUser?.phoneNumber ?? '',
           groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
+          initialTotalPaid: paid,
+          initialTotalRemaining: remaining,
         ),
       ),
     );
@@ -288,13 +311,39 @@ class _ParentDashboardState extends State<ParentDashboard> {
   void _openOfficialReportCard() {
     final child = _selectedChild;
     if (child == null) return;
+
+    final totalSessions = _attendance.length;
+    final attendedSessions =
+        _attendance.where((a) => a.status.toLowerCase() == 'present').length;
+    final attendanceRate =
+        totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : null;
+
+    final gradedExams = _examItems.where((e) => e.percentage != null).toList();
+    final examAverage = gradedExams.isNotEmpty
+        ? gradedExams.map((e) => e.percentage!).reduce((a, b) => a + b) /
+            gradedExams.length
+        : null;
+
+    final gradedHomework =
+        _homeworkItems.where((h) => h.percentage != null).toList();
+    final homeworkAverage = gradedHomework.isNotEmpty
+        ? gradedHomework.map((h) => h.percentage!).reduce((a, b) => a + b) /
+            gradedHomework.length
+        : null;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MonthlyReportCardScreen(
+          studentId: child.id,
           studentName: child.fullName,
           studentCode: child.studentCode,
           groupName: _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية',
           teacherName: _childGroups.isNotEmpty ? 'أ. معلم المادة' : 'إدارة السنتر',
+          initialAttendanceRate: attendanceRate,
+          initialAttendedSessions: attendedSessions,
+          initialTotalSessions: totalSessions,
+          initialExamAverage: examAverage,
+          initialHomeworkAverage: homeworkAverage,
         ),
       ),
     );
@@ -886,6 +935,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ChildAssignmentsScreen(
+                      studentId: child?.id,
                       studentName: child?.fullName,
                     ),
                   ),
@@ -895,6 +945,53 @@ class _ParentDashboardState extends State<ParentDashboard> {
               label: const Text('كافة الواجبات'),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        _InfoList(
+          isEmpty: _homeworkItems.isEmpty,
+          emptyText: 'لا توجد واجبات أو تكليفات مدرسية مسجلة لهذا الطالب حالياً.',
+          children: _homeworkItems
+              .take(5)
+              .map(
+                (hw) => PortalListCard(
+                  icon: Icons.assignment_outlined,
+                  accentColor: hw.status == 'graded'
+                      ? AppColors.success
+                      : hw.status == 'submitted'
+                          ? AppColors.info
+                          : hw.status == 'missing'
+                              ? AppColors.error
+                              : AppColors.warning,
+                  title: hw.title,
+                  subtitle:
+                      '${hw.subjectName} • ${hw.groupName}${hw.dueAt != null ? ' • التسليم قبل: ${_formatDate(hw.dueAt)}' : ''}',
+                  trailing: [
+                    if (hw.scoreLabel != null)
+                      PortalStatusChip(status: hw.scoreLabel!),
+                    PortalStatusChip(
+                      status: hw.status == 'graded'
+                          ? 'تم التصحيح'
+                          : hw.status == 'submitted'
+                              ? 'تم التسليم'
+                              : hw.status == 'missing'
+                                  ? 'متأخر'
+                                  : 'مطلوب حله',
+                    ),
+                  ],
+                  onTap: () {
+                    final child = _selectedChild;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChildAssignmentsScreen(
+                          studentId: child?.id,
+                          studentName: child?.fullName,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              )
+              .toList(),
         ),
         const SizedBox(height: 18),
         const PortalSectionTitle(
@@ -1991,6 +2088,11 @@ class _ParentExamItem {
       lastAttemptStatus == 'graded' ||
       lastAttemptStatus == 'expired';
 
+  double? get percentage =>
+      (lastScore != null && maxScore != null && maxScore! > 0)
+          ? (lastScore! / maxScore!) * 100
+          : null;
+
   String? get scoreLabel {
     if (lastScore == null) return null;
     final score = lastScore == lastScore!.roundToDouble()
@@ -2018,6 +2120,74 @@ class _ParentExamItem {
       attemptCount: (json['attempt_count'] as num? ?? 0).toInt(),
       lastScore: (json['last_score'] as num?)?.toDouble(),
       maxScore: (json['max_score'] as num?)?.toDouble(),
+    );
+  }
+}
+
+class _ParentHomeworkItem {
+  final String id;
+  final String title;
+  final String? description;
+  final String? subjectId;
+  final String subjectName;
+  final String? groupId;
+  final String groupName;
+  final DateTime? dueAt;
+  final double? maxScore;
+  final String status;
+  final String? submissionStatus;
+  final double? score;
+  final DateTime? submittedAt;
+
+  const _ParentHomeworkItem({
+    required this.id,
+    required this.title,
+    this.description,
+    this.subjectId,
+    required this.subjectName,
+    this.groupId,
+    required this.groupName,
+    this.dueAt,
+    this.maxScore,
+    required this.status,
+    this.submissionStatus,
+    this.score,
+    this.submittedAt,
+  });
+
+  double? get percentage =>
+      (score != null && maxScore != null && maxScore! > 0)
+          ? (score! / maxScore!) * 100
+          : null;
+
+  String? get scoreLabel {
+    if (score == null) return null;
+    final s = score == score!.roundToDouble()
+        ? score!.toStringAsFixed(0)
+        : score!.toStringAsFixed(1);
+    final m = maxScore == null
+        ? ''
+        : maxScore == maxScore!.roundToDouble()
+            ? ' / ${maxScore!.toStringAsFixed(0)}'
+            : ' / ${maxScore!.toStringAsFixed(1)}';
+    return '$s$m';
+  }
+
+  factory _ParentHomeworkItem.fromJson(Map json) {
+    return _ParentHomeworkItem(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'واجب منزلي',
+      description: json['description']?.toString(),
+      subjectId: json['subject_id']?.toString(),
+      subjectName: json['subject_name']?.toString() ?? 'مادة دراسية',
+      groupId: json['group_id']?.toString(),
+      groupName: json['group_name']?.toString() ?? 'المجموعة',
+      dueAt: DateTime.tryParse(json['due_at']?.toString() ?? ''),
+      maxScore: (json['max_score'] as num?)?.toDouble(),
+      status: json['status']?.toString() ?? 'pending',
+      submissionStatus: json['submission_status']?.toString(),
+      score: (json['score'] as num?)?.toDouble(),
+      submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
     );
   }
 }

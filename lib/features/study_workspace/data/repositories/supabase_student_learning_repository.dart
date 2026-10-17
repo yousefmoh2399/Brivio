@@ -17,17 +17,17 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         return const StudentLearningSnapshot(
           availableLessons: [],
           metrics: [
-            StudyMetric(label: 'Groups', value: '0', helper: 'Not enrolled'),
-            StudyMetric(label: 'Lessons', value: '0', helper: 'Published'),
-            StudyMetric(label: 'Completed', value: '0', helper: 'Lessons'),
-            StudyMetric(label: 'Study time', value: '0m', helper: 'Tracked'),
+            StudyMetric(label: 'المجموعات', value: '0', helper: 'غير مسجل'),
+            StudyMetric(label: 'الدروس', value: '0', helper: 'منشورة'),
+            StudyMetric(label: 'المكتملة', value: '0', helper: 'دروس'),
+            StudyMetric(label: 'وقت المذاكرة', value: '0 د', helper: 'مسجل'),
           ],
           enrolledGroupCount: 0,
         );
       }
 
       final lessons = await _safeFetchPublishedLessons(studentId);
-      final gamification = await _fetchGamificationSummary();
+      final gamification = await _fetchGamificationSummary(studentId);
       final completed = lessons
           .where((lesson) => lesson.progressPercentage >= 100)
           .length;
@@ -40,34 +40,34 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
         availableLessons: lessons,
         metrics: [
           StudyMetric(
-            label: 'Groups',
+            label: 'المجموعات المسجلة',
             value: groups.length.toString(),
-            helper: 'Active enrollments',
+            helper: 'مجموعات نشطة',
           ),
           StudyMetric(
-            label: 'Lessons',
+            label: 'الدروس والشروحات',
             value: lessons.length.toString(),
-            helper: 'Published',
+            helper: 'دروس منشورة',
           ),
           StudyMetric(
-            label: 'Completed',
+            label: 'الدروس المكتملة',
             value: completed.toString(),
-            helper: 'Lessons',
+            helper: 'تم إنجازها',
           ),
           StudyMetric(
-            label: 'Study time',
+            label: 'وقت المذاكرة',
             value: _formatDuration(trackedSeconds),
-            helper: 'Tracked',
+            helper: 'وقت فعلي',
           ),
           StudyMetric(
-            label: 'XP',
+            label: 'نقاط الخبرة (XP)',
             value: gamification.totalXp.toString(),
-            helper: 'Level ${gamification.level}',
+            helper: 'المستوى ${gamification.level}',
           ),
           StudyMetric(
-            label: 'Streak',
-            value: '${gamification.streakDays}d',
-            helper: 'Learning days',
+            label: 'أيام الالتزام',
+            value: '${gamification.streakDays} يوم',
+            helper: 'متابعة يومية',
           ),
         ],
         enrolledGroupCount: groups.length,
@@ -77,10 +77,10 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
       return const StudentLearningSnapshot(
         availableLessons: [],
         metrics: [
-          StudyMetric(label: 'Groups', value: '0', helper: 'Unavailable'),
-          StudyMetric(label: 'Lessons', value: '0', helper: 'Unavailable'),
-          StudyMetric(label: 'Completed', value: '0', helper: 'Lessons'),
-          StudyMetric(label: 'Study time', value: '0m', helper: 'Tracked'),
+          StudyMetric(label: 'المجموعات', value: '0', helper: 'غير متاح'),
+          StudyMetric(label: 'الدروس', value: '0', helper: 'غير متاح'),
+          StudyMetric(label: 'المكتملة', value: '0', helper: 'دروس'),
+          StudyMetric(label: 'وقت المذاكرة', value: '0 د', helper: 'مسجل'),
         ],
         enrolledGroupCount: 0,
       );
@@ -97,7 +97,16 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
     }
   }
 
-  Future<StudentGamificationSummary> _fetchGamificationSummary() async {
+  Future<StudentGamificationSummary> _fetchGamificationSummary([String? studentId]) async {
+    try {
+      if (studentId != null && studentId.isNotEmpty) {
+        final response = await _wrapper.client.rpc(
+          'get_student_gamification_summary',
+          params: {'p_student_id': studentId},
+        );
+        return StudentGamificationSummary.fromJson(response as Map);
+      }
+    } catch (_) {}
     try {
       final response = await _wrapper.client.rpc(
         'get_current_student_gamification_summary',
@@ -180,11 +189,11 @@ class SupabaseStudentLearningRepository implements IStudentLearningRepository {
   }
 
   String _formatMinutes(int minutes) {
-    if (minutes < 60) return '${minutes}m';
+    if (minutes < 60) return '$minutes د';
     final hours = minutes ~/ 60;
     final rest = minutes % 60;
-    if (rest == 0) return '${hours}h';
-    return '${hours}h ${rest}m';
+    if (rest == 0) return '$hours س';
+    return '$hours س $rest د';
   }
 
   String _formatDuration(int seconds) {

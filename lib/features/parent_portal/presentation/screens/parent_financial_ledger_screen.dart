@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -6,21 +7,27 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 
 class ParentFinancialLedgerScreen extends StatefulWidget {
+  final String? studentId;
   final String studentName;
   final String studentCode;
   final String parentName;
   final String parentPhone;
   final String groupName;
   final String centerName;
+  final double? initialTotalPaid;
+  final double? initialTotalRemaining;
 
   const ParentFinancialLedgerScreen({
     super.key,
-    this.studentName = 'عمر أحمد محمود',
-    this.studentCode = 'STU-101',
-    this.parentName = 'أ. أحمد محمود',
-    this.parentPhone = '01011112222',
-    this.groupName = 'ثانوية عامة - لغات A',
-    this.centerName = 'سنتر الأوائل التعليمي',
+    this.studentId,
+    this.studentName = 'الطالب',
+    this.studentCode = '',
+    this.parentName = 'ولي الأمر',
+    this.parentPhone = '',
+    this.groupName = 'المجموعة الدراسية',
+    this.centerName = 'السنتر التعليمي',
+    this.initialTotalPaid,
+    this.initialTotalRemaining,
   });
 
   @override
@@ -29,41 +36,103 @@ class ParentFinancialLedgerScreen extends StatefulWidget {
 
 class _ParentFinancialLedgerScreenState extends State<ParentFinancialLedgerScreen> {
   bool _isExporting = false;
+  bool _isLoading = false;
 
-  final double _totalPaid = 950.0;
-  final double _totalRemaining = 0.0;
+  late double _totalPaid;
+  late double _totalRemaining;
+  List<Map<String, dynamic>> _ledgerRecords = [];
 
-  final List<Map<String, dynamic>> _ledgerRecords = [
-    {
-      'receipt_number': 'REC-8841',
-      'date': '2026-10-01',
-      'description': 'اشتراك شهر أكتوبر 2026 (مادة الفيزياء)',
-      'amount': 400.0,
-      'collector_name': 'أ. سارة (الاستقبال)',
-      'payment_method': 'كاش فقط',
-      'status': 'مدفوع معتمد',
-    },
-    {
-      'receipt_number': 'REC-8512',
-      'date': '2026-10-05',
-      'description': 'شراء مذكرة بنك الأسئلة والتدريبات الشاملة',
-      'amount': 150.0,
-      'collector_name': 'خزينة ومخزن السنتر',
-      'payment_method': 'كاش فقط',
-      'status': 'مدفوع معتمد',
-    },
-    {
-      'receipt_number': 'REC-7920',
-      'date': '2026-09-01',
-      'description': 'اشتراك شهر سبتمبر 2026 (مادة الفيزياء)',
-      'amount': 400.0,
-      'collector_name': 'أ. محمود (الاستقبال)',
-      'payment_method': 'كاش فقط',
-      'status': 'مدفوع معتمد',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _totalPaid = widget.initialTotalPaid ?? 0.0;
+    _totalRemaining = widget.initialTotalRemaining ?? 0.0;
+    if (widget.studentId != null && widget.studentId!.isNotEmpty) {
+      _loadRealFinancialData();
+    }
+  }
+
+  Future<void> _loadRealFinancialData() async {
+    setState(() => _isLoading = true);
+    try {
+      final client = Supabase.instance.client;
+      final receiptsRes = await client
+          .from('receipts')
+          .select('id, receipt_number, amount_minor, currency, issued_at, notes, invoices(description, title)')
+          .eq('student_id', widget.studentId!)
+          .order('issued_at', ascending: false);
+
+      final invoicesRes = await client
+          .from('invoices')
+          .select('id, invoice_number, amount_minor, status, title, description, due_date')
+          .eq('student_id', widget.studentId!)
+          .order('issued_at', ascending: false);
+
+      double paidSum = 0.0;
+      final List<Map<String, dynamic>> records = [];
+
+      for (final r in (receiptsRes as List)) {
+        final amount = ((r['amount_minor'] as num?)?.toDouble() ?? 0.0) / 100.0;
+        paidSum += amount;
+        final issuedAt = DateTime.tryParse(r['issued_at']?.toString() ?? '');
+        final dateStr = issuedAt != null
+            ? '${issuedAt.year}-${issuedAt.month.toString().padLeft(2, '0')}-${issuedAt.day.toString().padLeft(2, '0')}'
+            : '';
+
+        final inv = r['invoices'] as Map<String, dynamic>?;
+        final desc = inv?['title']?.toString() ??
+            inv?['description']?.toString() ??
+            r['notes']?.toString() ??
+            'سداد رسوم دراسية معتمدة';
+
+        final recNum = r['receipt_number']?.toString();
+        final idStr = r['id']?.toString() ?? '';
+        final displayNum = (recNum != null && recNum.isNotEmpty)
+            ? recNum
+            : (idStr.length >= 8 ? idStr.substring(0, 8).toUpperCase() : 'REC');
+
+        records.add({
+          'receipt_number': displayNum,
+          'date': dateStr,
+          'description': desc,
+          'amount': amount,
+          'collector_name': 'خزينة السنتر الرسمية',
+          'payment_method': 'إيصال معتمد',
+          'status': 'مدفوع معتمد',
+        });
+      }
+
+      double remainingSum = 0.0;
+      for (final inv in (invoicesRes as List)) {
+        final status = inv['status']?.toString().toLowerCase();
+        if (status == 'pending' || status == 'unpaid' || status == 'overdue') {
+          final amt = ((inv['amount_minor'] as num?)?.toDouble() ?? 0.0) / 100.0;
+          remainingSum += amt;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _ledgerRecords = records;
+          _totalPaid = paidSum > 0 ? paidSum : (widget.initialTotalPaid ?? 0.0);
+          _totalRemaining = remainingSum > 0 ? remainingSum : (widget.initialTotalRemaining ?? 0.0);
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   Future<void> _exportPdf() async {
+    if (_ledgerRecords.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد معاملات مسجلة لتصدير كشف الحساب.')),
+      );
+      return;
+    }
     setState(() => _isExporting = true);
     try {
       final reportService = ReportGeneratorService();
@@ -253,58 +322,88 @@ class _ParentFinancialLedgerScreenState extends State<ParentFinancialLedgerScree
             ),
             const SizedBox(height: 8),
 
-            ..._ledgerRecords.map((r) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_ledgerRecords.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 24),
                 child: GlassCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'إيصال #${r['receipt_number']}',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
-                            ),
-                          ),
-                          Text(
-                            '${(r['amount'] as num).toStringAsFixed(1)} ج.م',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        r['description'],
-                        style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'تاريخ السداد: ${r['date']}',
-                            style: TextStyle(fontSize: 11, color: textSecondary),
-                          ),
-                          Text(
-                            'المستلم: ${r['collector_name']}',
-                            style: TextStyle(fontSize: 11, color: textSecondary),
-                          ),
-                        ],
-                      ),
-                    ],
+                  padding: const EdgeInsets.all(28),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          size: 48,
+                          color: textSecondary.withValues(alpha: 0.5),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'لا توجد إيصالات أو معاملات مالية مسجلة لهذا الطالب حتى الآن.',
+                          style: AppTypography.bodyMedium(textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            }),
+              )
+            else
+              ..._ledgerRecords.map((r) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'إيصال #${r['receipt_number']}',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                            ),
+                            Text(
+                              '${(r['amount'] as num).toStringAsFixed(1)} ج.م',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          r['description'],
+                          style: AppTypography.bodyMedium(textPrimary).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'تاريخ السداد: ${r['date']}',
+                              style: TextStyle(fontSize: 11, color: textSecondary),
+                            ),
+                            Text(
+                              'المستلم: ${r['collector_name']}',
+                              style: TextStyle(fontSize: 11, color: textSecondary),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
           ],
         ),
       ),
