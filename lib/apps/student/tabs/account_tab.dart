@@ -1256,9 +1256,10 @@ class _ProfileEditCardState extends State<_ProfileEditCard> {
                           userEmail: widget.profile?.email,
                         ),
                       );
-                      if (newUrl != null || newUrl == null && _avatarCtrl.text.isNotEmpty) {
+                      if (newUrl != null) {
+                        final actualUrl = newUrl.isEmpty ? null : newUrl;
                         setState(() {
-                          _avatarCtrl.text = newUrl ?? '';
+                          _avatarCtrl.text = actualUrl ?? '';
                         });
                         await _saveProfile();
                       }

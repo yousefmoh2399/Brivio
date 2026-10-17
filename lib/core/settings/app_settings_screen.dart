@@ -9,6 +9,7 @@ import '../notifications/push_notification_service.dart';
 import '../services/settings_service.dart';
 import '../../design_system/tokens/colors.dart';
 import '../../design_system/components/glass_card.dart';
+import '../../design_system/components/editable_avatar.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/admin/domain/repositories/i_admin_repository.dart';
 import '../../features/legal/presentation/screens/privacy_and_terms_screen.dart';
@@ -79,6 +80,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
   String? _userName;
   String? _userEmail;
   String? _userRole;
+  String? _avatarUrl;
 
   @override
   void initState() {
@@ -95,24 +97,27 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         String? name = user.userMetadata?['full_name'] as String? ??
             user.userMetadata?['name'] as String?;
         String? role = user.userMetadata?['role'] as String?;
+        String? avatar = user.userMetadata?['avatar_url'] as String?;
 
-        if (name == null || role == null) {
+        try {
           final res = await client
               .from('profiles')
-              .select('full_name, role')
+              .select('full_name, role, avatar_url')
               .eq('id', user.id)
               .maybeSingle();
           if (res != null) {
             name ??= res['full_name'] as String?;
             role ??= res['role'] as String?;
+            avatar ??= res['avatar_url'] as String?;
           }
-        }
+        } catch (_) {}
 
         if (mounted) {
           setState(() {
             _userEmail = user.email;
             _userName = name ?? 'مستخدم المنظومة';
             _userRole = role;
+            _avatarUrl = avatar;
           });
         }
       }
@@ -727,10 +732,6 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
   }
 
   Widget _buildUserProfileCard(bool isDark, Color primary) {
-    final initials = (_userName != null && _userName!.isNotEmpty)
-        ? _userName!.split(' ').take(2).map((e) => e.isNotEmpty ? e[0] : '').join()
-        : 'B';
-
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -756,17 +757,18 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          CircleAvatar(
+          EditableAvatar(
+            avatarUrl: _avatarUrl,
+            fullName: _userName ?? 'مستخدم المنظومة',
+            role: _userRole,
+            userId: Supabase.instance.client.auth.currentUser?.id,
+            userEmail: _userEmail,
             radius: 28,
-            backgroundColor: primary.withValues(alpha: 0.15),
-            child: Text(
-              initials,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: primary,
-              ),
-            ),
+            onAvatarChanged: (newUrl) {
+              setState(() {
+                _avatarUrl = newUrl;
+              });
+            },
           ),
           const SizedBox(width: 14),
           Expanded(

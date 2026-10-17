@@ -117,7 +117,11 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> signIn({required String email, required String password}) async {
+  Future<void> signIn({
+    required String email,
+    required String password,
+    Future<void> Function(UserProfile profile)? onAuthenticatedBeforeTransition,
+  }) async {
     if (email.trim().isEmpty || password.trim().isEmpty) {
       _state = AuthState.error(
         const ValidationFailure(message: 'Email and password cannot be empty.'),
@@ -135,6 +139,11 @@ class AuthViewModel extends ChangeNotifier {
         password: password,
       );
       final bootstrap = await _authRepository.fetchUserBootstrap();
+      if (onAuthenticatedBeforeTransition != null) {
+        try {
+          await onAuthenticatedBeforeTransition(bootstrap.profile);
+        } catch (_) {}
+      }
       _hasFreshlyAuthenticated = true;
       _state = AuthState.authenticated(bootstrap);
       unawaited(pushNotificationService?.syncCurrentToken());
@@ -149,6 +158,7 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> signInWithMagicQr({
     required String email,
     required String token,
+    Future<void> Function(UserProfile profile)? onAuthenticatedBeforeTransition,
   }) async {
     _state = AuthState.loading();
     notifyListeners();
@@ -159,6 +169,11 @@ class AuthViewModel extends ChangeNotifier {
         token: token,
       );
       final bootstrap = await _authRepository.fetchUserBootstrap();
+      if (onAuthenticatedBeforeTransition != null) {
+        try {
+          await onAuthenticatedBeforeTransition(bootstrap.profile);
+        } catch (_) {}
+      }
       _hasFreshlyAuthenticated = true;
       _state = AuthState.authenticated(bootstrap);
       unawaited(pushNotificationService?.syncCurrentToken());

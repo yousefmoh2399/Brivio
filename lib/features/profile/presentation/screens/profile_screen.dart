@@ -237,9 +237,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     userEmail: profile?.email,
                                   ),
                                 );
-                                if (newUrl != null || newUrl == null && _avatarController.text.isNotEmpty) {
+                                if (newUrl != null) {
+                                  final actualUrl = newUrl.isEmpty ? null : newUrl;
                                   setState(() {
-                                    _avatarController.text = newUrl ?? '';
+                                    _avatarController.text = actualUrl ?? '';
                                   });
                                   _saveProfile();
                                 }

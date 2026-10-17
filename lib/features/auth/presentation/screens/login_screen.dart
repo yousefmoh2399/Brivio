@@ -13,10 +13,12 @@ import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../domain/models/user_role.dart';
+import '../../domain/models/user_profile.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../../academy/presentation/screens/register_center_screen.dart';
 import '../../../legal/presentation/screens/privacy_and_terms_screen.dart';
 import '../../../../core/services/saved_accounts_service.dart';
+import '../../../../core/services/avatar_service.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -144,13 +146,16 @@ class _LoginScreenState extends State<LoginScreen>
     await widget.viewModel.signIn(
       email: enteredEmail,
       password: enteredPassword,
+      onAuthenticatedBeforeTransition: (profile) async {
+        await _consumePendingQrToken();
+        await _handlePostLoginSaveAccount(
+          profile: profile,
+          email: enteredEmail,
+          password: enteredPassword,
+        );
+      },
     );
     if (widget.viewModel.state.status == AuthStatus.authenticated) {
-      await _consumePendingQrToken();
-      await _handlePostLoginSaveAccount(
-        email: enteredEmail,
-        password: enteredPassword,
-      );
       widget.onLoginSuccess?.call();
     }
   }
@@ -172,6 +177,8 @@ class _LoginScreenState extends State<LoginScreen>
       UserRole.staff => AppColors.staffRole,
       _ => AppColors.primary,
     };
+
+    final imageProvider = AvatarService.getImageProvider(avatarUrl);
 
     return showDialog<bool>(
       context: context,
@@ -195,10 +202,9 @@ class _LoginScreenState extends State<LoginScreen>
                 padding: const EdgeInsets.all(3),
                 child: CircleAvatar(
                   backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
-                  backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                      ? NetworkImage(avatarUrl)
-                      : null,
-                  child: avatarUrl == null || avatarUrl.isEmpty
+                  backgroundImage: imageProvider,
+                  onBackgroundImageError: imageProvider != null ? (_, __) {} : null,
+                  child: imageProvider == null
                       ? Text(
                           name.isNotEmpty ? name[0].toUpperCase() : 'U',
                           style: TextStyle(
@@ -276,16 +282,17 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handlePostLoginSaveAccount({
+    UserProfile? profile,
     required String email,
     required String password,
   }) async {
     try {
-      final profile = widget.viewModel.currentUser;
-      final effectiveRole = profile?.role ?? _selectedRole ?? widget.targetRole ?? UserRole.student;
-      final effectiveName = (profile?.fullName.isNotEmpty ?? false)
-          ? profile!.fullName
+      final userProfile = profile ?? widget.viewModel.currentUser;
+      final effectiveRole = userProfile?.role ?? _selectedRole ?? widget.targetRole ?? UserRole.student;
+      final effectiveName = (userProfile?.fullName.isNotEmpty ?? false)
+          ? userProfile!.fullName
           : email.split('@').first;
-      final userId = profile?.id ?? '';
+      final userId = userProfile?.id ?? '';
 
       final isAlreadySaved = await SavedAccountsService.isAccountSaved(email);
       if (!isAlreadySaved) {
@@ -293,7 +300,7 @@ class _LoginScreenState extends State<LoginScreen>
           name: effectiveName,
           email: email,
           role: effectiveRole,
-          avatarUrl: profile?.avatarUrl,
+          avatarUrl: userProfile?.avatarUrl,
         );
         if (shouldSave == true) {
           await SavedAccountsService.saveAccount(
@@ -302,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen>
               email: email,
               fullName: effectiveName,
               role: effectiveRole.toDbValue(),
-              avatarUrl: profile?.avatarUrl,
+              avatarUrl: userProfile?.avatarUrl,
               password: password.isNotEmpty ? password : null,
               lastLoginAt: DateTime.now(),
             ),
@@ -319,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen>
             existing.copyWith(
               password: password.isNotEmpty ? password : existing.password,
               lastLoginAt: DateTime.now(),
-              avatarUrl: profile?.avatarUrl ?? existing.avatarUrl,
+              avatarUrl: userProfile?.avatarUrl ?? existing.avatarUrl,
               fullName: effectiveName.isNotEmpty ? effectiveName : existing.fullName,
               role: effectiveRole.toDbValue(),
             ),
@@ -360,12 +367,15 @@ class _LoginScreenState extends State<LoginScreen>
       await widget.viewModel.signInWithMagicQr(
         email: result.email,
         token: result.token,
+        onAuthenticatedBeforeTransition: (profile) async {
+          await _handlePostLoginSaveAccount(
+            profile: profile,
+            email: result.email,
+            password: '',
+          );
+        },
       );
       if (widget.viewModel.state.status == AuthStatus.authenticated) {
-        await _handlePostLoginSaveAccount(
-          email: result.email,
-          password: '',
-        );
         widget.onLoginSuccess?.call();
       } else {
         setState(() {

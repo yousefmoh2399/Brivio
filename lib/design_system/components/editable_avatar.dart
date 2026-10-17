@@ -81,13 +81,12 @@ class _EditableAvatarState extends State<EditableAvatar> {
         userEmail: widget.userEmail,
       ),
     );
-    if (mounted) {
-      if (newUrl != null || _currentAvatarUrl != null) {
-        setState(() {
-          _currentAvatarUrl = newUrl;
-        });
-      }
-      widget.onAvatarChanged?.call(newUrl);
+    if (mounted && newUrl != null) {
+      final actualUrl = newUrl.isEmpty ? null : newUrl;
+      setState(() {
+        _currentAvatarUrl = actualUrl;
+      });
+      widget.onAvatarChanged?.call(actualUrl);
     }
   }
 
@@ -235,10 +234,12 @@ class AvatarPickerBottomSheet extends StatefulWidget {
       ),
     );
 
-    if (result != null || result == null && currentAvatarUrl != null) {
-      onAvatarSelected?.call(result);
+    if (result != null) {
+      final actualUrl = result.isEmpty ? null : result;
+      onAvatarSelected?.call(actualUrl);
+      return actualUrl;
     }
-    return result;
+    return null;
   }
 
   @override
@@ -278,7 +279,7 @@ class _AvatarPickerBottomSheetState extends State<AvatarPickerBottomSheet> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      Navigator.pop(context, url);
+      Navigator.pop(context, url ?? '');
     }
   }
 
