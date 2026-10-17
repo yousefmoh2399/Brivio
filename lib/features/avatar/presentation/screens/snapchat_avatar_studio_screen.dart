@@ -8,9 +8,9 @@ import '../../domain/models/bitmoji_traits.dart';
 import '../widgets/bitmoji_renderer.dart';
 import '../widgets/bitmoji_stickers_sheet.dart';
 
-/// Full-featured Snapchat Bitmoji-grade Avatar Studio.
-/// Native 60/120fps vector rendering, live blinking/breathing, 3D pedestal stage,
-/// camera zoom toggle, comprehensive visual trait selector, and PNG exporter.
+/// Full-featured, commercial-grade Snapchat Bitmoji 3D Studio.
+/// Real high-resolution character rendering, 3D pedestal stage,
+/// camera zoom toggle, visual trait selector, and PNG exporter.
 class SnapchatAvatarStudioScreen extends StatefulWidget {
   final String? userId;
   final String? userEmail;
@@ -57,13 +57,15 @@ class _SnapchatAvatarStudioScreenState
   late BitmojiTraits _traits;
   AvatarCameraFocus _cameraFocus = AvatarCameraFocus.fullBody;
   AvatarCustomizationSection _currentSection =
-      AvatarCustomizationSection.genderBody;
+      AvatarCustomizationSection.style;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _traits = const BitmojiTraits();
+    _traits = BitmojiTraits(
+      seed: widget.userId ?? 'Hero_${DateTime.now().millisecondsSinceEpoch}',
+    );
     _loadSavedTraits();
   }
 
@@ -105,24 +107,27 @@ class _SnapchatAvatarStudioScreenState
     final rnd = DateTime.now().millisecondsSinceEpoch;
     final skins = BitmojiTraits.skinPalette;
     final hairs = BitmojiTraits.hairPalette;
-    final eyes = BitmojiTraits.eyePalette;
     final outfits = BitmojiTraits.outfitPalette;
+    final bgs = BitmojiTraits.backgroundPalette;
 
+    final styles = ['avataaars', 'adventurer', 'lorelei'];
     final hairStyles = [
       'short_curly',
       'fade_crop',
       'slick_back',
       'long_wavy',
       'buzz_cut',
-      'hijab_wrapped'
+      'hijab_wrapped',
+      'bob',
+      'bun',
+      'hat',
     ];
     final eyeStyles = [
       'happy_curved',
       'focused_round',
       'confident_almond',
-      'winking'
+      'winking',
     ];
-    final noses = ['straight_clean', 'soft_button', 'defined_sharp'];
     final mouths = ['warm_smile', 'confident_smirk', 'wide_grin', 'neutral'];
     final beards = ['none', 'stubble', 'trimmed_beard', 'mustache'];
     final glasses = ['none', 'square_frames', 'round_frames', 'sunglasses'];
@@ -130,17 +135,18 @@ class _SnapchatAvatarStudioScreenState
 
     setState(() {
       _traits = _traits.copyWith(
+        seed: 'Seed_$rnd',
+        style: styles[rnd % styles.length],
         skinColor: skins[rnd % skins.length],
         hairColor: hairs[(rnd ~/ 2) % hairs.length],
-        eyeColor: eyes[(rnd ~/ 3) % eyes.length],
-        outfitColor: outfits[(rnd ~/ 4) % outfits.length],
+        outfitColor: outfits[(rnd ~/ 3) % outfits.length],
+        backgroundColor: bgs[(rnd ~/ 4) % bgs.length],
         hairStyle: hairStyles[(rnd ~/ 5) % hairStyles.length],
         eyes: eyeStyles[(rnd ~/ 6) % eyeStyles.length],
-        nose: noses[(rnd ~/ 7) % noses.length],
-        mouth: mouths[(rnd ~/ 8) % mouths.length],
-        facialHair: beards[(rnd ~/ 9) % beards.length],
-        eyewear: glasses[(rnd ~/ 10) % glasses.length],
-        outfit: clothes[(rnd ~/ 11) % clothes.length],
+        mouth: mouths[(rnd ~/ 7) % mouths.length],
+        facialHair: beards[(rnd ~/ 8) % beards.length],
+        eyewear: glasses[(rnd ~/ 9) % glasses.length],
+        outfit: clothes[(rnd ~/ 10) % clothes.length],
       );
     });
   }
@@ -151,36 +157,35 @@ class _SnapchatAvatarStudioScreenState
     HapticFeedback.heavyImpact();
 
     try {
-      // 1. Temporarily switch camera focus to fullBody or face for crystal-clear render
-      setState(() => _cameraFocus = AvatarCameraFocus.face);
-      await Future.delayed(const Duration(milliseconds: 350));
+      // 1. Direct high-res PNG image URL
+      final highResUrl = _traits.toImageUrl(size: 512);
 
-      // 2. Capture high-res PNG bytes from native Canvas
+      // 2. Capture high-res PNG bytes from native Canvas if available
       final Uint8List? pngBytes = await BitmojiRenderer.capturePng(
         _repaintKey,
-        pixelRatio: 3.5,
+        pixelRatio: 3.0,
       );
 
-      String? uploadedUrl;
+      String finalAvatarUrl = highResUrl;
       if (pngBytes != null) {
         final filename =
             'bitmoji_${widget.userId ?? "guest"}_${DateTime.now().millisecondsSinceEpoch}.png';
 
-        // 3. Upload to Supabase Storage with local data URI fallback
-        uploadedUrl = await AvatarService.uploadAvatar(
+        // 3. Upload to Supabase Storage
+        final uploadedUrl = await AvatarService.uploadAvatar(
           bytes: pngBytes,
           filename: filename,
+          userId: widget.userId,
         );
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+          finalAvatarUrl = uploadedUrl;
+        }
       }
 
-      // 4. Fallback URL if upload failed
-      final finalAvatarUrl = uploadedUrl ??
-          'https://api.dicebear.com/7.x/bottts/png?seed=${widget.userId ?? "user"}';
-
-      // 5. Persist traits configuration locally
+      // 4. Persist traits configuration locally
       await _persistTraitsLocally();
 
-      // 6. Update user profile and saved accounts
+      // 5. Update user profile and saved accounts
       if (widget.userId != null && widget.userId!.isNotEmpty) {
         await AvatarService.updateUserAvatar(
           userId: widget.userId!,
@@ -318,7 +323,7 @@ class _SnapchatAvatarStudioScreenState
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Vector Stage
+                  // Vector Stage with 3D Pedestal
                   Container(
                     width: double.infinity,
                     color: _traits.backgroundColor.withValues(alpha: 0.15),
@@ -346,7 +351,7 @@ class _SnapchatAvatarStudioScreenState
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: cardColor.withValues(alpha: 0.9),
+                          color: cardColor.withValues(alpha: 0.92),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: widget.roleColor.withValues(alpha: 0.4),
@@ -461,20 +466,16 @@ class _SnapchatAvatarStudioScreenState
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 children: [
+                  _buildSectionTab(AvatarCustomizationSection.style, 'النمط والموديل', Icons.palette_rounded),
                   _buildSectionTab(AvatarCustomizationSection.genderBody, 'الجنس', Icons.wc_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.skinTone, 'البشرة', Icons.palette_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.faceShape, 'الوجه', Icons.face_retouching_natural_rounded),
                   _buildSectionTab(AvatarCustomizationSection.hairStyle, 'الشعر', Icons.content_cut_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.hairColor, 'لون الشعر', Icons.format_paint_rounded),
                   _buildSectionTab(AvatarCustomizationSection.headwear, 'الحجاب والأغطية', Icons.dry_cleaning_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.eyes, 'العيون', Icons.remove_red_eye_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.eyeColor, 'لون العيون', Icons.lens_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.eyebrows, 'الحواجب', Icons.line_weight_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.nose, 'الأنف', Icons.more_horiz_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.mouth, 'التعبيرات والفم', Icons.mood_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.facialHair, 'اللحية والشارب', Icons.face_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.eyewear, 'النظارات', Icons.visibility_rounded),
                   _buildSectionTab(AvatarCustomizationSection.outfit, 'الملابس والأزياء', Icons.checkroom_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.skinTone, 'البشرة', Icons.face_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.hairColor, 'لون الشعر', Icons.format_paint_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.eyewear, 'النظارات', Icons.visibility_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.mouth, 'التعبيرات', Icons.mood_rounded),
+                  _buildSectionTab(AvatarCustomizationSection.facialHair, 'اللحية والشارب', Icons.face_retouching_natural_rounded),
                   _buildSectionTab(AvatarCustomizationSection.background, 'الاستوديو', Icons.wallpaper_rounded),
                 ],
               ),
@@ -523,7 +524,8 @@ class _SnapchatAvatarStudioScreenState
             _currentSection = section;
             // Auto focus camera depending on section
             if (section == AvatarCustomizationSection.outfit ||
-                section == AvatarCustomizationSection.genderBody) {
+                section == AvatarCustomizationSection.genderBody ||
+                section == AvatarCustomizationSection.style) {
               _cameraFocus = AvatarCameraFocus.fullBody;
             } else {
               _cameraFocus = AvatarCameraFocus.face;
@@ -536,139 +538,60 @@ class _SnapchatAvatarStudioScreenState
 
   Widget _buildSectionContent() {
     switch (_currentSection) {
-      case AvatarCustomizationSection.genderBody:
-        return _buildGenderSelector();
-      case AvatarCustomizationSection.skinTone:
-        return _buildColorPaletteRibbon(
-          colors: BitmojiTraits.skinPalette,
-          selected: _traits.skinColor,
-          onChanged: (c) => setState(() => _traits = _traits.copyWith(skinColor: c)),
-        );
-      case AvatarCustomizationSection.faceShape:
+      case AvatarCustomizationSection.style:
         return _buildChoiceCards(
           options: const [
-            {'id': 'oval', 'title': 'بيضاوي متناسق', 'subtitle': 'كلاسيكي متوازن'},
-            {'id': 'round', 'title': 'دائري ناعم', 'subtitle': 'خدود ممتلئة وودية'},
-            {'id': 'square', 'title': 'مربع حاد', 'subtitle': 'فك عريض وقوي'},
-            {'id': 'heart', 'title': 'قلبي جذاب', 'subtitle': 'ذقن دقيق وجبهة عريضة'},
+            {'id': 'avataaars', 'title': 'سناب شات كلاسيك 👱', 'subtitle': 'نمط شخصيات Bitmoji الشهيرة بجودة سينمائية'},
+            {'id': 'adventurer', 'title': 'مغامر بيكسار 3D ⚔️', 'subtitle': 'تصميم بيكسار كارتوني ثلاثي الأبعاد مبهج'},
+            {'id': 'lorelei', 'title': 'أنمي ولوريلاي 🌸', 'subtitle': 'رسوم أنمي يابانية حديثة وناعمة'},
+            {'id': 'bottts', 'title': 'سايبر روبوتيكس 🤖', 'subtitle': 'شخصيات روبوت ثلاثية الأبعاد لمحبي البرمجة'},
           ],
-          selectedId: _traits.faceShape,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(faceShape: id)),
+          selectedId: _traits.style,
+          onSelected: (id) => setState(() => _traits = _traits.copyWith(style: id)),
         );
+
+      case AvatarCustomizationSection.genderBody:
+        return _buildGenderSelector();
+
       case AvatarCustomizationSection.hairStyle:
         return _buildChoiceCards(
           options: const [
-            {'id': 'short_curly', 'title': 'كيرلي عصري', 'subtitle': 'خصلات متموجة وكثيفة'},
-            {'id': 'fade_crop', 'title': 'تدريج فيد (Fade)', 'subtitle': 'مدرج جانبي قصير'},
-            {'id': 'slick_back', 'title': 'تسريحة كلاسيك', 'subtitle': 'ممشط للخلف بأناقة'},
-            {'id': 'long_wavy', 'title': 'طويل مموج', 'subtitle': 'منسدل على الأكتاف'},
-            {'id': 'buzz_cut', 'title': 'قصة قصيرة (Buzz)', 'subtitle': 'شعر رياضي خفيف'},
-            {'id': 'hijab_wrapped', 'title': 'حجاب إسلامي 🧕', 'subtitle': 'شال أنيق ساتر'},
+            {'id': 'short_curly', 'title': 'كيرلي عصري 👦', 'subtitle': 'شعر كيرلي مجعد وأنيق'},
+            {'id': 'fade_crop', 'title': 'تدريج فيد (Fade) 💈', 'subtitle': 'مدرج جانبي خفيف وعصري'},
+            {'id': 'slick_back', 'title': 'تسريحة كلاسيك ✂️', 'subtitle': 'ممشط للخلف بأناقة رجال الأعمال'},
+            {'id': 'long_wavy', 'title': 'طويل مموج 💁‍♀️', 'subtitle': 'خصلات منسدلة وجميلة'},
+            {'id': 'buzz_cut', 'title': 'قصة قصيرة رياضي 👨', 'subtitle': 'شعر خفيف ونظيف'},
+            {'id': 'hijab_wrapped', 'title': 'حجاب إسلامي 🧕', 'subtitle': 'حجاب ساتر وأنيق متناسق مع الوجه'},
+            {'id': 'bob', 'title': 'قصة بوب عصرية 💇‍♀️', 'subtitle': 'قصة قصيرة جذابة للفتيات'},
+            {'id': 'bun', 'title': 'كعكة مرفوعة 👱‍♀️', 'subtitle': 'مظهر شبابي نشط'},
+            {'id': 'hat', 'title': 'قبعة كاجوال 🧢', 'subtitle': 'ستايل رياضي شبابي'},
           ],
           selectedId: _traits.hairStyle,
           onSelected: (id) =>
               setState(() => _traits = _traits.copyWith(hairStyle: id)),
         );
-      case AvatarCustomizationSection.hairColor:
-        return _buildColorPaletteRibbon(
-          colors: BitmojiTraits.hairPalette,
-          selected: _traits.hairColor,
-          onChanged: (c) => setState(() => _traits = _traits.copyWith(hairColor: c)),
-        );
+
       case AvatarCustomizationSection.headwear:
         return _buildChoiceCards(
           options: const [
-            {'id': 'none', 'title': 'بدون غطاء', 'subtitle': 'الشعر مكشوف'},
-            {'id': 'hijab', 'title': 'حجاب أنيق 🧕', 'subtitle': 'لفافة حجاب متناسقة مع الوجه'},
+            {'id': 'none', 'title': 'بدون غطاء', 'subtitle': 'الشعر مكشوف بالكامل'},
+            {'id': 'hijab', 'title': 'حجاب إسلامي أنيق 🧕', 'subtitle': 'لفافة حجاب متناسقة مع لون الملابس'},
           ],
           selectedId: _traits.headwear,
           onSelected: (id) =>
               setState(() => _traits = _traits.copyWith(headwear: id)),
         );
-      case AvatarCustomizationSection.eyes:
-        return _buildChoiceCards(
-          options: const [
-            {'id': 'happy_curved', 'title': 'مبتسمة وسعيدة', 'subtitle': 'نظرة دافئة مبهجة'},
-            {'id': 'focused_round', 'title': 'واسعة ومركزة', 'subtitle': 'نظرة اهتمام ويقظة'},
-            {'id': 'confident_almond', 'title': 'لوزية واثقة', 'subtitle': 'شخصية هادئة وقوية'},
-            {'id': 'winking', 'title': 'غمزة مرحة 😉', 'subtitle': 'طابع فكاهي وحيوي'},
-          ],
-          selectedId: _traits.eyes,
-          onSelected: (id) => setState(() => _traits = _traits.copyWith(eyes: id)),
-        );
-      case AvatarCustomizationSection.eyeColor:
-        return _buildColorPaletteRibbon(
-          colors: BitmojiTraits.eyePalette,
-          selected: _traits.eyeColor,
-          onChanged: (c) => setState(() => _traits = _traits.copyWith(eyeColor: c)),
-        );
-      case AvatarCustomizationSection.eyebrows:
-        return _buildChoiceCards(
-          options: const [
-            {'id': 'natural_soft', 'title': 'طبيعي وناعم', 'subtitle': 'قوس متناسق'},
-            {'id': 'thick_arched', 'title': 'كثيف ومرتفع', 'subtitle': 'محدد وبارز'},
-            {'id': 'bold_angled', 'title': 'حاد وجريء', 'subtitle': 'زاوية قوية'},
-          ],
-          selectedId: _traits.eyebrows,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(eyebrows: id)),
-        );
-      case AvatarCustomizationSection.nose:
-        return _buildChoiceCards(
-          options: const [
-            {'id': 'straight_clean', 'title': 'مستقيم كلاسيكي', 'subtitle': 'خط أنف متوازن'},
-            {'id': 'soft_button', 'title': 'أنف صغير ناعم', 'subtitle': 'مستدير ولطيف'},
-            {'id': 'defined_sharp', 'title': 'محدد وبارز', 'subtitle': 'ملامح واضحة'},
-          ],
-          selectedId: _traits.nose,
-          onSelected: (id) => setState(() => _traits = _traits.copyWith(nose: id)),
-        );
-      case AvatarCustomizationSection.mouth:
-        return _buildChoiceCards(
-          options: const [
-            {'id': 'warm_smile', 'title': 'ابتسامة دافئة', 'subtitle': 'مريحة ومرحبة'},
-            {'id': 'confident_smirk', 'title': 'ابتسامة واثقة', 'subtitle': 'ابتسامة جانبية ذكية'},
-            {'id': 'wide_grin', 'title': 'ضحكة عريضة', 'subtitle': 'ابتسامة بأسنان واضحة'},
-            {'id': 'neutral', 'title': 'هادئ وجاد', 'subtitle': 'ملامح تركيز'},
-          ],
-          selectedId: _traits.mouth,
-          onSelected: (id) => setState(() => _traits = _traits.copyWith(mouth: id)),
-        );
-      case AvatarCustomizationSection.facialHair:
-        return _buildChoiceCards(
-          options: const [
-            {'id': 'none', 'title': 'حلاقة ناعمة', 'subtitle': 'بدون ذقن أو شوارب'},
-            {'id': 'stubble', 'title': 'ذقن خفيف (Stubble)', 'subtitle': 'ظل خفيف رجولي'},
-            {'id': 'trimmed_beard', 'title': 'لحية كاملة محددة', 'subtitle': 'مشذبة وأنيقة'},
-            {'id': 'mustache', 'title': 'شارب كلاسيكي', 'subtitle': 'أنيق ومرتب'},
-          ],
-          selectedId: _traits.facialHair,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(facialHair: id)),
-        );
-      case AvatarCustomizationSection.eyewear:
-        return _buildChoiceCards(
-          options: const [
-            {'id': 'none', 'title': 'بدون نظارة', 'subtitle': 'رؤية طبيعية'},
-            {'id': 'square_frames', 'title': 'إطار مربع عصري', 'subtitle': 'نظارة طبية ذكية'},
-            {'id': 'round_frames', 'title': 'إطار دائري أنيق', 'subtitle': 'ستايل فنانين ومبتكرين'},
-            {'id': 'sunglasses', 'title': 'نظارة شمسية أنيقة', 'subtitle': 'عدسات داكنة فخمة'},
-          ],
-          selectedId: _traits.eyewear,
-          onSelected: (id) =>
-              setState(() => _traits = _traits.copyWith(eyewear: id)),
-        );
+
       case AvatarCustomizationSection.outfit:
         return Column(
           children: [
             Expanded(
               child: _buildChoiceCards(
                 options: const [
-                  {'id': 'hoodie', 'title': 'سويت شيرت هودي', 'subtitle': 'كاجوال عصري ومريح'},
-                  {'id': 'formal_blazer', 'title': 'بدلة رسمية وربطة عنق', 'subtitle': 'أناقة الأكاديمية والاحتراف'},
-                  {'id': 'casual_crew', 'title': 'تيشرت قطني كاجوال', 'subtitle': 'بسيط وخفيف'},
-                  {'id': 'polo', 'title': 'قميص بولو رياضي', 'subtitle': 'ياقة كلاسيكية مميزة'},
+                  {'id': 'hoodie', 'title': 'سويت شيرت هودي 👕', 'subtitle': 'كاجوال شبابي دافئ وعصري'},
+                  {'id': 'formal_blazer', 'title': 'بدلة رسمية وقميص 👔', 'subtitle': 'أناقة أكاديمية للمحاضرات والتفوق'},
+                  {'id': 'polo', 'title': 'بلوفر بياقة كلاسيك 🧶', 'subtitle': 'مظهر راقي وأنيق'},
+                  {'id': 'casual_crew', 'title': 'تيشرت قطني كاجوال 🥋', 'subtitle': 'بسيط وخفيف'},
                 ],
                 selectedId: _traits.outfit,
                 onSelected: (id) =>
@@ -680,7 +603,7 @@ class _SnapchatAvatarStudioScreenState
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  const Text('لون الزي:',
+                  const Text('لون الملابس:',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   const SizedBox(width: 8),
                   Expanded(
@@ -696,6 +619,59 @@ class _SnapchatAvatarStudioScreenState
             ),
           ],
         );
+
+      case AvatarCustomizationSection.skinTone:
+        return _buildColorPaletteRibbon(
+          colors: BitmojiTraits.skinPalette,
+          selected: _traits.skinColor,
+          onChanged: (c) => setState(() => _traits = _traits.copyWith(skinColor: c)),
+        );
+
+      case AvatarCustomizationSection.hairColor:
+        return _buildColorPaletteRibbon(
+          colors: BitmojiTraits.hairPalette,
+          selected: _traits.hairColor,
+          onChanged: (c) => setState(() => _traits = _traits.copyWith(hairColor: c)),
+        );
+
+      case AvatarCustomizationSection.eyewear:
+        return _buildChoiceCards(
+          options: const [
+            {'id': 'none', 'title': 'بدون نظارة', 'subtitle': 'رؤية طبيعية بدون إطارات'},
+            {'id': 'square_frames', 'title': 'إطار مربع طبي 👓', 'subtitle': 'نظارة طبية ذكية وأنيقة'},
+            {'id': 'round_frames', 'title': 'إطار دائري ذكي 🕶️', 'subtitle': 'ستايل فنانين ومبتكرين'},
+            {'id': 'sunglasses', 'title': 'نظارة شمسية كول 😎', 'subtitle': 'عدسات داكنة فخمة'},
+          ],
+          selectedId: _traits.eyewear,
+          onSelected: (id) =>
+              setState(() => _traits = _traits.copyWith(eyewear: id)),
+        );
+
+      case AvatarCustomizationSection.mouth:
+        return _buildChoiceCards(
+          options: const [
+            {'id': 'warm_smile', 'title': 'ابتسامة وسعادة 😊', 'subtitle': 'ملامح ترحيبية دافئة'},
+            {'id': 'confident_smirk', 'title': 'واثقة ومرحة 😏', 'subtitle': 'ابتسامة ذكية هادئة'},
+            {'id': 'wide_grin', 'title': 'ضحكة عريضة وأسنان 😁', 'subtitle': 'ضحكة مليئة بالطاقة والإيجابية'},
+            {'id': 'neutral', 'title': 'تركيز وجدية 🧐', 'subtitle': 'ملامح طالب يدرس باهتمام'},
+          ],
+          selectedId: _traits.mouth,
+          onSelected: (id) => setState(() => _traits = _traits.copyWith(mouth: id)),
+        );
+
+      case AvatarCustomizationSection.facialHair:
+        return _buildChoiceCards(
+          options: const [
+            {'id': 'none', 'title': 'حلاقة ناعمة', 'subtitle': 'بدون ذقن أو شوارب'},
+            {'id': 'stubble', 'title': 'ذقن خفيف (Stubble)', 'subtitle': 'ظل خفيف رجولي'},
+            {'id': 'trimmed_beard', 'title': 'لحية كاملة مهندمة', 'subtitle': 'مشذبة وأنيقة'},
+            {'id': 'mustache', 'title': 'شارب كلاسيكي', 'subtitle': 'أنيق ومرتب'},
+          ],
+          selectedId: _traits.facialHair,
+          onSelected: (id) =>
+              setState(() => _traits = _traits.copyWith(facialHair: id)),
+        );
+
       case AvatarCustomizationSection.background:
         return _buildColorPaletteRibbon(
           colors: BitmojiTraits.backgroundPalette,
@@ -703,6 +679,9 @@ class _SnapchatAvatarStudioScreenState
           onChanged: (c) =>
               setState(() => _traits = _traits.copyWith(backgroundColor: c)),
         );
+
+      default:
+        return const SizedBox.shrink();
     }
   }
 
@@ -715,7 +694,7 @@ class _SnapchatAvatarStudioScreenState
             child: _buildGenderCard(
               gender: 'male',
               title: 'شخصية شبابية 👦',
-              subtitle: 'هيكل شبابي وملامح كلاسيكية',
+              subtitle: 'هيكل شبابي وملامح كلاسيكية وهودي عصري',
               isSelected: _traits.gender == 'male',
             ),
           ),
@@ -724,7 +703,7 @@ class _SnapchatAvatarStudioScreenState
             child: _buildGenderCard(
               gender: 'female',
               title: 'شخصية فتيات 👧',
-              subtitle: 'هيكل أنثوي وخيارات حجاب وتسريحات',
+              subtitle: 'خيارات حجاب وتسريحات بنات أنيقة',
               isSelected: _traits.gender == 'female',
             ),
           ),
@@ -749,6 +728,7 @@ class _SnapchatAvatarStudioScreenState
           _traits = _traits.copyWith(
             gender: gender,
             hairStyle: gender == 'female' ? 'hijab_wrapped' : 'short_curly',
+            headwear: gender == 'female' ? 'hijab' : 'none',
             facialHair: gender == 'female' ? 'none' : _traits.facialHair,
           );
         });

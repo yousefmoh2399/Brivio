@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -7,8 +6,9 @@ import 'package:flutter/rendering.dart';
 import '../../domain/models/bitmoji_traits.dart';
 import '../painters/bitmoji_vector_library.dart';
 
-/// Interactive, live-animated Snapchat Bitmoji Renderer.
-/// Supports camera zoom, idle breathing, organic blinking, and high-res PNG export.
+/// Commercial-grade Snapchat Bitmoji 3D Renderer.
+/// Combines high-resolution character graphics with a 3D pedestal stage,
+/// smooth animated camera zoom, idle breathing, and high-res PNG export.
 class BitmojiRenderer extends StatefulWidget {
   final BitmojiTraits traits;
   final AvatarCameraFocus cameraFocus;
@@ -53,53 +53,26 @@ class BitmojiRenderer extends StatefulWidget {
 }
 
 class _BitmojiRendererState extends State<BitmojiRenderer>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _breathController;
   late Animation<double> _breathAnimation;
-
-  late AnimationController _blinkController;
-  late Animation<double> _blinkAnimation;
-  Timer? _blinkTimer;
 
   @override
   void initState() {
     super.initState();
 
-    // Idle breathing: continuous gentle sinusoidal floating
+    // Gentle idle breathing oscillation
     _breathController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2600),
+      duration: const Duration(milliseconds: 2400),
     );
-    _breathAnimation = Tween<double>(begin: -2.5, end: 2.5).animate(
+    _breathAnimation = Tween<double>(begin: -3.0, end: 3.0).animate(
       CurvedAnimation(parent: _breathController, curve: Curves.easeInOutSine),
-    );
-
-    // Natural Blinking animation
-    _blinkController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 160),
-    );
-    _blinkAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _blinkController, curve: Curves.easeInOut),
     );
 
     if (widget.isAnimated) {
       _breathController.repeat(reverse: true);
-      _scheduleNextBlink();
     }
-  }
-
-  void _scheduleNextBlink() {
-    if (!mounted || !widget.isAnimated) return;
-    // Random interval between 2.5 and 5 seconds for natural blinking
-    final randomMs = 2500 + math.Random().nextInt(2500);
-    _blinkTimer = Timer(Duration(milliseconds: randomMs), () async {
-      if (!mounted) return;
-      await _blinkController.forward();
-      if (!mounted) return;
-      await _blinkController.reverse();
-      _scheduleNextBlink();
-    });
   }
 
   @override
@@ -108,40 +81,34 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
     if (widget.isAnimated != oldWidget.isAnimated) {
       if (widget.isAnimated) {
         _breathController.repeat(reverse: true);
-        _scheduleNextBlink();
       } else {
         _breathController.stop();
-        _blinkTimer?.cancel();
-        _blinkController.reset();
+        _breathController.reset();
       }
     }
   }
 
   @override
   void dispose() {
-    _blinkTimer?.cancel();
     _breathController.dispose();
-    _blinkController.dispose();
     super.dispose();
   }
 
-  /// Calculates camera zoom scale based on focus
   double get _cameraScale {
     switch (widget.cameraFocus) {
       case AvatarCameraFocus.fullBody:
         return 1.0;
       case AvatarCameraFocus.face:
-        return 1.62;
+        return 1.55;
       case AvatarCameraFocus.eyes:
-        return 2.15;
+        return 2.0;
       case AvatarCameraFocus.hair:
-        return 1.75;
+        return 1.65;
       case AvatarCameraFocus.outfit:
-        return 1.35;
+        return 1.25;
     }
   }
 
-  /// Calculates camera offset based on focus
   Offset get _cameraSlideOffset {
     switch (widget.cameraFocus) {
       case AvatarCameraFocus.fullBody:
@@ -153,53 +120,137 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
       case AvatarCameraFocus.hair:
         return const Offset(0, 0.12);
       case AvatarCameraFocus.outfit:
-        return const Offset(0, -0.12);
+        return const Offset(0, -0.10);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final body = AnimatedBuilder(
-      animation: Listenable.merge([_breathAnimation, _blinkAnimation]),
+    final w = widget.width ?? 320.0;
+    final h = widget.height ?? 380.0;
+    final imageUrl = widget.traits.toImageUrl(size: 512);
+
+    final characterContent = AnimatedBuilder(
+      animation: _breathAnimation,
       builder: (context, child) {
-        return CustomPaint(
-          size: Size(widget.width ?? 320, widget.height ?? 380),
-          painter: BitmojiCustomPainter(
-            traits: widget.traits,
-            blinkValue: _blinkAnimation.value,
-            breathOffset: _breathAnimation.value,
-            showFullBody: widget.showPedestal,
-          ),
+        return Transform.translate(
+          offset: Offset(0, widget.isAnimated ? _breathAnimation.value : 0),
+          child: child,
         );
       },
-    );
-
-    // Repaint boundary enables high resolution snapshots of the vector canvas
-    final paintWithBoundary = RepaintBoundary(
-      key: widget.repaintKey,
-      child: ClipRect(
-        child: AnimatedSlide(
-          offset: _cameraSlideOffset,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOutCubic,
-          child: AnimatedScale(
-            scale: _cameraScale,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOutCubic,
-            child: body,
-          ),
+      child: Center(
+        child: Image.network(
+          imageUrl,
+          width: w * 0.92,
+          height: h * 0.88,
+          fit: BoxFit.contain,
+          loadingBuilder: (ctx, child, progress) {
+            if (progress == null) return child;
+            return SizedBox(
+              width: w * 0.92,
+              height: h * 0.88,
+              child: Center(
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: widget.traits.outfitColor,
+                  ),
+                ),
+              ),
+            );
+          },
+          errorBuilder: (ctx, err, stack) {
+            // High quality fallback in case network is completely unavailable
+            return CustomPaint(
+              size: Size(w, h),
+              painter: BitmojiCustomPainter(
+                traits: widget.traits,
+                showFullBody: widget.showPedestal,
+              ),
+            );
+          },
         ),
       ),
     );
 
-    if (widget.width != null || widget.height != null) {
-      return SizedBox(
-        width: widget.width,
-        height: widget.height,
-        child: paintWithBoundary,
-      );
-    }
+    // Full 3D Pedestal Stage
+    final stage = Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.2),
+          radius: 0.95,
+          colors: [
+            widget.traits.backgroundColor.withValues(alpha: 0.9),
+            widget.traits.backgroundColor.withValues(alpha: 0.3),
+          ],
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 3D Elliptical Pedestal Platform
+          if (widget.showPedestal)
+            Positioned(
+              bottom: h * 0.04,
+              child: Container(
+                width: w * 0.76,
+                height: h * 0.12,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(
+                    Radius.elliptical(w * 0.38, h * 0.06),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.85),
+                      Colors.white.withValues(alpha: 0.35),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-    return paintWithBoundary;
+          // Main Character with Camera Zoom
+          ClipRect(
+            child: AnimatedSlide(
+              offset: _cameraSlideOffset,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOutCubic,
+              child: AnimatedScale(
+                scale: _cameraScale,
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOutCubic,
+                child: characterContent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final result = RepaintBoundary(
+      key: widget.repaintKey,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: stage,
+      ),
+    );
+
+    if (widget.width != null || widget.height != null) {
+      return SizedBox(width: widget.width, height: widget.height, child: result);
+    }
+    return result;
   }
 }

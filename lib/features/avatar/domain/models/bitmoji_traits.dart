@@ -11,6 +11,7 @@ enum AvatarCameraFocus {
 
 /// Category tabs in the Bitmoji Studio
 enum AvatarCustomizationSection {
+  style,
   genderBody,
   faceShape,
   skinTone,
@@ -30,6 +31,8 @@ enum AvatarCustomizationSection {
 
 /// Bitmoji Trait Configuration holding the full vector composition state
 class BitmojiTraits {
+  final String style; // 'avataaars', 'adventurer', 'lorelei', 'bottts'
+  final String seed;
   final String gender; // 'male', 'female'
   final String faceShape; // 'oval', 'square', 'round', 'heart', 'sharp'
   final Color skinColor;
@@ -53,6 +56,8 @@ class BitmojiTraits {
   final Color backgroundColor;
 
   const BitmojiTraits({
+    this.style = 'avataaars',
+    this.seed = 'BrivioUser',
     this.gender = 'male',
     this.faceShape = 'oval',
     this.skinColor = const Color(0xFFF3C7A8),
@@ -77,6 +82,8 @@ class BitmojiTraits {
   });
 
   BitmojiTraits copyWith({
+    String? style,
+    String? seed,
     String? gender,
     String? faceShape,
     Color? skinColor,
@@ -100,6 +107,8 @@ class BitmojiTraits {
     Color? backgroundColor,
   }) {
     return BitmojiTraits(
+      style: style ?? this.style,
+      seed: seed ?? this.seed,
       gender: gender ?? this.gender,
       faceShape: faceShape ?? this.faceShape,
       skinColor: skinColor ?? this.skinColor,
@@ -125,6 +134,8 @@ class BitmojiTraits {
   }
 
   Map<String, dynamic> toJson() => {
+    'style': style,
+    'seed': seed,
     'gender': gender,
     'faceShape': faceShape,
     'skinColor': skinColor.toARGB32(),
@@ -149,6 +160,8 @@ class BitmojiTraits {
   };
 
   factory BitmojiTraits.fromJson(Map<String, dynamic> json) => BitmojiTraits(
+    style: json['style'] as String? ?? 'avataaars',
+    seed: json['seed'] as String? ?? 'BrivioUser',
     gender: json['gender'] as String? ?? 'male',
     faceShape: json['faceShape'] as String? ?? 'oval',
     skinColor: Color(json['skinColor'] as int? ?? 0xFFF3C7A8),
@@ -171,6 +184,163 @@ class BitmojiTraits {
     backgroundStyle: json['backgroundStyle'] as String? ?? 'studio_pedestal',
     backgroundColor: Color(json['backgroundColor'] as int? ?? 0xFFE0F2FE),
   );
+
+  /// Generates the high-resolution, commercial-grade avatar URL
+  String toImageUrl({int size = 512}) {
+    final hexBg = backgroundColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
+    final hexSkin = skinColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
+    final hexHair = hairColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
+    final hexOutfit = outfitColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
+
+    if (style == 'adventurer') {
+      final queryParams = <String, String>{
+        'seed': seed,
+        'size': size.toString(),
+        'backgroundColor': hexBg,
+        'skinColor': hexSkin,
+        'hairColor': hexHair,
+      };
+      if (hairStyle == 'short_curly') {
+        queryParams['hair'] = 'short01';
+      } else if (hairStyle == 'fade_crop') {
+        queryParams['hair'] = 'short03';
+      } else if (hairStyle == 'slick_back') {
+        queryParams['hair'] = 'short07';
+      } else if (hairStyle == 'long_wavy') {
+        queryParams['hair'] = 'long01';
+      } else if (hairStyle == 'buzz_cut') {
+        queryParams['hair'] = 'short09';
+      } else if (hairStyle == 'hijab_wrapped' || headwear == 'hijab') {
+        queryParams['hair'] = 'long16';
+      }
+
+      if (eyewear == 'square_frames') {
+        queryParams['glasses'] = 'variant01';
+        queryParams['glassesProbability'] = '100';
+      } else if (eyewear == 'round_frames') {
+        queryParams['glasses'] = 'variant02';
+        queryParams['glassesProbability'] = '100';
+      } else if (eyewear == 'sunglasses') {
+        queryParams['glasses'] = 'variant04';
+        queryParams['glassesProbability'] = '100';
+      } else {
+        queryParams['glassesProbability'] = '0';
+      }
+
+      final uri = Uri.https('api.dicebear.com', '/7.x/adventurer/png', queryParams);
+      return uri.toString();
+    }
+
+    if (style == 'lorelei') {
+      final queryParams = <String, String>{
+        'seed': seed,
+        'size': size.toString(),
+        'backgroundColor': hexBg,
+        'hairColor': hexHair,
+      };
+      final uri = Uri.https('api.dicebear.com', '/7.x/lorelei/png', queryParams);
+      return uri.toString();
+    }
+
+    if (style == 'bottts') {
+      final queryParams = <String, String>{
+        'seed': seed,
+        'size': size.toString(),
+        'backgroundColor': hexBg,
+      };
+      final uri = Uri.https('api.dicebear.com', '/7.x/bottts/png', queryParams);
+      return uri.toString();
+    }
+
+    // Default: avataaars (High-Resolution Snapchat Bitmoji 3D vector style)
+    String topChoice = 'shortCurly';
+    String? hatColorChoice;
+    if (headwear == 'hijab' || hairStyle == 'hijab_wrapped') {
+      topChoice = 'hijab';
+      hatColorChoice = hexOutfit;
+    } else if (hairStyle == 'short_curly') {
+      topChoice = 'shortCurly';
+    } else if (hairStyle == 'fade_crop') {
+      topChoice = 'sides';
+    } else if (hairStyle == 'slick_back') {
+      topChoice = 'theCaesarAndSidePart';
+    } else if (hairStyle == 'long_wavy') {
+      topChoice = 'straight02';
+    } else if (hairStyle == 'buzz_cut') {
+      topChoice = 'theCaesar';
+    } else if (hairStyle == 'bob') {
+      topChoice = 'bob';
+    } else if (hairStyle == 'bun') {
+      topChoice = 'bun';
+    } else if (hairStyle == 'hat') {
+      topChoice = 'hat';
+    }
+
+    String clothingChoice = 'hoodie';
+    if (outfit == 'formal_blazer') {
+      clothingChoice = 'blazerAndShirt';
+    } else if (outfit == 'casual_crew') {
+      clothingChoice = 'shirtCrewNeck';
+    } else if (outfit == 'polo') {
+      clothingChoice = 'collarAndSweater';
+    }
+
+    String eyesChoice = 'happy';
+    if (eyes == 'focused_round') eyesChoice = 'default';
+    if (eyes == 'confident_almond') eyesChoice = 'side';
+    if (eyes == 'winking') eyesChoice = 'wink';
+
+    String mouthChoice = 'smile';
+    if (mouth == 'confident_smirk') mouthChoice = 'twinkle';
+    if (mouth == 'wide_grin') mouthChoice = 'smile';
+    if (mouth == 'neutral') mouthChoice = 'serious';
+
+    final queryParams = <String, String>{
+      'seed': seed,
+      'size': size.toString(),
+      'backgroundColor': hexBg,
+      'skinColor': hexSkin,
+      'top': topChoice,
+      if (hatColorChoice != null) 'hatColor': hatColorChoice,
+      'hairColor': hexHair,
+      'clothing': clothingChoice,
+      'clothesColor': hexOutfit,
+      'eyes': eyesChoice,
+      'mouth': mouthChoice,
+    };
+
+    if (eyewear == 'square_frames') {
+      queryParams['accessories'] = 'prescription01';
+      queryParams['accessoriesProbability'] = '100';
+    } else if (eyewear == 'round_frames') {
+      queryParams['accessories'] = 'round';
+      queryParams['accessoriesProbability'] = '100';
+    } else if (eyewear == 'sunglasses') {
+      queryParams['accessories'] = 'sunglasses';
+      queryParams['accessoriesProbability'] = '100';
+    } else {
+      queryParams['accessoriesProbability'] = '0';
+    }
+
+    if (facialHair == 'trimmed_beard') {
+      queryParams['facialHair'] = 'beardLight';
+      queryParams['facialHairColor'] = hexHair;
+      queryParams['facialHairProbability'] = '100';
+    } else if (facialHair == 'stubble') {
+      queryParams['facialHair'] = 'beardMedium';
+      queryParams['facialHairColor'] = hexHair;
+      queryParams['facialHairProbability'] = '100';
+    } else if (facialHair == 'mustache') {
+      queryParams['facialHair'] = 'moustacheFancy';
+      queryParams['facialHairColor'] = hexHair;
+      queryParams['facialHairProbability'] = '100';
+    } else {
+      queryParams['facialHairProbability'] = '0';
+    }
+
+    final uri = Uri.https('api.dicebear.com', '/7.x/avataaars/png', queryParams);
+    return uri.toString();
+  }
 
   /// Palette of authentic skin tones
   static const List<Color> skinPalette = [

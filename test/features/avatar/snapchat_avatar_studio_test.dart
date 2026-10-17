@@ -221,7 +221,7 @@ void main() {
       await tester.pump();
 
       // Verify haircut options appear
-      expect(find.text('كيرلي عصري'), findsOneWidget);
+      expect(find.text('كيرلي عصري 👦'), findsOneWidget);
       expect(find.text('حجاب إسلامي 🧕'), findsOneWidget);
 
       // 4. Tap randomizer button
