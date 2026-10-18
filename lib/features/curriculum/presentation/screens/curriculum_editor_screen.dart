@@ -1272,7 +1272,9 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
+        child: Material(
+          type: MaterialType.transparency,
+          child: ExpansionTile(
           initiallyExpanded: true,
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Container(
@@ -1389,6 +1391,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -1418,7 +1421,9 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
+        child: Material(
+          type: MaterialType.transparency,
+          child: ExpansionTile(
           initiallyExpanded: true,
           tilePadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
           leading: Container(
@@ -1518,6 +1523,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

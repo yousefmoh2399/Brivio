@@ -192,16 +192,14 @@ class ReportsDashboardViewModel extends ChangeNotifier {
       try {
         final finRes = await client
             .from('receipts')
-            .select('receipt_number, amount, amount_minor, currency, issued_at')
+            .select('receipt_number, amount_minor, currency, issued_at')
             .order('issued_at', ascending: false)
             .limit(100);
 
         final List<Map<String, dynamic>> finItems = [];
         for (final item in finRes as List) {
           double amt = 0.0;
-          if (item['amount'] != null) {
-            amt = (item['amount'] as num).toDouble();
-          } else if (item['amount_minor'] != null) {
+          if (item['amount_minor'] != null) {
             amt = (item['amount_minor'] as num).toDouble() / 100.0;
           }
           final date = item['issued_at']?.toString().split('T').first ?? '';
