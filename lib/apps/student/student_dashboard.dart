@@ -825,6 +825,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
         if (isWide) {
           return Scaffold(
+            resizeToAvoidBottomInset: false,
             backgroundColor: bgColor,
             body: Row(
               children: [
@@ -836,53 +837,55 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         constraints: BoxConstraints(
                           minHeight: constraints.maxHeight,
                         ),
-                        child: NavigationRail(
-                          backgroundColor: surfaceColor,
-                          selectedIndex: _selectedIndex,
-                          onDestinationSelected: (i) =>
-                              setState(() => _selectedIndex = i),
-                          labelType: NavigationRailLabelType.all,
-                          indicatorColor:
-                              AppColors.primary.withValues(alpha: 0.12),
-                          selectedIconTheme: const IconThemeData(
-                            color: AppColors.primary,
-                          ),
-                          destinations: [
-                            const NavigationRailDestination(
-                              icon: Icon(Icons.house_outlined),
-                              selectedIcon: Icon(Icons.house_rounded),
-                              label: Text('الرئيسية'),
+                        child: IntrinsicHeight(
+                          child: NavigationRail(
+                            backgroundColor: surfaceColor,
+                            selectedIndex: _selectedIndex,
+                            onDestinationSelected: (i) =>
+                                setState(() => _selectedIndex = i),
+                            labelType: NavigationRailLabelType.all,
+                            indicatorColor:
+                                AppColors.primary.withValues(alpha: 0.12),
+                            selectedIconTheme: const IconThemeData(
+                              color: AppColors.primary,
                             ),
-                            const NavigationRailDestination(
-                              icon: Icon(Icons.menu_book_outlined),
-                              selectedIcon: Icon(Icons.menu_book_rounded),
-                              label: Text('الدروس والمناهج'),
-                            ),
-                            const NavigationRailDestination(
-                              icon: Icon(Icons.bolt_outlined),
-                              selectedIcon: Icon(Icons.bolt_rounded),
-                              label: Text('الأنشطة والمهام'),
-                            ),
-                            NavigationRailDestination(
-                              icon: Badge(
-                                isLabelVisible: _unreadCount > 0,
-                                label: Text(
-                                  _unreadCount > 9 ? '9+' : '$_unreadCount',
-                                ),
-                                child: const Icon(
-                                  Icons.notifications_none_rounded,
-                                ),
+                            destinations: [
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.house_outlined),
+                                selectedIcon: Icon(Icons.house_rounded),
+                                label: Text('الرئيسية'),
                               ),
-                              selectedIcon:
-                                  const Icon(Icons.notifications_rounded),
-                              label: const Text('الإشعارات'),
-                            ),
-                            const NavigationRailDestination(
-                              icon: Icon(Icons.person_outline_rounded),
-                              selectedIcon: Icon(Icons.person_rounded),
-                              label: Text('حسابي'),
-                            ),
-                          ],
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.menu_book_outlined),
+                                selectedIcon: Icon(Icons.menu_book_rounded),
+                                label: Text('الدروس والمناهج'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.bolt_outlined),
+                                selectedIcon: Icon(Icons.bolt_rounded),
+                                label: Text('الأنشطة والمهام'),
+                              ),
+                              NavigationRailDestination(
+                                icon: Badge(
+                                  isLabelVisible: _unreadCount > 0,
+                                  label: Text(
+                                    _unreadCount > 9 ? '9+' : '$_unreadCount',
+                                  ),
+                                  child: const Icon(
+                                    Icons.notifications_none_rounded,
+                                  ),
+                                ),
+                                selectedIcon:
+                                    const Icon(Icons.notifications_rounded),
+                                label: const Text('الإشعارات'),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.person_outline_rounded),
+                                selectedIcon: Icon(Icons.person_rounded),
+                                label: Text('حسابي'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
