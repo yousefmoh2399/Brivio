@@ -13,6 +13,7 @@ class SettingsService extends ChangeNotifier {
   static const _dataCollectionKey = 'data_collection';
   static const _biometricLoginKey = 'biometric_login';
   static const _timeZoneKey = 'time_zone';
+  static const _soundEffectsKey = 'sound_effects';
 
   ThemeMode _themeMode = ThemeMode.system;
   AppLanguage _language = AppLanguage.arabic;
@@ -22,6 +23,7 @@ class SettingsService extends ChangeNotifier {
   bool _twoFactorAuth = false;
   bool _dataCollection = false;
   bool _biometricLogin = false;
+  bool _soundEffects = true;
   String _timeZone = 'UTC+03:00';
 
   bool _isLoaded = false;
@@ -36,6 +38,7 @@ class SettingsService extends ChangeNotifier {
   bool get twoFactorAuth => _twoFactorAuth;
   bool get dataCollection => _dataCollection;
   bool get biometricLogin => _biometricLogin;
+  bool get soundEffects => _soundEffects;
   String get timeZone => _timeZone;
   bool get isLoaded => _isLoaded;
 
@@ -64,6 +67,7 @@ class SettingsService extends ChangeNotifier {
     _twoFactorAuth = _prefs.getBool(_twoFactorAuthKey) ?? false;
     _dataCollection = _prefs.getBool(_dataCollectionKey) ?? false;
     _biometricLogin = _prefs.getBool(_biometricLoginKey) ?? false;
+    _soundEffects = _prefs.getBool(_soundEffectsKey) ?? true;
     _timeZone = _prefs.getString(_timeZoneKey) ?? 'UTC+03:00';
 
     _isLoaded = true;
@@ -112,6 +116,11 @@ class SettingsService extends ChangeNotifier {
   Future<void> updateBiometricLogin(bool enabled) =>
       _updateBool(_biometricLoginKey, enabled, (value) {
         _biometricLogin = value;
+      });
+
+  Future<void> updateSoundEffects(bool enabled) =>
+      _updateBool(_soundEffectsKey, enabled, (value) {
+        _soundEffects = value;
       });
 
   Future<void> updateTimeZone(String timeZone) async {

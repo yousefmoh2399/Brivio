@@ -306,6 +306,33 @@ class PushNotificationService {
     );
   }
 
+  Future<void> showTestNotification({
+    String title = 'تنبيه تجريبي من منصة بريفيو 🔔',
+    String body = 'نظام الإشعارات الفورية يعمل بكفاءة على جهازك ومستعد لاستقبال التنبيهات.',
+  }) async {
+    try {
+      await initialize();
+      await _localNotifications.show(
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'academy_notifications',
+            'Academy notifications',
+            channelDescription:
+                'Operational, payment, attendance, and learning alerts.',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+      );
+    } catch (e, st) {
+      AppLogger.error('Failed to show test notification', e, st);
+    }
+  }
+
   Future<void> dispose() async {
     await _tokenRefreshSub?.cancel();
     await _foregroundMessageSub?.cancel();
