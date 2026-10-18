@@ -768,7 +768,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 }
 
-class _AdminOverview extends StatelessWidget {
+class _AdminOverview extends StatefulWidget {
   final AuthViewModel authViewModel;
   final bool isLoading;
   final String? errorMessage;
@@ -819,13 +819,20 @@ class _AdminOverview extends StatelessWidget {
     required this.onNavigate,
   });
 
+  @override
+  State<_AdminOverview> createState() => _AdminOverviewState();
+}
+
+class _AdminOverviewState extends State<_AdminOverview> {
+  int _selectedTab = 0; // 0: Operations & Hub, 1: Cash & Reconciliation, 2: Live Radar, 3: Activity & Security
+
   static String _formatMoney(double amount) {
     if (amount == 0) return '0';
     final isInt = amount == amount.truncateToDouble();
     final parts =
         (isInt ? amount.toInt().toString() : amount.toStringAsFixed(2)).split('.');
     final withCommas = parts[0].replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      RegExp(r'(d{1,3})(?=(d{3})+(?!d))'),
       (Match m) => '${m[1]},',
     );
     return parts.length > 1 ? '$withCommas.${parts[1]}' : withCommas;
@@ -833,160 +840,118 @@ class _AdminOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = authViewModel.currentUser;
+    final user = widget.authViewModel.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary =
         isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-    final scopedGroups = selectedBranchId == null
-        ? groups
-        : groups.where((g) => g.branchId == selectedBranchId).toList();
-    final scopedStudents = selectedBranchId == null
-        ? students
-        : students.where((s) => s.primaryBranchId == selectedBranchId).toList();
-    final scopedTeachers = selectedBranchId == null
-        ? teachers
-        : teachers.where((t) => t.primaryBranchId == selectedBranchId).toList();
+    final scopedGroups = widget.selectedBranchId == null
+        ? widget.groups
+        : widget.groups.where((g) => g.branchId == widget.selectedBranchId).toList();
+    final scopedStudents = widget.selectedBranchId == null
+        ? widget.students
+        : widget.students.where((s) => s.primaryBranchId == widget.selectedBranchId).toList();
+    final scopedTeachers = widget.selectedBranchId == null
+        ? widget.teachers
+        : widget.teachers.where((t) => t.primaryBranchId == widget.selectedBranchId).toList();
 
-    // The count strictly represents the active center and selected branch, NEVER global database totals
     final studentCount = scopedStudents.length;
     final teacherCount = scopedTeachers.length;
     final groupCount = scopedGroups.length;
-    final parentCount = parents.length;
+    final parentCount = widget.parents.length;
 
-    final treasuryValue = '${_formatMoney(treasuryTotalCollected)} ج.م';
-    final treasurySubtitle = treasuryTodayCollected > 0
-        ? 'تحصيل اليوم: +${_formatMoney(treasuryTodayCollected)} ج.م'
-        : (treasuryPendingInvoices > 0
-            ? 'مستحقات معلقة: ${_formatMoney(treasuryPendingInvoices)} ج.م'
-            : (treasuryTotalCollected > 0 ? 'إجمالي النقدية المحصلة' : 'لا توجد متحصلات بعد'));
+    final treasuryValue = '${_formatMoney(widget.treasuryTotalCollected)} ج.م';
+    final treasurySubtitle = widget.treasuryTodayCollected > 0
+        ? 'تحصيل اليوم: +${_formatMoney(widget.treasuryTodayCollected)} ج.م'
+        : (widget.treasuryPendingInvoices > 0
+            ? 'مستحقات معلقة: ${_formatMoney(widget.treasuryPendingInvoices)} ج.م'
+            : (widget.treasuryTotalCollected > 0 ? 'إجمالي المحصل' : 'لا توجد متحصلات'));
 
     return RefreshIndicator(
-      onRefresh: () async => onRetry(),
+      onRefresh: () async => widget.onRetry(),
       child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         children: [
-          // ── 1. Executive Master Hero Header ──
+          // ── 1. Executive Master Header with integrated branch federation ──
           FadeInSlide(
-            duration: const Duration(milliseconds: 350),
+            duration: const Duration(milliseconds: 300),
             child: _buildExecutiveHero(
               context,
               user,
               isDark,
-              studentCount,
-              teacherCount,
-              treasuryValue,
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // ── Multi-Branch Federation Selector Bar (العزل السحابي والتشغيل متعدد الفروع) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 30),
-            child: _MultiBranchFederationBar(
-              branches: branches,
-              selectedBranchId: selectedBranchId,
-              onBranchChanged: onBranchChanged,
+              textPrimary,
+              textSecondary,
             ),
           ),
 
           const SizedBox(height: 14),
 
-          if (isLoading) ...[
+          if (widget.isLoading) ...[
             const SizedBox(height: 4),
             const LinearProgressIndicator(color: AppColors.adminRole),
             const SizedBox(height: 10),
           ],
-          if (errorMessage != null) ...[
+          if (widget.errorMessage != null) ...[
             FadeInSlide(
               child: PortalErrorBanner(
-                message: errorMessage!,
-                onRetry: onRetry,
+                message: widget.errorMessage!,
+                onRetry: widget.onRetry,
               ),
             ),
             const SizedBox(height: 14),
           ],
 
-          // ── 2. Primary Executive KPI Cards (4 Cards Grid) ──
+          // ── 2. Primary Executive KPI Cards (4 Cards Clean Grid) ──
           FadeInSlide(
             delay: const Duration(milliseconds: 40),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'المؤشرات الحيوية للمنظومة 📊',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
-                ),
-                Text(
-                  'تحديث لحظي',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.adminRole,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          FadeInSlide(
-            delay: const Duration(milliseconds: 60),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 700;
+                final isWide = constraints.maxWidth > 720;
+                final kpiStudents = _ExecutiveKpiCard(
+                  title: 'الطلاب المسجلون',
+                  value: studentCount.toString(),
+                  subtitle: '$groupCount مجموعة دراسية',
+                  icon: Icons.school_rounded,
+                  accentColor: AppColors.primary,
+                  onTap: () => widget.onNavigate(5),
+                );
+                final kpiTeachers = _ExecutiveKpiCard(
+                  title: 'المعلمون المعتمدون',
+                  value: teacherCount.toString(),
+                  subtitle: '${widget.subjects.length} مادة معتمدة',
+                  icon: Icons.person_rounded,
+                  accentColor: AppColors.purple,
+                  onTap: () => widget.onNavigate(7),
+                );
+                final kpiGroups = _ExecutiveKpiCard(
+                  title: 'المجموعات الدراسية',
+                  value: groupCount.toString(),
+                  subtitle: '${widget.opsMetrics.todaySessions} حصة اليوم',
+                  icon: Icons.group_work_rounded,
+                  accentColor: AppColors.warning,
+                  onTap: () => widget.onNavigate(3),
+                );
+                final kpiTreasury = _ExecutiveKpiCard(
+                  title: 'الخزينة والتحصيل',
+                  value: treasuryValue,
+                  subtitle: treasurySubtitle,
+                  icon: Icons.account_balance_wallet_rounded,
+                  accentColor: AppColors.success,
+                  onTap: () => widget.onNavigate(14),
+                );
+
                 if (isWide) {
                   return Row(
                     children: [
-                      Expanded(
-                        child: _ExecutiveKpiCard(
-                          title: 'الطلاب المسجلون',
-                          value: studentCount.toString(),
-                          subtitle: '$groupCount مجموعة دراسية',
-                          icon: Icons.school_rounded,
-                          accentColor: AppColors.primary,
-                          onTap: () => onNavigate(5),
-                        ),
-                      ),
+                      Expanded(child: kpiStudents),
                       const SizedBox(width: 10),
-                      Expanded(
-                        child: _ExecutiveKpiCard(
-                          title: 'المعلمون المعتمدون',
-                          value: teacherCount.toString(),
-                          subtitle: '${subjects.length} مادة معتمدة',
-                          icon: Icons.person_rounded,
-                          accentColor: AppColors.purple,
-                          onTap: () => onNavigate(7),
-                        ),
-                      ),
+                      Expanded(child: kpiTeachers),
                       const SizedBox(width: 10),
-                      Expanded(
-                        child: _ExecutiveKpiCard(
-                          title: 'أولياء الأمور',
-                          value: parentCount.toString(),
-                          subtitle: 'حسابات نشطة للمتابعة',
-                          icon: Icons.family_restroom_rounded,
-                          accentColor: AppColors.warning,
-                          onTap: () => onNavigate(6),
-                        ),
-                      ),
+                      Expanded(child: kpiGroups),
                       const SizedBox(width: 10),
-                      Expanded(
-                        child: _ExecutiveKpiCard(
-                          title: 'الخزينة والتحصيل',
-                          value: treasuryValue,
-                          subtitle: treasurySubtitle,
-                          icon: Icons.account_balance_wallet_rounded,
-                          accentColor: AppColors.success,
-                          onTap: () => onNavigate(14),
-                        ),
-                      ),
+                      Expanded(child: kpiTreasury),
                     ],
                   );
                 }
@@ -996,53 +961,17 @@ class _AdminOverview extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Expanded(
-                          child: _ExecutiveKpiCard(
-                            title: 'الطلاب المسجلون',
-                            value: studentCount.toString(),
-                            subtitle: '$groupCount مجموعة نشطة',
-                            icon: Icons.school_rounded,
-                            accentColor: AppColors.primary,
-                            onTap: () => onNavigate(5),
-                          ),
-                        ),
+                        Expanded(child: kpiStudents),
                         const SizedBox(width: 10),
-                        Expanded(
-                          child: _ExecutiveKpiCard(
-                            title: 'المعلمون المعتمدون',
-                            value: teacherCount.toString(),
-                            subtitle: '${subjects.length} مادة معتمدة',
-                            icon: Icons.person_rounded,
-                            accentColor: AppColors.purple,
-                            onTap: () => onNavigate(7),
-                          ),
-                        ),
+                        Expanded(child: kpiTeachers),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        Expanded(
-                          child: _ExecutiveKpiCard(
-                            title: 'أولياء الأمور',
-                            value: parentCount.toString(),
-                            subtitle: 'متابعة الحضور',
-                            icon: Icons.family_restroom_rounded,
-                            accentColor: AppColors.warning,
-                            onTap: () => onNavigate(6),
-                          ),
-                        ),
+                        Expanded(child: kpiGroups),
                         const SizedBox(width: 10),
-                        Expanded(
-                          child: _ExecutiveKpiCard(
-                            title: 'الخزينة والتحصيل',
-                            value: treasuryValue,
-                            subtitle: treasurySubtitle,
-                            icon: Icons.account_balance_wallet_rounded,
-                            accentColor: AppColors.success,
-                            onTap: () => onNavigate(14),
-                          ),
-                        ),
+                        Expanded(child: kpiTreasury),
                       ],
                     ),
                   ],
@@ -1051,408 +980,572 @@ class _AdminOverview extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
 
-          // ── 3. Operational Command Hub (العمليات اليومية السريعة) ──
+          // ── 3. Executive Segmented Navigation Bar ──
+          FadeInSlide(
+            delay: const Duration(milliseconds: 60),
+            child: _buildSegmentedNav(isDark, textPrimary, textSecondary),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── 4. Dynamic Tab Content (Active Operations Module) ──
           FadeInSlide(
             delay: const Duration(milliseconds: 80),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'مركز العمليات والتشغيل السريع ⚡',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+              child: KeyedSubtree(
+                key: ValueKey(_selectedTab),
+                child: _buildCurrentTab(
+                  context,
+                  isDark,
+                  textPrimary,
+                  textSecondary,
+                  studentCount,
+                  teacherCount,
+                  groupCount,
+                  parentCount,
                 ),
-                Text(
-                  'أدوات السنتر الميدانية',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          FadeInSlide(
-            delay: const Duration(milliseconds: 100),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 700;
-                final tiles = [
-                  _ExecutiveActionTile(
-                    title: 'بوابة الاستقبال (QR)',
-                    subtitle: 'تسجيل حضور سريع بالباركود مع إشعار المصروفات',
-                    icon: Icons.qr_code_scanner_rounded,
-                    accentColor: AppColors.primary,
-                    badge: 'فوري ⚡',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ReceptionQrGateScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _ExecutiveActionTile(
-                    title: 'تقفيل الخزينة اليومية',
-                    subtitle: 'جرد ومطابقة النقدية المستلمة وطباعة التقفيل',
-                    icon: Icons.point_of_sale_rounded,
-                    accentColor: AppColors.success,
-                    badge: 'كاش 💵',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const DailyCashRegisterScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _ExecutiveActionTile(
-                    title: 'تصفية أرباح المدرسين',
-                    subtitle: 'حساب نسب الحصص والطلاب مع تقرير PDF معتمد',
-                    icon: Icons.calculate_rounded,
-                    accentColor: AppColors.teacherRole,
-                    badge: 'محاسبة 👨‍🏫',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const TeacherSettlementScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _ExecutiveActionTile(
-                    title: 'مبيعات الملازم (POS)',
-                    subtitle: 'نقطة بيع المذكرات مع طابعة الفواتير الحرارية',
-                    icon: Icons.menu_book_rounded,
-                    accentColor: Colors.deepOrange,
-                    badge: 'مخزن 📦',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const BookstorePosScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _ExecutiveActionTile(
-                    title: 'كشوفات الحضور الرسمية',
-                    subtitle: 'طباعة كشوف الحضور الورقية لتوقيع الطلاب بالقاعة',
-                    icon: Icons.print_rounded,
-                    accentColor: AppColors.staffRole,
-                    badge: 'PDF 🖨️',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AttendanceReportsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _ExecutiveActionTile(
-                    title: 'شاشة العرض الحية TV',
-                    subtitle: 'عرض جدول الحصص والقاعات لشاشة استقبال السنتر',
-                    icon: Icons.tv_rounded,
-                    accentColor: AppColors.secondary,
-                    badge: 'عرض 📺',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ReceptionLiveTvKioskScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _ExecutiveActionTile(
-                    title: 'استيعاب ومقاعد القاعات',
-                    subtitle: 'مخطط القاعات وتوزيع مقاعد الطلاب الشاغرة للحصص',
-                    icon: Icons.airline_seat_recline_normal_rounded,
-                    accentColor: AppColors.info,
-                    badge: 'قاعات 🪑',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ClassroomCapacityScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ];
-
-                if (isWide) {
-                  return GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 2.3,
-                    children: tiles,
-                  );
-                }
-
-                return Column(
-                  children: tiles
-                      .map(
-                        (tile) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: tile,
-                        ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          // ── 4. Live Center Command & Operations Radar (رادار المراقبة الميدانية الحية) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 120),
-            child: _LiveCenterCommandRadarCard(
-              onOpenReceptionTv: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ReceptionLiveTvKioskScreen(),
-                  ),
-                );
-              },
-              onOpenQrGate: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ReceptionQrGateScreen(),
-                  ),
-                );
-              },
-              onOpenCashRegister: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DailyCashRegisterScreen(),
-                  ),
-                );
-              },
-              onOpenBookstorePos: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BookstorePosScreen(),
-                  ),
-                );
-                onRetry();
-              },
-              onOpenAuditLog: () => onNavigate(16),
-              onOpenEmergencyBroadcast: () => _openCenterEmergencyBroadcastDialog(context),
-              onOpenQuickFloat: () => _openQuickCashDepositDialog(context),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── 5. Day-End Settlement & Cash Drawer Reconciliation HUD (تقفيل الخزينة وجرد الدرج) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 140),
-            child: _DayEndSettlementHUD(
-              todayCollected: treasuryTodayCollected,
-              totalCollected: treasuryTotalCollected,
-              receiptsCount: treasuryReceiptsCount,
-              onOpenCashRegister: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const DailyCashRegisterScreen(),
-                  ),
-                );
-              },
-              onOpenBookstorePos: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const BookstorePosScreen(),
-                  ),
-                );
-                onRetry();
-              },
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── 6. Security Audit Alert Radar (رادار التدقيق الأمني والرقابة الإدارية) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 160),
-            child: _SecurityAuditRadarCard(
-              onOpenAuditLog: () => onNavigate(16),
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          // ── 7. Operational Pulse & Queue (نبض التشغيل والحالات المعلقة) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 180),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'نبض التشغيل والحالات المعلقة 🔔',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
-                ),
-                Text(
-                  'إجراءات معلقة',
-                  style: TextStyle(fontSize: 10.5, color: textSecondary),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          FadeInSlide(
-            delay: const Duration(milliseconds: 200),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: [
-                  _ExecutivePulseChip(
-                    label: 'حصص اليوم',
-                    count: opsMetrics.todaySessions,
-                    icon: Icons.today_rounded,
-                    accentColor: AppColors.primary,
-                    onTap: () => onNavigate(13),
-                  ),
-                  const SizedBox(width: 8),
-                  _ExecutivePulseChip(
-                    label: 'استثناءات الحضور',
-                    count: opsMetrics.attendanceExceptions,
-                    icon: Icons.assignment_late_rounded,
-                    accentColor: AppColors.warning,
-                    onTap: () => onNavigate(13),
-                  ),
-                  const SizedBox(width: 8),
-                  _ExecutivePulseChip(
-                    label: 'إجازات معلقة',
-                    count: opsMetrics.pendingLeaves,
-                    icon: Icons.event_busy_rounded,
-                    accentColor: Colors.amber,
-                    onTap: () => onNavigate(13),
-                  ),
-                  const SizedBox(width: 8),
-                  _ExecutivePulseChip(
-                    label: 'واجبات للتصحيح',
-                    count: opsMetrics.gradingQueue,
-                    icon: Icons.grading_rounded,
-                    accentColor: AppColors.purple,
-                    onTap: () => onNavigate(11),
-                  ),
-                  const SizedBox(width: 8),
-                  _ExecutivePulseChip(
-                    label: 'فواتير مستحقة',
-                    count: opsMetrics.openInvoices,
-                    icon: Icons.receipt_long_rounded,
-                    accentColor: AppColors.error,
-                    onTap: () => onNavigate(14),
-                  ),
-                  const SizedBox(width: 8),
-                  _ExecutivePulseChip(
-                    label: 'سبورات منشورة',
-                    count: opsMetrics.publishedBoards,
-                    icon: Icons.draw_rounded,
-                    accentColor: AppColors.success,
-                    onTap: () => onNavigate(13),
-                  ),
-                ],
               ),
             ),
           ),
 
-          const SizedBox(height: 18),
-
-          // ── 8. Quick Data Tools (تصدير البيانات) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 220),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'أدوات استخراج البيانات (CSV) 💾',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'نسخ للحافظة',
-                      style: TextStyle(fontSize: 10.5, color: textSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ExportButton(
-                      onPressed: () => _copyStudentsCsv(context),
-                      icon: Icons.school_rounded,
-                      label: 'تصدير الطلاب ($studentCount)',
-                    ),
-                    _ExportButton(
-                      onPressed: () => _copyGroupsCsv(context),
-                      icon: Icons.group_work_rounded,
-                      label: 'تصدير المجموعات ($groupCount)',
-                    ),
-                    _ExportButton(
-                      onPressed: () => _copyTeachersCsv(context),
-                      icon: Icons.person_rounded,
-                      label: 'تصدير المدرسين ($teacherCount)',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          // ── 9. Live Activity Stream ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 240),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'أحدث الأنشطة والعمليات الميدانية ⏱️',
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.bold,
-                    color: textPrimary,
-                  ),
-                ),
-                Text(
-                  'آخر 12 حركة',
-                  style: TextStyle(fontSize: 10.5, color: textSecondary),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          FadeInSlide(
-            delay: const Duration(milliseconds: 260),
-            child: _ActivityList(items: recentActivity),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildSegmentedNav(bool isDark, Color textPrimary, Color textSecondary) {
+    final tabs = [
+      (
+        icon: Icons.bolt_rounded,
+        label: 'العمليات السريعة',
+        badge: widget.opsMetrics.todaySessions > 0 ? '${widget.opsMetrics.todaySessions} حصة' : null,
+      ),
+      (
+        icon: Icons.account_balance_wallet_rounded,
+        label: 'الخزينة والتقفيل',
+        badge: widget.treasuryTodayCollected > 0 ? 'نشط' : null,
+      ),
+      (
+        icon: Icons.sensors_rounded,
+        label: 'رادار القاعات',
+        badge: null,
+      ),
+      (
+        icon: Icons.history_edu_rounded,
+        label: 'النشاط والأمان',
+        badge: null,
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black12,
+          width: 0.8,
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: List.generate(tabs.length, (index) {
+            final tab = tabs[index];
+            final isSelected = _selectedTab == index;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: InkWell(
+                onTap: () => setState(() => _selectedTab = index),
+                borderRadius: BorderRadius.circular(10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? (isDark ? AppColors.adminRole : Colors.white)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        tab.icon,
+                        size: 16,
+                        color: isSelected
+                            ? (isDark ? Colors.white : AppColors.adminRole)
+                            : textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        tab.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected
+                              ? (isDark ? Colors.white : AppColors.adminRole)
+                              : textSecondary,
+                        ),
+                      ),
+                      if (tab.badge != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (isDark ? Colors.white.withValues(alpha: 0.2) : AppColors.adminRole.withValues(alpha: 0.15))
+                                : (isDark ? Colors.white12 : Colors.black12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            tab.badge!,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? (isDark ? Colors.white : AppColors.adminRole)
+                                  : textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentTab(
+    BuildContext context,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+    int studentCount,
+    int teacherCount,
+    int groupCount,
+    int parentCount,
+  ) {
+    switch (_selectedTab) {
+      case 0:
+        return _buildOperationsTab(
+          context,
+          isDark,
+          textPrimary,
+          textSecondary,
+          studentCount,
+          teacherCount,
+          groupCount,
+        );
+      case 1:
+        return _buildTreasuryTab(context, isDark);
+      case 2:
+        return _buildRoomsTab(context);
+      case 3:
+      default:
+        return _buildActivityTab(context, isDark, textPrimary, textSecondary);
+    }
+  }
+
+  Widget _buildOperationsTab(
+    BuildContext context,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+    int studentCount,
+    int teacherCount,
+    int groupCount,
+  ) {
+    final tiles = [
+      _ExecutiveActionTile(
+        title: 'بوابة الاستقبال (QR)',
+        subtitle: 'تسجيل حضور سريع بالباركود مع إشعار المصروفات',
+        icon: Icons.qr_code_scanner_rounded,
+        accentColor: AppColors.primary,
+        badge: 'فوري ⚡',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ReceptionQrGateScreen(),
+            ),
+          );
+        },
+      ),
+      _ExecutiveActionTile(
+        title: 'كاشير الملازم (POS)',
+        subtitle: 'نقطة بيع المذكرات مع طابعة الفواتير الحرارية',
+        icon: Icons.menu_book_rounded,
+        accentColor: Colors.deepOrange,
+        badge: 'مخزن 📦',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const BookstorePosScreen(),
+            ),
+          );
+        },
+      ),
+      _ExecutiveActionTile(
+        title: 'تقفيل الخزينة اليومية',
+        subtitle: 'جرد ومطابقة النقدية المستلمة وطباعة التقفيل',
+        icon: Icons.point_of_sale_rounded,
+        accentColor: AppColors.success,
+        badge: 'كاش 💵',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const DailyCashRegisterScreen(),
+            ),
+          );
+        },
+      ),
+      _ExecutiveActionTile(
+        title: 'تصفية أرباح المدرسين',
+        subtitle: 'حساب نسب الحصص والطلاب مع تقرير PDF معتمد',
+        icon: Icons.calculate_rounded,
+        accentColor: AppColors.teacherRole,
+        badge: 'محاسبة 👨‍🏫',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const TeacherSettlementScreen(),
+            ),
+          );
+        },
+      ),
+      _ExecutiveActionTile(
+        title: 'شاشة العرض الحية TV',
+        subtitle: 'عرض جدول الحصص والقاعات لشاشة استقبال السنتر',
+        icon: Icons.tv_rounded,
+        accentColor: AppColors.secondary,
+        badge: 'عرض 📺',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ReceptionLiveTvKioskScreen(),
+            ),
+          );
+        },
+      ),
+      _ExecutiveActionTile(
+        title: 'كشوفات الحضور الرسمية',
+        subtitle: 'طباعة كشوف الحضور الورقية لتوقيع الطلاب بالقاعة',
+        icon: Icons.print_rounded,
+        accentColor: AppColors.staffRole,
+        badge: 'PDF 🖨️',
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const AttendanceReportsScreen(),
+            ),
+          );
+        },
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Grid of Operations
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 800;
+            final isMedium = constraints.maxWidth > 550;
+
+            if (isWide) {
+              return GridView.count(
+                crossAxisCount: 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 2.5,
+                children: tiles,
+              );
+            }
+            if (isMedium) {
+              return GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 2.6,
+                children: tiles,
+              );
+            }
+
+            return Column(
+              children: tiles
+                  .map(
+                    (tile) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: tile,
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+
+        const SizedBox(height: 18),
+
+        // Operational Pulse
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'نبض التشغيل والحالات المعلقة 🔔',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+            ),
+            Text(
+              'تنبيهات فورية',
+              style: TextStyle(fontSize: 10.5, color: textSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              _ExecutivePulseChip(
+                label: 'حصص اليوم',
+                count: widget.opsMetrics.todaySessions,
+                icon: Icons.today_rounded,
+                accentColor: AppColors.primary,
+                onTap: () => widget.onNavigate(13),
+              ),
+              const SizedBox(width: 8),
+              _ExecutivePulseChip(
+                label: 'استثناءات الحضور',
+                count: widget.opsMetrics.attendanceExceptions,
+                icon: Icons.assignment_late_rounded,
+                accentColor: AppColors.warning,
+                onTap: () => widget.onNavigate(13),
+              ),
+              const SizedBox(width: 8),
+              _ExecutivePulseChip(
+                label: 'إجازات معلقة',
+                count: widget.opsMetrics.pendingLeaves,
+                icon: Icons.event_busy_rounded,
+                accentColor: Colors.amber,
+                onTap: () => widget.onNavigate(13),
+              ),
+              const SizedBox(width: 8),
+              _ExecutivePulseChip(
+                label: 'واجبات للتصحيح',
+                count: widget.opsMetrics.gradingQueue,
+                icon: Icons.grading_rounded,
+                accentColor: AppColors.purple,
+                onTap: () => widget.onNavigate(11),
+              ),
+              const SizedBox(width: 8),
+              _ExecutivePulseChip(
+                label: 'فواتير مستحقة',
+                count: widget.opsMetrics.openInvoices,
+                icon: Icons.receipt_long_rounded,
+                accentColor: AppColors.error,
+                onTap: () => widget.onNavigate(14),
+              ),
+              const SizedBox(width: 8),
+              _ExecutivePulseChip(
+                label: 'سبورات منشورة',
+                count: widget.opsMetrics.publishedBoards,
+                icon: Icons.draw_rounded,
+                accentColor: AppColors.success,
+                onTap: () => widget.onNavigate(13),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
+        // Quick CSV Export Tools Strip
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : Colors.black12,
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.download_rounded, size: 16, color: AppColors.adminRole),
+              const SizedBox(width: 8),
+              Text(
+                'تصدير سريع (CSV):',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _ExportButton(
+                        onPressed: () => _copyStudentsCsv(context),
+                        icon: Icons.school_rounded,
+                        label: 'الطلاب ($studentCount)',
+                      ),
+                      const SizedBox(width: 6),
+                      _ExportButton(
+                        onPressed: () => _copyGroupsCsv(context),
+                        icon: Icons.group_work_rounded,
+                        label: 'المجموعات ($groupCount)',
+                      ),
+                      const SizedBox(width: 6),
+                      _ExportButton(
+                        onPressed: () => _copyTeachersCsv(context),
+                        icon: Icons.person_rounded,
+                        label: 'المدرسين ($teacherCount)',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTreasuryTab(BuildContext context, bool isDark) {
+    return Column(
+      children: [
+        _DayEndSettlementHUD(
+          todayCollected: widget.treasuryTodayCollected,
+          totalCollected: widget.treasuryTotalCollected,
+          receiptsCount: widget.treasuryReceiptsCount,
+          onOpenCashRegister: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const DailyCashRegisterScreen(),
+              ),
+            );
+          },
+          onOpenBookstorePos: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const BookstorePosScreen(),
+              ),
+            );
+            widget.onRetry();
+          },
+          onOpenQuickFloat: () => _openQuickCashDepositDialog(context),
+          onOpenFinancePortal: () => widget.onNavigate(14),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoomsTab(BuildContext context) {
+    return _LiveCenterCommandRadarCard(
+      onOpenReceptionTv: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ReceptionLiveTvKioskScreen(),
+          ),
+        );
+      },
+      onOpenQrGate: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ReceptionQrGateScreen(),
+          ),
+        );
+      },
+      onOpenCashRegister: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const DailyCashRegisterScreen(),
+          ),
+        );
+      },
+      onOpenBookstorePos: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const BookstorePosScreen(),
+          ),
+        );
+        widget.onRetry();
+      },
+      onOpenAuditLog: () => widget.onNavigate(16),
+      onOpenEmergencyBroadcast: () => _openCenterEmergencyBroadcastDialog(context),
+      onOpenQuickFloat: () => _openQuickCashDepositDialog(context),
+    );
+  }
+
+  Widget _buildActivityTab(
+    BuildContext context,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SecurityAuditRadarCard(
+          onOpenAuditLog: () => widget.onNavigate(16),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'أحدث الأنشطة والعمليات الميدانية ⏱️',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: textPrimary,
+              ),
+            ),
+            Text(
+              'آخر 12 حركة',
+              style: TextStyle(fontSize: 10.5, color: textSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _ActivityList(items: widget.recentActivity),
+      ],
     );
   }
 
@@ -1460,18 +1553,17 @@ class _AdminOverview extends StatelessWidget {
     BuildContext context,
     dynamic user,
     bool isDark,
-    int studentCount,
-    int teacherCount,
-    String treasuryValue,
+    Color textPrimary,
+    Color textSecondary,
   ) {
     final isMobile = MediaQuery.sizeOf(context).width < 600;
-    final activeBranch = selectedBranchId != null
-        ? branches.where((b) => b.id == selectedBranchId).firstOrNull
+    final activeBranch = widget.selectedBranchId != null
+        ? widget.branches.where((b) => b.id == widget.selectedBranchId).firstOrNull
         : null;
     final branchName = activeBranch?.name ??
-        (selectedBranchId == null
+        (widget.selectedBranchId == null
             ? 'المنظومة الموحدة (كافة الفروع)'
-            : (branches.where((b) => b.id == user?.branchId).firstOrNull?.name ??
+            : (widget.branches.where((b) => b.id == user?.branchId).firstOrNull?.name ??
                 (user?.branchId != null && (user!.branchId as String).length < 15
                     ? (user!.branchId as String)
                     : 'الفرع الرئيسي')));
@@ -1481,7 +1573,7 @@ class _AdminOverview extends StatelessWidget {
         gradient: LinearGradient(
           colors: isDark
               ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
-              : [const Color(0xFFFFFFFF), const Color(0xFFF1F5F9)],
+              : [const Color(0xFFFFFFFF), const Color(0xFFF8FAFC)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
@@ -1498,11 +1590,11 @@ class _AdminOverview extends StatelessWidget {
           ),
         ],
       ),
-      padding: EdgeInsets.all(isMobile ? 13 : 18),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Live badge + Switcher & Actions
+          // Top Row: Live badge + Quick Action Icons
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -1510,9 +1602,9 @@ class _AdminOverview extends StatelessWidget {
             runSpacing: 6,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.15),
+                  color: Colors.green.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                 ),
@@ -1538,7 +1630,7 @@ class _AdminOverview extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CenterSwitcherWidget(onCenterChanged: onRetry),
+                  CenterSwitcherWidget(onCenterChanged: widget.onRetry),
                   const SizedBox(width: 2),
                   IconButton(
                     tooltip: 'إدارة السنتر والشراكات',
@@ -1555,13 +1647,25 @@ class _AdminOverview extends StatelessWidget {
                   IconButton(
                     tooltip: 'الانضمام لسنتر بكود',
                     visualDensity: VisualDensity.compact,
-                    onPressed: () => JoinCenterDialog.show(context, onJoined: onRetry),
+                    onPressed: () => JoinCenterDialog.show(context, onJoined: widget.onRetry),
                     icon: const Icon(Icons.add_business_rounded, size: 18),
+                  ),
+                  IconButton(
+                    tooltip: 'حركة نقدية سريعة',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _openQuickCashDepositDialog(context),
+                    icon: const Icon(Icons.add_card_rounded, size: 18, color: Colors.teal),
+                  ),
+                  IconButton(
+                    tooltip: 'إذاعة طوارئ عامة',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _openCenterEmergencyBroadcastDialog(context),
+                    icon: const Icon(Icons.campaign_rounded, size: 18, color: Colors.redAccent),
                   ),
                   IconButton(
                     tooltip: 'تحديث البيانات',
                     visualDensity: VisualDensity.compact,
-                    onPressed: onRetry,
+                    onPressed: widget.onRetry,
                     icon: const Icon(Icons.refresh_rounded, size: 18),
                   ),
                 ],
@@ -1581,7 +1685,7 @@ class _AdminOverview extends StatelessWidget {
                 userId: user?.id,
                 userEmail: user?.email,
                 radius: isMobile ? 22 : 26,
-                onAvatarChanged: (_) => onRetry(),
+                onAvatarChanged: (_) => widget.onRetry(),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1593,19 +1697,19 @@ class _AdminOverview extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: isMobile ? 16 : 19,
+                        fontSize: isMobile ? 16 : 18,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        color: textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • $branchName',
+                      '${widget.authViewModel.userRole?.displayName ?? "إدارة السنتر العليا"} • $branchName',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: isMobile ? 11 : 12,
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        color: textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1614,95 +1718,69 @@ class _AdminOverview extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
 
-          // Quick Live Summary Strip (Responsive 2x2 grid on mobile or 4-item row on desktop)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(12),
+          // Integrated Multi-Branch Federation Row
+          if (widget.branches.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _buildBranchChip(
+                    label: '🌐 كافة الفروع (المنظومة الموحدة)',
+                    isSelected: widget.selectedBranchId == null,
+                    onTap: () => widget.onBranchChanged(null),
+                  ),
+                  ...widget.branches.map((b) {
+                    final isSel = widget.selectedBranchId == b.id;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: _buildBranchChip(
+                        label: '🏛️ ${b.name}',
+                        isSelected: isSel,
+                        onTap: () => widget.onBranchChanged(b.id),
+                      ),
+                    );
+                  }),
+                ],
+              ),
             ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 520;
-                final stats = [
-                  _buildHeroStat('الطلاب المسجلون', '$studentCount طالب', Icons.school_rounded, AppColors.primary),
-                  _buildHeroStat('المعلمون', '$teacherCount معلم', Icons.person_rounded, AppColors.purple),
-                  _buildHeroStat('حصص اليوم', '${opsMetrics.todaySessions} حصة', Icons.today_rounded, AppColors.warning),
-                  _buildHeroStat('الخزينة', treasuryValue, Icons.account_balance_wallet_rounded, AppColors.success),
-                ];
-
-                if (isWide) {
-                  return Row(
-                    children: stats.map((s) => Expanded(child: s)).toList(),
-                  );
-                }
-
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: stats[0]),
-                        const SizedBox(width: 8),
-                        Expanded(child: stats[1]),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: stats[2]),
-                        const SizedBox(width: 8),
-                        Expanded(child: stats[3]),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildHeroStat(String label, String value, IconData icon, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Icon(icon, size: 14, color: color),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 9.5, color: Colors.grey),
-              ),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+  Widget _buildBranchChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.adminRole : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppColors.adminRole : Colors.grey.withValues(alpha: 0.3),
+            width: isSelected ? 1.2 : 0.8,
           ),
         ),
-      ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : null,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1716,14 +1794,14 @@ class _AdminOverview extends StatelessWidget {
   void _openQuickCashDepositDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (_) => _QuickCashDepositDialog(onSuccess: onRetry),
+      builder: (_) => _QuickCashDepositDialog(onSuccess: widget.onRetry),
     );
   }
 
   Future<void> _copyStudentsCsv(BuildContext context) async {
     final rows = [
       ['id', 'student_code', 'full_name', 'email', 'grade_level', 'status'],
-      ...students.map(
+      ...widget.students.map(
         (s) => [
           s.id,
           s.studentCode,
@@ -1740,7 +1818,7 @@ class _AdminOverview extends StatelessWidget {
   Future<void> _copyGroupsCsv(BuildContext context) async {
     final rows = [
       ['id', 'code', 'name', 'subject_id', 'branch_id', 'status'],
-      ...groups.map(
+      ...widget.groups.map(
         (g) => [g.id, g.code, g.name, g.subjectId, g.branchId, g.status],
       ),
     ];
@@ -1750,7 +1828,7 @@ class _AdminOverview extends StatelessWidget {
   Future<void> _copyTeachersCsv(BuildContext context) async {
     final rows = [
       ['id', 'full_name', 'email', 'specialization'],
-      ...teachers.map(
+      ...widget.teachers.map(
         (t) => [t.id, t.fullName, t.email, t.specialization ?? ''],
       ),
     ];
@@ -1775,6 +1853,7 @@ class _AdminOverview extends StatelessWidget {
     return '"$escaped"';
   }
 }
+
 
 class _ExecutiveKpiCard extends StatelessWidget {
   final String title;
@@ -3258,129 +3337,6 @@ class _CenterEmergencyBroadcastDialogState extends State<_CenterEmergencyBroadca
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Multi-Branch Federation Selector Bar (نظام العزل السحابي متعدد الفروع)
-// ─────────────────────────────────────────────────────────────────────────────
-class _MultiBranchFederationBar extends StatelessWidget {
-  final List<Branch> branches;
-  final String? selectedBranchId;
-  final ValueChanged<String?> onBranchChanged;
-
-  const _MultiBranchFederationBar({
-    required this.branches,
-    required this.selectedBranchId,
-    required this.onBranchChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.black12,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.account_tree_rounded, size: 15, color: AppColors.primary),
-              const SizedBox(width: 7),
-              const Expanded(
-                child: Text(
-                  'إدارة الفروع المتعددة (Multi-Branch)',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  selectedBranchId == null
-                      ? 'المنظومة الموحدة 🌐'
-                      : 'فرع معزول 🏛️',
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildBranchChip(
-                  label: '🌐 المنظومة الموحدة (الفرع الرئيسي)',
-                  isSelected: selectedBranchId == null,
-                  onTap: () => onBranchChanged(null),
-                ),
-                if (branches.isNotEmpty) ...[
-                  const SizedBox(width: 6),
-                  ...branches.map((branch) {
-                    final isSelected = selectedBranchId == branch.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: _buildBranchChip(
-                        label: '🏛️ ${branch.name}',
-                        isSelected: isSelected,
-                        onTap: () => onBranchChanged(branch.id),
-                      ),
-                    );
-                  }),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBranchChip({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.35),
-            width: isSelected ? 1.4 : 0.9,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : null,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Day-End Settlement & Cash Reconciliation HUD (تقفيل الخزينة والـ Z-Report)
@@ -3391,6 +3347,8 @@ class _DayEndSettlementHUD extends StatelessWidget {
   final int receiptsCount;
   final VoidCallback onOpenCashRegister;
   final VoidCallback onOpenBookstorePos;
+  final VoidCallback? onOpenQuickFloat;
+  final VoidCallback? onOpenFinancePortal;
 
   const _DayEndSettlementHUD({
     required this.todayCollected,
@@ -3398,6 +3356,8 @@ class _DayEndSettlementHUD extends StatelessWidget {
     required this.receiptsCount,
     required this.onOpenCashRegister,
     required this.onOpenBookstorePos,
+    this.onOpenQuickFloat,
+    this.onOpenFinancePortal,
   });
 
   static String _formatMoney(double amount) {
@@ -3719,6 +3679,30 @@ class _DayEndSettlementHUD extends StatelessWidget {
                 icon: const Icon(Icons.menu_book_rounded, size: 14, color: Colors.deepOrange),
                 label: const Text('كاشير الملازم وطباعة الباركود', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               ),
+              if (onOpenQuickFloat != null)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: onOpenQuickFloat,
+                  icon: const Icon(Icons.add_card_rounded, size: 14, color: Colors.teal),
+                  label: const Text('إيداع نقدي سريع', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              if (onOpenFinancePortal != null)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: onOpenFinancePortal,
+                  icon: const Icon(Icons.account_balance_rounded, size: 14, color: AppColors.primary),
+                  label: const Text('شاشة المالية والتحصيل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
             ],
           ),
         ],
