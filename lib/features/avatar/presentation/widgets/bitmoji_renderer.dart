@@ -139,39 +139,54 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
         );
       },
       child: Center(
-        child: Image.network(
-          imageUrl,
-          width: w * 0.92,
-          height: h * 0.88,
-          fit: BoxFit.contain,
-          loadingBuilder: (ctx, child, progress) {
-            if (progress == null) return child;
-            return SizedBox(
-              width: w * 0.92,
-              height: h * 0.88,
-              child: Center(
-                child: SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: widget.traits.outfitColor,
-                  ),
-                ),
+        child: imageUrl.startsWith('assets/')
+            ? Image.asset(
+                imageUrl,
+                width: w * 0.92,
+                height: h * 0.88,
+                fit: BoxFit.contain,
+                errorBuilder: (ctx, err, stack) {
+                  return CustomPaint(
+                    size: Size(w, h),
+                    painter: BitmojiCustomPainter(
+                      traits: widget.traits,
+                      showFullBody: widget.showPedestal,
+                    ),
+                  );
+                },
+              )
+            : Image.network(
+                imageUrl,
+                width: w * 0.92,
+                height: h * 0.88,
+                fit: BoxFit.contain,
+                loadingBuilder: (ctx, child, progress) {
+                  if (progress == null) return child;
+                  return SizedBox(
+                    width: w * 0.92,
+                    height: h * 0.88,
+                    child: Center(
+                      child: SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: widget.traits.outfitColor,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (ctx, err, stack) {
+                  return CustomPaint(
+                    size: Size(w, h),
+                    painter: BitmojiCustomPainter(
+                      traits: widget.traits,
+                      showFullBody: widget.showPedestal,
+                    ),
+                  );
+                },
               ),
-            );
-          },
-          errorBuilder: (ctx, err, stack) {
-            // High quality fallback in case network is completely unavailable
-            return CustomPaint(
-              size: Size(w, h),
-              painter: BitmojiCustomPainter(
-                traits: widget.traits,
-                showFullBody: widget.showPedestal,
-              ),
-            );
-          },
-        ),
       ),
     );
 

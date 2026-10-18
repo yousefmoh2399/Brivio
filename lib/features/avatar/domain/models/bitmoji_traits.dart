@@ -54,6 +54,7 @@ class BitmojiTraits {
   final Color outfitAccentColor;
   final String backgroundStyle;
   final Color backgroundColor;
+  final String? characterAsset;
 
   const BitmojiTraits({
     this.style = 'avataaars',
@@ -79,7 +80,38 @@ class BitmojiTraits {
     this.outfitAccentColor = const Color(0xFF38BDF8),
     this.backgroundStyle = 'studio_pedestal',
     this.backgroundColor = const Color(0xFFE0F2FE),
+    this.characterAsset,
   });
+
+  /// Resolves the authentic 3D Pixar / Snapchat Bitmoji character asset path
+  String get resolvedAssetPath {
+    if (characterAsset != null && characterAsset!.isNotEmpty) {
+      return characterAsset!;
+    }
+    if (gender == 'female') {
+      if (headwear == 'hijab' || hairStyle == 'hijab_wrapped') {
+        return 'assets/avatars/snap_girl_hijab.png';
+      }
+      if (headwear == 'graduation_cap') {
+        return 'assets/avatars/snap_student_star.png';
+      }
+      if (outfit == 'formal_blazer' || outfit == 'blazer_sweater') {
+        return 'assets/avatars/snap_teacher_female.png';
+      }
+      return 'assets/avatars/snap_girl_stylish.png';
+    } else {
+      if (eyewear != 'none' && eyewear != 'sunglasses') {
+        return 'assets/avatars/snap_boy_glasses.png';
+      }
+      if (outfit == 'formal_blazer' && facialHair != 'none') {
+        return 'assets/avatars/snap_executive_leader.png';
+      }
+      if (facialHair != 'none' || outfit == 'formal_blazer') {
+        return 'assets/avatars/snap_teacher_male.png';
+      }
+      return 'assets/avatars/snap_boy_curly.png';
+    }
+  }
 
   BitmojiTraits copyWith({
     String? style,
@@ -105,6 +137,7 @@ class BitmojiTraits {
     Color? outfitAccentColor,
     String? backgroundStyle,
     Color? backgroundColor,
+    String? characterAsset,
   }) {
     return BitmojiTraits(
       style: style ?? this.style,
@@ -130,6 +163,7 @@ class BitmojiTraits {
       outfitAccentColor: outfitAccentColor ?? this.outfitAccentColor,
       backgroundStyle: backgroundStyle ?? this.backgroundStyle,
       backgroundColor: backgroundColor ?? this.backgroundColor,
+      characterAsset: characterAsset ?? this.characterAsset,
     );
   }
 
@@ -157,6 +191,7 @@ class BitmojiTraits {
     'outfitAccentColor': outfitAccentColor.toARGB32(),
     'backgroundStyle': backgroundStyle,
     'backgroundColor': backgroundColor.toARGB32(),
+    'characterAsset': characterAsset,
   };
 
   factory BitmojiTraits.fromJson(Map<String, dynamic> json) => BitmojiTraits(
@@ -183,10 +218,19 @@ class BitmojiTraits {
     outfitAccentColor: Color(json['outfitAccentColor'] as int? ?? 0xFF38BDF8),
     backgroundStyle: json['backgroundStyle'] as String? ?? 'studio_pedestal',
     backgroundColor: Color(json['backgroundColor'] as int? ?? 0xFFE0F2FE),
+    characterAsset: json['characterAsset'] as String?,
   );
 
-  /// Generates the high-resolution, commercial-grade avatar URL
+  /// Generates the high-resolution, commercial-grade avatar URL or local 3D asset
   String toImageUrl({int size = 512, bool includeBackground = false}) {
+    if (characterAsset != null && characterAsset!.isNotEmpty) {
+      return characterAsset!;
+    }
+    // Default to the high-res authentic 3D character asset
+    if (style == 'avataaars' || style.isEmpty) {
+      return resolvedAssetPath;
+    }
+
     final hexBg = backgroundColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
     final hexSkin = skinColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);
     final hexHair = hairColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2);

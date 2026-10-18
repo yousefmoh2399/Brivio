@@ -111,7 +111,6 @@ class _SnapchatAvatarStudioScreenState
     final outfits = BitmojiTraits.outfitPalette;
     final bgs = BitmojiTraits.backgroundPalette;
 
-    final styles = ['avataaars', 'adventurer', 'lorelei'];
     final hairStyles = [
       'short_curly',
       'fade_crop',
@@ -148,10 +147,24 @@ class _SnapchatAvatarStudioScreenState
       'graphic_tee',
     ];
 
+    final avatars = [
+      'assets/avatars/snap_boy_curly.png',
+      'assets/avatars/snap_girl_hijab.png',
+      'assets/avatars/snap_student_star.png',
+      'assets/avatars/snap_girl_stylish.png',
+      'assets/avatars/snap_boy_glasses.png',
+      'assets/avatars/snap_teacher_male.png',
+      'assets/avatars/snap_teacher_female.png',
+      'assets/avatars/snap_executive_leader.png',
+    ];
+    final chosenAsset = avatars[rnd % avatars.length];
+    final isFemale = chosenAsset.contains('girl') || chosenAsset.contains('female') || chosenAsset.contains('star');
+
     setState(() {
       _traits = _traits.copyWith(
         seed: 'Seed_$rnd',
-        style: styles[rnd % styles.length],
+        characterAsset: chosenAsset,
+        gender: isFemale ? 'female' : 'male',
         skinColor: skins[rnd % skins.length],
         hairColor: hairs[(rnd ~/ 2) % hairs.length],
         outfitColor: outfits[(rnd ~/ 3) % outfits.length],
@@ -655,17 +668,62 @@ class _SnapchatAvatarStudioScreenState
       case AvatarCustomizationSection.style:
         return _buildVisualGrid(
           options: const [
-            {'id': 'avataaars', 'title': 'سناب شات 👱'},
-            {'id': 'adventurer', 'title': 'بيكسار 3D ⚔️'},
-            {'id': 'lorelei', 'title': 'أنمي 🌸'},
-            {'id': 'bottts', 'title': 'روبوت 🤖'},
-            {'id': 'open-peeps', 'title': 'كوميكس 🎨'},
+            {
+              'id': 'snap_boy_curly',
+              'title': 'طالب كيرلي 👦',
+            },
+            {
+              'id': 'snap_girl_hijab',
+              'title': 'طالبة بالحجاب 🧕',
+            },
+            {
+              'id': 'snap_student_star',
+              'title': 'خريج متفوق 🎓',
+            },
+            {
+              'id': 'snap_girl_stylish',
+              'title': 'طالبة مبدعة 🎧',
+            },
+            {
+              'id': 'snap_boy_glasses',
+              'title': 'طالب بنظارات 👓',
+            },
+            {
+              'id': 'snap_teacher_male',
+              'title': 'أستاذ موجه 👨‍🏫',
+            },
+            {
+              'id': 'snap_teacher_female',
+              'title': 'أستاذة قديرة 👩‍🏫',
+            },
+            {
+              'id': 'snap_executive_leader',
+              'title': 'مدير المنظومة 👨‍💼',
+            },
           ],
-          selectedId: _traits.style,
+          selectedId: _traits.characterAsset != null
+              ? _traits.characterAsset!.replaceAll('assets/avatars/', '').replaceAll('.png', '')
+              : _traits.resolvedAssetPath.replaceAll('assets/avatars/', '').replaceAll('.png', ''),
           crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
-          previewTraitsBuilder: (id) => _traits.copyWith(style: id),
-          onSelected: (id) => setState(() => _traits = _traits.copyWith(style: id)),
+          previewTraitsBuilder: (id) => _traits.copyWith(
+            characterAsset: 'assets/avatars/$id.png',
+          ),
+          onSelected: (id) {
+            final asset = 'assets/avatars/$id.png';
+            setState(() {
+              _traits = _traits.copyWith(
+                characterAsset: asset,
+                gender: (id.contains('girl') || id.contains('female') || id == 'snap_student_star')
+                    ? 'female'
+                    : 'male',
+                headwear: id == 'snap_girl_hijab'
+                    ? 'hijab'
+                    : (id == 'snap_student_star' ? 'graduation_cap' : 'none'),
+                hairStyle: id == 'snap_girl_hijab' ? 'hijab_wrapped' : _traits.hairStyle,
+              );
+            });
+          },
         );
 
       case AvatarCustomizationSection.genderBody:
@@ -688,11 +746,37 @@ class _SnapchatAvatarStudioScreenState
           selectedId: _traits.hairStyle,
           crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
-          previewTraitsBuilder: (id) => _traits.copyWith(
-            hairStyle: id,
-            headwear: id == 'hijab_wrapped' ? 'hijab' : 'none',
-          ),
-          onSelected: (id) => setState(() => _traits = _traits.copyWith(hairStyle: id)),
+          previewTraitsBuilder: (id) {
+            String? asset;
+            if (id == 'short_curly') asset = 'assets/avatars/snap_boy_curly.png';
+            if (id == 'hijab_wrapped') asset = 'assets/avatars/snap_girl_hijab.png';
+            if (id == 'long_wavy') asset = 'assets/avatars/snap_girl_stylish.png';
+            if (id == 'fade_crop') asset = 'assets/avatars/snap_boy_glasses.png';
+            if (id == 'slick_back') asset = 'assets/avatars/snap_teacher_male.png';
+            if (id == 'bob') asset = 'assets/avatars/snap_teacher_female.png';
+            return _traits.copyWith(
+              hairStyle: id,
+              headwear: id == 'hijab_wrapped' ? 'hijab' : 'none',
+              characterAsset: asset,
+            );
+          },
+          onSelected: (id) {
+            String? asset;
+            if (id == 'short_curly') asset = 'assets/avatars/snap_boy_curly.png';
+            if (id == 'hijab_wrapped') asset = 'assets/avatars/snap_girl_hijab.png';
+            if (id == 'long_wavy') asset = 'assets/avatars/snap_girl_stylish.png';
+            if (id == 'fade_crop') asset = 'assets/avatars/snap_boy_glasses.png';
+            if (id == 'slick_back') asset = 'assets/avatars/snap_teacher_male.png';
+            if (id == 'bob') asset = 'assets/avatars/snap_teacher_female.png';
+            setState(() {
+              _traits = _traits.copyWith(
+                hairStyle: id,
+                characterAsset: asset,
+                headwear: id == 'hijab_wrapped' ? 'hijab' : 'none',
+                gender: (id == 'hijab_wrapped' || id == 'long_wavy' || id == 'bob' || id == 'bun') ? 'female' : 'male',
+              );
+            });
+          },
         );
 
       case AvatarCustomizationSection.headwear:
@@ -700,18 +784,37 @@ class _SnapchatAvatarStudioScreenState
           options: const [
             {'id': 'none', 'title': 'بدون غطاء'},
             {'id': 'hijab', 'title': 'حجاب إسلامي 🧕'},
+            {'id': 'graduation_cap', 'title': 'قبعة تخرج 🎓'},
+            {'id': 'headphones', 'title': 'سماعات رأس 🎧'},
             {'id': 'baseball_cap', 'title': 'كاب رياضي 🧢'},
-            {'id': 'beanie', 'title': 'طاقية شتوية 🧶'},
-            {'id': 'turban', 'title': 'عمامة / توربان 👳'},
           ],
           selectedId: _traits.headwear,
           crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
-          previewTraitsBuilder: (id) => _traits.copyWith(
-            headwear: id,
-            hairStyle: id == 'hijab' ? 'hijab_wrapped' : _traits.hairStyle,
-          ),
-          onSelected: (id) => setState(() => _traits = _traits.copyWith(headwear: id)),
+          previewTraitsBuilder: (id) {
+            String? asset;
+            if (id == 'hijab') asset = 'assets/avatars/snap_girl_hijab.png';
+            if (id == 'graduation_cap') asset = 'assets/avatars/snap_student_star.png';
+            if (id == 'headphones') asset = 'assets/avatars/snap_girl_stylish.png';
+            return _traits.copyWith(
+              headwear: id,
+              characterAsset: asset,
+              hairStyle: id == 'hijab' ? 'hijab_wrapped' : _traits.hairStyle,
+            );
+          },
+          onSelected: (id) {
+            String? asset;
+            if (id == 'hijab') asset = 'assets/avatars/snap_girl_hijab.png';
+            if (id == 'graduation_cap') asset = 'assets/avatars/snap_student_star.png';
+            if (id == 'headphones') asset = 'assets/avatars/snap_girl_stylish.png';
+            setState(() {
+              _traits = _traits.copyWith(
+                headwear: id,
+                characterAsset: asset,
+                hairStyle: id == 'hijab' ? 'hijab_wrapped' : _traits.hairStyle,
+              );
+            });
+          },
         );
 
       case AvatarCustomizationSection.outfit:
@@ -935,15 +1038,25 @@ class _SnapchatAvatarStudioScreenState
               child: SizedBox(
                 width: 42,
                 height: 42,
-                child: Image.network(
-                  previewUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Icon(
-                    gender == 'male' ? Icons.boy_rounded : Icons.girl_rounded,
-                    size: 24,
-                    color: widget.roleColor,
-                  ),
-                ),
+                child: previewUrl.startsWith('assets/')
+                    ? Image.asset(
+                        previewUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          gender == 'male' ? Icons.boy_rounded : Icons.girl_rounded,
+                          size: 24,
+                          color: widget.roleColor,
+                        ),
+                      )
+                    : Image.network(
+                        previewUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          gender == 'male' ? Icons.boy_rounded : Icons.girl_rounded,
+                          size: 24,
+                          color: widget.roleColor,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1050,28 +1163,38 @@ class _SnapchatAvatarStudioScreenState
                         child: Center(
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              previewUrl,
-                              fit: BoxFit.contain,
-                              loadingBuilder: (ctx, child, progress) {
-                                if (progress == null) return child;
-                                return Center(
-                                  child: SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1.5,
-                                      color: widget.roleColor,
+                            child: previewUrl.startsWith('assets/')
+                                ? Image.asset(
+                                    previewUrl,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (ctx, err, stack) => Icon(
+                                      fallbackIcon,
+                                      size: 22,
+                                      color: isSelected ? widget.roleColor : Colors.grey,
+                                    ),
+                                  )
+                                : Image.network(
+                                    previewUrl,
+                                    fit: BoxFit.contain,
+                                    loadingBuilder: (ctx, child, progress) {
+                                      if (progress == null) return child;
+                                      return Center(
+                                        child: SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 1.5,
+                                            color: widget.roleColor,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (ctx, err, stack) => Icon(
+                                      fallbackIcon,
+                                      size: 22,
+                                      color: isSelected ? widget.roleColor : Colors.grey,
                                     ),
                                   ),
-                                );
-                              },
-                              errorBuilder: (ctx, err, stack) => Icon(
-                                fallbackIcon,
-                                size: 22,
-                                color: isSelected ? widget.roleColor : Colors.grey,
-                              ),
-                            ),
                           ),
                         ),
                       ),

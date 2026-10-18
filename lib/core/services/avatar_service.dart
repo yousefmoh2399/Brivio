@@ -29,7 +29,12 @@ class AvatarService {
     if (avatarUrl == null || avatarUrl.trim().isEmpty) return null;
     final trimmed = avatarUrl.trim();
 
-    // 1. Data URI with base64 (e.g. data:image/png;base64,...)
+    // 1. Local App Asset (e.g. assets/avatars/...)
+    if (trimmed.startsWith('assets/')) {
+      return AssetImage(trimmed);
+    }
+
+    // 2. Data URI with base64 (e.g. data:image/png;base64,...)
     if (trimmed.startsWith('data:image') || trimmed.startsWith('data:application')) {
       try {
         final commaIdx = trimmed.indexOf(',');
@@ -69,79 +74,55 @@ class AvatarService {
     return null;
   }
 
-  /// List of high quality educational preset avatars.
+  /// List of ultra-high-resolution 3D Pixar / Snapchat Bitmoji character preset avatars.
   static const List<PresetAvatar> educationalPresets = [
     PresetAvatar(
-      id: 'student_boy_1',
-      titleArabic: 'طالب مجتهد 🎓',
+      id: 'snap_boy_curly',
+      titleArabic: 'طالب عصري كيرلي 👦',
       category: 'طالب',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Zack',
+      url: 'assets/avatars/snap_boy_curly.png',
     ),
     PresetAvatar(
-      id: 'student_girl_1',
-      titleArabic: 'طالبة متفوقة 🎓',
+      id: 'snap_girl_hijab',
+      titleArabic: 'طالبة متألقة بالحجاب 🧕',
       category: 'طالب',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Aria',
+      url: 'assets/avatars/snap_girl_hijab.png',
     ),
     PresetAvatar(
-      id: 'student_scholar',
-      titleArabic: 'باحث علمي 📚',
+      id: 'snap_student_star',
+      titleArabic: 'خريج متفوق بالمرتبة الأولى 🎓',
       category: 'طالب',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Felix',
+      url: 'assets/avatars/snap_student_star.png',
     ),
     PresetAvatar(
-      id: 'student_scientist',
-      titleArabic: 'عالمة المستقبل 🔬',
+      id: 'snap_girl_stylish',
+      titleArabic: 'طالبة مبدعة وذكية 🎧',
       category: 'طالب',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Luna',
+      url: 'assets/avatars/snap_girl_stylish.png',
     ),
     PresetAvatar(
-      id: 'teacher_male',
-      titleArabic: 'أستاذ خبير 👨‍🏫',
+      id: 'snap_boy_glasses',
+      titleArabic: 'طالب متفوق ونظارات 👓',
+      category: 'طالب',
+      url: 'assets/avatars/snap_boy_glasses.png',
+    ),
+    PresetAvatar(
+      id: 'snap_teacher_male',
+      titleArabic: 'أستاذ وموجه قدير 👨‍🏫',
       category: 'معلم',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Oliver',
+      url: 'assets/avatars/snap_teacher_male.png',
     ),
     PresetAvatar(
-      id: 'teacher_female',
-      titleArabic: 'أستاذة قديرة 👩‍🏫',
+      id: 'snap_teacher_female',
+      titleArabic: 'أستاذة ومشرفة أكاديمية 👩‍🏫',
       category: 'معلم',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Sophie',
+      url: 'assets/avatars/snap_teacher_female.png',
     ),
     PresetAvatar(
-      id: 'admin_director',
-      titleArabic: 'مدير المنظومة 👨‍💼',
+      id: 'snap_executive_leader',
+      titleArabic: 'مدير المنظومة الأكاديمية 👨‍💼',
       category: 'إدارة',
-      url: 'https://api.dicebear.com/7.x/bottts/png?seed=Commander',
-    ),
-    PresetAvatar(
-      id: 'admin_leader',
-      titleArabic: 'مديرة تنفيذية 👩‍💼',
-      category: 'إدارة',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Clara',
-    ),
-    PresetAvatar(
-      id: 'parent_father',
-      titleArabic: 'ولي أمر (أب) 👨‍👩‍👦',
-      category: 'ولي أمر',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Alexander',
-    ),
-    PresetAvatar(
-      id: 'parent_mother',
-      titleArabic: 'ولي أمر (أم) 👨‍👩‍👧',
-      category: 'ولي أمر',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Victoria',
-    ),
-    PresetAvatar(
-      id: 'brivio_bot',
-      titleArabic: 'المساعد الذكي 🤖',
-      category: 'منظومة',
-      url: 'https://api.dicebear.com/7.x/bottts/png?seed=BrivioBot',
-    ),
-    PresetAvatar(
-      id: 'star_achiever',
-      titleArabic: 'نجم أكاديمي ⭐',
-      category: 'طالب',
-      url: 'https://api.dicebear.com/7.x/adventurer/png?seed=Jasper',
+      url: 'assets/avatars/snap_executive_leader.png',
     ),
   ];
 
