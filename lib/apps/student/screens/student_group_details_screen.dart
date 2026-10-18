@@ -1531,7 +1531,14 @@ class _StudentLessonRow extends StatelessWidget {
                               : Icons.insert_drive_file_rounded,
                           size: 16,
                         ),
-                        label: Text(resource.title),
+                        label: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 180),
+                          child: Text(
+                            resource.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         onPressed: () => onOpenResource(
                           semester: semester,
                           unit: unit,
