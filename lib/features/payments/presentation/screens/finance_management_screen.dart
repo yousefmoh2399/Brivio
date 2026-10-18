@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_payment_repositories.dart';
 import '../../domain/models/payment_models.dart';
-import '../../../../core/services/report_generator_service.dart';
 import 'daily_cash_register_screen.dart';
 import 'teacher_settlement_screen.dart';
 
@@ -37,9 +37,20 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Invoice filtering
-  String _invoiceStatusFilter = 'all';
-  String _invoiceSearchQuery = '';
+  // Filter controllers for plans tab
+  final TextEditingController _planSearchController = TextEditingController();
+  String _planBillingFilter = 'all'; // all, installment, one_time
+
+  // Filter controllers for invoices tab
+  final TextEditingController _invoiceSearchController = TextEditingController();
+  String _invoiceStatusFilter = 'all'; // all, unpaid, paid, overdue
+
+  // Filter controllers for receipts tab
+  final TextEditingController _receiptSearchController = TextEditingController();
+
+  // Filter controllers for adjustments tab
+  final TextEditingController _adjustmentSearchController = TextEditingController();
+  String _adjustmentStatusFilter = 'all'; // all, pending, approved, rejected
 
   @override
   void initState() {
@@ -51,6 +62,15 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     _receiptRepo = SupabaseReceiptRepository(wrapper);
     _studentRepo = SupabaseStudentRepository(wrapper);
     _loadFinanceData();
+  }
+
+  @override
+  void dispose() {
+    _planSearchController.dispose();
+    _invoiceSearchController.dispose();
+    _receiptSearchController.dispose();
+    _adjustmentSearchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFinanceData() async {
@@ -150,78 +170,87 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text('إنشاء خطة اشتراك جديدة'),
-            content: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'اسم الخطة (مثال: الترم الأول رياضيات)',
-                        prefixIcon: Icon(Icons.title_rounded),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'يرجى إدخال اسم الخطة.';
-                        }
-                        if (v.trim().length < 3) {
-                          return 'يجب أن يكون الاسم 3 أحرف على الأقل.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: descCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'الوصف أو الملاحظات',
-                        prefixIcon: Icon(Icons.description_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: billingType,
-                      decoration: const InputDecoration(
-                        labelText: 'طريقة المحاسبة',
-                        prefixIcon: Icon(Icons.payment_rounded),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'installment',
-                          child: Text('أقساط مجدولة (3 أقساط)'),
+            title: const Row(
+              children: [
+                Icon(Icons.card_membership_rounded, color: AppColors.adminRole),
+                SizedBox(width: 8),
+                Text('إنشاء خطة اشتراك جديدة'),
+              ],
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width.clamp(280.0, 500.0),
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم الخطة (مثال: الترم الأول رياضيات)',
+                          prefixIcon: Icon(Icons.title_rounded),
                         ),
-                        DropdownMenuItem(
-                          value: 'one_time',
-                          child: Text('دفعة واحدة كاملة'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setStateDialog(() => billingType = v);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: amountCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'المبلغ الإجمالي (ج.م)',
-                        prefixIcon: Icon(Icons.attach_money_rounded),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'يرجى إدخال اسم الخطة.';
+                          }
+                          if (v.trim().length < 3) {
+                            return 'يجب أن يكون الاسم 3 أحرف على الأقل.';
+                          }
+                          return null;
+                        },
                       ),
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'يرجى إدخال المبلغ الإجمالي.';
-                        }
-                        final amt = int.tryParse(v.trim());
-                        if (amt == null || amt <= 0) {
-                          return 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: descCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'الوصف أو الملاحظات',
+                          prefixIcon: Icon(Icons.description_rounded),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: billingType,
+                        decoration: const InputDecoration(
+                          labelText: 'طريقة المحاسبة',
+                          prefixIcon: Icon(Icons.payment_rounded),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'installment',
+                            child: Text('أقساط مجدولة (3 أقساط)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'one_time',
+                            child: Text('دفعة واحدة كاملة'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setStateDialog(() => billingType = v);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: amountCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'المبلغ الإجمالي (ج.م)',
+                          prefixIcon: Icon(Icons.attach_money_rounded),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'يرجى إدخال المبلغ الإجمالي.';
+                          }
+                          final amt = int.tryParse(v.trim());
+                          if (amt == null || amt <= 0) {
+                            return 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -322,66 +351,97 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
               _plans.firstWhere((p) => p.id == selectedPlanId);
 
           return AlertDialog(
-            title: const Text('تسكين اشتراك لطالب'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            title: const Row(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.adminRole.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.adminRole.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'الطالب: ${selectedStudent.fullName}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'كود الطالب: ${selectedStudent.studentCode}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedPlanId,
-                  decoration: const InputDecoration(
-                    labelText: 'اختر خطة الاشتراك',
-                    prefixIcon: Icon(Icons.card_membership_rounded),
-                  ),
-                  items: _plans
-                      .map(
-                        (p) => DropdownMenuItem(
-                          value: p.id,
-                          child: Text(
-                            '${p.name} (${(p.totalAmountMinor / 100).toStringAsFixed(0)} ج.م)',
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setStateDialog(() => selectedPlanId = v);
-                  },
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'طريقة السداد: ${currentPlan.billingType == "installment" ? "أقساط مجدولة" : "دفعة كاملة"}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+                Icon(Icons.assignment_ind_rounded, color: AppColors.adminRole),
+                SizedBox(width: 8),
+                Text('تسكين اشتراك لطالب'),
               ],
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width.clamp(280.0, 500.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.adminRole.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.adminRole.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'الطالب: ${selectedStudent.fullName}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'كود الطالب: ${selectedStudent.studentCode}',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedPlanId,
+                      decoration: const InputDecoration(
+                        labelText: 'اختر خطة الاشتراك',
+                        prefixIcon: Icon(Icons.card_membership_rounded),
+                      ),
+                      items: _plans
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p.id,
+                              child: Text(
+                                '${p.name} (${_money(p.totalAmountMinor)})',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setStateDialog(() => selectedPlanId = v);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'طريقة السداد: ${currentPlan.billingType == "installment" ? "أقساط مجدولة (${currentPlan.installmentCount} أقساط)" : "دفعة كاملة"}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          if (currentPlan.billingType == "installment")
+                            Text(
+                              'قيمة القسط تقريباً: ${_money(currentPlan.totalAmountMinor ~/ currentPlan.installmentCount)}',
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             actions: [
               TextButton(
@@ -473,97 +533,112 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text('تسجيل سداد (${inv.invoiceNumber})'),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'المبلغ المتبقي للتحصيل:',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        Text(
-                          '${remainingAmount.toStringAsFixed(0)} ج.م',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
+          title: Row(
+            children: [
+              const Icon(Icons.payments_rounded, color: Colors.green),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'تسجيل سداد (${inv.invoiceNumber})',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width.clamp(280.0, 500.0),
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'المبلغ المتبقي للتحصيل:',
+                            style: TextStyle(fontSize: 13),
                           ),
+                          Text(
+                            '${remainingAmount.toStringAsFixed(0)} ج.م',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: amountCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'مبلغ التحصيل (ج.م)',
+                        prefixIcon: Icon(Icons.money_rounded),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'يرجى إدخال مبلغ التحصيل.';
+                        }
+                        final amt = double.tryParse(v.trim());
+                        if (amt == null || amt <= 0) {
+                          return 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: paymentMethod,
+                      decoration: const InputDecoration(
+                        labelText: 'طريقة الدفع',
+                        prefixIcon: Icon(Icons.credit_card_rounded),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'cash',
+                          child: Text('نقدي (خزينة السنتر)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'vodafone_cash',
+                          child: Text('محفظة إلكترونية (فودافون كاش)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'instapay',
+                          child: Text('تحويل إنستاباي (InstaPay)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'pos_card',
+                          child: Text('بطاقة بنكية / فيزا (POS)'),
                         ),
                       ],
+                      onChanged: (v) {
+                        if (v != null) setStateDialog(() => paymentMethod = v);
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: amountCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'مبلغ التحصيل (ج.م)',
-                      prefixIcon: Icon(Icons.money_rounded),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'ملاحظات أو رقم مرجعي للمعاملة',
+                        prefixIcon: Icon(Icons.note_alt_rounded),
+                      ),
                     ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'يرجى إدخال مبلغ التحصيل.';
-                      }
-                      final amt = double.tryParse(v.trim());
-                      if (amt == null || amt <= 0) {
-                        return 'يرجى إدخال مبلغ صحيح أكبر من صفر.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: paymentMethod,
-                    decoration: const InputDecoration(
-                      labelText: 'طريقة الدفع',
-                      prefixIcon: Icon(Icons.credit_card_rounded),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'cash',
-                        child: Text('نقدي (خزينة السنتر)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'vodafone_cash',
-                        child: Text('محفظة إلكترونية (فودافون كاش)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'instapay',
-                        child: Text('تحويل إنستاباي (InstaPay)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'pos_card',
-                        child: Text('بطاقة بنكية / فيزا (POS)'),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setStateDialog(() => paymentMethod = v);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: notesCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'ملاحظات أو رقم مرجعي للمعاملة',
-                      prefixIcon: Icon(Icons.note_alt_rounded),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -706,26 +781,162 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     }
   }
 
+  Widget _buildKpiSection() {
+    if (_systemSummary == null) return const SizedBox.shrink();
+
+    final collected = _systemSummary!.totalCollectedMinor;
+    final outstanding = _systemSummary!.totalOutstandingMinor;
+    final expected = _systemSummary!.expectedMonthlyRevenueMinor;
+    final adjustments = _systemSummary!.totalAdjustmentsMinor;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 850;
+
+        final items = [
+          _buildKpiCard(
+            title: 'إجمالي المحصل الفعلي',
+            value: _money(collected),
+            icon: Icons.account_balance_wallet_rounded,
+            color: Colors.green,
+            subtitle: 'تم إيداعه وتحصيله بالخزينة',
+          ),
+          _buildKpiCard(
+            title: 'المبالغ المستحقة (غير مسددة)',
+            value: _money(outstanding),
+            icon: Icons.money_off_rounded,
+            color: Colors.red,
+            subtitle: 'فواتير قيد الانتظار أو متأخرة',
+          ),
+          _buildKpiCard(
+            title: 'الإيراد الشهري المتوقع',
+            value: _money(expected),
+            icon: Icons.trending_up_rounded,
+            color: Colors.blue,
+            subtitle: 'تقدير الاشتراكات المستمرة',
+          ),
+          _buildKpiCard(
+            title: 'الخصومات والتسويات',
+            value: _money(adjustments),
+            icon: Icons.percent_rounded,
+            color: Colors.orange,
+            subtitle: 'إعفاءات وتخفيضات معتمدة',
+          ),
+        ];
+
+        if (isDesktop) {
+          return Row(
+            children: items
+                .map((widget) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: widget,
+                      ),
+                    ))
+                .toList(),
+          );
+        }
+
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: items[0]),
+                const SizedBox(width: 8),
+                Expanded(child: items[1]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: items[2]),
+                const SizedBox(width: 8),
+                Expanded(child: items[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final filteredInvoices = _invoices.where((inv) {
-      if (_invoiceStatusFilter != 'all') {
-        if (_invoiceStatusFilter == 'unpaid' && inv.status == 'paid') {
-          return false;
-        }
-        if (_invoiceStatusFilter == 'paid' && inv.status != 'paid') {
-          return false;
-        }
-        if (_invoiceStatusFilter == 'overdue' && inv.status != 'overdue') {
-          return false;
-        }
-      }
-      if (_invoiceSearchQuery.isNotEmpty) {
-        final q = _invoiceSearchQuery.toLowerCase();
-        return inv.invoiceNumber.toLowerCase().contains(q);
-      }
-      return true;
-    }).toList();
+    final pendingAdjustments =
+        _adjustmentRequests.where((a) => a.status == 'pending').length;
 
     return DefaultTabController(
       length: 6,
@@ -733,17 +944,12 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         title: 'الإدارة المالية والاشتراكات',
         subtitle:
             'إدارة خطط الاشتراكات، الفواتير، التحصيلات، وإيصالات السداد.',
-        icon: Icons.monetization_on,
+        icon: Icons.monetization_on_rounded,
         accentColor: AppColors.adminRole,
         actions: [
           PortalAction(
-            icon: Icons.refresh,
-            label: 'تحديث',
-            onPressed: _loadFinanceData,
-          ),
-          PortalAction(
             icon: Icons.point_of_sale_rounded,
-            label: 'جرد وتقفيل الخزينة اليومية',
+            label: 'جرد وتقفيل الخزينة',
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -763,48 +969,58 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 ),
               );
             },
-            primary: false,
           ),
           PortalAction(
-            icon: Icons.add,
+            icon: Icons.add_circle_outline_rounded,
             label: 'إضافة خطة اشتراك',
             onPressed: _showCreatePlanDialog,
-            primary: false,
           ),
           PortalAction(
-            icon: Icons.picture_as_pdf,
-            label: 'تصدير تقرير (PDF)',
+            icon: Icons.picture_as_pdf_rounded,
+            label: 'تصدير PDF',
             onPressed: _exportFinancialData,
-            primary: false,
+          ),
+          PortalAction(
+            icon: Icons.refresh_rounded,
+            label: 'تحديث',
+            onPressed: _loadFinanceData,
           ),
         ],
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const TabBar(
+            _buildKpiSection(),
+            const SizedBox(height: 14),
+            TabBar(
               isScrollable: true,
+              tabAlignment: TabAlignment.start,
               tabs: [
-                Tab(
+                const Tab(
                   icon: Icon(Icons.analytics_rounded),
                   text: 'الملخص المالي',
                 ),
                 Tab(
-                  icon: Icon(Icons.card_membership_rounded),
-                  text: 'خطط الاشتراكات',
+                  icon: const Icon(Icons.card_membership_rounded),
+                  text: 'خطط الاشتراكات (${_plans.length})',
                 ),
-                Tab(
+                const Tab(
                   icon: Icon(Icons.assignment_ind_rounded),
                   text: 'تسكين الاشتراكات',
                 ),
                 Tab(
-                  icon: Icon(Icons.receipt_long_rounded),
-                  text: 'الفواتير',
+                  icon: const Icon(Icons.receipt_long_rounded),
+                  text: 'الفواتير (${_invoices.length})',
                 ),
                 Tab(
-                  icon: Icon(Icons.receipt_rounded),
-                  text: 'إيصالات السداد',
+                  icon: const Icon(Icons.receipt_rounded),
+                  text: 'إيصالات السداد (${_receipts.length})',
                 ),
                 Tab(
-                  icon: Icon(Icons.percent_rounded),
+                  icon: Badge(
+                    isLabelVisible: pendingAdjustments > 0,
+                    label: Text(pendingAdjustments.toString()),
+                    child: const Icon(Icons.percent_rounded),
+                  ),
                   text: 'طلبات الخصم',
                 ),
               ],
@@ -818,409 +1034,16 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 emptyTitle: 'لا توجد بيانات مالية',
                 emptySubtitle:
                     'قم بإنشاء خطط اشتراك وتسجيل طلاب للبدء في المعاملات المالية.',
-                emptyIcon: Icons.monetization_on,
+                emptyIcon: Icons.monetization_on_rounded,
                 onRetry: _loadFinanceData,
                 child: TabBarView(
                   children: [
-                    // Tab 1: System Financial Summary
-                    _systemSummary == null
-                        ? const SizedBox.shrink()
-                        : SingleChildScrollView(
-                            padding: const EdgeInsets.all(16),
-                            child: PortalMetricGrid(
-                              children: [
-                                PortalMetricCard(
-                                  label: 'المبالغ المستحقة (غير مسددة)',
-                                  value: _money(
-                                    _systemSummary!.totalOutstandingMinor,
-                                  ),
-                                  icon: Icons.money_off_rounded,
-                                  accentColor: Colors.red,
-                                ),
-                                PortalMetricCard(
-                                  label: 'إجمالي المحصل الفعلي',
-                                  value: _money(
-                                    _systemSummary!.totalCollectedMinor,
-                                  ),
-                                  icon: Icons.account_balance_wallet_rounded,
-                                  accentColor: Colors.green,
-                                ),
-                                PortalMetricCard(
-                                  label: 'الإيراد الشهري المتوقع',
-                                  value: _money(
-                                    _systemSummary!.expectedMonthlyRevenueMinor,
-                                  ),
-                                  icon: Icons.trending_up_rounded,
-                                  accentColor: Colors.blue,
-                                ),
-                                PortalMetricCard(
-                                  label: 'إجمالي الخصومات والتسويات',
-                                  value: _money(
-                                    _systemSummary!.totalAdjustmentsMinor,
-                                  ),
-                                  icon: Icons.percent_rounded,
-                                  accentColor: Colors.orange,
-                                ),
-                              ],
-                            ),
-                          ),
-                    // Tab 2: Subscription Plans
-                    _plans.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.card_membership_rounded,
-                                  size: 48,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'لا توجد خطط اشتراك مسجلة حالياً.',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                ElevatedButton.icon(
-                                  onPressed: _showCreatePlanDialog,
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('إضافة أول خطة اشتراك'),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: EdgeInsets.zero,
-                            itemCount: _plans.length,
-                            separatorBuilder: (ctx, i) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (ctx, i) {
-                              final p = _plans[i];
-                              final billingTypeLabel =
-                                  p.billingType == 'installment'
-                                      ? 'أقساط مجدولة'
-                                      : 'دفعة واحدة';
-                              return PortalListCard(
-                                icon: Icons.card_membership_rounded,
-                                accentColor: AppColors.adminRole,
-                                title: p.name,
-                                subtitle:
-                                    '${p.description ?? ""}\nطريقة المحاسبة: $billingTypeLabel | الإجمالي: ${(p.totalAmountMinor / 100).toStringAsFixed(0)} ج.م',
-                                trailing: [PortalStatusChip(status: p.status)],
-                              );
-                            },
-                          ),
-                    // Tab 3: Assign Subscription
-                    Center(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (_students.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 20),
-                                child: DropdownButtonFormField<Student>(
-                                  initialValue: _selectedStudent,
-                                  decoration: const InputDecoration(
-                                    labelText: 'اختر الطالب المستهدف',
-                                    prefixIcon: Icon(Icons.person_search_rounded),
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _students
-                                      .map(
-                                        (s) => DropdownMenuItem(
-                                          value: s,
-                                          child: Text(
-                                            '${s.fullName} (${s.studentCode})',
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: _onStudentChanged,
-                                ),
-                              ),
-                            const Icon(
-                              Icons.assignment_ind_rounded,
-                              size: 54,
-                              color: Colors.blue,
-                            ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              'تسكين خطط الاشتراكات والمصروفات للطلاب',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'اختر الطالب وخطة الاشتراك لإصدار الفاتورة وجدول الأقساط تلقائياً.',
-                              style: TextStyle(fontSize: 13, color: Colors.grey),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed:
-                                  _selectedStudent == null || _plans.isEmpty
-                                      ? null
-                                      : _showAssignSubscriptionDialog,
-                              icon: const Icon(Icons.add),
-                              label: const Text('تسكين اشتراك للطالب المحدد'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Tab 4: Invoices
-                    Column(
-                      children: [
-                        // Student Switcher & Filters
-                        if (_students.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: DropdownButtonFormField<Student>(
-                                        initialValue: _selectedStudent,
-                                        decoration: const InputDecoration(
-                                          labelText: 'عرض فواتير الطالب',
-                                          prefixIcon: Icon(Icons.person_rounded),
-                                          isDense: true,
-                                        ),
-                                        items: _students
-                                            .map(
-                                              (s) => DropdownMenuItem(
-                                                value: s,
-                                                child: Text(
-                                                  '${s.fullName} (${s.studentCode})',
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            )
-                                            .toList(),
-                                        onChanged: _onStudentChanged,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: DropdownButtonFormField<String>(
-                                        initialValue: _invoiceStatusFilter,
-                                        decoration: const InputDecoration(
-                                          labelText: 'الحالة',
-                                          isDense: true,
-                                        ),
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: 'all',
-                                            child: Text('الكل'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'unpaid',
-                                            child: Text('غير مسدد'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'paid',
-                                            child: Text('مسدد بالكامل'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'overdue',
-                                            child: Text('متأخر'),
-                                          ),
-                                        ],
-                                        onChanged: (v) {
-                                          if (v != null) {
-                                            setState(() => _invoiceStatusFilter = v);
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                TextField(
-                                  decoration: const InputDecoration(
-                                    hintText: 'بحث برقم الفاتورة...',
-                                    prefixIcon: Icon(Icons.search_rounded, size: 20),
-                                    isDense: true,
-                                  ),
-                                  onChanged: (v) =>
-                                      setState(() => _invoiceSearchQuery = v.trim()),
-                                ),
-                              ],
-                            ),
-                          ),
-                        Expanded(
-                          child: filteredInvoices.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'لا توجد فواتير مسجلة لهذا الطالب تطابق الفلتر.',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  padding: EdgeInsets.zero,
-                                  itemCount: filteredInvoices.length,
-                                  separatorBuilder: (ctx, i) =>
-                                      const SizedBox(height: 8),
-                                  itemBuilder: (ctx, i) {
-                                    final inv = filteredInvoices[i];
-                                    final isUnpaid = inv.status != 'paid';
-                                    final remaining = ((inv.totalMinor -
-                                                inv.amountPaidMinor) /
-                                            100)
-                                        .clamp(0, double.infinity);
-
-                                    return PortalListCard(
-                                      icon: Icons.receipt_long_rounded,
-                                      accentColor: isUnpaid
-                                          ? Colors.orange
-                                          : Colors.green,
-                                      title: 'فاتورة #${inv.invoiceNumber}',
-                                      subtitle:
-                                          'الإجمالي: ${(inv.totalMinor / 100).toStringAsFixed(0)} ج.م | المسدد: ${(inv.amountPaidMinor / 100).toStringAsFixed(0)} ج.م\nالمتبقي: ${remaining.toStringAsFixed(0)} ج.م | الحالة: ${_statusInArabic(inv.status)}',
-                                      trailing: [
-                                        if (isUnpaid)
-                                          ElevatedButton.icon(
-                                            onPressed: () =>
-                                                _showRecordPaymentDialog(inv),
-                                            icon: const Icon(
-                                              Icons.payments_rounded,
-                                              size: 16,
-                                            ),
-                                            label: const Text('تحصيل سداد'),
-                                          )
-                                        else
-                                          const PortalStatusChip(
-                                            status: 'settled',
-                                          ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
-                    // Tab 5: Receipts
-                    Column(
-                      children: [
-                        if (_students.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: DropdownButtonFormField<Student>(
-                              initialValue: _selectedStudent,
-                              decoration: const InputDecoration(
-                                labelText: 'عرض إيصالات الطالب',
-                                prefixIcon: Icon(Icons.person_rounded),
-                                isDense: true,
-                              ),
-                              items: _students
-                                  .map(
-                                    (s) => DropdownMenuItem(
-                                      value: s,
-                                      child: Text(
-                                        '${s.fullName} (${s.studentCode})',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: _onStudentChanged,
-                            ),
-                          ),
-                        Expanded(
-                          child: _receipts.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'لم يتم إصدار إيصالات دفع لهذا الطالب حتى الآن.',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  padding: EdgeInsets.zero,
-                                  itemCount: _receipts.length,
-                                  separatorBuilder: (ctx, i) =>
-                                      const SizedBox(height: 8),
-                                  itemBuilder: (ctx, i) {
-                                    final rec = _receipts[i];
-                                    final receiptLabel =
-                                        rec.receiptNumber.isEmpty
-                                            ? '#${_shortId(rec.id)}'
-                                            : rec.receiptNumber;
-                                    return PortalListCard(
-                                      icon: Icons.receipt_rounded,
-                                      accentColor: AppColors.adminRole,
-                                      title: 'إيصال تحصيل $receiptLabel',
-                                      subtitle:
-                                          'المبلغ المسدد: ${(rec.amountMinor / 100).toStringAsFixed(0)} ج.م\nتاريخ السداد: ${rec.issuedAt.year}/${rec.issuedAt.month.toString().padLeft(2, "0")}/${rec.issuedAt.day.toString().padLeft(2, "0")}',
-                                    );
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
-                    // Tab 6: Adjustment Requests
-                    _adjustmentRequests.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'لا توجد طلبات خصم أو إعفاء معلقة حالياً.',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: EdgeInsets.zero,
-                            itemCount: _adjustmentRequests.length,
-                            separatorBuilder: (ctx, i) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (ctx, i) {
-                              final req = _adjustmentRequests[i];
-                              final isPending = req.status == 'pending';
-                              return PortalListCard(
-                                icon: req.adjustmentType == 'exemption'
-                                    ? Icons.volunteer_activism_rounded
-                                    : Icons.percent_rounded,
-                                accentColor: isPending
-                                    ? Colors.orange
-                                    : AppColors.adminRole,
-                                title: '${req.studentName} - ${req.groupName}',
-                                subtitle:
-                                    'المعلم: ${req.teacherName}\nالسعر الأصلي: ${_money(req.originalPriceMinor)} | الخصم: ${_money(req.requestedDiscountMinor)} | النهائي: ${_money(req.requestedFinalPriceMinor)}${req.reason.isEmpty ? '' : '\nالسبب: ${req.reason}'}',
-                                trailing: [
-                                  PortalStatusChip(status: req.status),
-                                  if (isPending)
-                                    IconButton.filledTonal(
-                                      tooltip: 'رفض',
-                                      onPressed: () =>
-                                          _decideAdjustment(req, false),
-                                      icon: const Icon(Icons.close),
-                                    ),
-                                  if (isPending)
-                                    FilledButton.icon(
-                                      onPressed: () =>
-                                          _decideAdjustment(req, true),
-                                      icon: const Icon(Icons.check),
-                                      label: const Text('موافقة'),
-                                    ),
-                                ],
-                              );
-                            },
-                          ),
+                    _buildOverviewTab(),
+                    _buildPlansTab(),
+                    _buildAssignTab(),
+                    _buildInvoicesTab(),
+                    _buildReceiptsTab(),
+                    _buildAdjustmentsTab(),
                   ],
                 ),
               ),
@@ -1228,6 +1051,1531 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildOverviewTab() {
+    if (_systemSummary == null) {
+      return const Center(child: Text('جاري تحميل بيانات الملخص المالي...'));
+    }
+
+    final collected = _systemSummary!.totalCollectedMinor;
+    final outstanding = _systemSummary!.totalOutstandingMinor;
+    final totalExpected = collected + outstanding;
+    final collectionRate = totalExpected > 0 ? (collected / totalExpected) : 0.0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Collection Progress Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'نسبة التحصيل الفعلي',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      '${(collectionRate * 100).toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: collectionRate.clamp(0.0, 1.0),
+                    minHeight: 10,
+                    backgroundColor: Colors.red.withValues(alpha: 0.15),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'المحصل: ${_money(collected)}',
+                      style: const TextStyle(fontSize: 12, color: Colors.green),
+                    ),
+                    Text(
+                      'المتبقي: ${_money(outstanding)}',
+                      style: const TextStyle(fontSize: 12, color: Colors.red),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Operations Quick Access
+          const Text(
+            'عمليات الإدارة المالية السريعة',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth > 800;
+
+              final cards = [
+                _buildQuickActionTile(
+                  icon: Icons.point_of_sale_rounded,
+                  color: Colors.indigo,
+                  title: 'جرد وتقفيل الخزينة اليومية',
+                  subtitle: 'تسجيل المقبوضات والمصروفات ومطابقة العهدة',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const DailyCashRegisterScreen(),
+                    ),
+                  ),
+                ),
+                _buildQuickActionTile(
+                  icon: Icons.calculate_rounded,
+                  color: Colors.teal,
+                  title: 'تصفية أرباح المدرسين',
+                  subtitle: 'احتساب نسب وحصص المعلمين واعتماد التحويلات',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const TeacherSettlementScreen(),
+                    ),
+                  ),
+                ),
+                _buildQuickActionTile(
+                  icon: Icons.add_card_rounded,
+                  color: AppColors.adminRole,
+                  title: 'إضافة خطة اشتراك',
+                  subtitle: 'تعريف باقة رسوم أو أقساط سنوية وترم',
+                  onTap: _showCreatePlanDialog,
+                ),
+                _buildQuickActionTile(
+                  icon: Icons.picture_as_pdf_rounded,
+                  color: Colors.deepOrange,
+                  title: 'تصدير التقرير المالي (PDF)',
+                  subtitle: 'تحميل بيان شامل لجميع الفواتير والإيصالات',
+                  onTap: _exportFinancialData,
+                ),
+              ];
+
+              if (isDesktop) {
+                return GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 3.2,
+                  children: cards,
+                );
+              }
+
+              return Column(
+                children: cards
+                    .map((c) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: c,
+                        ))
+                    .toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlansTab() {
+    final query = _planSearchController.text.trim().toLowerCase();
+    final filtered = _plans.where((p) {
+      if (_planBillingFilter != 'all') {
+        if (p.billingType != _planBillingFilter) return false;
+      }
+      if (query.isEmpty) return true;
+      final name = p.name.toLowerCase();
+      final desc = (p.description ?? '').toLowerCase();
+      return name.contains(query) || desc.contains(query);
+    }).toList();
+
+    return Column(
+      children: [
+        // Search & Filter
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            ),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+
+              final searchField = TextField(
+                controller: _planSearchController,
+                decoration: InputDecoration(
+                  hintText: 'بحث باسم خطة الاشتراك...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  suffixIcon: _planSearchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            _planSearchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (_) => setState(() {}),
+              );
+
+              final filterChips = Row(
+                children: [
+                  _buildFilterChip(
+                    label: 'الكل (${_plans.length})',
+                    isSelected: _planBillingFilter == 'all',
+                    onSelected: () => setState(() => _planBillingFilter = 'all'),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFilterChip(
+                    label: 'أقساط',
+                    isSelected: _planBillingFilter == 'installment',
+                    onSelected: () =>
+                        setState(() => _planBillingFilter = 'installment'),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFilterChip(
+                    label: 'دفعة كاملة',
+                    isSelected: _planBillingFilter == 'one_time',
+                    onSelected: () =>
+                        setState(() => _planBillingFilter = 'one_time'),
+                  ),
+                ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    searchField,
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: filterChips,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: searchField),
+                  const SizedBox(width: 12),
+                  filterChips,
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Plans List / Grid
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.card_membership_rounded,
+                        size: 54,
+                        color: Colors.grey.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _plans.isEmpty
+                            ? 'لا توجد خطط اشتراك مسجلة حالياً.'
+                            : 'لا توجد خطط اشتراك مطابقة للبحث.',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_plans.isEmpty)
+                        ElevatedButton.icon(
+                          onPressed: _showCreatePlanDialog,
+                          icon: const Icon(Icons.add),
+                          label: const Text('إضافة أول خطة اشتراك'),
+                        ),
+                    ],
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth > 850;
+
+                    if (isDesktop) {
+                      return GridView.builder(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: 170,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) => _buildPlanCard(filtered[i]),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: filtered.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                      itemBuilder: (ctx, i) => _buildPlanCard(filtered[i]),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlanCard(SubscriptionPlan plan) {
+    final isInstallment = plan.billingType == 'installment';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Header: Name & Status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.adminRole.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.card_membership_rounded,
+                  color: AppColors.adminRole,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  plan.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              PortalStatusChip(status: plan.status),
+            ],
+          ),
+          if (plan.description != null && plan.description!.isNotEmpty)
+            Text(
+              plan.description!,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          // Badges: Amount & Billing
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  _money(plan.totalAmountMinor),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.green,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isInstallment
+                      ? 'أقساط مجدولة (${plan.installmentCount} أقساط)'
+                      : 'دفعة كاملة',
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAssignTab() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.assignment_ind_rounded,
+                      size: 28,
+                      color: AppColors.adminRole,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'تسكين خطط الاشتراكات والمصروفات',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'اختر الطالب وخطة الاشتراك لإصدار الفاتورة وجدول الأقساط تلقائياً وتفعيل حسابه الأكاديمي.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+                if (_students.isNotEmpty)
+                  DropdownButtonFormField<Student>(
+                    initialValue: _selectedStudent,
+                    decoration: const InputDecoration(
+                      labelText: 'الطالب المستهدف',
+                      prefixIcon: Icon(Icons.person_search_rounded),
+                    ),
+                    items: _students
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(
+                              '${s.fullName} (${s.studentCode})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: _onStudentChanged,
+                  ),
+                const SizedBox(height: 16),
+                if (_plans.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.adminRole.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.adminRole.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'عدد الخطط المتاحة: ${_plans.length}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        TextButton.icon(
+                          onPressed: _showCreatePlanDialog,
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('إضافة خطة جديدة'),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: _selectedStudent == null || _plans.isEmpty
+                      ? null
+                      : _showAssignSubscriptionDialog,
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label: const Text('بدء تسكين الاشتراك للطالب المحدد'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvoicesTab() {
+    final query = _invoiceSearchController.text.trim().toLowerCase();
+    final filtered = _invoices.where((inv) {
+      if (_invoiceStatusFilter != 'all') {
+        if (_invoiceStatusFilter == 'unpaid' && inv.status == 'paid') {
+          return false;
+        }
+        if (_invoiceStatusFilter == 'paid' && inv.status != 'paid') {
+          return false;
+        }
+        if (_invoiceStatusFilter == 'overdue' && inv.status != 'overdue') {
+          return false;
+        }
+      }
+      if (query.isNotEmpty) {
+        return inv.invoiceNumber.toLowerCase().contains(query);
+      }
+      return true;
+    }).toList();
+
+    return Column(
+      children: [
+        // Student Picker & Filters
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Column(
+            children: [
+              if (_students.isNotEmpty)
+                DropdownButtonFormField<Student>(
+                  initialValue: _selectedStudent,
+                  decoration: const InputDecoration(
+                    labelText: 'عرض فواتير الطالب',
+                    prefixIcon: Icon(Icons.person_rounded, color: AppColors.adminRole),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  items: _students
+                      .map(
+                        (s) => DropdownMenuItem(
+                          value: s,
+                          child: Text(
+                            '${s.fullName} (${s.studentCode})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _onStudentChanged,
+                ),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 600;
+
+                  final searchField = TextField(
+                    controller: _invoiceSearchController,
+                    decoration: InputDecoration(
+                      hintText: 'بحث برقم الفاتورة...',
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      suffixIcon: _invoiceSearchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                _invoiceSearchController.clear();
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  );
+
+                  final filterChips = Row(
+                    children: [
+                      _buildFilterChip(
+                        label: 'الكل (${_invoices.length})',
+                        isSelected: _invoiceStatusFilter == 'all',
+                        onSelected: () =>
+                            setState(() => _invoiceStatusFilter = 'all'),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildFilterChip(
+                        label: 'غير مسدد',
+                        isSelected: _invoiceStatusFilter == 'unpaid',
+                        onSelected: () =>
+                            setState(() => _invoiceStatusFilter = 'unpaid'),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildFilterChip(
+                        label: 'مسدد بالكامل',
+                        isSelected: _invoiceStatusFilter == 'paid',
+                        onSelected: () =>
+                            setState(() => _invoiceStatusFilter = 'paid'),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildFilterChip(
+                        label: 'متأخر',
+                        isSelected: _invoiceStatusFilter == 'overdue',
+                        onSelected: () =>
+                            setState(() => _invoiceStatusFilter = 'overdue'),
+                      ),
+                    ],
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        searchField,
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: filterChips,
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: searchField),
+                      const SizedBox(width: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: filterChips,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Invoices List / Grid
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.receipt_long_rounded,
+                        size: 54,
+                        color: Colors.grey.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _invoices.isEmpty
+                            ? 'لا توجد فواتير مسجلة لهذا الطالب حتى الآن.'
+                            : 'لا توجد فواتير مطابقة للبحث أو الفلتر.',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth > 850;
+
+                    if (isDesktop) {
+                      return GridView.builder(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: 200,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) =>
+                            _buildInvoiceCard(filtered[i]),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: filtered.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                      itemBuilder: (ctx, i) => _buildInvoiceCard(filtered[i]),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInvoiceCard(Invoice inv) {
+    final isUnpaid = inv.status != 'paid';
+    final remainingMinor = inv.totalMinor - inv.amountPaidMinor;
+    final progress = inv.totalMinor > 0 ? (inv.amountPaidMinor / inv.totalMinor) : 0.0;
+    final dueDateStr =
+        '${inv.dueAt.year}-${inv.dueAt.month.toString().padLeft(2, '0')}-${inv.dueAt.day.toString().padLeft(2, '0')}';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Header: Invoice Number & Status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isUnpaid ? Colors.orange : Colors.green)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.receipt_long_rounded,
+                  color: isUnpaid ? Colors.orange : Colors.green,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'فاتورة #${inv.invoiceNumber}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'تاريخ الاستحقاق: $dueDateStr',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (isUnpaid ? Colors.orange : Colors.green)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _statusInArabic(inv.status),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isUnpaid ? Colors.orange.shade800 : Colors.green.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Progress & Amounts
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'الإجمالي: ${_money(inv.totalMinor)}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    'المتبقي: ${_money(remainingMinor)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isUnpaid ? Colors.red : Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  minHeight: 6,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.15),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isUnpaid ? Colors.orange : Colors.green,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Actions
+          if (isUnpaid)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _showRecordPaymentDialog(inv),
+                icon: const Icon(Icons.payments_rounded, size: 16),
+                label: const Text('تحصيل سداد نقدي'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'تم السداد بالكامل',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptsTab() {
+    final query = _receiptSearchController.text.trim().toLowerCase();
+    final filtered = _receipts.where((rec) {
+      if (query.isEmpty) return true;
+      final num = rec.receiptNumber.toLowerCase();
+      final tx = rec.transactionId.toLowerCase();
+      return num.contains(query) || tx.contains(query);
+    }).toList();
+
+    return Column(
+      children: [
+        // Student Picker & Search
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Column(
+            children: [
+              if (_students.isNotEmpty)
+                DropdownButtonFormField<Student>(
+                  initialValue: _selectedStudent,
+                  decoration: const InputDecoration(
+                    labelText: 'عرض إيصالات الطالب',
+                    prefixIcon: Icon(Icons.person_rounded, color: AppColors.adminRole),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  items: _students
+                      .map(
+                        (s) => DropdownMenuItem(
+                          value: s,
+                          child: Text(
+                            '${s.fullName} (${s.studentCode})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _onStudentChanged,
+                ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _receiptSearchController,
+                decoration: InputDecoration(
+                  hintText: 'بحث برقم الإيصال أو المعاملة...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  suffixIcon: _receiptSearchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            _receiptSearchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Receipts List / Grid
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.receipt_rounded,
+                        size: 54,
+                        color: Colors.grey.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _receipts.isEmpty
+                            ? 'لم يتم إصدار إيصالات دفع لهذا الطالب حتى الآن.'
+                            : 'لا توجد إيصالات مطابقة للبحث.',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth > 850;
+
+                    if (isDesktop) {
+                      return GridView.builder(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: 150,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) => _buildReceiptCard(filtered[i]),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: filtered.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                      itemBuilder: (ctx, i) => _buildReceiptCard(filtered[i]),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReceiptCard(Receipt rec) {
+    final receiptLabel = rec.receiptNumber.isEmpty
+        ? '#${_shortId(rec.id)}'
+        : rec.receiptNumber;
+    final dateStr =
+        '${rec.issuedAt.year}-${rec.issuedAt.month.toString().padLeft(2, '0')}-${rec.issuedAt.day.toString().padLeft(2, '0')}';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.receipt_rounded,
+                  color: Colors.teal,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'إيصال تحصيل $receiptLabel',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'تاريخ السداد: $dateStr',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _money(rec.amountMinor),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.teal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            'رقم المعاملة: ${rec.transactionId}',
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdjustmentsTab() {
+    final query = _adjustmentSearchController.text.trim().toLowerCase();
+    final filtered = _adjustmentRequests.where((req) {
+      if (_adjustmentStatusFilter != 'all') {
+        if (req.status != _adjustmentStatusFilter) return false;
+      }
+      if (query.isEmpty) return true;
+      final student = req.studentName.toLowerCase();
+      final group = req.groupName.toLowerCase();
+      final teacher = req.teacherName.toLowerCase();
+      final reason = req.reason.toLowerCase();
+      return student.contains(query) ||
+          group.contains(query) ||
+          teacher.contains(query) ||
+          reason.contains(query);
+    }).toList();
+
+    return Column(
+      children: [
+        // Filter & Search
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+            ),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+
+              final searchField = TextField(
+                controller: _adjustmentSearchController,
+                decoration: InputDecoration(
+                  hintText: 'بحث باسم الطالب، المعلم، أو السبب...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  suffixIcon: _adjustmentSearchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            _adjustmentSearchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (_) => setState(() {}),
+              );
+
+              final filterChips = Row(
+                children: [
+                  _buildFilterChip(
+                    label: 'الكل (${_adjustmentRequests.length})',
+                    isSelected: _adjustmentStatusFilter == 'all',
+                    onSelected: () =>
+                        setState(() => _adjustmentStatusFilter = 'all'),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFilterChip(
+                    label: 'قيد المراجعة',
+                    isSelected: _adjustmentStatusFilter == 'pending',
+                    onSelected: () =>
+                        setState(() => _adjustmentStatusFilter = 'pending'),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFilterChip(
+                    label: 'معتمدة',
+                    isSelected: _adjustmentStatusFilter == 'approved',
+                    onSelected: () =>
+                        setState(() => _adjustmentStatusFilter = 'approved'),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildFilterChip(
+                    label: 'مرفوضة',
+                    isSelected: _adjustmentStatusFilter == 'rejected',
+                    onSelected: () =>
+                        setState(() => _adjustmentStatusFilter = 'rejected'),
+                  ),
+                ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    searchField,
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: filterChips,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: searchField),
+                  const SizedBox(width: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: filterChips,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Adjustments List / Grid
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.percent_rounded,
+                        size: 54,
+                        color: Colors.grey.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'لا توجد طلبات خصم أو إعفاء مطابقة.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth > 850;
+
+                    if (isDesktop) {
+                      return GridView.builder(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: 220,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (ctx, i) =>
+                            _buildAdjustmentCard(filtered[i]),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: filtered.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                      itemBuilder: (ctx, i) =>
+                          _buildAdjustmentCard(filtered[i]),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdjustmentCard(_PaymentAdjustmentRequest req) {
+    final isPending = req.status == 'pending';
+    final isExemption = req.adjustmentType == 'exemption';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Header: Student & Status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isPending ? Colors.orange : AppColors.adminRole)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isExemption
+                      ? Icons.volunteer_activism_rounded
+                      : Icons.percent_rounded,
+                  color: isPending ? Colors.orange : AppColors.adminRole,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${req.studentName} (${req.groupName})',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'المعلم: ${req.teacherName}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              PortalStatusChip(status: req.status),
+            ],
+          ),
+          // Price comparison breakdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'الأصلي: ${_money(req.originalPriceMinor)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    decoration: TextDecoration.lineThrough,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  'الخصم: ${_money(req.requestedDiscountMinor)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'النهائي: ${_money(req.requestedFinalPriceMinor)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (req.reason.isNotEmpty)
+            Text(
+              'السبب: ${req.reason}',
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          // Decision Buttons
+          if (isPending)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _decideAdjustment(req, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('رفض'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _decideAdjustment(req, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('موافقة'),
+                  ),
+                ),
+              ],
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              alignment: Alignment.center,
+              child: Text(
+                'تم اتخاذ القرار (${req.status})',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onSelected,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? Colors.white : null,
+      ),
+      selectedColor: AppColors.adminRole,
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
     );
   }
 
