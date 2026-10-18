@@ -31,7 +31,7 @@ enum AvatarCustomizationSection {
 
 /// Bitmoji Trait Configuration holding the full vector composition state
 class BitmojiTraits {
-  final String style; // 'avataaars', 'adventurer', 'lorelei', 'bottts'
+  final String style; // 'avataaars', 'adventurer', 'lorelei', 'bottts', 'open-peeps'
   final String seed;
   final String gender; // 'male', 'female'
   final String faceShape; // 'oval', 'square', 'round', 'heart', 'sharp'
@@ -220,7 +220,7 @@ class BitmojiTraits {
       } else if (eyewear == 'round_frames') {
         queryParams['glasses'] = 'variant02';
         queryParams['glassesProbability'] = '100';
-      } else if (eyewear == 'sunglasses') {
+      } else if (eyewear == 'sunglasses' || eyewear == 'wayfarers') {
         queryParams['glasses'] = 'variant04';
         queryParams['glassesProbability'] = '100';
       } else {
@@ -252,6 +252,16 @@ class BitmojiTraits {
       return uri.toString();
     }
 
+    if (style == 'open-peeps') {
+      final queryParams = <String, String>{
+        'seed': seed,
+        'size': size.toString(),
+        if (includeBackground) 'backgroundColor': hexBg,
+      };
+      final uri = Uri.https('api.dicebear.com', '/9.x/open-peeps/png', queryParams);
+      return uri.toString();
+    }
+
     // Default: avataaars (High-Resolution Snapchat Bitmoji 3D vector style)
     String topChoice = 'shortCurly';
     String? hatColorChoice;
@@ -272,28 +282,51 @@ class BitmojiTraits {
       topChoice = 'bob';
     } else if (hairStyle == 'bun') {
       topChoice = 'bun';
-    } else if (hairStyle == 'hat') {
+    } else if (hairStyle == 'dreads') {
+      topChoice = 'dreads';
+    } else if (hairStyle == 'curvy') {
+      topChoice = 'curvy';
+    } else if (hairStyle == 'straight_strand') {
+      topChoice = 'straightAndStrand';
+    } else if (hairStyle == 'hat' || headwear == 'baseball_cap') {
       topChoice = 'hat';
+      hatColorChoice = hexOutfit;
+    } else if (headwear == 'beanie') {
+      topChoice = 'winterHat01';
+      hatColorChoice = hexOutfit;
+    } else if (headwear == 'turban') {
+      topChoice = 'turban';
+      hatColorChoice = hexOutfit;
     }
 
     String clothingChoice = 'hoodie';
     if (outfit == 'formal_blazer') {
       clothingChoice = 'blazerAndShirt';
+    } else if (outfit == 'blazer_sweater') {
+      clothingChoice = 'blazerAndSweater';
     } else if (outfit == 'casual_crew') {
       clothingChoice = 'shirtCrewNeck';
+    } else if (outfit == 'graphic_tee') {
+      clothingChoice = 'graphicShirt';
     } else if (outfit == 'polo') {
       clothingChoice = 'collarAndSweater';
+    } else if (outfit == 'overall') {
+      clothingChoice = 'overall';
+    } else if (outfit == 'vneck') {
+      clothingChoice = 'shirtVNeck';
     }
 
     String eyesChoice = 'happy';
     if (eyes == 'focused_round') eyesChoice = 'default';
     if (eyes == 'confident_almond') eyesChoice = 'side';
     if (eyes == 'winking') eyesChoice = 'wink';
+    if (eyes == 'heart_eyes') eyesChoice = 'hearts';
 
     String mouthChoice = 'smile';
     if (mouth == 'confident_smirk') mouthChoice = 'twinkle';
     if (mouth == 'wide_grin') mouthChoice = 'smile';
     if (mouth == 'neutral') mouthChoice = 'serious';
+    if (mouth == 'playful_tongue') mouthChoice = 'tongue';
 
     final queryParams = <String, String>{
       'seed': seed,
@@ -315,23 +348,37 @@ class BitmojiTraits {
     } else if (eyewear == 'round_frames') {
       queryParams['accessories'] = 'round';
       queryParams['accessoriesProbability'] = '100';
+    } else if (eyewear == 'wayfarers') {
+      queryParams['accessories'] = 'wayfarers';
+      queryParams['accessoriesProbability'] = '100';
     } else if (eyewear == 'sunglasses') {
       queryParams['accessories'] = 'sunglasses';
+      queryParams['accessoriesProbability'] = '100';
+    } else if (eyewear == 'kurt') {
+      queryParams['accessories'] = 'kurt';
       queryParams['accessoriesProbability'] = '100';
     } else {
       queryParams['accessoriesProbability'] = '0';
     }
 
     if (facialHair == 'trimmed_beard') {
-      queryParams['facialHair'] = 'beardLight';
+      queryParams['facialHair'] = 'beardMajestic';
+      queryParams['facialHairColor'] = hexHair;
+      queryParams['facialHairProbability'] = '100';
+    } else if (facialHair == 'beard_medium') {
+      queryParams['facialHair'] = 'beardMedium';
       queryParams['facialHairColor'] = hexHair;
       queryParams['facialHairProbability'] = '100';
     } else if (facialHair == 'stubble') {
-      queryParams['facialHair'] = 'beardMedium';
+      queryParams['facialHair'] = 'beardLight';
       queryParams['facialHairColor'] = hexHair;
       queryParams['facialHairProbability'] = '100';
     } else if (facialHair == 'mustache') {
       queryParams['facialHair'] = 'moustacheFancy';
+      queryParams['facialHairColor'] = hexHair;
+      queryParams['facialHairProbability'] = '100';
+    } else if (facialHair == 'mustache_magnum') {
+      queryParams['facialHair'] = 'moustacheMagnum';
       queryParams['facialHairColor'] = hexHair;
       queryParams['facialHairProbability'] = '100';
     } else {

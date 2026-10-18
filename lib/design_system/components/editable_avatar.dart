@@ -345,19 +345,22 @@ class _AvatarPickerBottomSheetState extends State<AvatarPickerBottomSheet> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Container(
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: Container(
+            decoration: BoxDecoration(
+              color: surfaceColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
               // Drag handle
               Center(
                 child: Container(
@@ -613,6 +616,8 @@ class _AvatarPickerBottomSheetState extends State<AvatarPickerBottomSheet> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

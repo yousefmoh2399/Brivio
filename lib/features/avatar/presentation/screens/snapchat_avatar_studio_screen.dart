@@ -10,7 +10,8 @@ import '../widgets/bitmoji_stickers_sheet.dart';
 
 /// Full-featured, commercial-grade Snapchat Bitmoji 3D Studio.
 /// Real high-resolution character rendering, 3D pedestal stage,
-/// camera zoom toggle, visual trait selector, and PNG exporter.
+/// responsive two-pane desktop / vertical mobile layout, camera zoom toggle,
+/// visual trait selector, and PNG exporter.
 class SnapchatAvatarStudioScreen extends StatefulWidget {
   final String? userId;
   final String? userEmail;
@@ -120,6 +121,7 @@ class _SnapchatAvatarStudioScreenState
       'hijab_wrapped',
       'bob',
       'bun',
+      'dreads',
       'hat',
     ];
     final eyeStyles = [
@@ -127,11 +129,24 @@ class _SnapchatAvatarStudioScreenState
       'focused_round',
       'confident_almond',
       'winking',
+      'heart_eyes',
     ];
-    final mouths = ['warm_smile', 'confident_smirk', 'wide_grin', 'neutral'];
+    final mouths = [
+      'warm_smile',
+      'confident_smirk',
+      'wide_grin',
+      'neutral',
+      'playful_tongue',
+    ];
     final beards = ['none', 'stubble', 'trimmed_beard', 'mustache'];
-    final glasses = ['none', 'square_frames', 'round_frames', 'sunglasses'];
-    final clothes = ['hoodie', 'formal_blazer', 'casual_crew', 'polo'];
+    final glasses = ['none', 'square_frames', 'round_frames', 'wayfarers', 'sunglasses'];
+    final clothes = [
+      'hoodie',
+      'formal_blazer',
+      'casual_crew',
+      'polo',
+      'graphic_tee',
+    ];
 
     setState(() {
       _traits = _traits.copyWith(
@@ -223,6 +238,8 @@ class _SnapchatAvatarStudioScreenState
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth >= 720;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
     final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
@@ -255,7 +272,7 @@ class _SnapchatAvatarStudioScreenState
               const SizedBox(width: 8),
               const Text(
                 'استوديو الأفاتار (Bitmoji 3D)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5),
               ),
             ],
           ),
@@ -263,8 +280,7 @@ class _SnapchatAvatarStudioScreenState
             // Stickers sheet button
             IconButton(
               tooltip: 'ملصقات شخصيتك 🎭',
-              icon: const Icon(Icons.emoji_emotions_rounded,
-                  color: Color(0xFF8B5CF6)),
+              icon: const Icon(Icons.emoji_emotions_rounded, color: Color(0xFF8B5CF6)),
               onPressed: () {
                 BitmojiStickersSheet.show(
                   context,
@@ -315,189 +331,227 @@ class _SnapchatAvatarStudioScreenState
             ),
           ],
         ),
-        body: Column(
-          children: [
-            // ── Interactive 3D Stage Viewport ──
-            Expanded(
-              flex: 6,
-              child: Stack(
-                alignment: Alignment.center,
+        body: isWide
+            // Desktop / Tablet 2-Pane Side-by-Side Studio Layout
+            ? Row(
                 children: [
-                  // Vector Stage with 3D Pedestal
-                  Container(
-                    width: double.infinity,
-                    color: _traits.backgroundColor.withValues(alpha: 0.15),
-                    child: Center(
-                      child: BitmojiRenderer(
-                        traits: _traits,
-                        cameraFocus: _cameraFocus,
-                        repaintKey: _repaintKey,
-                        isAnimated: true,
-                        showPedestal: true,
-                      ),
-                    ),
+                  // Left Pane: 3D Stage Viewport
+                  SizedBox(
+                    width: (screenWidth * 0.42).clamp(360.0, 480.0),
+                    child: _buildStageViewport(cardColor, textPrimary),
                   ),
-
-                  // Floating Camera Switcher Pill (Top Right)
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: _toggleCameraFocus,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cardColor.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: widget.roleColor.withValues(alpha: 0.4),
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _cameraFocus == AvatarCameraFocus.face
-                                  ? Icons.person_rounded
-                                  : Icons.face_rounded,
-                              size: 16,
-                              color: widget.roleColor,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _cameraFocus == AvatarCameraFocus.face
-                                  ? 'عرض الجسم كامل'
-                                  : 'تكبير الوجه',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: isDark ? Colors.white10 : Colors.black12,
                   ),
-
-                  // Floating Sticker Pack Quick Pill (Bottom Left)
-                  Positioned(
-                    bottom: 12,
-                    left: 16,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () {
-                        BitmojiStickersSheet.show(
-                          context,
-                          traits: _traits,
-                          onApplyStickerExpression: (updated) {
-                            setState(() => _traits = updated);
-                          },
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                  // Right Pane: Customization Tray & Ribbon
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildSectionRibbon(cardColor, isDark),
+                        Expanded(
+                          child: Container(
+                            color: cardColor,
+                            child: _buildSectionContent(screenWidth, isWide: true),
                           ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 6,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('✨', style: TextStyle(fontSize: 12)),
-                            SizedBox(width: 4),
-                            Text(
-                              'ملصقات Bitmoji',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-            ),
-
-            // ── Snapchat Compact Dock Ribbon ──
-            Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: cardColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-                border: Border(
-                  top: BorderSide(
-                    color: isDark ? Colors.white10 : Colors.black12,
-                    width: 0.8,
-                  ),
-                  bottom: BorderSide(
-                    color: isDark ? Colors.white10 : Colors.black12,
-                    width: 0.8,
-                  ),
-                ),
-              ),
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              )
+            // Mobile Vertical Stack Layout
+            : Column(
                 children: [
-                  _buildSectionTab(AvatarCustomizationSection.style, 'النمط', Icons.auto_awesome_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.genderBody, 'الجنس', Icons.wc_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.hairStyle, 'الشعر', Icons.content_cut_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.headwear, 'الحجاب', Icons.dry_cleaning_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.outfit, 'الملابس', Icons.checkroom_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.skinTone, 'البشرة', Icons.face_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.hairColor, 'لون الشعر', Icons.format_paint_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.eyewear, 'النظارات', Icons.visibility_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.mouth, 'التعبيرات', Icons.mood_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.facialHair, 'اللحية', Icons.face_retouching_natural_rounded),
-                  _buildSectionTab(AvatarCustomizationSection.background, 'الاستوديو', Icons.wallpaper_rounded),
+                  // Top: 3D Stage Viewport
+                  Expanded(
+                    flex: 5,
+                    child: _buildStageViewport(cardColor, textPrimary),
+                  ),
+                  // Middle: Category Tabs Ribbon
+                  _buildSectionRibbon(cardColor, isDark),
+                  // Bottom: Customization Tray
+                  Expanded(
+                    flex: 5,
+                    child: Container(
+                      color: cardColor,
+                      child: _buildSectionContent(screenWidth, isWide: false),
+                    ),
+                  ),
                 ],
               ),
-            ),
+      ),
+    );
+  }
 
-            // ── Compact Options Tray ──
-            Expanded(
-              flex: 4,
-              child: Container(
-                color: cardColor,
-                child: _buildSectionContent(),
-              ),
+  // ==========================================
+  // Stage Viewport Component
+  // ==========================================
+  Widget _buildStageViewport(Color cardColor, Color textPrimary) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Vector Stage with 3D Pedestal
+        Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: _traits.backgroundColor.withValues(alpha: 0.15),
+          child: Center(
+            child: BitmojiRenderer(
+              traits: _traits,
+              cameraFocus: _cameraFocus,
+              repaintKey: _repaintKey,
+              isAnimated: true,
+              showPedestal: true,
             ),
-          ],
+          ),
         ),
+
+        // Floating Camera Switcher Pill (Top Right)
+        Positioned(
+          top: 14,
+          right: 14,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: _toggleCameraFocus,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: cardColor.withValues(alpha: 0.94),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: widget.roleColor.withValues(alpha: 0.4),
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _cameraFocus == AvatarCameraFocus.face
+                        ? Icons.person_rounded
+                        : Icons.face_rounded,
+                    size: 16,
+                    color: widget.roleColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _cameraFocus == AvatarCameraFocus.face
+                        ? 'عرض الجسم كامل'
+                        : 'تكبير الوجه',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Floating Sticker Pack Quick Pill (Bottom Left)
+        Positioned(
+          bottom: 12,
+          left: 14,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              BitmojiStickersSheet.show(
+                context,
+                traits: _traits,
+                onApplyStickerExpression: (updated) {
+                  setState(() => _traits = updated);
+                },
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('✨', style: TextStyle(fontSize: 12)),
+                  SizedBox(width: 4),
+                  Text(
+                    'ملصقات Bitmoji',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // Section Ribbon Bar
+  // ==========================================
+  Widget _buildSectionRibbon(Color cardColor, bool isDark) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.white10 : Colors.black12,
+            width: 0.8,
+          ),
+          bottom: BorderSide(
+            color: isDark ? Colors.white10 : Colors.black12,
+            width: 0.8,
+          ),
+        ),
+      ),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        children: [
+          _buildSectionTab(AvatarCustomizationSection.style, 'النمط', Icons.auto_awesome_rounded),
+          _buildSectionTab(AvatarCustomizationSection.genderBody, 'الجنس', Icons.wc_rounded),
+          _buildSectionTab(AvatarCustomizationSection.hairStyle, 'الشعر', Icons.content_cut_rounded),
+          _buildSectionTab(AvatarCustomizationSection.headwear, 'الحجاب', Icons.dry_cleaning_rounded),
+          _buildSectionTab(AvatarCustomizationSection.outfit, 'الملابس', Icons.checkroom_rounded),
+          _buildSectionTab(AvatarCustomizationSection.skinTone, 'البشرة', Icons.face_rounded),
+          _buildSectionTab(AvatarCustomizationSection.hairColor, 'لون الشعر', Icons.format_paint_rounded),
+          _buildSectionTab(AvatarCustomizationSection.eyewear, 'النظارات', Icons.visibility_rounded),
+          _buildSectionTab(AvatarCustomizationSection.mouth, 'التعبيرات', Icons.mood_rounded),
+          _buildSectionTab(AvatarCustomizationSection.facialHair, 'اللحية', Icons.face_retouching_natural_rounded),
+          _buildSectionTab(AvatarCustomizationSection.background, 'الاستوديو', Icons.wallpaper_rounded),
+        ],
       ),
     );
   }
@@ -589,7 +643,14 @@ class _SnapchatAvatarStudioScreenState
     );
   }
 
-  Widget _buildSectionContent() {
+  // ==========================================
+  // Section Content Tray
+  // ==========================================
+  Widget _buildSectionContent(double screenWidth, {required bool isWide}) {
+    final int defaultCols = isWide
+        ? (screenWidth >= 1100 ? 5 : 4)
+        : (screenWidth < 360 ? 3 : 4);
+
     switch (_currentSection) {
       case AvatarCustomizationSection.style:
         return _buildVisualGrid(
@@ -598,9 +659,10 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'adventurer', 'title': 'بيكسار 3D ⚔️'},
             {'id': 'lorelei', 'title': 'أنمي 🌸'},
             {'id': 'bottts', 'title': 'روبوت 🤖'},
+            {'id': 'open-peeps', 'title': 'كوميكس 🎨'},
           ],
           selectedId: _traits.style,
-          crossAxisCount: 4,
+          crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(style: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(style: id)),
@@ -620,10 +682,11 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'hijab_wrapped', 'title': 'حجاب إسلامي 🧕'},
             {'id': 'bob', 'title': 'بوب عصري 💇‍♀️'},
             {'id': 'bun', 'title': 'كعكة 👱‍♀️'},
+            {'id': 'dreads', 'title': 'جدائل دريدز 🧔'},
             {'id': 'hat', 'title': 'قبعة 🧢'},
           ],
           selectedId: _traits.hairStyle,
-          crossAxisCount: 4,
+          crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(
             hairStyle: id,
@@ -637,9 +700,12 @@ class _SnapchatAvatarStudioScreenState
           options: const [
             {'id': 'none', 'title': 'بدون غطاء'},
             {'id': 'hijab', 'title': 'حجاب إسلامي 🧕'},
+            {'id': 'baseball_cap', 'title': 'كاب رياضي 🧢'},
+            {'id': 'beanie', 'title': 'طاقية شتوية 🧶'},
+            {'id': 'turban', 'title': 'عمامة / توربان 👳'},
           ],
           selectedId: _traits.headwear,
-          crossAxisCount: 4,
+          crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(
             headwear: id,
@@ -657,18 +723,21 @@ class _SnapchatAvatarStudioScreenState
                 options: const [
                   {'id': 'hoodie', 'title': 'هودي 👕'},
                   {'id': 'formal_blazer', 'title': 'بدلة رسمية 👔'},
-                  {'id': 'polo', 'title': 'بلوفر 🧶'},
+                  {'id': 'blazer_sweater', 'title': 'بليزر كاجوال 🧥'},
+                  {'id': 'polo', 'title': 'بلوفر بولو 🧶'},
                   {'id': 'casual_crew', 'title': 'تيشيرت 🥋'},
+                  {'id': 'graphic_tee', 'title': 'تيشيرت جرافيك 🎨'},
+                  {'id': 'overall', 'title': 'سالوبيت جينز 👖'},
                 ],
                 selectedId: _traits.outfit,
-                crossAxisCount: 4,
+                crossAxisCount: defaultCols,
                 childAspectRatio: 0.90,
                 previewTraitsBuilder: (id) => _traits.copyWith(outfit: id),
                 onSelected: (id) => setState(() => _traits = _traits.copyWith(outfit: id)),
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
@@ -679,8 +748,10 @@ class _SnapchatAvatarStudioScreenState
               ),
               child: Row(
                 children: [
-                  const Text('لون الملابس:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                  const Text(
+                    'لون الملابس:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildColorPaletteRibbon(
@@ -716,10 +787,11 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'none', 'title': 'بدون نظارة'},
             {'id': 'square_frames', 'title': 'إطار مربع 👓'},
             {'id': 'round_frames', 'title': 'إطار دائري 🕶️'},
+            {'id': 'wayfarers', 'title': 'واي فيرر كلاسيك 👓'},
             {'id': 'sunglasses', 'title': 'نظارة شمسية 😎'},
           ],
           selectedId: _traits.eyewear,
-          crossAxisCount: 4,
+          crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(eyewear: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(eyewear: id)),
@@ -732,9 +804,10 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'confident_smirk', 'title': 'واثق 😏'},
             {'id': 'wide_grin', 'title': 'ضحكة 😁'},
             {'id': 'neutral', 'title': 'تركيز 🧐'},
+            {'id': 'playful_tongue', 'title': 'مرح وغمزة 😜'},
           ],
           selectedId: _traits.mouth,
-          crossAxisCount: 4,
+          crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(mouth: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(mouth: id)),
@@ -749,7 +822,7 @@ class _SnapchatAvatarStudioScreenState
             {'id': 'mustache', 'title': 'شارب 👨'},
           ],
           selectedId: _traits.facialHair,
-          crossAxisCount: 4,
+          crossAxisCount: defaultCols,
           childAspectRatio: 0.90,
           previewTraitsBuilder: (id) => _traits.copyWith(facialHair: id),
           onSelected: (id) => setState(() => _traits = _traits.copyWith(facialHair: id)),
@@ -834,7 +907,7 @@ class _SnapchatAvatarStudioScreenState
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 56,
+        height: 58,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
@@ -860,8 +933,8 @@ class _SnapchatAvatarStudioScreenState
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: SizedBox(
-                width: 40,
-                height: 40,
+                width: 42,
+                height: 42,
                 child: Image.network(
                   previewUrl,
                   fit: BoxFit.contain,
@@ -1065,7 +1138,6 @@ class _SnapchatAvatarStudioScreenState
           alignment: WrapAlignment.center,
           children: colors.map((c) {
             final isSelected = c.toARGB32() == selected.toARGB32();
-            final isLight = c.computeLuminance() > 0.5;
 
             return GestureDetector(
               onTap: () {
@@ -1074,8 +1146,8 @@ class _SnapchatAvatarStudioScreenState
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: c,
                   shape: BoxShape.circle,
@@ -1098,12 +1170,8 @@ class _SnapchatAvatarStudioScreenState
                   ],
                 ),
                 child: isSelected
-                    ? Center(
-                        child: Icon(
-                          Icons.check_rounded,
-                          size: 18,
-                          color: isLight ? Colors.black87 : Colors.white,
-                        ),
+                    ? const Center(
+                        child: Icon(Icons.check, size: 16, color: Colors.white),
                       )
                     : null,
               ),
@@ -1120,13 +1188,12 @@ class _SnapchatAvatarStudioScreenState
     required ValueChanged<Color> onChanged,
   }) {
     return SizedBox(
-      height: 44,
+      height: 32,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         itemCount: colors.length,
-        itemBuilder: (context, index) {
-          final c = colors[index];
+        itemBuilder: (context, i) {
+          final c = colors[i];
           final isSelected = c.toARGB32() == selected.toARGB32();
 
           return GestureDetector(
@@ -1136,31 +1203,27 @@ class _SnapchatAvatarStudioScreenState
             },
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 32,
-              height: 32,
+              width: 26,
+              height: 26,
               decoration: BoxDecoration(
                 color: c,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? widget.roleColor : Colors.white70,
-                  width: isSelected ? 2.5 : 1.2,
+                  color: isSelected ? widget.roleColor : Colors.white,
+                  width: isSelected ? 2.5 : 1,
                 ),
-                boxShadow: [
-                  if (isSelected)
-                    BoxShadow(
-                      color: widget.roleColor.withValues(alpha: 0.4),
-                      blurRadius: 5,
-                      offset: const Offset(0, 1),
-                    ),
-                ],
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: widget.roleColor.withValues(alpha: 0.35),
+                          blurRadius: 4,
+                        ),
+                      ]
+                    : null,
               ),
               child: isSelected
-                  ? Icon(
-                      Icons.check_rounded,
-                      size: 16,
-                      color: c.computeLuminance() > 0.5
-                          ? Colors.black87
-                          : Colors.white,
+                  ? const Center(
+                      child: Icon(Icons.check, size: 12, color: Colors.white),
                     )
                   : null,
             ),
