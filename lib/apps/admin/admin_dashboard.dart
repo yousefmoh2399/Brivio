@@ -871,152 +871,186 @@ class _AdminOverviewState extends State<_AdminOverview> {
 
     return RefreshIndicator(
       onRefresh: () async => widget.onRetry(),
-      child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        children: [
-          // ── 1. Executive Master Header with integrated branch federation ──
-          FadeInSlide(
-            duration: const Duration(milliseconds: 300),
-            child: _buildExecutiveHero(
-              context,
-              user,
-              isDark,
-              textPrimary,
-              textSecondary,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: ListView(
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.sizeOf(context).width < 400 ? 10 : 14,
+              vertical: 14,
             ),
-          ),
-
-          const SizedBox(height: 14),
-
-          if (widget.isLoading) ...[
-            const SizedBox(height: 4),
-            const LinearProgressIndicator(color: AppColors.adminRole),
-            const SizedBox(height: 10),
-          ],
-          if (widget.errorMessage != null) ...[
-            FadeInSlide(
-              child: PortalErrorBanner(
-                message: widget.errorMessage!,
-                onRetry: widget.onRetry,
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
-
-          // ── 2. Primary Executive KPI Cards (4 Cards Clean Grid) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 40),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 720;
-                final kpiStudents = _ExecutiveKpiCard(
-                  title: 'الطلاب المسجلون',
-                  value: studentCount.toString(),
-                  subtitle: '$groupCount مجموعة دراسية',
-                  icon: Icons.school_rounded,
-                  accentColor: AppColors.primary,
-                  onTap: () => widget.onNavigate(5),
-                );
-                final kpiTeachers = _ExecutiveKpiCard(
-                  title: 'المعلمون المعتمدون',
-                  value: teacherCount.toString(),
-                  subtitle: '${widget.subjects.length} مادة معتمدة',
-                  icon: Icons.person_rounded,
-                  accentColor: AppColors.purple,
-                  onTap: () => widget.onNavigate(7),
-                );
-                final kpiGroups = _ExecutiveKpiCard(
-                  title: 'المجموعات الدراسية',
-                  value: groupCount.toString(),
-                  subtitle: '${widget.opsMetrics.todaySessions} حصة اليوم',
-                  icon: Icons.group_work_rounded,
-                  accentColor: AppColors.warning,
-                  onTap: () => widget.onNavigate(3),
-                );
-                final kpiTreasury = _ExecutiveKpiCard(
-                  title: 'الخزينة والتحصيل',
-                  value: treasuryValue,
-                  subtitle: treasurySubtitle,
-                  icon: Icons.account_balance_wallet_rounded,
-                  accentColor: AppColors.success,
-                  onTap: () => widget.onNavigate(14),
-                );
-
-                if (isWide) {
-                  return Row(
-                    children: [
-                      Expanded(child: kpiStudents),
-                      const SizedBox(width: 10),
-                      Expanded(child: kpiTeachers),
-                      const SizedBox(width: 10),
-                      Expanded(child: kpiGroups),
-                      const SizedBox(width: 10),
-                      Expanded(child: kpiTreasury),
-                    ],
-                  );
-                }
-
-                // Mobile 2x2 Grid
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: kpiStudents),
-                        const SizedBox(width: 10),
-                        Expanded(child: kpiTeachers),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(child: kpiGroups),
-                        const SizedBox(width: 10),
-                        Expanded(child: kpiTreasury),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── 3. Executive Segmented Navigation Bar ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 60),
-            child: _buildSegmentedNav(isDark, textPrimary, textSecondary),
-          ),
-
-          const SizedBox(height: 14),
-
-          // ── 4. Dynamic Tab Content (Active Operations Module) ──
-          FadeInSlide(
-            delay: const Duration(milliseconds: 80),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: child,
-              ),
-              child: KeyedSubtree(
-                key: ValueKey(_selectedTab),
-                child: _buildCurrentTab(
+            children: [
+              // ── 1. Executive Master Header with integrated branch federation ──
+              FadeInSlide(
+                duration: const Duration(milliseconds: 300),
+                child: _buildExecutiveHero(
                   context,
+                  user,
                   isDark,
                   textPrimary,
                   textSecondary,
-                  studentCount,
-                  teacherCount,
-                  groupCount,
-                  parentCount,
                 ),
               ),
-            ),
-          ),
 
-          const SizedBox(height: 24),
-        ],
+              const SizedBox(height: 14),
+
+              if (widget.isLoading) ...[
+                const SizedBox(height: 4),
+                const LinearProgressIndicator(color: AppColors.adminRole),
+                const SizedBox(height: 10),
+              ],
+              if (widget.errorMessage != null) ...[
+                FadeInSlide(
+                  child: PortalErrorBanner(
+                    message: widget.errorMessage!,
+                    onRetry: widget.onRetry,
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+
+              // ── 2. Primary Executive KPI Cards (Adaptive Responsive Grid) ──
+              FadeInSlide(
+                delay: const Duration(milliseconds: 40),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final isDesktop = width > 820;
+                    final isSmallMobile = width < 340;
+
+                    final kpiStudents = _ExecutiveKpiCard(
+                      title: 'الطلاب المسجلون',
+                      value: studentCount.toString(),
+                      subtitle: '$groupCount مجموعة دراسية',
+                      icon: Icons.school_rounded,
+                      accentColor: AppColors.primary,
+                      onTap: () => widget.onNavigate(5),
+                    );
+                    final kpiTeachers = _ExecutiveKpiCard(
+                      title: 'المعلمون المعتمدون',
+                      value: teacherCount.toString(),
+                      subtitle: '${widget.subjects.length} مادة معتمدة',
+                      icon: Icons.person_rounded,
+                      accentColor: AppColors.purple,
+                      onTap: () => widget.onNavigate(7),
+                    );
+                    final kpiGroups = _ExecutiveKpiCard(
+                      title: 'المجموعات الدراسية',
+                      value: groupCount.toString(),
+                      subtitle: '${widget.opsMetrics.todaySessions} حصة اليوم',
+                      icon: Icons.group_work_rounded,
+                      accentColor: AppColors.warning,
+                      onTap: () => widget.onNavigate(3),
+                    );
+                    final kpiTreasury = _ExecutiveKpiCard(
+                      title: 'الخزينة والتحصيل',
+                      value: treasuryValue,
+                      subtitle: treasurySubtitle,
+                      icon: Icons.account_balance_wallet_rounded,
+                      accentColor: AppColors.success,
+                      onTap: () => widget.onNavigate(14),
+                    );
+
+                    if (isDesktop) {
+                      return IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: kpiStudents),
+                            const SizedBox(width: 10),
+                            Expanded(child: kpiTeachers),
+                            const SizedBox(width: 10),
+                            Expanded(child: kpiGroups),
+                            const SizedBox(width: 10),
+                            Expanded(child: kpiTreasury),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (isSmallMobile) {
+                      return Column(
+                        children: [
+                          kpiStudents,
+                          const SizedBox(height: 8),
+                          kpiTeachers,
+                          const SizedBox(height: 8),
+                          kpiGroups,
+                          const SizedBox(height: 8),
+                          kpiTreasury,
+                        ],
+                      );
+                    }
+
+                    // Mobile / Tablet 2x2 Grid with IntrinsicHeight
+                    return Column(
+                      children: [
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: kpiStudents),
+                              const SizedBox(width: 10),
+                              Expanded(child: kpiTeachers),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: kpiGroups),
+                              const SizedBox(width: 10),
+                              Expanded(child: kpiTreasury),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ── 3. Executive Segmented Navigation Bar ──
+              FadeInSlide(
+                delay: const Duration(milliseconds: 60),
+                child: _buildSegmentedNav(isDark, textPrimary, textSecondary),
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── 4. Dynamic Tab Content (Active Operations Module) ──
+              FadeInSlide(
+                delay: const Duration(milliseconds: 80),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                  child: KeyedSubtree(
+                    key: ValueKey(_selectedTab),
+                    child: _buildCurrentTab(
+                      context,
+                      isDark,
+                      textPrimary,
+                      textSecondary,
+                      studentCount,
+                      teacherCount,
+                      groupCount,
+                      parentCount,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1045,97 +1079,122 @@ class _AdminOverviewState extends State<_AdminOverview> {
       ),
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.black12,
-          width: 0.8,
-        ),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        child: Row(
-          children: List.generate(tabs.length, (index) {
-            final tab = tabs[index];
-            final isSelected = _selectedTab == index;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: InkWell(
-                onTap: () => setState(() => _selectedTab = index),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 680;
+
+        Widget buildTabItem(int index, {bool isExpanded = false}) {
+          final tab = tabs[index];
+          final isSelected = _selectedTab == index;
+          Widget content = InkWell(
+            onTap: () => setState(() => _selectedTab = index),
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? (isDark ? AppColors.adminRole : Colors.white)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  Icon(
+                    tab.icon,
+                    size: 16,
                     color: isSelected
-                        ? (isDark ? AppColors.adminRole : Colors.white)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
+                        ? (isDark ? Colors.white : AppColors.adminRole)
+                        : textSecondary,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        tab.icon,
-                        size: 16,
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      tab.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                         color: isSelected
                             ? (isDark ? Colors.white : AppColors.adminRole)
                             : textSecondary,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        tab.label,
+                    ),
+                  ),
+                  if (tab.badge != null) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? (isDark ? Colors.white.withValues(alpha: 0.2) : AppColors.adminRole.withValues(alpha: 0.15))
+                            : (isDark ? Colors.white12 : Colors.black12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        tab.badge!,
                         style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
                           color: isSelected
                               ? (isDark ? Colors.white : AppColors.adminRole)
                               : textSecondary,
                         ),
                       ),
-                      if (tab.badge != null) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? (isDark ? Colors.white.withValues(alpha: 0.2) : AppColors.adminRole.withValues(alpha: 0.15))
-                                : (isDark ? Colors.white12 : Colors.black12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            tab.badge!,
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? (isDark ? Colors.white : AppColors.adminRole)
-                                  : textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+
+          return isExpanded ? Expanded(child: content) : content;
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? Colors.white12 : Colors.black12,
+              width: 0.8,
+            ),
+          ),
+          child: isWide
+              ? Row(
+                  children: List.generate(
+                    tabs.length,
+                    (index) => buildTabItem(index, isExpanded: true),
+                  ),
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: List.generate(
+                      tabs.length,
+                      (index) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: buildTabItem(index, isExpanded: false),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            );
-          }),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1276,25 +1335,31 @@ class _AdminOverviewState extends State<_AdminOverview> {
             final isMedium = constraints.maxWidth > 550;
 
             if (isWide) {
-              return GridView.count(
-                crossAxisCount: 3,
+              return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 2.5,
-                children: tiles,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: 72,
+                ),
+                itemCount: tiles.length,
+                itemBuilder: (ctx, i) => tiles[i],
               );
             }
             if (isMedium) {
-              return GridView.count(
-                crossAxisCount: 2,
+              return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 2.6,
-                children: tiles,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: 72,
+                ),
+                itemCount: tiles.length,
+                itemBuilder: (ctx, i) => tiles[i],
               );
             }
 
@@ -1391,57 +1456,89 @@ class _AdminOverviewState extends State<_AdminOverview> {
         const SizedBox(height: 18),
 
         // Quick CSV Export Tools Strip
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark ? AppColors.darkBorder : Colors.black12,
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.download_rounded, size: 16, color: AppColors.adminRole),
-              const SizedBox(width: 8),
-              Text(
-                'تصدير سريع (CSV):',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 460;
+            final exportButtons = [
+              _ExportButton(
+                onPressed: () => _copyStudentsCsv(context),
+                icon: Icons.school_rounded,
+                label: 'الطلاب ($studentCount)',
+              ),
+              const SizedBox(width: 6),
+              _ExportButton(
+                onPressed: () => _copyGroupsCsv(context),
+                icon: Icons.group_work_rounded,
+                label: 'المجموعات ($groupCount)',
+              ),
+              const SizedBox(width: 6),
+              _ExportButton(
+                onPressed: () => _copyTeachersCsv(context),
+                icon: Icons.person_rounded,
+                label: 'المدرسين ($teacherCount)',
+              ),
+            ];
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : Colors.black12,
+                  width: 0.8,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _ExportButton(
-                        onPressed: () => _copyStudentsCsv(context),
-                        icon: Icons.school_rounded,
-                        label: 'الطلاب ($studentCount)',
-                      ),
-                      const SizedBox(width: 6),
-                      _ExportButton(
-                        onPressed: () => _copyGroupsCsv(context),
-                        icon: Icons.group_work_rounded,
-                        label: 'المجموعات ($groupCount)',
-                      ),
-                      const SizedBox(width: 6),
-                      _ExportButton(
-                        onPressed: () => _copyTeachersCsv(context),
-                        icon: Icons.person_rounded,
-                        label: 'المدرسين ($teacherCount)',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+              child: isNarrow
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.download_rounded, size: 16, color: AppColors.adminRole),
+                            const SizedBox(width: 8),
+                            Text(
+                              'تصدير سريع (CSV):',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(children: exportButtons),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        const Icon(Icons.download_rounded, size: 16, color: AppColors.adminRole),
+                        const SizedBox(width: 8),
+                        Text(
+                          'تصدير سريع (CSV):',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            child: Row(children: exportButtons),
+                          ),
+                        ),
+                      ],
+                    ),
+            );
+          },
         ),
       ],
     );
@@ -1594,14 +1691,12 @@ class _AdminOverviewState extends State<_AdminOverview> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Live badge + Quick Action Icons
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              Container(
+          // Top Row: Live badge + CenterSwitcherWidget + Quick Actions Toolbar
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 620;
+
+              final liveBadge = Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.14),
@@ -1626,51 +1721,87 @@ class _AdminOverviewState extends State<_AdminOverview> {
                     ),
                   ],
                 ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              );
+
+              final actionPills = [
+                _buildHeroActionPill(
+                  icon: Icons.refresh_rounded,
+                  label: 'تحديث',
+                  color: AppColors.primary,
+                  onTap: widget.onRetry,
+                ),
+                const SizedBox(width: 6),
+                _buildHeroActionPill(
+                  icon: Icons.add_card_rounded,
+                  label: 'حركة نقدية',
+                  color: Colors.teal,
+                  onTap: () => _openQuickCashDepositDialog(context),
+                ),
+                const SizedBox(width: 6),
+                _buildHeroActionPill(
+                  icon: Icons.campaign_rounded,
+                  label: 'طوارئ عامة',
+                  color: Colors.redAccent,
+                  onTap: () => _openCenterEmergencyBroadcastDialog(context),
+                ),
+                const SizedBox(width: 6),
+                _buildHeroActionPill(
+                  icon: Icons.handshake_rounded,
+                  label: 'الشراكات',
+                  color: Colors.indigoAccent,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CenterPartnershipsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 6),
+                _buildHeroActionPill(
+                  icon: Icons.add_business_rounded,
+                  label: 'انضمام لسنتر',
+                  color: Colors.amber.shade800,
+                  onTap: () => JoinCenterDialog.show(context, onJoined: widget.onRetry),
+                ),
+              ];
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        liveBadge,
+                        CenterSwitcherWidget(onCenterChanged: widget.onRetry),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(children: actionPills),
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CenterSwitcherWidget(onCenterChanged: widget.onRetry),
-                  const SizedBox(width: 2),
-                  IconButton(
-                    tooltip: 'إدارة السنتر والشراكات',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const CenterPartnershipsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.handshake_rounded, size: 18),
-                  ),
-                  IconButton(
-                    tooltip: 'الانضمام لسنتر بكود',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => JoinCenterDialog.show(context, onJoined: widget.onRetry),
-                    icon: const Icon(Icons.add_business_rounded, size: 18),
-                  ),
-                  IconButton(
-                    tooltip: 'حركة نقدية سريعة',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => _openQuickCashDepositDialog(context),
-                    icon: const Icon(Icons.add_card_rounded, size: 18, color: Colors.teal),
-                  ),
-                  IconButton(
-                    tooltip: 'إذاعة طوارئ عامة',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => _openCenterEmergencyBroadcastDialog(context),
-                    icon: const Icon(Icons.campaign_rounded, size: 18, color: Colors.redAccent),
-                  ),
-                  IconButton(
-                    tooltip: 'تحديث البيانات',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: widget.onRetry,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                  liveBadge,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CenterSwitcherWidget(onCenterChanged: widget.onRetry),
+                      const SizedBox(width: 8),
+                      ...actionPills,
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
           const SizedBox(height: 12),
 
@@ -1779,6 +1910,41 @@ class _AdminOverviewState extends State<_AdminOverview> {
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             color: isSelected ? Colors.white : null,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroActionPill({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -2806,47 +2972,69 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
           const SizedBox(height: 12),
 
           // Executive Command Actions Toolbar
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildCommandPill(
-                label: 'بوابة الاستقبال QR 🪪',
-                color: AppColors.primary,
-                icon: Icons.qr_code_scanner_rounded,
-                onTap: widget.onOpenQrGate,
-              ),
-              _buildCommandPill(
-                label: 'تقفيل الخزينة وطباعة Z-Report 💵',
-                color: Colors.green.shade700,
-                icon: Icons.point_of_sale_rounded,
-                onTap: widget.onOpenCashRegister,
-              ),
-              _buildCommandPill(
-                label: 'كاشير الملازم وطباعة الباركود 📚',
-                color: Colors.deepOrange.shade700,
-                icon: Icons.menu_book_rounded,
-                onTap: widget.onOpenBookstorePos,
-              ),
-              _buildCommandPill(
-                label: 'سجل التدقيق الأمني 🛡️',
-                color: Colors.purple.shade700,
-                icon: Icons.shield_rounded,
-                onTap: widget.onOpenAuditLog,
-              ),
-              _buildCommandPill(
-                label: 'إيداع / حركة نقدية سريعة ➕',
-                color: Colors.teal.shade700,
-                icon: Icons.add_card_rounded,
-                onTap: widget.onOpenQuickFloat,
-              ),
-              _buildCommandPill(
-                label: 'إذاعة طوارئ عامة للسنتر 📢',
-                color: Colors.redAccent.shade700,
-                icon: Icons.campaign_rounded,
-                onTap: widget.onOpenEmergencyBroadcast,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+              final pills = [
+                _buildCommandPill(
+                  label: 'بوابة الاستقبال QR 🪪',
+                  color: AppColors.primary,
+                  icon: Icons.qr_code_scanner_rounded,
+                  onTap: widget.onOpenQrGate,
+                ),
+                _buildCommandPill(
+                  label: 'تقفيل الخزينة والـ Z-Report 💵',
+                  color: Colors.green.shade700,
+                  icon: Icons.point_of_sale_rounded,
+                  onTap: widget.onOpenCashRegister,
+                ),
+                _buildCommandPill(
+                  label: 'كاشير الملازم POS 📚',
+                  color: Colors.deepOrange.shade700,
+                  icon: Icons.menu_book_rounded,
+                  onTap: widget.onOpenBookstorePos,
+                ),
+                _buildCommandPill(
+                  label: 'سجل التدقيق الأمني 🛡️',
+                  color: Colors.purple.shade700,
+                  icon: Icons.shield_rounded,
+                  onTap: widget.onOpenAuditLog,
+                ),
+                _buildCommandPill(
+                  label: 'إيداع نقدي سريع ➕',
+                  color: Colors.teal.shade700,
+                  icon: Icons.add_card_rounded,
+                  onTap: widget.onOpenQuickFloat,
+                ),
+                _buildCommandPill(
+                  label: 'إذاعة طوارئ عامة 📢',
+                  color: Colors.redAccent.shade700,
+                  icon: Icons.campaign_rounded,
+                  onTap: widget.onOpenEmergencyBroadcast,
+                ),
+              ];
+
+              if (isNarrow) {
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 6,
+                    mainAxisExtent: 42,
+                  ),
+                  itemCount: pills.length,
+                  itemBuilder: (ctx, i) => pills[i],
+                );
+              }
+
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: pills,
+              );
+            },
           ),
         ],
       ),
@@ -2911,23 +3099,28 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5.5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5.5),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
             ),
           ],
@@ -3071,7 +3264,7 @@ class _QuickCashDepositDialogState extends State<_QuickCashDepositDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -3611,25 +3804,31 @@ class _DayEndSettlementHUD extends StatelessWidget {
               );
 
               if (isWide) {
-                return Row(
-                  children: [
-                    Expanded(child: col1),
-                    const SizedBox(width: 8),
-                    Expanded(child: col2),
-                    const SizedBox(width: 8),
-                    Expanded(child: col3),
-                  ],
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: col1),
+                      const SizedBox(width: 8),
+                      Expanded(child: col2),
+                      const SizedBox(width: 8),
+                      Expanded(child: col3),
+                    ],
+                  ),
                 );
               }
 
               return Column(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(child: col1),
-                      const SizedBox(width: 8),
-                      Expanded(child: col2),
-                    ],
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: col1),
+                        const SizedBox(width: 8),
+                        Expanded(child: col2),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 8),
                   SizedBox(width: double.infinity, child: col3),
@@ -3639,71 +3838,118 @@ class _DayEndSettlementHUD extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Action buttons
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              FilledButton.icon(
+          // Action buttons with LayoutBuilder
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 620;
+
+              final btnRegister = FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.green.shade700,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: onOpenCashRegister,
-                icon: const Icon(Icons.calculate_rounded, size: 14),
+                icon: const Icon(Icons.calculate_rounded, size: 15),
                 label: const Text('جرد النقدية وإقفال الخزينة', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-              OutlinedButton.icon(
+              );
+
+              final btnZReport = OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () => _exportQuickZReport(context),
                 icon: const Icon(Icons.picture_as_pdf_rounded, size: 14, color: Colors.red),
-                label: const Text('طباعة Z-Report معتمد (PDF)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-              OutlinedButton.icon(
+                label: const Text('تقرير Z-Report (PDF)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+              );
+
+              final btnPos = OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: onOpenBookstorePos,
                 icon: const Icon(Icons.menu_book_rounded, size: 14, color: Colors.deepOrange),
-                label: const Text('كاشير الملازم وطباعة الباركود', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-              if (onOpenQuickFloat != null)
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: onOpenQuickFloat,
-                  icon: const Icon(Icons.add_card_rounded, size: 14, color: Colors.teal),
-                  label: const Text('إيداع نقدي سريع', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-              if (onOpenFinancePortal != null)
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: onOpenFinancePortal,
-                  icon: const Icon(Icons.account_balance_rounded, size: 14, color: AppColors.primary),
-                  label: const Text('شاشة المالية والتحصيل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-            ],
+                label: const Text('كاشير الملازم (POS)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+              );
+
+              final btnQuickFloat = onOpenQuickFloat != null
+                  ? OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: onOpenQuickFloat,
+                      icon: const Icon(Icons.add_card_rounded, size: 14, color: Colors.teal),
+                      label: const Text('إيداع نقدي سريع', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                    )
+                  : null;
+
+              final btnFinance = onOpenFinancePortal != null
+                  ? OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: onOpenFinancePortal,
+                      icon: const Icon(Icons.account_balance_rounded, size: 14, color: AppColors.primary),
+                      label: const Text('بوابة المالية', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                    )
+                  : null;
+
+              if (isNarrow) {
+                final secondaryButtons = [
+                  btnZReport,
+                  btnPos,
+                  if (btnQuickFloat != null) btnQuickFloat,
+                  if (btnFinance != null) btnFinance,
+                ];
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(width: double.infinity, child: btnRegister),
+                    const SizedBox(height: 8),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 6,
+                        mainAxisSpacing: 6,
+                        mainAxisExtent: 40,
+                      ),
+                      itemCount: secondaryButtons.length,
+                      itemBuilder: (ctx, i) => secondaryButtons[i],
+                    ),
+                  ],
+                );
+              }
+
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  btnRegister,
+                  btnZReport,
+                  btnPos,
+                  if (btnQuickFloat != null) btnQuickFloat,
+                  if (btnFinance != null) btnFinance,
+                ],
+              );
+            },
           ),
         ],
       ),
