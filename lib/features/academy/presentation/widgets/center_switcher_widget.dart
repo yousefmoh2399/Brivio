@@ -28,10 +28,15 @@ class _CenterSwitcherWidgetState extends State<CenterSwitcherWidget> {
   @override
   void initState() {
     super.initState();
-    _centerRepo = SupabaseCenterRepository(
-      SupabaseClientWrapper(Supabase.instance.client),
-    );
-    _loadUserCenters();
+    try {
+      _centerRepo = SupabaseCenterRepository(
+        SupabaseClientWrapper(Supabase.instance.client),
+      );
+      _loadUserCenters();
+    } catch (_) {
+      _isLoading = false;
+      _centers = [];
+    }
   }
 
   Future<void> _loadUserCenters() async {

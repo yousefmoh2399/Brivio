@@ -329,7 +329,10 @@ class _AtRiskStudentsAlertWidgetState extends State<AtRiskStudentsAlertWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           'رادار الطلاب المتعثرين وتحليلات الأداء التنبؤية 📉',
@@ -338,7 +341,6 @@ class _AtRiskStudentsAlertWidgetState extends State<AtRiskStudentsAlertWidget> {
                             fontSize: 15,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
@@ -454,7 +456,10 @@ class _AtRiskStudentsAlertWidgetState extends State<AtRiskStudentsAlertWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           student.studentName,
@@ -464,7 +469,6 @@ class _AtRiskStudentsAlertWidgetState extends State<AtRiskStudentsAlertWidget> {
                             fontSize: 14.5,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -588,51 +592,74 @@ class _AtRiskStudentsAlertWidgetState extends State<AtRiskStudentsAlertWidget> {
           const SizedBox(height: 12),
 
           // Action Buttons: WhatsApp Parent Alert + Plan Dialog + Call
-          Row(
-            children: [
-              Expanded(
-                flex: 4,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.send_rounded, size: 14),
-                  label: const Text(
-                    'تنبيه ولي الأمر واتساب 📲',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () => _sendWhatsAppIntervention(student),
+          LayoutBuilder(
+            builder: (context, actionConstraints) {
+              final isVeryNarrow = actionConstraints.maxWidth < 360;
+              final whatsAppBtn = FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 3,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.assignment_turned_in_outlined, size: 14),
-                  label: const Text(
-                    'خطة الدعم 📋',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () => _openInterventionPlanDialog(student),
+                icon: const Icon(Icons.send_rounded, size: 14),
+                label: Text(
+                  isVeryNarrow ? 'تنبيه واتساب 📲' : 'تنبيه ولي الأمر واتساب 📲',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: 6),
-              IconButton(
+                onPressed: () => _sendWhatsAppIntervention(student),
+              );
+
+              final planBtn = OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.assignment_turned_in_outlined, size: 14),
+                label: const Text(
+                  'خطة الدعم 📋',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onPressed: () => _openInterventionPlanDialog(student),
+              );
+
+              final callBtn = IconButton(
                 tooltip: 'اتصال هاتفي بولي الأمر',
                 style: IconButton.styleFrom(
                   backgroundColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
                 ),
                 icon: const Icon(Icons.phone_outlined, size: 16),
                 onPressed: () => _callParent(student.parentPhone),
-              ),
-            ],
+              );
+
+              if (isVeryNarrow) {
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: whatsAppBtn),
+                        const SizedBox(width: 6),
+                        callBtn,
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(width: double.infinity, child: planBtn),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(flex: 4, child: whatsAppBtn),
+                  const SizedBox(width: 6),
+                  Expanded(flex: 3, child: planBtn),
+                  const SizedBox(width: 4),
+                  callBtn,
+                ],
+              );
+            },
           ),
         ],
       ),
