@@ -8,8 +8,17 @@ import '../../../features/curriculum/presentation/screens/teacher_curriculum_scr
 
 class ClassesTab extends StatefulWidget {
   final String teacherId;
+  final Widget? groupsScreen;
+  final Widget? scheduleScreen;
+  final Widget? curriculumScreen;
 
-  const ClassesTab({super.key, required this.teacherId});
+  const ClassesTab({
+    super.key,
+    required this.teacherId,
+    this.groupsScreen,
+    this.scheduleScreen,
+    this.curriculumScreen,
+  });
 
   @override
   State<ClassesTab> createState() => _ClassesTabState();
@@ -37,6 +46,9 @@ class _ClassesTabState extends State<ClassesTab>
     final textPrimary = isDark
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final bgColor = isDark
         ? AppColors.darkBackground
         : AppColors.lightBackground;
@@ -48,99 +60,269 @@ class _ClassesTabState extends State<ClassesTab>
         child: Column(
           children: [
             Container(
-          color: bgColor,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FadeInSlide(
-                duration: const Duration(milliseconds: 400),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 450;
-                    return Text(
-                      'المجموعات والحصص الدراسية',
-                      style: AppTypography.displaySmall(textPrimary).copyWith(
-                        fontSize: isCompact ? 18 : 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 14),
-              FadeInSlide(
-                duration: const Duration(milliseconds: 500),
-                delay: const Duration(milliseconds: 100),
-                child: Container(
-                  height: 44,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.black.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(12),
+              color: bgColor,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FadeInSlide(
+                    duration: const Duration(milliseconds: 350),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompact = constraints.maxWidth < 420;
+                        final isUltraCompact = constraints.maxWidth < 360;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.teacherRole.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: AppColors.teacherRole.withValues(
+                                          alpha: 0.25,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.school_rounded,
+                                          size: 13,
+                                          color: AppColors.teacherRole,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            'الأكاديمية والسنتر',
+                                            style: TextStyle(
+                                              fontSize: isUltraCompact ? 10 : 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.teacherRole,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.green.withValues(
+                                        alpha: 0.25,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.green,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'مزامنة فورية',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark
+                                              ? Colors.greenAccent
+                                              : Colors.green.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'إدارة المجموعات والحصص',
+                              style: AppTypography.displaySmall(textPrimary)
+                                  .copyWith(
+                                    fontSize: isUltraCompact
+                                        ? 18
+                                        : (isCompact ? 20 : 23),
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'متابعة المجموعات الأكاديمية، مواعيد الحصص، والمقررات الدراسية',
+                              style: AppTypography.bodySmall(textSecondary)
+                                  .copyWith(fontSize: isUltraCompact ? 11 : 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
-                  child: TabBar(
-                    controller: _tabCtrl,
-                    dividerColor: Colors.transparent,
-                    indicator: BoxDecoration(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                  const SizedBox(height: 12),
+                  FadeInSlide(
+                    duration: const Duration(milliseconds: 400),
+                    delay: const Duration(milliseconds: 80),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 360;
+                        return Container(
+                          height: 48,
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.05)
+                                : Colors.black.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.black.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          child: TabBar(
+                            controller: _tabCtrl,
+                            dividerColor: Colors.transparent,
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            isScrollable: isNarrow,
+                            tabAlignment: isNarrow
+                                ? TabAlignment.start
+                                : TabAlignment.fill,
+                            indicator: BoxDecoration(
+                              color: surfaceColor,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            labelColor: AppColors.teacherRole,
+                            unselectedLabelColor: textPrimary.withValues(
+                              alpha: 0.6,
+                            ),
+                            labelStyle: TextStyle(
+                              fontSize: isNarrow ? 11 : 12,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Cairo',
+                            ),
+                            unselectedLabelStyle: TextStyle(
+                              fontSize: isNarrow ? 11 : 12,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Cairo',
+                            ),
+                            tabs: [
+                              Tab(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.groups_2_rounded, size: 16),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'المجموعات',
+                                      style: TextStyle(
+                                        fontSize: isNarrow ? 11 : 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Tab(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_month_rounded,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'جدول الحصص',
+                                      style: TextStyle(
+                                        fontSize: isNarrow ? 11 : 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Tab(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.menu_book_rounded, size: 16),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'المناهج والدروس',
+                                      style: TextStyle(
+                                        fontSize: isNarrow ? 11 : 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: textPrimary,
-                    unselectedLabelColor: textPrimary.withValues(alpha: 0.55),
-                    labelStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
-                    ),
-                    tabs: const [
-                      Tab(text: 'المجموعات الدراسية'),
-                      Tab(text: 'جدول المواعيد'),
-                      Tab(text: 'المنهج والدروس'),
-                    ],
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 12),
-            ],
-          ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabCtrl,
+                children: [
+                  widget.groupsScreen ??
+                      TeacherGroupsScreen(teacherId: widget.teacherId),
+                  widget.scheduleScreen ??
+                      TeacherScheduleScreen(teacherId: widget.teacherId),
+                  widget.curriculumScreen ??
+                      TeacherCurriculumScreen(teacherId: widget.teacherId),
+                ],
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabCtrl,
-            children: [
-              TeacherGroupsScreen(teacherId: widget.teacherId),
-              TeacherScheduleScreen(teacherId: widget.teacherId),
-              TeacherCurriculumScreen(teacherId: widget.teacherId),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-);
-}
+      ),
+    );
+  }
 }
