@@ -67,6 +67,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<StudentExamItem> _examItems = [];
   List<StudentAttendanceItem> _attendanceItems = [];
   List<StudentLeaveItem> _leaveItems = [];
+  String? _studentCode;
   int _unreadCount = 0;
   StreamSubscription<AppNotification>? _notificationSubscription;
   RealtimeChannel? _realtimeChannel;
@@ -207,6 +208,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _fetchLeaveRequests(),
       ]);
 
+      String? resolvedStudentCode;
+      try {
+        final stuRow = await Supabase.instance.client
+            .from('students')
+            .select('student_code')
+            .eq('id', studentId)
+            .maybeSingle();
+        resolvedStudentCode = stuRow?['student_code'] as String?;
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _enrolledGroups = results[0] as List<GroupEntity>;
@@ -222,6 +233,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _examItems = results[10] as List<StudentExamItem>;
         _attendanceItems = results[11] as List<StudentAttendanceItem>;
         _leaveItems = results[12] as List<StudentLeaveItem>;
+        _studentCode = resolvedStudentCode;
         _isLoading = false;
       });
     } catch (e) {
@@ -769,6 +781,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
         onOpenPersonalBoard: _openPersonalBoard,
         onNavigate: (i) => setState(() => _selectedIndex = i),
         onScanQr: _scanAttendanceQr,
+        studentCode: _studentCode,
       ),
       LearnTab(
         isLoading: _isLoading,

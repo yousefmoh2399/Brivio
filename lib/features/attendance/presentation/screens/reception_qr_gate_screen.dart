@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -302,8 +303,29 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
 
   Future<void> _handleBarcodeScanned(BarcodeCapture capture) async {
     if (_isProcessingScan || _selectedSession == null) return;
-    final barcode = capture.barcodes.firstOrNull?.rawValue?.trim();
-    if (barcode == null || barcode.isEmpty) return;
+    final rawBarcode = capture.barcodes.firstOrNull?.rawValue?.trim();
+    if (rawBarcode == null || rawBarcode.isEmpty) return;
+
+    // 1. Resolve barcode payload (extract student_code if scanned from digital 3D card or JSON token)
+    String barcode = rawBarcode;
+    if (barcode.startsWith('BRIVIO-SEC-GATE:')) {
+      final parts = barcode.split(':');
+      if (parts.length >= 2) {
+        barcode = parts[1].trim();
+      }
+    } else if (barcode.contains('student_code=')) {
+      final match = RegExp(r'student_code=([a-zA-Z0-9_\-]+)').firstMatch(barcode);
+      if (match != null) {
+        barcode = match.group(1)!;
+      }
+    } else if (barcode.startsWith('{') && barcode.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(barcode);
+        if (decoded is Map) {
+          barcode = (decoded['student_code'] ?? decoded['code'] ?? decoded['student_id'] ?? decoded['id'] ?? barcode).toString();
+        }
+      } catch (_) {}
+    }
 
     setState(() => _isProcessingScan = true);
 
@@ -311,15 +333,23 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
       final client = Supabase.instance.client;
       final offlineService = OfflineSyncService();
 
-      // 1. Resolve student (Try online first, fallback to offline directory)
+      // 2. Resolve student (Try online first, fallback to offline directory)
       Map<String, dynamic>? studentRes;
       bool isOfflineMode = false;
 
       try {
         studentRes = await client
             .from('students')
-            .select('id, student_code, full_name, emergency_contact_phone, profiles(phone_number)')
-            .or('student_code.eq.$barcode,id.eq.$barcode')
+            .select('id, student_code, full_name, emergency_contact_phone, profile_id, profiles(phone_number)')
+            .or('student_code.eq.$barcode,id.eq.$barcode,profile_id.eq.$barcode')
+            .limit(1)
+            .maybeSingle();
+
+        // Secondary fallback search if exact match returned nothing
+        studentRes ??= await client
+            .from('students')
+            .select('id, student_code, full_name, emergency_contact_phone, profile_id, profiles(phone_number)')
+            .ilike('student_code', barcode)
             .limit(1)
             .maybeSingle();
       } catch (_) {
@@ -335,7 +365,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
 
       // If online and student code truly does not exist in both DB and offline directory
       if (!isOfflineMode && studentRes == null && offlineStudent == null) {
-        _showScanError('كود الطالب غير موجود في النظام!');
+        _showScanError('كود الطالب غير موجود في النظام: $barcode');
         return;
       }
 
@@ -362,16 +392,45 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
 
       if (!isOfflineMode && studentRes != null) {
         try {
-          // 2. Mark attendance in DB
+          // Resolve student's active group session for today
+          String targetSessionId = _selectedSession!.id;
+          try {
+            final now = DateTime.now();
+            final todayStr = now.toIso8601String().split('T').first;
+            final studentEnrollments = await client
+                .from('group_students')
+                .select('group_id, groups(id, name)')
+                .eq('student_id', studentId);
+            final enrolledGroupIds = (studentEnrollments as List)
+                .map((e) => e['group_id']?.toString())
+                .whereType<String>()
+                .toList();
+
+            if (enrolledGroupIds.isNotEmpty && !enrolledGroupIds.contains(_selectedGroup?.id)) {
+              final activeSession = await client
+                  .from('class_sessions')
+                  .select('id, group_id, groups(name)')
+                  .inFilter('group_id', enrolledGroupIds)
+                  .eq('session_date', todayStr)
+                  .limit(1)
+                  .maybeSingle();
+
+              if (activeSession != null) {
+                targetSessionId = activeSession['id'] as String;
+              }
+            }
+          } catch (_) {}
+
+          // 3. Mark attendance in DB
           await client.from('attendance_records').upsert({
-            'class_session_id': _selectedSession!.id,
+            'class_session_id': targetSessionId,
             'student_id': studentId,
             'attendance_status': 'present',
             'marked_at': DateTime.now().toIso8601String(),
             'arrival_at': DateTime.now().toIso8601String(),
           }, onConflict: 'class_session_id,student_id');
 
-          // 3. Check open/unpaid invoices
+          // 4. Check open/unpaid invoices
           final openInvoices = await client
               .from('invoices')
               .select('id, amount, status')

@@ -48,6 +48,7 @@ class HomeTab extends StatelessWidget {
   final String? centerCode;
   final String? seatNumber;
   final VoidCallback? onScanQr;
+  final String? studentCode;
 
   const HomeTab({
     super.key,
@@ -68,6 +69,7 @@ class HomeTab extends StatelessWidget {
     this.centerCode,
     this.seatNumber,
     this.onScanQr,
+    this.studentCode,
   });
 
   @override
@@ -279,6 +281,7 @@ class HomeTab extends StatelessWidget {
                             centerCode: centerCode,
                             attendanceRate: attendanceRate.toDouble(),
                             seatNumber: seatNumber,
+                            studentCode: studentCode,
                           ),
                         ],
                       ),
@@ -622,6 +625,7 @@ class _StudentCommandHub extends StatelessWidget {
   final String? centerCode;
   final double attendanceRate;
   final String? seatNumber;
+  final String? studentCode;
 
   const _StudentCommandHub({
     required this.onScanQr,
@@ -633,6 +637,7 @@ class _StudentCommandHub extends StatelessWidget {
     this.centerCode,
     this.attendanceRate = 1.0,
     this.seatNumber,
+    this.studentCode,
   });
 
   @override
@@ -642,7 +647,7 @@ class _StudentCommandHub extends StatelessWidget {
     final tools = [
       _StudentToolItem(
         title: 'بوابة الحضور',
-        subtitle: 'مسح كود القاعة الذكية',
+        subtitle: 'مسح كود الحصة بالقاعة',
         badge: 'تسجيل ⚡',
         icon: Icons.qr_code_scanner_rounded,
         gradient: const [Color(0xFF0D9488), Color(0xFF14B8A6)],
@@ -663,7 +668,7 @@ class _StudentCommandHub extends StatelessWidget {
       ),
       _StudentToolItem(
         title: 'كارنيه الطالب',
-        subtitle: 'باركود الدخول السريع',
+        subtitle: 'باركود الدخول لبوابة السنتر',
         badge: 'هويتي 🪪',
         icon: Icons.badge_rounded,
         gradient: const [Color(0xFF4F46E5), Color(0xFF6366F1)],
@@ -671,9 +676,11 @@ class _StudentCommandHub extends StatelessWidget {
         onTap: () {
           HapticFeedback.lightImpact();
           final authId = Supabase.instance.client.auth.currentUser?.id;
-          final stuCode = authId != null && authId.length >= 8
-              ? 'STU-${authId.substring(0, 8).toUpperCase()}'
-              : 'STU-BRIVIO';
+          final stuCode = (studentCode != null && studentCode!.trim().isNotEmpty)
+              ? studentCode!.trim()
+              : (authId != null && authId.length >= 8
+                  ? 'STU-${authId.substring(0, 8).toUpperCase()}'
+                  : 'STU-BRIVIO');
           StudentDigitalIdCard.show(
             context,
             studentName: userName,

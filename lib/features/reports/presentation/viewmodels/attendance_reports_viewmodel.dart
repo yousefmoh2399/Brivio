@@ -17,37 +17,79 @@ class AttendanceReportsViewModel extends ChangeNotifier {
 
       // 1. Students Attendance
       try {
-        final stuRes = await client
-            .from('attendance')
-            .select('status, date, students(profiles(full_name))')
-            .limit(100);
-
         final Map<String, Map<String, dynamic>> studentMap = {};
-        for (final item in (stuRes as List)) {
-          final stu = item['students'] as Map<String, dynamic>?;
-          final prof = stu?['profiles'] as Map<String, dynamic>?;
-          final name = prof?['full_name'] as String? ?? 'طالب';
-          final isPresent = item['status'] == 'present';
-          final dateStr = item['date']?.toString() ?? '';
 
-          if (!studentMap.containsKey(name)) {
-            studentMap[name] = {
-              'name': name,
-              'present': 0,
-              'absent': 0,
-              'absence_dates': '',
-              'status': 'منتظم',
-            };
-          }
+        // A. Primary: attendance_records (Session and QR Gate Check-ins)
+        try {
+          final recRes = await client
+              .from('attendance_records')
+              .select('attendance_status, marked_at, student:students(id, full_name, student_code, profiles(full_name))')
+              .limit(200);
 
-          if (isPresent) {
-            studentMap[name]!['present'] = (studentMap[name]!['present'] as int) + 1;
-          } else {
-            studentMap[name]!['absent'] = (studentMap[name]!['absent'] as int) + 1;
-            final existingDates = studentMap[name]!['absence_dates'] as String;
-            studentMap[name]!['absence_dates'] = existingDates.isEmpty ? dateStr : '$existingDates, $dateStr';
+          for (final item in (recRes as List)) {
+            final stu = item['student'] as Map<String, dynamic>?;
+            final prof = stu?['profiles'] as Map<String, dynamic>?;
+            final name = (stu?['full_name'] as String?)?.isNotEmpty == true
+                ? stu!['full_name'] as String
+                : (prof?['full_name'] as String? ?? 'طالب');
+            final isPresent = item['attendance_status'] == 'present';
+            final markedAt = item['marked_at']?.toString() ?? '';
+            final dateStr = markedAt.split('T').first;
+
+            if (!studentMap.containsKey(name)) {
+              studentMap[name] = {
+                'name': name,
+                'present': 0,
+                'absent': 0,
+                'absence_dates': '',
+                'status': 'منتظم',
+              };
+            }
+
+            if (isPresent) {
+              studentMap[name]!['present'] = (studentMap[name]!['present'] as int) + 1;
+            } else {
+              studentMap[name]!['absent'] = (studentMap[name]!['absent'] as int) + 1;
+              final existingDates = studentMap[name]!['absence_dates'] as String;
+              studentMap[name]!['absence_dates'] = existingDates.isEmpty ? dateStr : '$existingDates, $dateStr';
+            }
           }
-        }
+        } catch (_) {}
+
+        // B. Secondary: attendance table
+        try {
+          final stuRes = await client
+              .from('attendance')
+              .select('status, date, students(profiles(full_name))')
+              .limit(100);
+
+          for (final item in (stuRes as List)) {
+            final stu = item['students'] as Map<String, dynamic>?;
+            final prof = stu?['profiles'] as Map<String, dynamic>?;
+            final name = prof?['full_name'] as String? ?? 'طالب';
+            final isPresent = item['status'] == 'present';
+            final dateStr = item['date']?.toString() ?? '';
+
+            if (!studentMap.containsKey(name)) {
+              studentMap[name] = {
+                'name': name,
+                'present': 0,
+                'absent': 0,
+                'absence_dates': '',
+                'status': 'منتظم',
+              };
+            }
+
+            if (isPresent) {
+              studentMap[name]!['present'] = (studentMap[name]!['present'] as int) + 1;
+            } else {
+              studentMap[name]!['absent'] = (studentMap[name]!['absent'] as int) + 1;
+              final existingDates = studentMap[name]!['absence_dates'] as String;
+              studentMap[name]!['absence_dates'] = existingDates.isEmpty ? dateStr : '$existingDates, $dateStr';
+            }
+          }
+        } catch (_) {}
+
         studentAttendance = studentMap.values.toList();
       } catch (_) {
         studentAttendance = [];

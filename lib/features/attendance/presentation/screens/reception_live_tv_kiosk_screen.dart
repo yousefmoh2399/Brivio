@@ -25,48 +25,122 @@ class _ReceptionLiveTvKioskScreenState extends State<ReceptionLiveTvKioskScreen>
   bool _isLoadingSessions = false;
   bool _isLoadingHallOfFame = false;
 
+  String _resolvedCenterName = '';
+
   @override
   void initState() {
     super.initState();
+    _resolvedCenterName = widget.centerName;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _currentTime = DateTime.now());
     });
+    _fetchCenterName();
     _fetchLiveSessions();
     _fetchHallOfFame();
+  }
+
+  Future<void> _fetchCenterName() async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user != null) {
+        final prof = await client
+            .from('profiles')
+            .select('center_id')
+            .eq('id', user.id)
+            .maybeSingle();
+        final cId = prof?['center_id'];
+        if (cId != null) {
+          final cRes = await client
+              .from('educational_centers')
+              .select('name')
+              .eq('id', cId)
+              .maybeSingle();
+          final name = cRes?['name'] as String?;
+          if (name != null && name.trim().isNotEmpty && mounted) {
+            setState(() => _resolvedCenterName = name.trim());
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchLiveSessions() async {
     setState(() => _isLoadingSessions = true);
     try {
       final client = Supabase.instance.client;
-      final res = await client
-          .from('schedules')
-          .select('*, groups(name, subject, teachers(profiles(full_name))), rooms(name)')
-          .limit(20);
-
       final List<Map<String, dynamic>> sessions = [];
-      for (final item in (res as List)) {
-        final grp = item['groups'] as Map<String, dynamic>?;
-        final room = item['rooms'] as Map<String, dynamic>?;
-        final tchr = grp?['teachers'] as Map<String, dynamic>?;
-        final prof = tchr?['profiles'] as Map<String, dynamic>?;
 
-        final hallName = room?['name'] as String? ?? 'قاعة عامة';
-        final subjectName = grp?['name'] as String? ?? grp?['subject'] as String? ?? 'حصة دراسية';
-        final teacherName = prof?['full_name'] as String? ?? 'معلم المادة';
-        final startTime = item['start_time'] as String? ?? '';
-        final endTime = item['end_time'] as String? ?? '';
-        final timeStr = (startTime.isNotEmpty && endTime.isNotEmpty) ? '$startTime - $endTime' : 'مجدولة';
+      // 1. Try fetching from schedules table
+      try {
+        final res = await client
+            .from('schedules')
+            .select('*, groups(name, subject, teachers(profiles(full_name))), rooms(name)')
+            .limit(20);
 
-        sessions.add({
-          'hall': hallName,
-          'subject': subjectName,
-          'teacher': teacherName,
-          'time': timeStr,
-          'status': 'مجدولة ⚪',
-          'status_color': Colors.blueGrey,
-        });
+        for (final item in (res as List)) {
+          final grp = item['groups'] as Map<String, dynamic>?;
+          final room = item['rooms'] as Map<String, dynamic>?;
+          final tchr = grp?['teachers'] as Map<String, dynamic>?;
+          final prof = tchr?['profiles'] as Map<String, dynamic>?;
+
+          final hallName = room?['name'] as String? ?? 'قاعة عامة';
+          final subjectName = grp?['name'] as String? ?? grp?['subject'] as String? ?? 'حصة دراسية';
+          final teacherName = prof?['full_name'] as String? ?? 'معلم المادة';
+          final startTime = item['start_time'] as String? ?? '';
+          final endTime = item['end_time'] as String? ?? '';
+          final timeStr = (startTime.isNotEmpty && endTime.isNotEmpty) ? '$startTime - $endTime' : 'مجدولة';
+
+          sessions.add({
+            'hall': hallName,
+            'subject': subjectName,
+            'teacher': teacherName,
+            'time': timeStr,
+            'status': 'مجدولة ⚪',
+            'status_color': Colors.blueGrey,
+          });
+        }
+      } catch (_) {}
+
+      // 2. If schedules is empty, query class_sessions for today
+      if (sessions.isEmpty) {
+        try {
+          final todayStr = DateTime.now().toIso8601String().split('T').first;
+          final classSessionsRes = await client
+              .from('class_sessions')
+              .select('id, scheduled_start_at, scheduled_end_at, status, location, groups(name, subject, teachers(profiles(full_name)))')
+              .eq('session_date', todayStr);
+
+          for (final item in (classSessionsRes as List)) {
+            final grp = item['groups'] as Map<String, dynamic>?;
+            final tchr = grp?['teachers'] as Map<String, dynamic>?;
+            final prof = tchr?['profiles'] as Map<String, dynamic>?;
+
+            final hallName = (item['location'] as String?)?.isNotEmpty == true
+                ? (item['location'] as String)
+                : 'قاعة المحاضرات';
+            final subjectName = grp?['name'] as String? ?? grp?['subject'] as String? ?? 'حصة دراسية';
+            final teacherName = prof?['full_name'] as String? ?? 'معلم المادة';
+            final start = DateTime.tryParse(item['scheduled_start_at']?.toString() ?? '')?.toLocal();
+            final end = DateTime.tryParse(item['scheduled_end_at']?.toString() ?? '')?.toLocal();
+            final timeStr = (start != null && end != null)
+                ? '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} - ${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}'
+                : 'اليوم';
+            final statusStr = item['status']?.toString().toLowerCase() ?? '';
+            final isLive = statusStr == 'in_progress' || statusStr == 'active' || statusStr == 'live';
+
+            sessions.add({
+              'hall': hallName,
+              'subject': subjectName,
+              'teacher': teacherName,
+              'time': timeStr,
+              'status': isLive ? 'حصة جارية 🟢' : 'مجدولة ⚪',
+              'status_color': isLive ? Colors.green : Colors.blueGrey,
+            });
+          }
+        } catch (_) {}
       }
+
       if (mounted) {
         setState(() => _liveSessions = sessions);
       }
@@ -283,7 +357,7 @@ class _ReceptionLiveTvKioskScreenState extends State<ReceptionLiveTvKioskScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.centerName,
+                        _resolvedCenterName,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -361,7 +435,7 @@ class _ReceptionLiveTvKioskScreenState extends State<ReceptionLiveTvKioskScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.centerName,
+                        _resolvedCenterName,
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
