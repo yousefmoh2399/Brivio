@@ -26,12 +26,26 @@ class _DataImportScreenState extends State<DataImportScreen> {
   String? _fileName;
   List<_ImportRow> _rows = [];
 
+  // Search & Status filter
+  final TextEditingController _searchController = TextEditingController();
+  _ImportStatus? _filterStatus;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImportFile() async {
     setState(() {
       _isReading = true;
       _errorMessage = null;
       _rows = [];
       _fileName = null;
+      _filterStatus = null;
+      _searchController.clear();
+      _searchQuery = '';
     });
 
     try {
@@ -164,10 +178,28 @@ class _DataImportScreenState extends State<DataImportScreen> {
     Clipboard.setData(ClipboardData(text: template));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('تم نسخ القالب النموذجي إلى الحافظة:\n$template'),
-        duration: const Duration(seconds: 5),
+        content: Text('تم نسخ القالب النموذجي (${_entity.label}) إلى الحافظة:\n$template'),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+  }
+
+  List<_ImportRow> get _filteredRows {
+    return _rows.where((row) {
+      if (_filterStatus != null && row.status != _filterStatus) {
+        return false;
+      }
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matchName = row.fullName.toLowerCase().contains(q);
+        final matchEmail = row.email.toLowerCase().contains(q);
+        final matchPhone = (row.phoneNumber ?? '').toLowerCase().contains(q);
+        if (!matchName && !matchEmail && !matchPhone) return false;
+      }
+      return true;
+    }).toList();
   }
 
   @override
@@ -183,158 +215,601 @@ class _DataImportScreenState extends State<DataImportScreen> {
               row.status == _ImportStatus.invalid,
         )
         .length;
+    final filtered = _filteredRows;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return PortalPageShell(
       title: 'معالج استيراد البيانات (Excel / CSV)',
-      subtitle:
-          'إضافة الطلاب والمعلمين وأولياء الأمور دفعة واحدة من ملف إكسيل أو CSV.',
-      icon: Icons.upload_file,
+      subtitle: 'إضافة الطلاب والمعلمين وأولياء الأمور دفعة واحدة من ملف إكسيل أو CSV بدقة وسرعة.',
+      icon: Icons.upload_file_rounded,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
-          icon: Icons.table_chart,
+          icon: Icons.copy_rounded,
           label: 'نسخ القالب',
           onPressed: _downloadTemplate,
         ),
         PortalAction(
-          icon: Icons.folder_open,
+          icon: Icons.folder_open_rounded,
           label: 'اختيار ملف',
           onPressed: _isReading || _isImporting ? () {} : _pickImportFile,
           primary: true,
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: 260,
-                child: DropdownButtonFormField<_ImportEntity>(
-                  initialValue: _entity,
-                  decoration: const InputDecoration(
-                    labelText: 'نوع البيانات',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _ImportEntity.values
-                      .map(
-                        (entity) => DropdownMenuItem(
-                          value: entity,
-                          child: Text(entity.label),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: _isImporting
-                      ? null
-                      : (value) {
-                          if (value == null) return;
-                          setState(() {
-                            _entity = value;
-                            _rows = _rows
-                                .map((row) => row.validate(value))
-                                .toList();
-                          });
-                        },
+              // Responsive KPI summary strip
+              _buildKpiStrip(
+                isMobile: isMobile,
+                total: _rows.length,
+                valid: validCount,
+                success: successCount,
+                failed: failedCount,
+                isDark: isDark,
+              ),
+
+              const SizedBox(height: 12),
+
+              // Control & Action Toolbar Card
+              _buildToolbar(
+                isMobile: isMobile,
+                validCount: validCount,
+                isDark: isDark,
+              ),
+
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 10),
+                PortalErrorBanner(
+                  message: _errorMessage!,
+                  onRetry: _pickImportFile,
                 ),
-              ),
-              _ImportPill(
-                icon: Icons.insert_drive_file,
-                text: _fileName ?? 'لم يتم اختيار ملف',
-              ),
-              _ImportPill(
-                icon: Icons.check_circle,
-                text: '$validCount صف صالح',
-              ),
-              _ImportPill(
-                icon: Icons.done_all,
-                text: '$successCount تم استيراده',
-              ),
-              _ImportPill(
-                icon: Icons.error_outline,
-                text: '$failedCount بحاجة لتصحيح',
-              ),
-              FilledButton.icon(
-                onPressed: _isImporting || validCount == 0 ? null : _runImport,
-                icon: _isImporting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+              ],
+
+              if (_isReading) ...[
+                const SizedBox(height: 10),
+                const LinearProgressIndicator(),
+              ],
+
+              // Search & filter row if rows are loaded
+              if (_rows.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildSearchAndFilters(isMobile: isMobile, isDark: isDark),
+              ],
+
+              const SizedBox(height: 10),
+
+              // Main content preview area (Mobile Card List or Desktop Table)
+              Expanded(
+                child: _rows.isEmpty
+                    ? _ImportEmptyState(
+                        entity: _entity,
+                        onPickFile: _pickImportFile,
+                        onCopyTemplate: _downloadTemplate,
                       )
-                    : const Icon(Icons.cloud_upload),
-                label: Text(
-                  _isImporting ? 'جارٍ الاستيراد...' : 'بدء استيراد الصفوف الصالحة',
-                ),
+                    : filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.search_off_rounded, size: 48, color: Colors.grey),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'لا توجد صفوف تطابق معايير البحث والفلترة',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white70 : Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : isMobile || constraints.maxWidth < 750
+                            ? _ImportMobileCardList(rows: filtered)
+                            : _ImportPreviewTable(rows: filtered),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          if (_errorMessage != null)
-            PortalErrorBanner(
-              message: _errorMessage!,
-              onRetry: _pickImportFile,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildKpiStrip({
+    required bool isMobile,
+    required int total,
+    required int valid,
+    required int success,
+    required int failed,
+    required bool isDark,
+  }) {
+    final cards = [
+      _ImportStatCard(
+        label: 'إجمالي الصفوف',
+        value: '$total',
+        icon: Icons.receipt_long_rounded,
+        accentColor: Colors.blueGrey,
+        isSelected: _filterStatus == null && _rows.isNotEmpty,
+        onTap: _rows.isNotEmpty ? () => setState(() => _filterStatus = null) : null,
+      ),
+      _ImportStatCard(
+        label: 'جاهز للاستيراد',
+        value: '$valid',
+        icon: Icons.check_circle_outline_rounded,
+        accentColor: AppColors.success,
+        isSelected: _filterStatus == _ImportStatus.ready,
+        onTap: _rows.isNotEmpty ? () => setState(() => _filterStatus = _ImportStatus.ready) : null,
+      ),
+      _ImportStatCard(
+        label: 'تم استيراده',
+        value: '$success',
+        icon: Icons.done_all_rounded,
+        accentColor: Colors.teal,
+        isSelected: _filterStatus == _ImportStatus.success,
+        onTap: _rows.isNotEmpty ? () => setState(() => _filterStatus = _ImportStatus.success) : null,
+      ),
+      _ImportStatCard(
+        label: 'أخطاء / بحاجة لتصحيح',
+        value: '$failed',
+        icon: Icons.warning_amber_rounded,
+        accentColor: AppColors.error,
+        isSelected: _filterStatus == _ImportStatus.invalid || _filterStatus == _ImportStatus.failed,
+        onTap: _rows.isNotEmpty ? () => setState(() => _filterStatus = _ImportStatus.invalid) : null,
+      ),
+    ];
+
+    if (isMobile) {
+      return GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        mainAxisExtent: 72,
+        children: cards,
+      );
+    }
+
+    return Row(
+      children: [
+        for (int i = 0; i < cards.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(child: cards[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildToolbar({
+    required bool isMobile,
+    required int validCount,
+    required bool isDark,
+  }) {
+    final entityDropdown = DropdownButtonFormField<_ImportEntity>(
+      initialValue: _entity,
+      decoration: InputDecoration(
+        labelText: 'نوع البيانات المطلوب استيرادها',
+        prefixIcon: const Icon(Icons.category_outlined, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        isDense: true,
+      ),
+      items: _ImportEntity.values
+          .map(
+            (entity) => DropdownMenuItem(
+              value: entity,
+              child: Text(entity.label, style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
-          if (_isReading) const LinearProgressIndicator(),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _rows.isEmpty
-                ? _ImportEmptyState(entity: _entity)
-                : _ImportPreviewTable(rows: _rows),
+          )
+          .toList(),
+      onChanged: _isImporting
+          ? null
+          : (value) {
+              if (value == null) return;
+              setState(() {
+                _entity = value;
+                _rows = _rows.map((row) => row.validate(value)).toList();
+              });
+            },
+    );
+
+    final filePill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _fileName != null
+              ? AppColors.primary.withValues(alpha: 0.4)
+              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Icon(
+            _fileName != null ? Icons.description_rounded : Icons.folder_open_outlined,
+            size: 18,
+            color: _fileName != null ? AppColors.primary : Colors.grey,
           ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              _fileName ?? 'لم يتم اختيار ملف بعد',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: _fileName != null ? FontWeight.bold : FontWeight.normal,
+                color: _fileName != null
+                    ? (isDark ? Colors.white : Colors.black87)
+                    : (isDark ? Colors.white54 : Colors.black45),
+              ),
+            ),
+          ),
+          if (_fileName != null && !_isImporting) ...[
+            const SizedBox(width: 6),
+            InkWell(
+              onTap: _pickImportFile,
+              borderRadius: BorderRadius.circular(4),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.refresh_rounded, size: 16, color: AppColors.primary),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    final importButton = FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.success,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      onPressed: _isImporting || validCount == 0 ? null : _runImport,
+      icon: _isImporting
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            )
+          : const Icon(Icons.cloud_upload_rounded, size: 20),
+      label: Text(
+        _isImporting
+            ? 'جارٍ الاستيراد...'
+            : isMobile
+                ? 'استيراد $validCount صالحة'
+                : 'بدء استيراد الصفوف الصالحة ($validCount)',
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+      ),
+    );
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                entityDropdown,
+                const SizedBox(height: 10),
+                filePill,
+                const SizedBox(height: 10),
+                importButton,
+              ],
+            )
+          : Row(
+              children: [
+                SizedBox(
+                  width: 250,
+                  child: entityDropdown,
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: filePill),
+                const SizedBox(width: 12),
+                importButton,
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSearchAndFilters({required bool isMobile, required bool isDark}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface.withValues(alpha: 0.6) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'بحث بالاسم، البريد الإلكتروني، أو الهاتف...',
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: const TextStyle(fontSize: 13),
+              onChanged: (val) => setState(() => _searchQuery = val.trim()),
+            ),
+          ),
+          if (_searchQuery.isNotEmpty)
+            InkWell(
+              onTap: () {
+                _searchController.clear();
+                setState(() => _searchQuery = '');
+              },
+              child: const Icon(Icons.close_rounded, size: 18, color: Colors.grey),
+            ),
+          if (_filterStatus != null) ...[
+            const SizedBox(width: 8),
+            ActionChip(
+              avatar: Icon(_filterStatus!.icon, size: 14, color: _filterStatus!.color),
+              label: Text(_filterStatus!.label, style: const TextStyle(fontSize: 11)),
+              onPressed: () => setState(() => _filterStatus = null),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ImportPill extends StatelessWidget {
+class _ImportStatCard extends StatelessWidget {
+  final String label;
+  final String value;
   final IconData icon;
-  final String text;
+  final Color accentColor;
+  final bool isSelected;
+  final VoidCallback? onTap;
 
-  const _ImportPill({required this.icon, required this.text});
+  const _ImportStatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.accentColor,
+    this.isSelected = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Text(text),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? accentColor.withValues(alpha: isDark ? 0.2 : 0.1)
+                : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? accentColor
+                  : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+              width: isSelected ? 1.5 : 0.8,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: accentColor, size: 18),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : Colors.black87,
+                        height: 1.1,
+                      ),
+                    ),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? accentColor : (isDark ? Colors.white60 : Colors.black54),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _ImportEmptyState extends StatelessWidget {
   final _ImportEntity entity;
+  final VoidCallback onPickFile;
+  final VoidCallback onCopyTemplate;
 
-  const _ImportEmptyState({required this.entity});
+  const _ImportEmptyState({
+    required this.entity,
+    required this.onPickFile,
+    required this.onCopyTemplate,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.upload_file, size: 48),
-                const SizedBox(height: 12),
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 32,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 Text(
-                  'اختر ملف CSV أو Excel لمعاينة البيانات والتحقق من صحتها قبل الاستيراد.',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  'استيراد ${entity.label} دفعة واحدة',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
-                SelectableText(entity.template, textAlign: TextAlign.center),
-                const SizedBox(height: 8),
-                const Text(
-                  'تأكد من مطابقة أسماء الأعمدة في السطر الأول لنموذج القالب أعلاه.',
+                const SizedBox(height: 6),
+                Text(
+                  'قم باختيار ملف إكسيل (.xlsx) أو ملف نصي مفصول بفواصل (.csv) لمعاينة البيانات والتحقق من صحتها تلقائياً قبل الاستيراد.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    height: 1.4,
+                  ),
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                // Template preview box
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.black12,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'تنسيق الأعمدة المطلوب:',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                          ),
+                          InkWell(
+                            onTap: onCopyTemplate,
+                            child: const Row(
+                              children: [
+                                Icon(Icons.copy_rounded, size: 14, color: AppColors.primary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'نسخ النموذج',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SelectableText(
+                        entity.template,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: onCopyTemplate,
+                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        label: const Text('نسخ نموذج القالب'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: onPickFile,
+                        icon: const Icon(Icons.folder_open_rounded, size: 18),
+                        label: const Text('اختيار ملف البيانات'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -345,6 +820,201 @@ class _ImportEmptyState extends StatelessWidget {
   }
 }
 
+/// Mobile Card List View for screens < 750px
+class _ImportMobileCardList extends StatelessWidget {
+  final List<_ImportRow> rows;
+
+  const _ImportMobileCardList({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const BouncingScrollPhysics(),
+      itemCount: rows.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) => _ImportRowCard(row: rows[index]),
+    );
+  }
+}
+
+class _ImportRowCard extends StatelessWidget {
+  final _ImportRow row;
+
+  const _ImportRowCard({required this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: row.status == _ImportStatus.invalid || row.status == _ImportStatus.failed
+              ? AppColors.error.withValues(alpha: 0.35)
+              : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          width: row.status == _ImportStatus.invalid || row.status == _ImportStatus.failed ? 1.2 : 0.8,
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Row number & Status badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'صف #${row.rowNumber}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: row.status.backgroundColor,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: row.status.color.withValues(alpha: 0.3), width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(row.status.icon, size: 14, color: row.status.color),
+                    const SizedBox(width: 4),
+                    Text(
+                      row.status.label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: row.status.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Name & Email
+          Text(
+            row.fullName.isNotEmpty ? row.fullName : '— بدون اسم —',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              const Icon(Icons.email_outlined, size: 14, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  row.email.isNotEmpty ? row.email : '— بدون بريد —',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Extra details chips if available
+          if (row.phoneNumber != null ||
+              row.branchId != null ||
+              row.gradeLevel != null ||
+              row.specialization != null) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (row.phoneNumber != null && row.phoneNumber!.isNotEmpty)
+                  _buildDetailTag(Icons.phone_outlined, row.phoneNumber!, isDark),
+                if (row.branchId != null && row.branchId!.isNotEmpty)
+                  _buildDetailTag(Icons.business_outlined, 'الفرع: ${row.branchId!}', isDark),
+                if (row.gradeLevel != null && row.gradeLevel!.isNotEmpty)
+                  _buildDetailTag(Icons.school_outlined, row.gradeLevel!, isDark),
+                if (row.specialization != null && row.specialization!.isNotEmpty)
+                  _buildDetailTag(Icons.menu_book_outlined, row.specialization!, isDark),
+              ],
+            ),
+          ],
+
+          // Error or success result banner
+          if (row.resultMessage.isNotEmpty && row.resultMessage != 'جاهز') ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: row.status.backgroundColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: row.status.color.withValues(alpha: 0.25),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(row.status.icon, size: 16, color: row.status.color),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      row.resultMessage,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: row.status.color,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailTag(IconData icon, String label, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.grey),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Desktop / Tablet Wide Preview Table (>= 750px)
 class _ImportPreviewTable extends StatelessWidget {
   final List<_ImportRow> rows;
 
@@ -352,48 +1022,108 @@ class _ImportPreviewTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 0.8,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SingleChildScrollView(
           child: DataTable(
+            headingRowColor: WidgetStatePropertyAll(
+              isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+            ),
             columns: const [
-              DataColumn(label: Text('رقم الصف')),
-              DataColumn(label: Text('الاسم بالكامل')),
-              DataColumn(label: Text('البريد الإلكتروني')),
-              DataColumn(label: Text('معرف الفرع')),
-              DataColumn(label: Text('الحالة')),
-              DataColumn(label: Text('التفاصيل / النتيجة')),
+              DataColumn(label: Text('رقم الصف', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('الاسم بالكامل', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('البريد الإلكتروني', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('معرف الفرع / الهاتف', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('الحالة', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('التفاصيل / النتيجة', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: rows
                 .map(
                   (row) => DataRow(
                     color: WidgetStatePropertyAll(row.status.backgroundColor),
                     cells: [
-                      DataCell(Text(row.rowNumber.toString())),
-                      DataCell(Text(row.fullName)),
-                      DataCell(Text(row.email)),
-                      DataCell(Text(row.branchId ?? '')),
                       DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              row.status.icon,
-                              size: 18,
-                              color: row.status.color,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(row.status.label),
-                          ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '#${row.rowNumber}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          row.fullName.isNotEmpty ? row.fullName : '—',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      DataCell(Text(row.email.isNotEmpty ? row.email : '—')),
+                      DataCell(
+                        Text(
+                          [
+                            if (row.branchId != null) 'فرع: ${row.branchId}',
+                            if (row.phoneNumber != null) 'هاتف: ${row.phoneNumber}',
+                          ].join(' • '),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: row.status.backgroundColor,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: row.status.color.withValues(alpha: 0.3), width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                row.status.icon,
+                                size: 16,
+                                color: row.status.color,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                row.status.label,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: row.status.color,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       DataCell(
                         ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 360),
+                          constraints: const BoxConstraints(maxWidth: 340),
                           child: Text(
                             row.resultMessage,
                             overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: row.status == _ImportStatus.invalid || row.status == _ImportStatus.failed
+                                  ? AppColors.error
+                                  : null,
+                              fontWeight: row.status == _ImportStatus.invalid ? FontWeight.bold : null,
+                            ),
                           ),
                         ),
                       ),
@@ -442,7 +1172,7 @@ enum _ImportStatus {
 
   const _ImportStatus(this.label, this.icon, this.color);
 
-  Color get backgroundColor => color.withValues(alpha: .06);
+  Color get backgroundColor => color.withValues(alpha: .08);
 }
 
 class _ImportRow {

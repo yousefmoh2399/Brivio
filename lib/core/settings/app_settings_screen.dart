@@ -394,44 +394,54 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
+          final dialogWidth = MediaQuery.of(context).size.width.clamp(280.0, 480.0);
           return AlertDialog(
             backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             title: Row(
               children: [
                 const Icon(Icons.person_outline_rounded, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(context.tr('تعديل البيانات الشخصية'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Expanded(
+                  child: Text(
+                    context.tr('تعديل البيانات الشخصية'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
               ],
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.tr('الاسم الكامل'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.badge_outlined, size: 20),
-                      hintText: context.tr('أدخل اسمك الكامل'),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            content: SizedBox(
+              width: dialogWidth,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.tr('الاسم الكامل'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                        hintText: context.tr('أدخل اسمك الكامل'),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(context.tr('رقم الهاتف للتواصل'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                      hintText: '01xxxxxxxxx',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 14),
+                    Text(context.tr('رقم الهاتف للتواصل'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                        hintText: '01xxxxxxxxx',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -512,49 +522,59 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
+          final dialogWidth = MediaQuery.of(context).size.width.clamp(280.0, 480.0);
           return AlertDialog(
             backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             title: Row(
               children: [
                 const Icon(Icons.lock_reset_rounded, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(context.tr('تغيير كلمة المرور'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Expanded(
+                  child: Text(
+                    context.tr('تغيير كلمة المرور'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
               ],
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.tr('كلمة المرور الجديدة'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: passController,
-                    obscureText: obscurePass,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                      suffixIcon: IconButton(
-                        icon: Icon(obscurePass ? Icons.visibility_off : Icons.visibility, size: 20),
-                        onPressed: () => setDialogState(() => obscurePass = !obscurePass),
+            content: SizedBox(
+              width: dialogWidth,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.tr('كلمة المرور الجديدة'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: passController,
+                      obscureText: obscurePass,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscurePass ? Icons.visibility_off : Icons.visibility, size: 20),
+                          onPressed: () => setDialogState(() => obscurePass = !obscurePass),
+                        ),
+                        hintText: context.tr('6 أحرف أو أرقام على الأقل'),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      hintText: context.tr('6 أحرف أو أرقام على الأقل'),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(context.tr('تأكيد كلمة المرور الجديدة'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: confirmController,
-                    obscureText: obscurePass,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                      hintText: context.tr('أعد كتابة كلمة المرور للتأكيد'),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 14),
+                    Text(context.tr('تأكيد كلمة المرور الجديدة'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: confirmController,
+                      obscureText: obscurePass,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                        hintText: context.tr('أعد كتابة كلمة المرور للتأكيد'),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -702,6 +722,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: Row(
           children: [
             const Icon(Icons.logout_rounded, color: Colors.deepOrange),
@@ -740,6 +761,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: Row(
           children: [
             const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
@@ -1247,35 +1269,40 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                         const Divider(height: 1),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.cyan.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.storage_rounded, color: Colors.cyan, size: 22),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      context.tr('تفريغ الذاكرة المؤقتة (Clear Cache)'),
-                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 420;
+                              final info = Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.cyan.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      context.tr('إزالة الصور المؤقتة وملفات التخزين لتسريع التطبيق وحل أي بطء'),
-                                      style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                                    child: const Icon(Icons.storage_rounded, color: Colors.cyan, size: 22),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          context.tr('تفريغ الذاكرة المؤقتة (Clear Cache)'),
+                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          context.tr('إزالة الصور المؤقتة وملفات التخزين لتسريع التطبيق وحل أي بطء'),
+                                          style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              _isClearingCache
+                                  ),
+                                ],
+                              );
+
+                              final button = _isClearingCache
                                   ? const SizedBox(
                                       width: 24,
                                       height: 24,
@@ -1290,8 +1317,27 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                         ),
                                       ),
                                       child: Text(context.tr('تنظيف 🧹'), style: const TextStyle(fontSize: 12)),
-                                    ),
-                            ],
+                                    );
+
+                              if (isNarrow) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    info,
+                                    const SizedBox(height: 10),
+                                    Align(alignment: AlignmentDirectional.centerEnd, child: button),
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(child: info),
+                                  const SizedBox(width: 8),
+                                  button,
+                                ],
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -1351,44 +1397,50 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.school_rounded,
-                                  color: AppColors.primary,
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      context.tr('منظومة بريفيو لإدارة المراكز التعليمية • Brivio LMS'),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14.5,
-                                      ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 460;
+                              final info = Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: primaryColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      context.tr('الإصدار 2.5.0 (Build 850) • متصل بالسحابة'),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDark ? Colors.white60 : Colors.black54,
-                                      ),
+                                    child: const Icon(
+                                      Icons.school_rounded,
+                                      color: AppColors.primary,
+                                      size: 26,
                                     ),
-                                  ],
-                                ),
-                              ),
-                              Container(
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          context.tr('منظومة بريفيو لإدارة المراكز التعليمية • Brivio LMS'),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: isNarrow ? 13.5 : 14.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          context.tr('الإصدار 2.5.0 (Build 850) • متصل بالسحابة'),
+                                          style: TextStyle(
+                                            fontSize: isNarrow ? 11 : 12,
+                                            color: isDark ? Colors.white60 : Colors.black54,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+
+                              final badge = Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: AppColors.success.withValues(alpha: 0.15),
@@ -1402,8 +1454,27 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ),
-                            ],
+                              );
+
+                              if (isNarrow) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    info,
+                                    const SizedBox(height: 8),
+                                    Align(alignment: AlignmentDirectional.centerEnd, child: badge),
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(child: info),
+                                  const SizedBox(width: 8),
+                                  badge,
+                                ],
+                              );
+                            },
                           ),
                         ),
                         const Divider(height: 1),
@@ -1529,168 +1600,214 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
         ],
       ),
       padding: const EdgeInsets.all(18),
-      child: Column(
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 420;
+
+          return Column(
             children: [
-              EditableAvatar(
-                avatarUrl: _avatarUrl,
-                fullName: _userName ?? 'مستخدم المنظومة',
-                role: _userRole,
-                userId: Supabase.instance.client.auth.currentUser?.id,
-                userEmail: _userEmail,
-                radius: 30,
-                onAvatarChanged: (newUrl) {
-                  setState(() {
-                    _avatarUrl = newUrl;
-                  });
-                },
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  EditableAvatar(
+                    avatarUrl: _avatarUrl,
+                    fullName: _userName ?? 'مستخدم المنظومة',
+                    role: _userRole,
+                    userId: Supabase.instance.client.auth.currentUser?.id,
+                    userEmail: _userEmail,
+                    radius: isNarrow ? 26 : 30,
+                    onAvatarChanged: (newUrl) {
+                      setState(() {
+                        _avatarUrl = newUrl;
+                      });
+                    },
+                  ),
+                  SizedBox(width: isNarrow ? 10 : 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            _userName ?? 'مستخدم المنظومة',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16.5,
-                              color: isDark ? Colors.white : Colors.black87,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _userName ?? 'مستخدم المنظومة',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: isNarrow ? 15 : 16.5,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
                             ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: (_lastPingMs != null || !_isTestingPing)
+                                    ? AppColors.success.withValues(alpha: 0.15)
+                                    : Colors.orange.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: (_lastPingMs != null || !_isTestingPing)
+                                          ? AppColors.success
+                                          : Colors.orange,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _lastPingMs != null ? '$_lastPingMs ms' : context.tr('متصل'),
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: (_lastPingMs != null || !_isTestingPing)
+                                          ? AppColors.success
+                                          : Colors.orange,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _userEmail ?? context.tr('غير مسجل بريد إلكتروني'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white60 : Colors.black54,
                           ),
                         ),
+                        if (_userPhone != null && _userPhone!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '📞 $_userPhone',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white54 : Colors.black45,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: (_lastPingMs != null || !_isTestingPing)
-                                ? AppColors.success.withValues(alpha: 0.15)
-                                : Colors.orange.withValues(alpha: 0.15),
+                            color: primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: primary.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: (_lastPingMs != null || !_isTestingPing)
-                                      ? AppColors.success
-                                      : Colors.orange,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                _lastPingMs != null ? '$_lastPingMs ms' : context.tr('متصل'),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: (_lastPingMs != null || !_isTestingPing)
-                                      ? AppColors.success
-                                      : Colors.orange,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            _formatRole(_userRole),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: primary,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _userEmail ?? context.tr('غير مسجل بريد إلكتروني'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              // Quick Action Buttons
+              if (isNarrow)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _openEditProfileDialog,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        side: BorderSide(
+                          color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: Text(
+                        context.tr('تعديل البيانات'),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
-                    if (_userPhone != null && _userPhone!.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '📞 $_userPhone',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: isDark ? Colors.white54 : Colors.black45,
+                    const SizedBox(height: 6),
+                    OutlinedButton.icon(
+                      onPressed: _openChangePasswordDialog,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        side: BorderSide(
+                          color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: primary.withValues(alpha: 0.25),
-                          width: 1,
+                      icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                      label: Text(
+                        context.tr('تغيير كلمة المرور'),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _openEditProfileDialog,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          side: BorderSide(
+                            color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: Text(
+                          context.tr('تعديل البيانات'),
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                         ),
                       ),
-                      child: Text(
-                        _formatRole(_userRole),
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                          color: primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _openChangePasswordDialog,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          side: BorderSide(
+                            color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                        label: Text(
+                          context.tr('تغيير كلمة المرور'),
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
             ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(height: 1),
-          const SizedBox(height: 10),
-          // Quick Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _openEditProfileDialog,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    side: BorderSide(
-                      color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: Text(
-                    context.tr('تعديل البيانات'),
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _openChangePasswordDialog,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    side: BorderSide(
-                      color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  icon: const Icon(Icons.lock_reset_rounded, size: 16),
-                  label: Text(
-                    context.tr('تغيير كلمة المرور'),
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -1778,7 +1895,7 @@ class _ThemeSelectCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? primary.withValues(alpha: isDark ? 0.25 : 0.1)
@@ -1796,22 +1913,28 @@ class _ThemeSelectCard extends StatelessWidget {
             Icon(
               icon,
               color: isSelected ? primary : (isDark ? Colors.white70 : Colors.black54),
-              size: 26,
+              size: 24,
             ),
-            const SizedBox(height: 6),
-            Text(
-              context.tr(label),
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
-                color: isSelected ? primary : null,
+            const SizedBox(height: 5),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                context.tr(label),
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 12.5,
+                  color: isSelected ? primary : null,
+                ),
               ),
             ),
-            Text(
-              context.tr(subtitle),
-              style: TextStyle(
-                fontSize: 10.5,
-                color: isDark ? Colors.white54 : Colors.black45,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                context.tr(subtitle),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? Colors.white54 : Colors.black45,
+                ),
               ),
             ),
           ],
@@ -1844,7 +1967,7 @@ class _LanguageCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         decoration: BoxDecoration(
           color: isSelected
               ? primary.withValues(alpha: isDark ? 0.25 : 0.1)
@@ -1858,19 +1981,24 @@ class _LanguageCard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(flag, style: const TextStyle(fontSize: 20)),
+            Text(flag, style: const TextStyle(fontSize: 18)),
             const SizedBox(width: 8),
-            Text(
-              name,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                fontSize: 13.5,
-                color: isSelected ? primary : null,
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 13,
+                    color: isSelected ? primary : null,
+                  ),
+                ),
               ),
             ),
             if (isSelected) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 4),
+              const Icon(Icons.check_circle_rounded, size: 15, color: AppColors.primary),
             ],
           ],
         ),
