@@ -36,6 +36,7 @@ import 'screens/parent_helpdesk_screen.dart';
 import 'tabs/parent_home_tab.dart';
 import 'tabs/parent_progress_tab.dart';
 import 'tabs/parent_attendance_tab.dart';
+import 'tabs/parent_payments_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -1034,97 +1035,19 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildPaymentsPage() {
-    final summary = _financialSummary;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PortalMetricGrid(
-          children: [
-            PortalMetricCard(
-              label: 'عدد الفواتير',
-              value: (summary?.invoiceCount ?? _invoices.length).toString(),
-              icon: Icons.receipt,
-              accentColor: AppColors.info,
-            ),
-            PortalMetricCard(
-              label: 'إجمالي المستحق',
-              value: _money(summary?.totalDueMinor ?? 0, summary?.currency),
-              icon: Icons.account_balance_wallet,
-              accentColor: AppColors.warning,
-            ),
-            PortalMetricCard(
-              label: 'المدفوع كاش',
-              value: _money(summary?.totalPaidMinor ?? 0, summary?.currency),
-              icon: Icons.verified,
-              accentColor: AppColors.success,
-            ),
-            PortalMetricCard(
-              label: 'المتبقي للسداد',
-              value: _money(
-                summary?.remainingBalanceMinor ?? 0,
-                summary?.currency,
-              ),
-              icon: Icons.pending_actions,
-              accentColor: (summary?.remainingBalanceMinor ?? 0) > 0
-                  ? AppColors.error
-                  : AppColors.success,
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            const Expanded(child: PortalSectionTitle(title: 'فواتير واشتراكات الحصص')),
-            FilledButton.tonalIcon(
-              onPressed: _selectedChild == null ? null : _exportFinancialLedger,
-              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: const Text('كشف حساب PDF معتمد'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _invoices.isEmpty,
-          emptyText: 'لا توجد فواتير صادرة لهذا الطالب.',
-          children: _invoices
-              .map(
-                (invoice) => PortalListCard(
-                  icon: Icons.receipt_long,
-                  accentColor: _statusColor(invoice.status),
-                  title: invoice.invoiceNumber.isEmpty
-                      ? 'فاتورة'
-                      : invoice.invoiceNumber,
-                  subtitle:
-                      '${_money(invoice.totalMinor, invoice.currency)} • استحقاق ${_formatDate(invoice.dueAt)}',
-                  trailing: [PortalStatusChip(status: invoice.status)],
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'إيصالات السداد والمعاملات'),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _receipts.isEmpty,
-          emptyText: 'لا توجد إيصالات سداد مسجلة حتى الآن.',
-          children: _receipts
-              .map(
-                (receipt) => PortalListCard(
-                  icon: Icons.receipt,
-                  accentColor: AppColors.success,
-                  title: receipt.receiptNumber.isEmpty
-                      ? 'إيصال #${_shortId(receipt.id)}'
-                      : receipt.receiptNumber,
-                  subtitle:
-                      'المبلغ المسدد: ${_money(receipt.amountMinor, receipt.currency)} • التاريخ: ${_formatDate(receipt.issuedAt)}',
-                  trailing: const [PortalStatusChip(status: 'paid')],
-                  onTap: () => _showReceiptDialog(receipt),
-                ),
-              )
-              .toList(),
-        ),
-      ],
+    return ParentPaymentsTab(
+      child: _selectedChild,
+      linkedChildren: _linkedChildren,
+      onChildSelected: (child) {
+        setState(() => _selectedChild = child);
+        _loadChildDetails(child);
+      },
+      financialSummary: _financialSummary,
+      invoices: _invoices,
+      receipts: _receipts,
+      childGroups: _childGroups,
+      onExportLedger: _exportFinancialLedger,
+      onShowReceipt: _showReceiptDialog,
     );
   }
 
