@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../core/services/thermal_printer_service.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
+import '../../../academy/data/repositories/supabase_academy_repositories.dart';
+import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/thermal_printer_settings_dialog.dart';
 
 class BookstorePosScreen extends StatefulWidget {
@@ -26,6 +29,9 @@ class BookstorePosScreen extends StatefulWidget {
 
 class _BookstorePosScreenState extends State<BookstorePosScreen> {
   final _searchBookController = TextEditingController();
+
+  late final SupabaseTeacherRepository _teacherRepo;
+  List<Teacher> _teachers = [];
 
   String _centerName = 'المركز التعليمي';
   String _cashierName = 'مسؤول الخزينة والمخزن';
@@ -47,6 +53,8 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
   @override
   void initState() {
     super.initState();
+    final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+    _teacherRepo = SupabaseTeacherRepository(wrapper);
     if (widget.centerName != null && widget.centerName!.isNotEmpty) {
       _centerName = widget.centerName!;
     }
@@ -61,8 +69,20 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     await _loadCenterInfo();
     await Future.wait([
       _loadStudents(),
+      _loadTeachers(),
       _loadInventory(),
     ]);
+  }
+
+  Future<void> _loadTeachers() async {
+    try {
+      final res = await _teacherRepo.fetchTeachers();
+      if (mounted) {
+        setState(() {
+          _teachers = res.data;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadCenterInfo() async {
@@ -238,6 +258,7 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         items.add({
           'id': rowMap['id'].toString(),
           'title': rowMap['title']?.toString() ?? '',
+          'teacher_id': rowMap['teacher_id']?.toString(),
           'teacher': rowMap['teacher']?.toString() ?? 'السنتر',
           'price': (rowMap['price'] as num?)?.toDouble() ?? 40.0,
           'stock': (rowMap['stock'] as num?)?.toInt() ?? 0,
@@ -352,96 +373,134 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     final teacherCtrl = TextEditingController();
     final priceCtrl = TextEditingController(text: '40');
     final stockCtrl = TextEditingController(text: '30');
+    Teacher? selectedTeacher;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        actionsOverflowDirection: VerticalDirection.down,
-        title: const Row(
-          children: [
-            Icon(Icons.add_box_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('إضافة مذكرة / ملزمة جديدة للمخزن'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
+          title: const Row(
             children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'اسم المذكرة أو الملزمة', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: teacherCtrl,
-                decoration: const InputDecoration(labelText: 'اسم الأستاذ / المادة', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: priceCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'سعر البيع (ج.م)', suffixText: 'ج.م', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: stockCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'الكمية المتوفرة بالمخزن', suffixText: 'نسخة', border: OutlineInputBorder()),
-              ),
+              Icon(Icons.add_box_rounded, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('إضافة مذكرة / ملزمة جديدة للمخزن'),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          FilledButton(
-            onPressed: () async {
-              final title = titleCtrl.text.trim();
-              final teacher = teacherCtrl.text.trim().isEmpty ? 'السنتر' : teacherCtrl.text.trim();
-              final price = double.tryParse(priceCtrl.text.trim()) ?? 40.0;
-              final stock = int.tryParse(stockCtrl.text.trim()) ?? 30;
-              if (title.isEmpty) return;
-
-              String itemId = 'custom-${DateTime.now().millisecondsSinceEpoch}';
-              try {
-                final inserted = await Supabase.instance.client.from('bookstore_items').insert({
-                  'title': title,
-                  'teacher': teacher,
-                  'price': price,
-                  'stock': stock,
-                  'center_id': _centerId,
-                  'status': 'active',
-                }).select('id').maybeSingle();
-                if (inserted != null && inserted['id'] != null) {
-                  itemId = inserted['id'].toString();
-                }
-              } catch (e) {
-                debugPrint('Supabase insert bookstore item error: $e');
-              }
-
-              setState(() {
-                _inventory.insert(0, {
-                  'id': itemId,
-                  'title': title,
-                  'teacher': teacher,
-                  'price': price,
-                  'stock': stock,
-                });
-              });
-              await _saveLocalInventory();
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تمت إضافة المذكرة إلى المخزن بنجاح 📚'),
-                    backgroundColor: Colors.green,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'اسم المذكرة أو الملزمة', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<Teacher?>(
+                  // ignore: deprecated_member_use
+                  value: selectedTeacher,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'المدرس التابع له الملزمة',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_pin_rounded),
                   ),
-                );
-              }
-            },
-            child: const Text('إضافة وحفظ'),
+                  hint: const Text('السنتر (عام / بدون مدرس)'),
+                  items: [
+                    const DropdownMenuItem<Teacher?>(
+                      value: null,
+                      child: Text('🏢 السنتر (عام / بدون مدرس)'),
+                    ),
+                    ..._teachers.map((t) => DropdownMenuItem<Teacher?>(
+                      value: t,
+                      child: Text('👤 أ. ${t.fullName}', overflow: TextOverflow.ellipsis),
+                    )),
+                  ],
+                  onChanged: (t) {
+                    setDialogState(() {
+                      selectedTeacher = t;
+                      if (t != null) {
+                        teacherCtrl.text = t.fullName;
+                      } else {
+                        teacherCtrl.text = 'السنتر';
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: teacherCtrl,
+                  decoration: const InputDecoration(labelText: 'اسم الأستاذ / المادة (للطباعة)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'سعر البيع (ج.م)', suffixText: 'ج.م', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: stockCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'الكمية المتوفرة بالمخزن', suffixText: 'نسخة', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () async {
+                final title = titleCtrl.text.trim();
+                final teacher = selectedTeacher?.fullName ?? (teacherCtrl.text.trim().isEmpty ? 'السنتر' : teacherCtrl.text.trim());
+                final teacherId = selectedTeacher?.id;
+                final price = double.tryParse(priceCtrl.text.trim()) ?? 40.0;
+                final stock = int.tryParse(stockCtrl.text.trim()) ?? 30;
+                if (title.isEmpty) return;
+
+                String itemId = 'custom-${DateTime.now().millisecondsSinceEpoch}';
+                try {
+                  final inserted = await Supabase.instance.client.from('bookstore_items').insert({
+                    'title': title,
+                    'teacher': teacher,
+                    if (teacherId != null) 'teacher_id': teacherId,
+                    'price': price,
+                    'stock': stock,
+                    'center_id': _centerId,
+                    'status': 'active',
+                  }).select('id').maybeSingle();
+                  if (inserted != null && inserted['id'] != null) {
+                    itemId = inserted['id'].toString();
+                  }
+                } catch (e) {
+                  debugPrint('Supabase insert bookstore item error: $e');
+                }
+
+                setState(() {
+                  _inventory.insert(0, {
+                    'id': itemId,
+                    'title': title,
+                    'teacher_id': teacherId,
+                    'teacher': teacher,
+                    'price': price,
+                    'stock': stock,
+                  });
+                });
+                await _saveLocalInventory();
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تمت إضافة المذكرة وربطها بالمدرس بنجاح 📚'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text('إضافة وحفظ'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -452,113 +511,161 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
     final priceCtrl = TextEditingController(text: item['price']?.toString() ?? '40');
     final stockCtrl = TextEditingController(text: item['stock']?.toString() ?? '0');
 
+    Teacher? selectedTeacher;
+    final currentTeacherId = item['teacher_id']?.toString();
+    final currentTeacherName = item['teacher']?.toString();
+
+    if (currentTeacherId != null && currentTeacherId.isNotEmpty) {
+      try {
+        selectedTeacher = _teachers.firstWhere(
+          (t) => t.id == currentTeacherId || t.profileId == currentTeacherId,
+        );
+      } catch (_) {}
+    }
+    if (selectedTeacher == null && currentTeacherName != null && currentTeacherName.isNotEmpty && currentTeacherName != 'السنتر') {
+      try {
+        selectedTeacher = _teachers.firstWhere(
+          (t) => t.fullName == currentTeacherName || currentTeacherName.contains(t.fullName),
+        );
+      } catch (_) {}
+    }
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        actionsOverflowDirection: VerticalDirection.down,
-        title: const Row(
-          children: [
-            Icon(Icons.edit_note_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('تعديل بيانات وسعر المذكرة والمخزن'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
+          title: const Row(
             children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'اسم المذكرة أو الملزمة', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: teacherCtrl,
-                decoration: const InputDecoration(labelText: 'اسم الأستاذ / المادة', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: priceCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'سعر البيع (ج.م)', suffixText: 'ج.م', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: stockCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'الكمية الحالية في المخزن', suffixText: 'نسخة', border: OutlineInputBorder()),
-              ),
+              Icon(Icons.edit_note_rounded, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('تعديل بيانات وسعر المذكرة والمخزن'),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          FilledButton(
-            onPressed: () async {
-              final newTitle = titleCtrl.text.trim();
-              final newTeacher = teacherCtrl.text.trim().isEmpty ? 'السنتر' : teacherCtrl.text.trim();
-              final newPrice = double.tryParse(priceCtrl.text.trim()) ?? (item['price'] as double);
-              final newStock = int.tryParse(stockCtrl.text.trim()) ?? (item['stock'] as int);
-              if (newTitle.isEmpty) return;
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'اسم المذكرة أو الملزمة', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<Teacher?>(
+                  // ignore: deprecated_member_use
+                  value: selectedTeacher,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'المدرس التابع له الملزمة',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_pin_rounded),
+                  ),
+                  hint: const Text('السنتر (عام / بدون مدرس)'),
+                  items: [
+                    const DropdownMenuItem<Teacher?>(
+                      value: null,
+                      child: Text('🏢 السنتر (عام / بدون مدرس)'),
+                    ),
+                    ..._teachers.map((t) => DropdownMenuItem<Teacher?>(
+                      value: t,
+                      child: Text('👤 أ. ${t.fullName}', overflow: TextOverflow.ellipsis),
+                    )),
+                  ],
+                  onChanged: (t) {
+                    setDialogState(() {
+                      selectedTeacher = t;
+                      if (t != null) {
+                        teacherCtrl.text = t.fullName;
+                      } else {
+                        teacherCtrl.text = 'السنتر';
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: teacherCtrl,
+                  decoration: const InputDecoration(labelText: 'اسم الأستاذ / المادة (للطباعة)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'سعر البيع (ج.م)', suffixText: 'ج.م', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: stockCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'الكمية الحالية في المخزن', suffixText: 'نسخة', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () async {
+                final newTitle = titleCtrl.text.trim();
+                final newTeacher = selectedTeacher?.fullName ?? (teacherCtrl.text.trim().isEmpty ? 'السنتر' : teacherCtrl.text.trim());
+                final newTeacherId = selectedTeacher?.id;
+                final newPrice = double.tryParse(priceCtrl.text.trim()) ?? (item['price'] as double);
+                final newStock = int.tryParse(stockCtrl.text.trim()) ?? (item['stock'] as int);
+                if (newTitle.isEmpty) return;
 
-              try {
-                final isUuid = RegExp(
-                  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-                ).hasMatch(item['id']?.toString() ?? '');
-                if (isUuid) {
-                  await Supabase.instance.client.from('bookstore_items').update({
+                try {
+                  final isUuid = RegExp(
+                    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+                  ).hasMatch(item['id']?.toString() ?? '');
+                  final updateData = <String, dynamic>{
                     'title': newTitle,
                     'teacher': newTeacher,
+                    'teacher_id': newTeacherId,
                     'price': newPrice,
                     'stock': newStock,
                     'updated_at': DateTime.now().toIso8601String(),
-                  }).eq('id', item['id']);
-                } else {
-                  final updatedRows = await Supabase.instance.client.from('bookstore_items').update({
-                    'title': newTitle,
-                    'teacher': newTeacher,
-                    'price': newPrice,
-                    'stock': newStock,
-                    'updated_at': DateTime.now().toIso8601String(),
-                  }).eq('title', item['title']).select('id');
-                  if ((updatedRows as List).isEmpty) {
-                    final inserted = await Supabase.instance.client.from('bookstore_items').insert({
-                      'title': newTitle,
-                      'teacher': newTeacher,
-                      'price': newPrice,
-                      'stock': newStock,
-                      'center_id': _centerId,
-                      'status': 'active',
-                    }).select('id').maybeSingle();
-                    if (inserted != null && inserted['id'] != null) {
-                      item['id'] = inserted['id'].toString();
+                  };
+                  if (isUuid) {
+                    await Supabase.instance.client.from('bookstore_items').update(updateData).eq('id', item['id']);
+                  } else {
+                    final updatedRows = await Supabase.instance.client.from('bookstore_items').update(updateData).eq('title', item['title']).select('id');
+                    if ((updatedRows as List).isEmpty) {
+                      final inserted = await Supabase.instance.client.from('bookstore_items').insert({
+                        ...updateData,
+                        'center_id': _centerId,
+                        'status': 'active',
+                      }).select('id').maybeSingle();
+                      if (inserted != null && inserted['id'] != null) {
+                        item['id'] = inserted['id'].toString();
+                      }
                     }
                   }
+                } catch (e) {
+                  debugPrint('Supabase update bookstore item error: $e');
                 }
-              } catch (e) {
-                debugPrint('Supabase update bookstore item error: $e');
-              }
 
-              setState(() {
-                item['title'] = newTitle;
-                item['teacher'] = newTeacher;
-                item['price'] = newPrice;
-                item['stock'] = newStock;
-              });
-              await _saveLocalInventory();
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم حفظ وتعديل بيانات المذكرة والمخزن بنجاح ✏️'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            child: const Text('حفظ التعديلات'),
-          ),
-        ],
+                setState(() {
+                  item['title'] = newTitle;
+                  item['teacher'] = newTeacher;
+                  item['teacher_id'] = newTeacherId;
+                  item['price'] = newPrice;
+                  item['stock'] = newStock;
+                });
+                await _saveLocalInventory();
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم حفظ وتعديل بيانات المذكرة والمخزن بنجاح ✏️'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text('حفظ التعديلات'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -700,9 +807,14 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         item['stock'] = newStock;
 
         receiptItems.add({
+          'id': item['id'],
+          'book_id': bookId,
           'title': item['title'],
+          'teacher_id': item['teacher_id'],
+          'teacher': item['teacher'],
           'price': item['price'],
           'quantity': qty,
+          'total': (item['price'] as double? ?? 0.0) * qty,
         });
 
         // Persist stock deduction to Supabase
@@ -788,6 +900,14 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
 
     // 5. Log sales itemization to public.bookstore_sales
     try {
+      String? primaryTeacherId;
+      for (final it in receiptItems) {
+        if (it['teacher_id'] != null && it['teacher_id'].toString().isNotEmpty) {
+          primaryTeacherId = it['teacher_id'].toString();
+          break;
+        }
+      }
+
       final saleData = <String, dynamic>{
         'receipt_number': receiptNumber,
         'student_name': studentName,
@@ -797,6 +917,9 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
         'items': receiptItems,
         'created_at': nowStr,
       };
+      if (primaryTeacherId != null) {
+        saleData['teacher_id'] = primaryTeacherId;
+      }
       if (_centerId != null) {
         saleData['center_id'] = _centerId;
       }
@@ -1159,6 +1282,27 @@ class _BookstorePosScreenState extends State<BookstorePosScreen> {
                                           runSpacing: 4,
                                           crossAxisAlignment: WrapCrossAlignment.center,
                                           children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: (item['teacher_id'] != null || (item['teacher'] != null && item['teacher'] != 'السنتر'))
+                                                    ? Colors.indigo.withValues(alpha: 0.12)
+                                                    : Colors.teal.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                (item['teacher_id'] != null || (item['teacher'] != null && item['teacher'] != 'السنتر'))
+                                                    ? '👨‍🏫 ${item['teacher']}'
+                                                    : '🏢 السنتر (عام)',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: (item['teacher_id'] != null || (item['teacher'] != null && item['teacher'] != 'السنتر'))
+                                                      ? Colors.indigo.shade800
+                                                      : Colors.teal.shade800,
+                                                ),
+                                              ),
+                                            ),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(

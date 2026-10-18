@@ -632,6 +632,8 @@ class ReportGeneratorService {
     required double deductions,
     required String deductionReason,
     required double netPayout,
+    int bookletsSold = 0,
+    double bookletRevenue = 0.0,
     bool printDirectly = false,
   }) async {
     final pdf = await createDocument();
@@ -748,6 +750,8 @@ class ReportGeneratorService {
               data: ArabicPdfHelper.fixData([
                 ['Total Attending Students', '$studentCount students', '${studentCount}x'],
                 ['Session Price per Student', '$sessionPrice EGP / student', '$sessionPrice EGP'],
+                if (bookletsSold > 0)
+                  ['Booklets / Study Materials Sold', '$bookletsSold copies', '${bookletRevenue.toStringAsFixed(1)} EGP'],
                 ['Total Gross Revenue', '$studentCount x $sessionPrice EGP', '${totalRevenue.toStringAsFixed(1)} EGP'],
                 ['Teacher Agreed Share', '$teacherPercent%', '${(totalRevenue * (teacherPercent / 100)).toStringAsFixed(1)} EGP'],
                 ['Center Agreed Share', '${(100 - teacherPercent).toStringAsFixed(0)}%', '${centerShare.toStringAsFixed(1)} EGP'],

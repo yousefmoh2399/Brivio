@@ -28,6 +28,8 @@ class DigitalCashReceiptDialog extends StatelessWidget {
   final double? centerShare;
   final double? deductions;
   final String? deductionReason;
+  final int? bookletsSold;
+  final double? bookletRevenue;
 
   const DigitalCashReceiptDialog({
     super.key,
@@ -48,6 +50,8 @@ class DigitalCashReceiptDialog extends StatelessWidget {
     this.centerShare,
     this.deductions,
     this.deductionReason,
+    this.bookletsSold,
+    this.bookletRevenue,
   });
 
   static Future<void> show({
@@ -69,6 +73,8 @@ class DigitalCashReceiptDialog extends StatelessWidget {
     double? centerShare,
     double? deductions,
     String? deductionReason,
+    int? bookletsSold,
+    double? bookletRevenue,
   }) {
     return showDialog(
       context: context,
@@ -91,6 +97,8 @@ class DigitalCashReceiptDialog extends StatelessWidget {
         centerShare: centerShare,
         deductions: deductions,
         deductionReason: deductionReason,
+        bookletsSold: bookletsSold,
+        bookletRevenue: bookletRevenue,
       ),
     );
   }
@@ -113,6 +121,8 @@ class DigitalCashReceiptDialog extends StatelessWidget {
         deductions: deductions ?? 0.0,
         deductionReason: deductionReason ?? 'مصاريف وقاعات',
         netPayout: amount,
+        bookletsSold: bookletsSold ?? 0,
+        bookletRevenue: bookletRevenue ?? 0.0,
         printDirectly: true,
       );
     } else {
@@ -148,6 +158,8 @@ class DigitalCashReceiptDialog extends StatelessWidget {
         deductions: deductions ?? 0.0,
         deductionReason: deductionReason ?? 'مصاريف وقاعات',
         netPayout: amount,
+        bookletsSold: bookletsSold ?? 0,
+        bookletRevenue: bookletRevenue ?? 0.0,
         printDirectly: false,
       );
     } else {
@@ -175,6 +187,9 @@ class DigitalCashReceiptDialog extends StatelessWidget {
 
     String message;
     if (receiptType == ReceiptType.teacherSettlement) {
+      final bookletInfo = (bookletsSold ?? 0) > 0
+          ? '\n📚 مبيعات الملازم: $bookletsSold نسخة (${(bookletRevenue ?? 0).toStringAsFixed(1)} ج.م)'
+          : '';
       message = '''
 🧾 *إيصال تصفية حساب حصة مدرس (نقداً)*
 🏫 سنتر: *$centerName*
@@ -184,8 +199,8 @@ class DigitalCashReceiptDialog extends StatelessWidget {
 👤 الأستاذ/ة: *$recipientName*
 📚 المجموعة: *$groupName*
 👥 الحضور: ${studentCount ?? 0} طالب
-💵 سعر الحصة: ${sessionPrice ?? 0} ج.م
-💰 إجمالي الدخل: ${(totalRevenue ?? 0).toStringAsFixed(1)} ج.م
+💵 سعر الحصة: ${sessionPrice ?? 0} ج.م$bookletInfo
+💰 إجمالي الدخل الكلي: ${(totalRevenue ?? 0).toStringAsFixed(1)} ج.م
 📊 نسبة المدرس: ${(teacherPercent ?? 70).toStringAsFixed(0)}%
 ✂️ استقطاعات: -${(deductions ?? 0).toStringAsFixed(1)} ج.م ($deductionReason)
 ━━━━━━━━━━━━━━━━━━
@@ -349,8 +364,12 @@ class DigitalCashReceiptDialog extends StatelessWidget {
                           if (isTeacher && studentCount != null) ...[
                             const SizedBox(height: 12),
                             _buildDetailRow('عدد الحضور', '$studentCount طالب'),
+                            if ((bookletsSold ?? 0) > 0) ...[
+                              const SizedBox(height: 12),
+                              _buildDetailRow('مبيعات الملازم والمذكرات', '$bookletsSold نسخة (${bookletRevenue?.toStringAsFixed(1)} ج.م) 📚'),
+                            ],
                             const SizedBox(height: 12),
-                            _buildDetailRow('إجمالي إيراد الحصة', '${totalRevenue?.toStringAsFixed(1)} ج.م'),
+                            _buildDetailRow('إجمالي الدخل الكلي', '${totalRevenue?.toStringAsFixed(1)} ج.م'),
                             if ((deductions ?? 0) > 0) ...[
                               const SizedBox(height: 12),
                               _buildDetailRow('الاستقطاعات ($deductionReason)', '-${deductions?.toStringAsFixed(1)} ج.م'),
