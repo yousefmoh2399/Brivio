@@ -37,6 +37,7 @@ import 'tabs/parent_home_tab.dart';
 import 'tabs/parent_progress_tab.dart';
 import 'tabs/parent_attendance_tab.dart';
 import 'tabs/parent_payments_tab.dart';
+import 'tabs/parent_monthly_report_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -1052,119 +1053,21 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildMonthlyReportPage() {
-    final report = _ParentMonthlyReport.fromState(
+    return ParentMonthlyReportTab(
+      child: _selectedChild,
+      linkedChildren: _linkedChildren,
+      onChildSelected: (child) {
+        setState(() => _selectedChild = child);
+        _loadChildDetails(child);
+      },
       attendance: _attendance,
       lessons: _learningSnapshot?.availableLessons ?? const [],
+      exams: _examItems,
+      homeworks: _homeworkItems,
       invoices: _invoices,
-      summary: _financialSummary,
-    );
-    final child = _selectedChild;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: PortalSectionTitle(
-                title: 'التقرير الشهري التراكمي',
-                subtitle:
-                    'ملخص شهر ${report.monthLabel} للطالب ${child?.fullName ?? "المحدد"}.',
-              ),
-            ),
-            FilledButton.tonalIcon(
-              onPressed: _selectedChild == null ? null : _openOfficialReportCard,
-              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: const Text('كارت تقرير معتمد (PDF)'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        PortalMetricGrid(
-          children: [
-            PortalMetricCard(
-              label: 'نسبة الحضور',
-              value: '${report.attendanceRate.round()}%',
-              icon: Icons.fact_check,
-              accentColor: report.attendanceRate >= 85
-                  ? AppColors.success
-                  : AppColors.warning,
-            ),
-            PortalMetricCard(
-              label: 'التقدم الدراسي',
-              value: '${report.averageProgress.round()}%',
-              icon: Icons.trending_up,
-              accentColor: AppColors.studentRole,
-            ),
-            PortalMetricCard(
-              label: 'الحصص المكتملة',
-              value: report.completedLessons.toString(),
-              icon: Icons.done_all,
-              accentColor: AppColors.success,
-            ),
-            PortalMetricCard(
-              label: 'المستحقات المتبقية',
-              value: _money(
-                report.remainingBalanceMinor,
-                _financialSummary?.currency,
-              ),
-              icon: Icons.payments,
-              accentColor: report.remainingBalanceMinor > 0
-                  ? AppColors.error
-                  : AppColors.success,
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _ParentInsightPanel(insights: report.recommendations),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(
-          title: 'سجل حضور وغياب الشهر',
-          subtitle: 'الحصص المنعقدة خلال الشهر الحالي فقط.',
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: report.monthAttendance.isEmpty,
-          emptyText: 'لا توجد حصص مسجلة خلال هذا الشهر.',
-          children: report.monthAttendance
-              .map(
-                (item) => PortalListCard(
-                  icon: item.status == 'present'
-                      ? Icons.check_circle
-                      : item.status == 'late'
-                      ? Icons.schedule
-                      : Icons.cancel,
-                  accentColor: _statusColor(item.status),
-                  title: item.groupName,
-                  subtitle:
-                      '${_formatDate(item.sessionDate)} | ${item.groupCode}',
-                  trailing: [PortalStatusChip(status: item.status)],
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'متابعة سداد الرسوم والفواتير'),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: report.openInvoices.isEmpty,
-          emptyText: 'لا توجد فواتير معلقة.',
-          children: report.openInvoices
-              .map(
-                (invoice) => PortalListCard(
-                  icon: Icons.receipt_long,
-                  accentColor: _statusColor(invoice.status),
-                  title: invoice.invoiceNumber.isEmpty
-                      ? 'فاتورة'
-                      : invoice.invoiceNumber,
-                  subtitle:
-                      '${_money(invoice.totalMinor - invoice.amountPaidMinor, invoice.currency)} متبقي • استحقاق ${_formatDate(invoice.dueAt)}',
-                  trailing: [PortalStatusChip(status: invoice.status)],
-                ),
-              )
-              .toList(),
-        ),
-      ],
+      financialSummary: _financialSummary,
+      childGroups: _childGroups,
+      onOpenOfficialReportCard: _openOfficialReportCard,
     );
   }
 
@@ -1533,14 +1436,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return '${value.year}-$month-$day';
   }
 
-  static Color _statusColor(String status) {
-    return switch (status.toLowerCase()) {
-      'present' || 'paid' || 'approved' || 'submitted' => AppColors.success,
-      'late' || 'pending' || 'issued' => AppColors.warning,
-      'absent' || 'overdue' || 'rejected' || 'failed' => AppColors.error,
-      _ => AppColors.info,
-    };
-  }
+
 }
 
 class _InfoList extends StatelessWidget {
@@ -1609,176 +1505,7 @@ class _ReceiptDetailLine extends StatelessWidget {
 
 
 
-typedef _ParentInsight = ParentInsight;
 
-class _ParentInsightPanel extends StatelessWidget {
-  final List<_ParentInsight> insights;
-
-  const _ParentInsightPanel({required this.insights});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const PortalSectionTitle(
-              title: 'توجيهات وملاحظات ولي الأمر',
-              subtitle: 'نقاط متابعة هامة مستخلصة من أداء الطالب الفعلي.',
-            ),
-            const SizedBox(height: 12),
-            ...insights.map(
-              (insight) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(insight.icon, color: insight.color),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            insight.title,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          Text(insight.body),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ParentMonthlyReport {
-  final String monthLabel;
-  final List<_ParentAttendanceItem> monthAttendance;
-  final List<Invoice> openInvoices;
-  final double attendanceRate;
-  final double averageProgress;
-  final int completedLessons;
-  final int remainingBalanceMinor;
-  final List<_ParentInsight> recommendations;
-
-  const _ParentMonthlyReport({
-    required this.monthLabel,
-    required this.monthAttendance,
-    required this.openInvoices,
-    required this.attendanceRate,
-    required this.averageProgress,
-    required this.completedLessons,
-    required this.remainingBalanceMinor,
-    required this.recommendations,
-  });
-
-  factory _ParentMonthlyReport.fromState({
-    required List<_ParentAttendanceItem> attendance,
-    required List<StudyLessonSummary> lessons,
-    required List<Invoice> invoices,
-    required FinancialSummary? summary,
-  }) {
-    final now = DateTime.now();
-    final monthAttendance = attendance.where((item) {
-      final date = item.sessionDate;
-      return date != null && date.year == now.year && date.month == now.month;
-    }).toList();
-    final present = monthAttendance
-        .where(
-          (item) =>
-              item.status == 'present' ||
-              item.status == 'late' ||
-              item.status == 'excused',
-        )
-        .length;
-    final attendanceRate = monthAttendance.isEmpty
-        ? 0.0
-        : present * 100 / monthAttendance.length;
-    final averageProgress = lessons.isEmpty
-        ? 0.0
-        : lessons.fold<int>(
-                0,
-                (sum, lesson) => sum + lesson.progressPercentage,
-              ) /
-              lessons.length;
-    final completedLessons = lessons
-        .where((lesson) => lesson.progressPercentage >= 100)
-        .length;
-    final openInvoices = invoices
-        .where(
-          (invoice) =>
-              invoice.status == 'issued' ||
-              invoice.status == 'overdue' ||
-              invoice.status == 'partially_paid',
-        )
-        .toList();
-    final remaining = summary?.remainingBalanceMinor ?? 0;
-    final recommendations = <_ParentInsight>[];
-
-    if (attendanceRate < 85 && monthAttendance.isNotEmpty) {
-      recommendations.add(
-        _ParentInsight(
-          icon: Icons.event_busy,
-          color: AppColors.warning,
-          title: 'تحسين الانتظام في الحضور',
-          body:
-              'نسبة الحضور لهذا الشهر ${attendanceRate.round()}%. يرجى الحرص على حضور الحصص القادمة.',
-        ),
-      );
-    }
-    if (averageProgress < 50 && lessons.isNotEmpty) {
-      recommendations.add(
-        _ParentInsight(
-          icon: Icons.schedule,
-          color: AppColors.warning,
-          title: 'تخصيص وقت يومي للمذاكرة',
-          body:
-              'متوسط التقدم في الدروس ${averageProgress.round()}%. نوصي بجدول مراجعة يومي.',
-        ),
-      );
-    }
-    if (remaining > 0) {
-      recommendations.add(
-        _ParentInsight(
-          icon: Icons.receipt_long,
-          color: AppColors.error,
-          title: 'سداد الرسوم الدراسية',
-          body: 'يوجد مستحق مالي متبقي يرجى سداده بخزينة السنتر.',
-        ),
-      );
-    }
-    if (recommendations.isEmpty) {
-      recommendations.add(
-        const _ParentInsight(
-          icon: Icons.verified,
-          color: AppColors.success,
-          title: 'الوضع الشهري ممتاز ومستقر',
-          body: 'لا توجد أي ملاحظات أو متأخرات عاجلة.',
-        ),
-      );
-    }
-
-    return _ParentMonthlyReport(
-      monthLabel: '${now.year}-${now.month.toString().padLeft(2, '0')}',
-      monthAttendance: monthAttendance,
-      openInvoices: openInvoices,
-      attendanceRate: attendanceRate,
-      averageProgress: averageProgress,
-      completedLessons: completedLessons,
-      remainingBalanceMinor: remaining,
-      recommendations: recommendations,
-    );
-  }
-}
 
 typedef _ParentExamItem = ParentExamItem;
 typedef _ParentHomeworkItem = ParentHomeworkItem;
