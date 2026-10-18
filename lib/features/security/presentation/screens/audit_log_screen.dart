@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
-import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
 class AuditLogScreen extends StatefulWidget {
@@ -146,12 +145,212 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     }
   }
 
+  Widget _buildKpiSection() {
+    final total = _items.length;
+    final criticalCount = _items.where((i) => i.isHighRisk).length;
+    final financialCount = _items.where((i) => i.isFinancial).length;
+    final gradesCount = _items.where((i) => i.isGradeRelated).length;
+    final securityCount = _items.where((i) => i.isSecurityRelated).length;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 950;
+        final isTablet = constraints.maxWidth >= 600 && !isDesktop;
+
+        final cards = [
+          _buildKpiCard(
+            title: 'إجمالي السجلات',
+            value: total.toString(),
+            icon: Icons.receipt_long_rounded,
+            color: AppColors.primary,
+            subtitle: 'جميع العمليات المسجلة',
+            isSelected: _riskFilter == 'all',
+            onTap: () => setState(() => _riskFilter = 'all'),
+          ),
+          _buildKpiCard(
+            title: 'عمليات حرجة وحذف',
+            value: criticalCount.toString(),
+            icon: Icons.warning_amber_rounded,
+            color: AppColors.error,
+            subtitle: 'حذف بيانات وسجلات أمنية',
+            isSelected: _riskFilter == 'high_risk',
+            onTap: () => setState(() => _riskFilter = 'high_risk'),
+          ),
+          _buildKpiCard(
+            title: 'معاملات واسترداد مالي',
+            value: financialCount.toString(),
+            icon: Icons.monetization_on_rounded,
+            color: AppColors.success,
+            subtitle: 'فواتير وسندات ودفعات',
+            isSelected: _riskFilter == 'financial',
+            onTap: () => setState(() => _riskFilter = 'financial'),
+          ),
+          _buildKpiCard(
+            title: 'تعديلات درجات وامتحانات',
+            value: gradesCount.toString(),
+            icon: Icons.assignment_turned_in_rounded,
+            color: AppColors.purple,
+            subtitle: 'تصحيح ونتائج الطلاب',
+            isSelected: _riskFilter == 'grades',
+            onTap: () => setState(() => _riskFilter = 'grades'),
+          ),
+          _buildKpiCard(
+            title: 'أمان وصلاحيات',
+            value: securityCount.toString(),
+            icon: Icons.admin_panel_settings_rounded,
+            color: Colors.indigo,
+            subtitle: 'تعديل الصلاحيات والأدوار',
+            isSelected: _riskFilter == 'security',
+            onTap: () => setState(() => _riskFilter = 'security'),
+          ),
+        ];
+
+        if (isDesktop) {
+          return Row(
+            children: cards
+                .map((c) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: c,
+                      ),
+                    ))
+                .toList(),
+          );
+        } else if (isTablet) {
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 8),
+                  Expanded(child: cards[1]),
+                  const SizedBox(width: 8),
+                  Expanded(child: cards[2]),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: cards[3]),
+                  const SizedBox(width: 8),
+                  Expanded(child: cards[4]),
+                ],
+              ),
+            ],
+          );
+        }
+
+        // Mobile layout
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: cards[0]),
+                const SizedBox(width: 8),
+                Expanded(child: cards[1]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: cards[2]),
+                const SizedBox(width: 8),
+                Expanded(child: cards[3]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            cards[4],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.12)
+              : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? color
+                : Theme.of(context).dividerColor.withValues(alpha: 0.12),
+            width: isSelected ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected ? color : Colors.grey,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? color : null,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
     final tables = {
       'all',
       ..._items.map((item) => item.tableName),
@@ -167,20 +366,19 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     }.toList()..sort();
 
     final filtered = _filteredItems;
-    final criticalCount = _items.where((i) => i.isHighRisk).length;
-    final financialCount = _items.where((i) => i.isFinancial).length;
-    final gradesCount = _items.where((i) => i.isGradeRelated).length;
 
     return PortalPageShell(
-      title: 'سجل التدقيق الأمني والرقابة الإدارية',
-      subtitle: 'رصد فوري لجميع العمليات الحساسة (الحذف، استرداد الأموال، تعديل النتائج، الصلاحيات).',
-      icon: Icons.shield_rounded,
+      title: 'سجل العمليات والرقابة الأمنية',
+      subtitle:
+          'رصد فوري لجميع العمليات الحساسة (الحذف، استرداد الأموال، تعديل النتائج، الصلاحيات).',
+      icon: Icons.manage_search_rounded,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
           icon: Icons.picture_as_pdf_rounded,
           label: 'تصدير تقرير أمني PDF',
           onPressed: _exportSecurityAuditPdf,
+          primary: true,
         ),
         PortalAction(
           icon: Icons.refresh_rounded,
@@ -192,72 +390,36 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── KPI Summary Strip ──
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildKpiCard(
-                  label: 'إجمالي السجلات',
-                  value: _items.length.toString(),
-                  icon: Icons.receipt_long_rounded,
-                  color: AppColors.primary,
-                  isSelected: _riskFilter == 'all',
-                  onTap: () => setState(() => _riskFilter = 'all'),
-                ),
-                const SizedBox(width: 8),
-                _buildKpiCard(
-                  label: 'عمليات حرجة وحذف 🚨',
-                  value: criticalCount.toString(),
-                  icon: Icons.warning_amber_rounded,
-                  color: AppColors.error,
-                  isSelected: _riskFilter == 'high_risk',
-                  onTap: () => setState(() => _riskFilter = 'high_risk'),
-                ),
-                const SizedBox(width: 8),
-                _buildKpiCard(
-                  label: 'معاملات واسترداد مالي 💸',
-                  value: financialCount.toString(),
-                  icon: Icons.monetization_on_rounded,
-                  color: AppColors.success,
-                  isSelected: _riskFilter == 'financial',
-                  onTap: () => setState(() => _riskFilter = 'financial'),
-                ),
-                const SizedBox(width: 8),
-                _buildKpiCard(
-                  label: 'تعديلات درجات وامتحانات 📝',
-                  value: gradesCount.toString(),
-                  icon: Icons.assignment_turned_in_rounded,
-                  color: AppColors.purple,
-                  isSelected: _riskFilter == 'grades',
-                  onTap: () => setState(() => _riskFilter = 'grades'),
-                ),
-                const SizedBox(width: 8),
-                _buildKpiCard(
-                  label: 'أمان وصلاحيات 🔐',
-                  value: _items.where((i) => i.isSecurityRelated).length.toString(),
-                  icon: Icons.admin_panel_settings_rounded,
-                  color: Colors.indigo,
-                  isSelected: _riskFilter == 'security',
-                  onTap: () => setState(() => _riskFilter = 'security'),
-                ),
-              ],
-            ),
-          ),
+          _buildKpiSection(),
           const SizedBox(height: 14),
 
-          // ── Search & Table Filter Row ──
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
+          // ── Search & Table Filter Section ──
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              ),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 650;
+
+                final searchField = TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search_rounded, size: 20),
                     hintText: 'بحث باسم المنفّذ، المعرف، أو تفاصيل العملية...',
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    isDense: true,
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
+                            icon: const Icon(Icons.clear, size: 16),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
@@ -266,23 +428,28 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                         : null,
                   ),
                   onChanged: (val) => setState(() => _searchQuery = val),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 200,
-                child: DropdownButtonFormField<String>(
+                );
+
+                final tableDropdown = DropdownButtonFormField<String>(
                   initialValue: _tableFilter,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'الجدول / الكيان',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    isDense: true,
+                    prefixIcon: Icon(Icons.table_chart_rounded, size: 18),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                   items: tables
                       .map(
                         (table) => DropdownMenuItem(
                           value: table,
-                          child: Text(table == 'all' ? 'جميع الجداول' : table),
+                          child: Text(
+                            table == 'all' ? 'جميع الجداول' : table,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),
@@ -290,9 +457,80 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                     if (value == null) return;
                     setState(() => _tableFilter = value);
                   },
-                ),
-              ),
-            ],
+                );
+
+                final filterChips = SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildCategoryChip(
+                        label: 'الكل (${_items.length})',
+                        isSelected: _riskFilter == 'all',
+                        onTap: () => setState(() => _riskFilter = 'all'),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip(
+                        label: 'حرجة وحذف 🚨',
+                        isSelected: _riskFilter == 'high_risk',
+                        color: AppColors.error,
+                        onTap: () => setState(() => _riskFilter = 'high_risk'),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip(
+                        label: 'معاملات مالية 💸',
+                        isSelected: _riskFilter == 'financial',
+                        color: AppColors.success,
+                        onTap: () => setState(() => _riskFilter = 'financial'),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip(
+                        label: 'درجات وامتحانات 📝',
+                        isSelected: _riskFilter == 'grades',
+                        color: AppColors.purple,
+                        onTap: () => setState(() => _riskFilter = 'grades'),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildCategoryChip(
+                        label: 'صلاحيات وأمان 🔐',
+                        isSelected: _riskFilter == 'security',
+                        color: Colors.indigo,
+                        onTap: () => setState(() => _riskFilter = 'security'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      searchField,
+                      const SizedBox(height: 8),
+                      tableDropdown,
+                      const SizedBox(height: 8),
+                      filterChips,
+                    ],
+                  );
+                }
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: searchField),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 220, child: tableDropdown),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: filterChips,
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -302,9 +540,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             children: [
               Text(
                 'عرض ${filtered.length} عملية تدقيق موثقة',
-                style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-              if (_riskFilter != 'all' || _tableFilter != 'all' || _searchQuery.isNotEmpty)
+              if (_riskFilter != 'all' ||
+                  _tableFilter != 'all' ||
+                  _searchQuery.isNotEmpty)
                 TextButton.icon(
                   onPressed: () {
                     setState(() {
@@ -332,121 +572,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               emptyIcon: Icons.shield_outlined,
               onRetry: _loadAuditLogs,
               child: ListView.separated(
+                padding: const EdgeInsets.only(bottom: 24),
                 itemCount: filtered.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  final item = filtered[index];
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: item.isHighRisk
-                            ? AppColors.error.withValues(alpha: 0.4)
-                            : (isDark ? Colors.white12 : Colors.black12),
-                        width: item.isHighRisk ? 1.5 : 1.0,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: item.isHighRisk
-                              ? AppColors.error.withValues(alpha: 0.08)
-                              : Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Leading Icon Badge
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: item.color.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(item.icon, color: item.color, size: 24),
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Center content
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.humanDescription,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: item.color.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: item.color.withValues(alpha: 0.25)),
-                                    ),
-                                    child: Text(
-                                      item.riskLabel,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: item.color,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                'الجدول: ${item.tableName} • المعرف: ${item.recordId ?? "غير محدد"}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(Icons.person_outline_rounded, size: 14, color: textSecondary),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'المنفّذ: ${item.actorUserId ?? "النظام الذاتي"}',
-                                    style: TextStyle(fontSize: 11, color: textSecondary),
-                                  ),
-                                  const Spacer(),
-                                  Icon(Icons.access_time_rounded, size: 14, color: textSecondary),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    item.createdLabel,
-                                    style: TextStyle(fontSize: 11, color: textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Action Button
-                        IconButton.filledTonal(
-                          tooltip: 'فحص التغييرات والبيانات الكاملة',
-                          onPressed: () => _showAuditDetails(item),
-                          icon: const Icon(Icons.code_rounded, size: 18),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildAuditLogCard(filtered[index]);
                 },
               ),
             ),
@@ -456,60 +586,201 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     );
   }
 
-  Widget _buildKpiCard({
+  Widget _buildCategoryChip({
     required String label,
-    required String value,
-    required IconData icon,
-    required Color color,
     required bool isSelected,
+    Color? color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),
-            width: isSelected ? 1.5 : 1.0,
-          ),
+    final activeColor = color ?? AppColors.adminRole;
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? Colors.white : null,
+      ),
+      selectedColor: activeColor,
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _buildAuditLogCard(_AuditLogItem item) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: item.isHighRisk
+              ? AppColors.error.withValues(alpha: 0.4)
+              : Theme.of(context).dividerColor.withValues(alpha: 0.12),
+          width: item.isHighRisk ? 1.5 : 1.0,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? color : null,
+        boxShadow: [
+          BoxShadow(
+            color: item.isHighRisk
+                ? AppColors.error.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Icon + Action & Table Badges + Risk + Inspect Button
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(item.icon, color: item.color, size: 20),
               ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _actionColor(item.action).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.actionLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: _actionColor(item.action),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'جدول: ${item.tableName}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: item.color.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        item.riskLabel,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: item.color,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
-        ),
+              IconButton.filledTonal(
+                tooltip: 'فحص التغييرات',
+                onPressed: () => _showAuditDetails(item),
+                icon: const Icon(Icons.code_rounded, size: 18),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Human Description
+          Text(
+            item.humanDescription,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+
+          // Footer: Actor, Record ID, and Time
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.person_outline_rounded, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    'المنفّذ: ${item.actorUserId ?? "النظام التلقائي"}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+              if (item.recordId != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.tag_rounded, size: 14, color: Colors.grey),
+                    const SizedBox(width: 2),
+                    Text(
+                      'المعرف: ${item.recordId}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    item.createdLabel,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  Color _actionColor(String action) {
+    return switch (action.toLowerCase()) {
+      'insert' => Colors.green,
+      'delete' => Colors.red,
+      'update' => Colors.blue,
+      _ => Colors.grey,
+    };
   }
 
   void _showAuditDetails(_AuditLogItem item) {
@@ -525,7 +796,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               Expanded(
                 child: Text(
                   '${item.actionLabel} - ${item.tableName}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
@@ -536,33 +811,46 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 ),
                 child: Text(
                   item.riskLabel,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: item.color),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: item.color,
+                  ),
                 ),
               ),
             ],
           ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width.clamp(280.0, 700.0),
+            child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.black.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('• وصف العملية: ${item.humanDescription}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          '• وصف العملية: ${item.humanDescription}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 4),
-                        Text('• المستخدم المنفّذ: ${item.actorUserId ?? "النظام التلقائي"}'),
+                        Text(
+                          '• المستخدم المنفّذ: ${item.actorUserId ?? "النظام التلقائي"}',
+                        ),
                         const SizedBox(height: 4),
-                        Text('• المعرف المرجعي: ${item.recordId ?? "غير محدد"}'),
+                        Text(
+                          '• المعرف المرجعي: ${item.recordId ?? "غير محدد"}',
+                        ),
                         const SizedBox(height: 4),
                         Text('• التوقيت: ${item.createdLabel}'),
                       ],
@@ -570,7 +858,14 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                   ),
                   const SizedBox(height: 16),
                   if (item.oldData != null) ...[
-                    const Text('البيانات السابقة (قبل التعديل):', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'البيانات السابقة (قبل التعديل):',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.red,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Container(
                       width: double.infinity,
@@ -578,17 +873,29 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                       decoration: BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: Colors.red.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: SelectableText(
                         _formatJson(item.oldData),
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
                   ],
                   if (item.newData != null) ...[
-                    const Text('البيانات الجديدة (بعد التعديل):', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'البيانات الجديدة (بعد التعديل):',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.green,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Container(
                       width: double.infinity,
@@ -596,11 +903,16 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: SelectableText(
                         _formatJson(item.newData),
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -608,7 +920,6 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               ),
             ),
           ),
-        ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -683,24 +994,38 @@ class _AuditLogItem {
     final act = action.toLowerCase();
     final tbl = tableName.toLowerCase();
     if (act == 'delete') return true;
-    if (tbl == 'user_roles' || tbl == 'profiles' || tbl == 'permissions') return true;
-    if ((tbl == 'invoices' || tbl == 'payments') && act == 'update') return true;
+    if (tbl == 'user_roles' || tbl == 'profiles' || tbl == 'permissions') {
+      return true;
+    }
+    if ((tbl == 'invoices' || tbl == 'payments') && act == 'update') {
+      return true;
+    }
     return false;
   }
 
   bool get isFinancial {
     final tbl = tableName.toLowerCase();
-    return tbl.contains('invoice') || tbl.contains('payment') || tbl.contains('ledger') || tbl.contains('cash') || tbl.contains('booklet_sale');
+    return tbl.contains('invoice') ||
+        tbl.contains('payment') ||
+        tbl.contains('ledger') ||
+        tbl.contains('cash') ||
+        tbl.contains('booklet_sale');
   }
 
   bool get isGradeRelated {
     final tbl = tableName.toLowerCase();
-    return tbl.contains('exam') || tbl.contains('grade') || tbl.contains('score') || tbl.contains('attempt');
+    return tbl.contains('exam') ||
+        tbl.contains('grade') ||
+        tbl.contains('score') ||
+        tbl.contains('attempt');
   }
 
   bool get isSecurityRelated {
     final tbl = tableName.toLowerCase();
-    return tbl.contains('role') || tbl.contains('user') || tbl.contains('permission') || tbl.contains('auth');
+    return tbl.contains('role') ||
+        tbl.contains('user') ||
+        tbl.contains('permission') ||
+        tbl.contains('auth');
   }
 
   String get category {
@@ -785,6 +1110,4 @@ class _AuditLogItem {
         '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
     return '$date $time';
   }
-
-
 }

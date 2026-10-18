@@ -1,11 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/tokens/colors.dart';
-import '../../../../design_system/tokens/typography.dart';
-import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 
 class StudyReplayScreen extends StatefulWidget {
@@ -17,7 +14,8 @@ class StudyReplayScreen extends StatefulWidget {
   State<StudyReplayScreen> createState() => _StudyReplayScreenState();
 }
 
-class _StudyReplayScreenState extends State<StudyReplayScreen> {
+class _StudyReplayScreenState extends State<StudyReplayScreen>
+    with SingleTickerProviderStateMixin {
   Timer? _playbackTimer;
   bool _isLoading = false;
   bool _isPlaying = false;
@@ -27,16 +25,22 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
   _ReplaySession? _selectedSession;
   int _playbackMs = 0;
 
-  @override
-  void dispose() {
-    _playbackTimer?.cancel();
-    super.dispose();
-  }
+  final TextEditingController _sessionSearchController = TextEditingController();
+  TabController? _mobileTabController;
 
   @override
   void initState() {
     super.initState();
+    _mobileTabController = TabController(length: 2, vsync: this);
     _loadSessions();
+  }
+
+  @override
+  void dispose() {
+    _playbackTimer?.cancel();
+    _sessionSearchController.dispose();
+    _mobileTabController?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSessions() async {
@@ -80,7 +84,7 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
     }
   }
 
-  Future<void> _loadEvents(_ReplaySession session) async {
+  Future<void> _loadEvents(_ReplaySession session, {bool switchToPlayerOnMobile = false}) async {
     try {
       final rows = await Supabase.instance.client.rpc(
         'get_study_replay_events',
@@ -97,6 +101,10 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
         _isPlaying = false;
       });
       _playbackTimer?.cancel();
+
+      if (switchToPlayerOnMobile && _mobileTabController != null) {
+        _mobileTabController!.animateTo(1);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _errorMessage = e.toString());
@@ -133,96 +141,377 @@ class _StudyReplayScreenState extends State<StudyReplayScreen> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.transparent,
-      child: PortalStateView(
-        isLoading: _isLoading,
-        errorMessage: _errorMessage,
-        isEmpty: _sessions.isEmpty,
-        emptyTitle: 'لا توجد جلسات دراسية مسجلة',
-        emptySubtitle: 'تظهر بيانات الجلسات بمجرد تفاعل الطلاب مع الدروس والمذكرات.',
-        emptyIcon: Icons.video_library,
-        onRetry: _loadSessions,
-        child: RefreshIndicator(
-          onRefresh: _loadSessions,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 920;
-              final sessionList = _SessionList(
-                sessions: _sessions,
-                selected: _selectedSession,
-                onSelected: _loadEvents,
-              );
-              final timeline = _ReplayTimeline(
-                session: _selectedSession,
-                events: _events,
-                playbackMs: _playbackMs,
-                isPlaying: _isPlaying,
-                onPlayPause: _togglePlayback,
-                onSeek: _seekPlayback,
-              );
-              if (isWide) {
-                return Row(
-                  children: [
-                    SizedBox(width: 360, child: sessionList),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: timeline),
-                  ],
-                );
-              }
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: 300, child: sessionList),
-                  const SizedBox(height: 12),
-                  SizedBox(height: 520, child: timeline),
-                ],
-              );
-            },
+  List<_ReplaySession> get _filteredSessions {
+    final query = _sessionSearchController.text.trim().toLowerCase();
+    if (query.isEmpty) return _sessions;
+    return _sessions.where((s) {
+      final name = s.studentName.toLowerCase();
+      final lesson = s.lessonTitle.toLowerCase();
+      return name.contains(query) || lesson.contains(query);
+    }).toList();
+  }
+
+  Widget _buildKpiSection() {
+    final totalSessions = _sessions.length;
+    final totalSeconds = _sessions.fold<int>(0, (sum, s) => sum + s.durationSeconds);
+    final totalHours = (totalSeconds / 3600).toStringAsFixed(1);
+    final totalPages = _sessions.fold<int>(0, (sum, s) => sum + s.pagesRead);
+    final eventsCount = _events.length;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 850;
+
+        final items = [
+          _buildKpiCard(
+            title: 'إجمالي الجلسات المسجلة',
+            value: totalSessions.toString(),
+            icon: Icons.video_library_rounded,
+            color: AppColors.adminRole,
+            subtitle: 'جلسات دراسية موثقة',
           ),
+          _buildKpiCard(
+            title: 'إجمالي ساعات المذاكرة',
+            value: '$totalHours ساعة',
+            icon: Icons.timelapse_rounded,
+            color: Colors.teal,
+            subtitle: '${(totalSeconds ~/ 60)} دقيقة تفاعل دراسي',
+          ),
+          _buildKpiCard(
+            title: 'الصفحات المقروءة',
+            value: '$totalPages صفحة',
+            icon: Icons.menu_book_rounded,
+            color: Colors.indigo,
+            subtitle: 'تصفح وقراءة مذكرات',
+          ),
+          _buildKpiCard(
+            title: 'أحداث الجلسة النشطة',
+            value: eventsCount.toString(),
+            icon: Icons.timeline_rounded,
+            color: Colors.deepOrange,
+            subtitle: _selectedSession != null
+                ? _selectedSession!.lessonTitle
+                : 'حدد جلسة للعرض',
+          ),
+        ];
+
+        if (isDesktop) {
+          return Row(
+            children: items
+                .map((widget) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: widget,
+                      ),
+                    ))
+                .toList(),
+          );
+        }
+
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: items[0]),
+                const SizedBox(width: 8),
+                Expanded(child: items[1]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: items[2]),
+                const SizedBox(width: 8),
+                Expanded(child: items[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
-}
-
-class _SessionList extends StatelessWidget {
-  final List<_ReplaySession> sessions;
-  final _ReplaySession? selected;
-  final ValueChanged<_ReplaySession> onSelected;
-
-  const _SessionList({
-    required this.sessions,
-    required this.selected,
-    required this.onSelected,
-  });
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = widget.teacherId == null
+        ? AppColors.adminRole
+        : AppColors.teacherRole;
+
+    return PortalPageShell(
+      title: 'تسجيلات الحصص ومسارات المذاكرة',
+      subtitle:
+          'إعادة تشغيل تفاعلية لجلسات دراسة الطلاب، تتبع تصفح الدروس، وتدوين الملاحظات لحظياً.',
+      icon: Icons.video_library_rounded,
+      accentColor: accentColor,
+      actions: [
+        PortalAction(
+          icon: Icons.refresh_rounded,
+          label: 'تحديث الجلسات',
+          onPressed: _loadSessions,
+        ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildKpiSection(),
+          const SizedBox(height: 14),
+          Expanded(
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: _sessions.isEmpty,
+              emptyTitle: 'لا توجد جلسات دراسية مسجلة',
+              emptySubtitle:
+                  'تظهر بيانات الجلسات بمجرد تفاعل الطلاب مع الدروس والمذكرات الدراسية.',
+              emptyIcon: Icons.video_library_rounded,
+              onRetry: _loadSessions,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 900;
+
+                  if (isWide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left Panel: Sessions List (Width 360)
+                        SizedBox(
+                          width: 360,
+                          child: Column(
+                            children: [
+                              _buildSearchField(),
+                              const SizedBox(height: 10),
+                              Expanded(
+                                child: _buildSessionListView(
+                                  isMobile: false,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        // Right Panel: Interactive Replay & Events Timeline
+                        Expanded(
+                          child: _buildTimelinePanel(),
+                        ),
+                      ],
+                    );
+                  }
+
+                  // Mobile Tabbed View (Clean and non-nested)
+                  return Column(
+                    children: [
+                      TabBar(
+                        controller: _mobileTabController,
+                        tabs: [
+                          Tab(
+                            icon: const Icon(Icons.list_alt_rounded),
+                            text: 'قائمة الجلسات (${_filteredSessions.length})',
+                          ),
+                          Tab(
+                            icon: const Icon(Icons.play_circle_filled_rounded),
+                            text: 'مشغل المسار (${_events.length})',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: TabBarView(
+                          controller: _mobileTabController,
+                          children: [
+                            Column(
+                              children: [
+                                _buildSearchField(),
+                                const SizedBox(height: 10),
+                                Expanded(
+                                  child: _buildSessionListView(
+                                    isMobile: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            _buildTimelinePanel(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _sessionSearchController,
+      decoration: InputDecoration(
+        hintText: 'بحث باسم الطالب أو عنوان الدرس...',
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        suffixIcon: _sessionSearchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear, size: 16),
+                onPressed: () {
+                  _sessionSearchController.clear();
+                  setState(() {});
+                },
+              )
+            : null,
+      ),
+      onChanged: (_) => setState(() {}),
+    );
+  }
+
+  Widget _buildSessionListView({required bool isMobile}) {
+    final filtered = _filteredSessions;
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 40,
+              color: Colors.grey.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'لا توجد جلسات مطابقة للبحث.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView.separated(
-      padding: const EdgeInsets.only(right: 12),
-      itemCount: sessions.length,
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount: filtered.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final session = sessions[index];
-        final isSelected = selected?.id == session.id;
-        return FadeInSlide(
-          delay: Duration(milliseconds: 30 * index),
-          child: GlassCard(
-            color: isSelected
-                ? AppColors.teacherRole.withValues(alpha: 0.1)
-                : null,
-            borderColor: isSelected ? AppColors.teacherRole : null,
+        final session = filtered[index];
+        final isSelected = _selectedSession?.id == session.id;
+
+        return InkWell(
+          onTap: () => _loadEvents(
+            session,
+            switchToPlayerOnMobile: isMobile,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
             padding: const EdgeInsets.all(12),
-            onTap: () => onSelected(session),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.adminRole.withValues(alpha: 0.1)
+                  : Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.adminRole
+                    : Theme.of(context).dividerColor.withValues(alpha: 0.12),
+                width: isSelected ? 1.5 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.play_circle,
-                  color: isSelected ? AppColors.teacherRole : AppColors.info,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.adminRole
+                        : AppColors.adminRole.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    color: isSelected ? Colors.white : AppColors.adminRole,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -231,28 +520,64 @@ class _SessionList extends StatelessWidget {
                     children: [
                       Text(
                         session.studentName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.titleMedium(
-                          AppColors.darkTextPrimary,
-                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
-                        '${session.lessonTitle} | ${session.durationSeconds} ثانية | ${session.pagesRead} صفحات',
-                        maxLines: 2,
+                        session.lessonTitle,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodySmall(
-                          AppColors.darkTextSecondary,
-                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: StatusChip(
-                          label: session.startedLabel,
-                          status: ChipStatus.neutral,
-                        ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${session.durationSeconds} ثانية',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${session.pagesRead} صفحات',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ),
+                          Text(
+                            session.startedLabel,
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -264,205 +589,336 @@ class _SessionList extends StatelessWidget {
       },
     );
   }
-}
 
-class _ReplayTimeline extends StatelessWidget {
-  final _ReplaySession? session;
-  final List<_ReplayEvent> events;
-  final int playbackMs;
-  final bool isPlaying;
-  final VoidCallback onPlayPause;
-  final ValueChanged<double> onSeek;
-
-  const _ReplayTimeline({
-    required this.session,
-    required this.events,
-    required this.playbackMs,
-    required this.isPlaying,
-    required this.onPlayPause,
-    required this.onSeek,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = session;
+  Widget _buildTimelinePanel() {
+    final selected = _selectedSession;
     if (selected == null) {
-      return const Center(child: Text('اختر جلسة من القائمة لعرض مسارها.'));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.video_library_outlined,
+              size: 54,
+              color: Colors.grey.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'اختر جلسة من القائمة لعرض مسارها وتشغيل أحداثها.',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      );
     }
-    if (events.isEmpty) {
-      return const Center(child: Text('لا توجد أحداث مسجلة لهذه الجلسة.'));
+
+    if (_events.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.history_toggle_off_rounded,
+              size: 54,
+              color: Colors.grey.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'لا توجد أحداث مسجلة لجلسة "${selected.lessonTitle}".',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      );
     }
-    final maxMs = events.last.offsetMs <= 0 ? 1 : events.last.offsetMs;
-    final visibleEvents = events
-        .where((event) => event.offsetMs <= playbackMs)
+
+    final maxMs = _events.last.offsetMs <= 0 ? 1 : _events.last.offsetMs;
+    final visibleEvents = _events
+        .where((event) => event.offsetMs <= _playbackMs)
         .toList();
     final currentEvent = visibleEvents.isEmpty
-        ? events.first
+        ? _events.first
         : visibleEvents.last;
-    return ListView.separated(
-      padding: const EdgeInsets.only(left: 12),
-      itemCount: events.length + 1,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return GlassCard(
-            padding: const EdgeInsets.all(16),
-            borderColor: AppColors.teacherRole,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isCompact = constraints.maxWidth < 620;
-                final sessionInfo = Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const CircleIcon(
-                      icon: Icons.video_library,
-                      color: AppColors.teacherRole,
+
+    return Column(
+      children: [
+        // ── Player Console ──
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.adminRole.withValues(alpha: 0.25),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Session Meta Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.adminRole.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            selected.lessonTitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.titleMedium(
-                              AppColors.darkTextPrimary,
-                            ),
-                          ),
-                          Text(
-                            '${selected.studentName} | ${selected.startedLabel} | ${selected.durationSeconds} ثانية',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.bodySmall(
-                              AppColors.darkTextSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: const Icon(
+                      Icons.video_library_rounded,
+                      color: AppColors.adminRole,
+                      size: 20,
                     ),
-                  ],
-                );
-                final controls = Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton.filledTonal(
-                          tooltip: isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل',
-                          onPressed: onPlayPause,
-                          icon: Icon(
-                            isPlaying ? Icons.pause : Icons.play_arrow,
+                        Text(
+                          selected.lessonTitle,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Expanded(
-                          child: Slider(
-                            value: playbackMs.clamp(0, maxMs).toDouble(),
-                            min: 0,
-                            max: maxMs.toDouble(),
-                            onChanged: onSeek,
-                          ),
+                        Text(
+                          'الطالب: ${selected.studentName} • ${selected.startedLabel}',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 64),
-                          child: Text(
-                            currentEvent.offsetLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _isPlaying
+                          ? Colors.green.withValues(alpha: 0.12)
+                          : Colors.grey.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isPlaying ? Icons.play_arrow : Icons.pause,
+                          size: 14,
+                          color: _isPlaying ? Colors.green : Colors.grey,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _isPlaying ? 'قيد التشغيل' : 'متوقف',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _isPlaying ? Colors.green : Colors.grey,
                           ),
                         ),
                       ],
                     ),
-                    Align(
-                      alignment: Alignment.centerLeft,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Scrubbing Controls
+              Row(
+                children: [
+                  IconButton.filled(
+                    tooltip: _isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل',
+                    onPressed: _togglePlayback,
+                    icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.adminRole,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: _playbackMs.clamp(0, maxMs).toDouble(),
+                      min: 0,
+                      max: maxMs.toDouble(),
+                      activeColor: AppColors.adminRole,
+                      onChanged: _seekPlayback,
+                    ),
+                  ),
+                  Text(
+                    '${_formatMs(_playbackMs)} / ${_formatMs(maxMs)}',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Active Event Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: currentEvent.color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: currentEvent.color.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(currentEvent.icon, size: 16, color: currentEvent.color),
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: Text(
-                        'الحدث: ${currentEvent.eventType.replaceAll('_', ' ')}',
+                        'الحدث الحالي: ${currentEvent.eventType.replaceAll('_', ' ')} (${currentEvent.offsetLabel})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: currentEvent.color,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
-                );
-
-                if (isCompact) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      sessionInfo,
-                      const SizedBox(height: 12),
-                      controls,
-                    ],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    Expanded(child: sessionInfo),
-                    const SizedBox(width: 12),
-                    SizedBox(width: 320, child: controls),
-                  ],
-                );
-              },
-            ),
-          );
-        }
-        final event = events[index - 1];
-        final reached = event.offsetMs <= playbackMs;
-        return FadeInSlide(
-          delay: Duration(milliseconds: 10 * index),
-          child: GlassCard(
-            padding: const EdgeInsets.all(12),
-            color: reached
-                ? event.color.withValues(alpha: 0.1)
-                : AppColors.glassLight,
-            borderColor: reached ? event.color : AppColors.glassBorder,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  reached ? event.icon : Icons.radio_button_unchecked,
-                  color: reached ? event.color : Colors.grey,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        event.eventType.replaceAll('_', ' '),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.titleMedium(
-                          AppColors.darkTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${event.offsetLabel} | ${event.payload}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodySmall(
-                          AppColors.darkTextSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: StatusChip(
-                          label: event.kind,
-                          status: ChipStatus.info,
-                        ),
-                      ),
-                    ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // ── Events Timeline ──
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: _events.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final event = _events[index];
+              final reached = event.offsetMs <= _playbackMs;
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: reached
+                      ? event.color.withValues(alpha: 0.08)
+                      : Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: reached
+                        ? event.color.withValues(alpha: 0.4)
+                        : Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                    width: reached ? 1.2 : 1,
                   ),
                 ),
-              ],
-            ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      reached ? event.icon : Icons.radio_button_unchecked,
+                      color: reached ? event.color : Colors.grey,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  event.eventType.replaceAll('_', ' '),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: reached ? event.color : null,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: event.color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  event.offsetLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: event.color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (event.payload.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatPayload(event.payload),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
+  }
+
+  String _formatMs(int ms) {
+    final seconds = ms ~/ 1000;
+    final minutes = seconds ~/ 60;
+    final rest = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${rest.toString().padLeft(2, '0')}';
+  }
+
+  String _formatPayload(Map<String, dynamic> payload) {
+    final parts = <String>[];
+    payload.forEach((k, v) {
+      if (v != null && v.toString().isNotEmpty) {
+        parts.add('$k: $v');
+      }
+    });
+    return parts.join(' • ');
   }
 }
 
@@ -544,21 +1000,21 @@ class _ReplayEvent {
 
   IconData get icon {
     return switch (kind) {
-      'page' => Icons.menu_book,
-      'pdf' => Icons.picture_as_pdf,
-      'board' => Icons.draw,
-      'notebook' => Icons.note_alt,
-      _ => Icons.timeline,
+      'page' => Icons.menu_book_rounded,
+      'pdf' => Icons.picture_as_pdf_rounded,
+      'board' => Icons.draw_rounded,
+      'notebook' => Icons.note_alt_rounded,
+      _ => Icons.timeline_rounded,
     };
   }
 
   Color get color {
     return switch (kind) {
-      'page' => AppColors.info,
-      'pdf' => AppColors.error,
-      'board' => AppColors.success,
-      'notebook' => AppColors.warning,
-      _ => AppColors.teacherRole,
+      'page' => Colors.blue,
+      'pdf' => Colors.red,
+      'board' => Colors.green,
+      'notebook' => Colors.amber,
+      _ => Colors.teal,
     };
   }
 }
