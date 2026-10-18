@@ -6,11 +6,11 @@ import '../../../design_system/components/glass_card.dart';
 import '../../../core/di/injection.dart';
 import '../../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../../features/communication/domain/repositories/i_notification_repository.dart';
-import '../../../features/communication/presentation/screens/notification_center_screen.dart';
 import '../../../features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
 import '../../../features/payments/presentation/screens/teacher_finance_screen.dart';
 import '../../../features/people/presentation/screens/teacher_profile_screen.dart';
 import '../screens/teacher_helpdesk_screen.dart';
+import 'notifications_tab.dart';
 
 class AccountTab extends StatefulWidget {
   final String teacherId;
@@ -145,7 +145,7 @@ class _AccountTabState extends State<AccountTab>
               TeacherProfileScreen(authViewModel: widget.authViewModel),
               TeacherFinanceScreen(teacherId: widget.teacherId),
               const TeacherHelpdeskScreen(),
-              NotificationCenterScreen(viewModel: _notificationViewModel),
+              TeacherNotificationsTab(viewModel: _notificationViewModel),
               const AppSettingsScreen(),
             ],
           ),

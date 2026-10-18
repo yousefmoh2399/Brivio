@@ -10,12 +10,12 @@ import '../../features/academy/domain/models/academy_models.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
-import '../../features/communication/presentation/screens/notification_center_screen.dart';
 import '../../features/communication/presentation/viewmodels/notification_center_viewmodel.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/classes_tab.dart';
 import 'tabs/workspace_tab.dart';
 import 'tabs/analytics_tab.dart';
+import 'tabs/notifications_tab.dart';
 import 'tabs/account_tab.dart';
 import '../../core/localization/app_localizations.dart';
 
@@ -215,6 +215,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     if (normalized.contains('exam') ||
         normalized.contains('homework') ||
         normalized.contains('grading') ||
+        normalized.contains('submission') ||
+        normalized.contains('solution') ||
+        normalized.contains('reset') ||
+        normalized.contains('retake') ||
         normalized.contains('board') ||
         normalized.contains('workspace')) {
       return 2;
@@ -286,9 +290,17 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       ClassesTab(teacherId: teacherId),
       WorkspaceTab(teacherId: teacherId),
       AnalyticsTab(profileId: widget.authViewModel.currentUser!.id),
-      NotificationCenterScreen(
+      TeacherNotificationsTab(
+        notifications: _notifications,
+        unreadCount: _unreadCount,
         viewModel: _notificationCenterViewModel,
         onNotificationTap: _openNotification,
+        onMarkRead: (n) => _notificationCenterViewModel.markRead(n.id),
+        onMarkAllRead: () => _notificationCenterViewModel.markAllRead(),
+        onRefresh: () async {
+          await _loadTeacherMetrics();
+          await _notificationCenterViewModel.loadNotifications();
+        },
       ),
       AccountTab(teacherId: teacherId, authViewModel: widget.authViewModel),
     ];
