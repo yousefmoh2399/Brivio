@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive/hive.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,6 +18,7 @@ import 'core/app/academy_material_app.dart';
 import 'core/auth/auth_loading_screen.dart';
 import 'core/di/injection.dart';
 import 'core/logging/app_logger.dart';
+import 'core/notifications/push_notification_service.dart';
 import 'core/security/access_denied_screen.dart';
 import 'core/services/settings_service.dart';
 import 'design_system/tokens/colors.dart';
@@ -99,6 +101,7 @@ Future<void> _initializeFirebaseIfAvailable() async {
     } else {
       await Firebase.initializeApp();
     }
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (error, stackTrace) {
     AppLogger.warning('Firebase is not configured for this runtime.');
     AppLogger.error('Firebase startup skipped', error, stackTrace);

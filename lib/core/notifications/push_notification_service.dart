@@ -34,8 +34,43 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         await Firebase.initializeApp();
       }
     }
-  } catch (_) {
-    return;
+
+    // If message is data-only (no system tray notification attached), display via local notifications
+    if (message.notification == null && message.data.isNotEmpty) {
+      final rawTitle = message.data['title']?.toString();
+      final rawBody = message.data['body']?.toString();
+      if (rawTitle != null || rawBody != null) {
+        final localNotifications = FlutterLocalNotificationsPlugin();
+        const initSettings = InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(),
+        );
+        await localNotifications.initialize(settings: initSettings);
+
+        final title = NotificationLocalizer.localizeTitle(rawTitle, isArabic: true);
+        final body = NotificationLocalizer.localizeMessage(rawBody, isArabic: true);
+
+        await localNotifications.show(
+          id: message.hashCode,
+          title: title,
+          body: body,
+          notificationDetails: const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'academy_notifications',
+              'إشعارات الأكاديمية والسنتر',
+              channelDescription:
+                  'تنبيهات الحصص والواجبات والامتحانات والمدفوعات والحضور.',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(),
+          ),
+          payload: jsonEncode(message.data),
+        );
+      }
+    }
+  } catch (error, stackTrace) {
+    AppLogger.error('Firebase background message handling failed', error, stackTrace);
   }
 }
 
