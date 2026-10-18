@@ -38,6 +38,7 @@ import 'tabs/parent_progress_tab.dart';
 import 'tabs/parent_attendance_tab.dart';
 import 'tabs/parent_payments_tab.dart';
 import 'tabs/parent_monthly_report_tab.dart';
+import 'tabs/parent_notifications_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -1072,51 +1073,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildNotificationsPage() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: PortalSectionTitle(
-                title: 'الإشعارات والتنبيهات',
-                subtitle: 'تنبيهات وتحديثات السنتر المرسلة لولي الأمر.',
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: _notifications.isEmpty
-                  ? null
-                  : _markAllNotificationsRead,
-              icon: const Icon(Icons.done_all),
-              label: const Text('تحديد الكل كمقروء'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _notifications.isEmpty,
-          emptyText: 'لا توجد إشعارات مسجلة حالياً.',
-          children: _notifications
-              .map(
-                (notification) => PortalListCard(
-                  icon: notification.isRead
-                      ? Icons.notifications_none
-                      : Icons.notifications_active,
-                  accentColor: notification.isRead
-                      ? AppColors.info
-                      : AppColors.parentRole,
-                  title: notification.title,
-                  subtitle:
-                      '${notification.message} • ${_formatDate(notification.createdAt)}',
-                  trailing: notification.isRead
-                      ? const []
-                      : [const PortalStatusChip(status: 'pending')],
-                  onTap: () => _openNotification(notification),
-                ),
-              )
-              .toList(),
-        ),
-      ],
+    return ParentNotificationsTab(
+      notifications: _notifications,
+      unreadCount: _unreadCount,
+      child: _selectedChild,
+      onMarkAllRead: _markAllNotificationsRead,
+      onNotificationTap: _openNotification,
+      onMarkRead: _markNotificationRead,
     );
   }
 
@@ -1439,36 +1402,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
 }
 
-class _InfoList extends StatelessWidget {
-  final bool isEmpty;
-  final String emptyText;
-  final List<Widget> children;
 
-  const _InfoList({
-    required this.isEmpty,
-    required this.emptyText,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline),
-              const SizedBox(width: 10),
-              Expanded(child: Text(emptyText)),
-            ],
-          ),
-        ),
-      );
-    }
-    return Column(children: children);
-  }
-}
 
 class _ReceiptDetailLine extends StatelessWidget {
   final String label;
