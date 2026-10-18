@@ -722,6 +722,7 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF0F172A),
         appBar: AppBar(
           backgroundColor: const Color(0xFF1E293B),
@@ -911,7 +912,12 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
                             bottom: 16,
                             left: 16,
                             right: 16,
-                            child: _buildResultHudCard(_lastResult!),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 280),
+                              child: SingleChildScrollView(
+                                child: _buildResultHudCard(_lastResult!),
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -966,35 +972,63 @@ class _ReceptionQrGateScreenState extends State<ReceptionQrGateScreen> {
   }
 
   Widget _buildScannerOverlay() {
-    return Center(
-      child: Container(
-        width: 250,
-        height: 250,
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.primary, width: 2.5),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                _isProcessingScan ? 'جاري التحقق...' : 'وجّه الكاميرا لكود الطالب',
-                style: const TextStyle(
-                  color: Colors.white,
-                  backgroundColor: Colors.black54,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxHeight < 60 || constraints.maxWidth < 60) {
+          return const SizedBox.shrink();
+        }
+        const double targetSize = 250.0;
+        final double boxWidth = constraints.maxWidth < targetSize ? constraints.maxWidth * 0.85 : targetSize;
+        final double boxHeight = constraints.maxHeight < targetSize ? constraints.maxHeight * 0.85 : targetSize;
+        final double boxSize = boxWidth < boxHeight ? boxWidth : boxHeight;
+
+        return Center(
+          child: SizedBox(
+            width: boxSize,
+            height: boxSize,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.primary, width: 2.5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(
+                  children: [
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _isProcessingScan ? 'جاري التحقق...' : 'وجّه الكاميرا لكود الطالب',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    if (_isProcessingScan)
+                      const Align(
+                        alignment: Alignment.bottomCenter,
+                        child: LinearProgressIndicator(color: AppColors.primary),
+                      ),
+                  ],
                 ),
               ),
             ),
-            if (_isProcessingScan)
-              const LinearProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
