@@ -9,14 +9,17 @@ import 'student_personal_board_screen.dart';
 
 /// Screen listing all personal whiteboards for a student or teacher.
 /// Allows creating, opening, renaming, duplicating, and deleting personal study boards.
+/// Redesigned with an Executive AAA responsive UI supporting mobile (320px+), tablet, and desktop.
 class PersonalWhiteboardsHubScreen extends StatefulWidget {
   final String? userId;
   final String role; // 'student' or 'teacher'
+  final List<PersonalWhiteboardItem>? initialBoards;
 
   const PersonalWhiteboardsHubScreen({
     super.key,
     this.userId,
-    this.role = 'student',
+    this.role = 'teacher',
+    this.initialBoards,
   });
 
   @override
@@ -30,7 +33,7 @@ class _PersonalWhiteboardsHubScreenState
   bool _isLoading = true;
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
-  bool _isSearching = false;
+  String _selectedThemeFilter = 'all';
 
   String get _effectiveUserId => widget.userId ?? 'guest';
   bool get _isTeacher => widget.role == 'teacher';
@@ -38,7 +41,12 @@ class _PersonalWhiteboardsHubScreenState
   @override
   void initState() {
     super.initState();
-    _loadBoards();
+    if (widget.initialBoards != null) {
+      _boards = List.from(widget.initialBoards!);
+      _isLoading = false;
+    } else {
+      _loadBoards();
+    }
   }
 
   @override
@@ -48,6 +56,7 @@ class _PersonalWhiteboardsHubScreenState
   }
 
   Future<void> _loadBoards() async {
+    if (widget.initialBoards != null) return;
     setState(() => _isLoading = true);
     try {
       final list = await PersonalWhiteboardsStorage.getBoards(_effectiveUserId);
@@ -107,8 +116,8 @@ class _PersonalWhiteboardsHubScreenState
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.edit_note_rounded, color: AppColors.primary),
             SizedBox(width: 8),
             Text('تعديل اسم السبورة'),
@@ -138,16 +147,52 @@ class _PersonalWhiteboardsHubScreenState
     );
 
     if (newTitle != null && newTitle.isNotEmpty && newTitle != item.title) {
-      await PersonalWhiteboardsStorage.renameBoard(
-        userId: _effectiveUserId,
-        boardId: item.id,
-        newTitle: newTitle,
-      );
-      if (mounted) _loadBoards();
+      if (widget.initialBoards != null) {
+        setState(() {
+          final idx = _boards.indexWhere((b) => b.id == item.id);
+          if (idx >= 0) {
+            _boards[idx] = _boards[idx].copyWith(
+              title: newTitle,
+              updatedAt: DateTime.now(),
+            );
+          }
+        });
+      } else {
+        await PersonalWhiteboardsStorage.renameBoard(
+          userId: _effectiveUserId,
+          boardId: item.id,
+          newTitle: newTitle,
+        );
+        if (mounted) _loadBoards();
+      }
     }
   }
 
   Future<void> _duplicateBoard(PersonalWhiteboardItem item) async {
+    if (widget.initialBoards != null) {
+      final copyItem = PersonalWhiteboardItem(
+        id: 'board_${DateTime.now().millisecondsSinceEpoch}',
+        userId: item.userId,
+        title: '${item.title} (نسخة)',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        bgTheme: item.bgTheme,
+        strokeCount: item.strokeCount,
+      );
+      setState(() {
+        _boards.insert(0, copyItem);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم نسخ السبورة بنجاح 📋'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
     final res = await PersonalWhiteboardsStorage.duplicateBoard(
       userId: _effectiveUserId,
       boardId: item.id,
@@ -187,10 +232,18 @@ class _PersonalWhiteboardsHubScreenState
     );
 
     if (confirm == true) {
-      await PersonalWhiteboardsStorage.deleteBoard(
-        userId: _effectiveUserId,
-        boardId: item.id,
-      );
+      if (widget.initialBoards != null) {
+        setState(() {
+          _boards.removeWhere((b) => b.id == item.id);
+        });
+      } else {
+        await PersonalWhiteboardsStorage.deleteBoard(
+          userId: _effectiveUserId,
+          boardId: item.id,
+        );
+        if (mounted) _loadBoards();
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -198,16 +251,29 @@ class _PersonalWhiteboardsHubScreenState
             duration: Duration(seconds: 2),
           ),
         );
-        _loadBoards();
       }
     }
   }
 
   List<PersonalWhiteboardItem> get _filteredBoards {
-    if (_searchQuery.trim().isEmpty) return _boards;
-    final q = _searchQuery.trim().toLowerCase();
-    return _boards.where((b) => b.title.toLowerCase().contains(q)).toList();
+    var list = _boards;
+    if (_selectedThemeFilter != 'all') {
+      list = list.where((b) => b.bgTheme == _selectedThemeFilter).toList();
+    }
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((b) => b.title.toLowerCase().contains(q)).toList();
+    }
+    return list;
   }
+
+  int _countByTheme(String themeKey) {
+    if (themeKey == 'all') return _boards.length;
+    return _boards.where((b) => b.bgTheme == themeKey).length;
+  }
+
+  int get _totalStrokes =>
+      _boards.fold<int>(0, (sum, b) => sum + b.strokeCount);
 
   String _formatFriendlyDate(DateTime dt) {
     final now = DateTime.now();
@@ -227,7 +293,7 @@ class _PersonalWhiteboardsHubScreenState
     return switch (themeName) {
       'gridMath' => 'شبكة مربعات هندسية',
       'linedNotebook' => 'كشكول مسطر',
-      'darkSlate' => 'لوح أسود داكن',
+      'darkSlate' => 'سبورة سوداء',
       'blankWhite' || _ => 'ورق أبيض ناصع',
     };
   }
@@ -256,8 +322,8 @@ class _PersonalWhiteboardsHubScreenState
     final primaryAccent =
         _isTeacher ? AppColors.teacherRole : AppColors.primary;
     final titleText = _isTeacher
-        ? 'سبوراتي ومسودات التحضير 🎨'
-        : 'سبوراتي الذاتية للمذاكرة 🧠✏️';
+        ? 'سبوراتي ومسودات التحضير'
+        : 'سبوراتي الذاتية للمذاكرة';
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -268,62 +334,794 @@ class _PersonalWhiteboardsHubScreenState
           elevation: 0,
           backgroundColor:
               isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          title: _isSearching
-              ? TextField(
-                  controller: _searchCtrl,
-                  autofocus: true,
-                  textDirection: TextDirection.rtl,
-                  decoration: InputDecoration(
-                    hintText: 'ابحث في السبورات بالاسم...',
-                    border: InputBorder.none,
-                    hintStyle: TextStyle(
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
-                    ),
-                  ),
-                  onChanged: (v) => setState(() => _searchQuery = v),
-                )
-              : Text(
-                  titleText,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: primaryAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: Icon(
+                  _isTeacher ? Icons.draw_rounded : Icons.menu_book_rounded,
+                  color: primaryAccent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  titleText,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
           actions: [
             IconButton(
-              icon: Icon(_isSearching ? Icons.close_rounded : Icons.search_rounded),
-              tooltip: _isSearching ? 'إغلاق البحث' : 'بحث في السبورات',
-              onPressed: () {
-                setState(() {
-                  if (_isSearching) {
-                    _searchQuery = '';
-                    _searchCtrl.clear();
-                  }
-                  _isSearching = !_isSearching;
-                });
-              },
-            ),
-            IconButton(
               icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'تحديث',
+              tooltip: 'تحديث السبورات',
               onPressed: _loadBoards,
             ),
           ],
         ),
         body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
+            ? const Center(child: CircularProgressIndicator())
             : _boards.isEmpty
                 ? _buildEmptyState(primaryAccent, isDark)
-                : _buildBoardsList(primaryAccent, isDark),
+                : _buildBoardsContent(primaryAccent, isDark),
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: primaryAccent,
           foregroundColor: Colors.white,
           elevation: 4,
           icon: const Icon(Icons.add_rounded, size: 22),
-          label: const Text(
-            'سبورة جديدة',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          label: Text(
+            _isTeacher ? 'سبورة جديدة' : 'مذاكرة جديدة',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           onPressed: _createNewBoard,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBoardsContent(Color primaryAccent, bool isDark) {
+    final list = _filteredBoards;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final int crossAxisCount;
+        if (screenWidth >= 950) {
+          crossAxisCount = 3;
+        } else if (screenWidth >= 580) {
+          crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        final horizontalPadding = screenWidth < 380 ? 12.0 : 16.0;
+
+        return CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Executive AAA Hero Banner
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  14,
+                  horizontalPadding,
+                  10,
+                ),
+                child: _buildExecutiveHeroBanner(primaryAccent, isDark, screenWidth),
+              ),
+            ),
+
+            // Search Bar & Theme Filter Chips
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  4,
+                  horizontalPadding,
+                  8,
+                ),
+                child: _buildSearchAndFilterSection(primaryAccent, isDark),
+              ),
+            ),
+
+            // Filter Active Status or Results Header
+            if (_searchQuery.isNotEmpty || _selectedThemeFilter != 'all')
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    2,
+                    horizontalPadding,
+                    10,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'نتائج البحث: ${list.length} من أصل ${_boards.length} سبورة',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          foregroundColor: primaryAccent,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        icon: const Icon(Icons.clear_all_rounded, size: 16),
+                        label: const Text('إلغاء الفلتر', style: TextStyle(fontSize: 12)),
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = '';
+                            _searchCtrl.clear();
+                            _selectedThemeFilter = 'all';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Whiteboard Cards Grid or Empty Search State
+            if (list.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 54,
+                          color: isDark ? Colors.grey[600] : Colors.grey[400],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'لا توجد سبورات مطابقة لبحثك',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'جرب البحث باسم آخر أو إزالة تصنيف الخلفية المحدد.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _searchQuery = '';
+                              _searchCtrl.clear();
+                              _selectedThemeFilter = 'all';
+                            });
+                          },
+                          icon: const Icon(Icons.refresh_rounded, size: 16),
+                          label: const Text('عرض جميع السبورات'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  4,
+                  horizontalPadding,
+                  96,
+                ),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    mainAxisExtent: 180,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _buildBoardCard(list[i], primaryAccent, isDark),
+                    childCount: list.length,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildExecutiveHeroBanner(
+    Color primaryAccent,
+    bool isDark,
+    double screenWidth,
+  ) {
+    final isSmall = screenWidth < 460;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  primaryAccent.withValues(alpha: 0.28),
+                  AppColors.darkSurface,
+                ]
+              : [
+                  primaryAccent.withValues(alpha: 0.12),
+                  Colors.white,
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: primaryAccent.withValues(alpha: isDark ? 0.35 : 0.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryAccent.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(isSmall ? 14 : 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Wrap with Tag & Privacy Lock
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: primaryAccent.withValues(alpha: isDark ? 0.25 : 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isTeacher ? Icons.school_rounded : Icons.auto_stories_rounded,
+                      size: 13,
+                      color: primaryAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isTeacher ? 'استوديو التحضير' : 'مذكراتي',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: primaryAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 12,
+                      color: Colors.green.shade600,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'مساحة مشفرة 🔒',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.green.shade600,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Title & Description
+          Text(
+            _isTeacher
+                ? 'سبوراتي ومسودات الدروس 🎨'
+                : 'دفتر السبورات والمذاكرة الذاتية 🧠✏️',
+            style: TextStyle(
+              fontSize: isSmall ? 17 : 20,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _isTeacher
+                ? 'مساحتك الحرة والآمنة لتجهيز الشروحات التفاعلية، مسودات الدروس، ورسم المخططات الهندسية.'
+                : 'دفترك الرقمي الخاص لمذاكرة دروسك، حل المسائل والمعادلات، وتلخيص القوانين بحرية تامة.',
+            style: TextStyle(
+              fontSize: isSmall ? 12 : 13,
+              color: isDark ? Colors.grey[300] : Colors.grey[700],
+              height: 1.45,
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Dynamic Responsive KPIs Strip
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _buildKpiChip(
+                icon: Icons.dashboard_customize_rounded,
+                label: 'السبورات',
+                value: '${_boards.length}',
+                color: primaryAccent,
+                isDark: isDark,
+              ),
+              _buildKpiChip(
+                icon: Icons.gesture_rounded,
+                label: 'الرسومات',
+                value: '$_totalStrokes',
+                color: const Color(0xFF0D9488),
+                isDark: isDark,
+              ),
+              _buildKpiChip(
+                icon: Icons.brush_rounded,
+                label: 'الخلفيات',
+                value: '4 أنماط',
+                color: const Color(0xFFEA580C),
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKpiChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 10,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 10.5,
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilterSection(Color primaryAccent, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Search Input Field
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+          ),
+          child: TextField(
+            controller: _searchCtrl,
+            textDirection: TextDirection.rtl,
+            onChanged: (v) => setState(() => _searchQuery = v),
+            decoration: InputDecoration(
+              hintText: 'ابحث في السبورات بالاسم أو الموضوع...',
+              hintStyle: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.grey[500] : Colors.grey[400],
+              ),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: primaryAccent,
+                size: 20,
+              ),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      tooltip: 'مسح البحث',
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // Filter Theme Chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              _buildFilterChip(
+                key: 'all',
+                label: 'الكل',
+                count: _boards.length,
+                icon: Icons.layers_rounded,
+                accentColor: primaryAccent,
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                key: 'gridMath',
+                label: 'شبكة هندسية 📐',
+                count: _countByTheme('gridMath'),
+                icon: Icons.grid_on_rounded,
+                accentColor: const Color(0xFF2563EB),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                key: 'linedNotebook',
+                label: 'كشكول مسطر 📝',
+                count: _countByTheme('linedNotebook'),
+                icon: Icons.format_line_spacing_rounded,
+                accentColor: const Color(0xFF0D9488),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                key: 'darkSlate',
+                label: 'سبورة سوداء 🖤',
+                count: _countByTheme('darkSlate'),
+                icon: Icons.nightlight_round,
+                accentColor: const Color(0xFF475569),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                key: 'blankWhite',
+                label: 'ورق أبيض 📄',
+                count: _countByTheme('blankWhite'),
+                icon: Icons.crop_square_rounded,
+                accentColor: const Color(0xFF64748B),
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String key,
+    required String label,
+    required int count,
+    required IconData icon,
+    required Color accentColor,
+    required bool isDark,
+  }) {
+    final isSelected = _selectedThemeFilter == key;
+
+    return InkWell(
+      onTap: () => setState(() => _selectedThemeFilter = key),
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? accentColor.withValues(alpha: isDark ? 0.35 : 0.15)
+              : (isDark ? AppColors.darkSurface : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? accentColor
+                : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected
+                  ? accentColor
+                  : (isDark ? Colors.grey[400] : Colors.grey[600]),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? accentColor
+                    : (isDark ? Colors.white : Colors.black87),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? accentColor.withValues(alpha: 0.25)
+                    : (isDark ? Colors.grey[800] : Colors.grey[200]),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected
+                      ? accentColor
+                      : (isDark ? Colors.grey[300] : Colors.grey[700]),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBoardCard(
+    PersonalWhiteboardItem item,
+    Color primaryAccent,
+    bool isDark,
+  ) {
+    final themeColor = _themeColor(item.bgTheme);
+    final themeIcon = _themeIcon(item.bgTheme);
+    final themeLabel = _themeLabel(item.bgTheme);
+    final metaColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
+    return InkWell(
+      onTap: () => _openBoard(item),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Accent Ribbon with safe ellipsis
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: themeColor.withValues(alpha: isDark ? 0.2 : 0.08),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+              ),
+              child: Row(
+                children: [
+                  Icon(themeIcon, size: 15, color: themeColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      themeLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: themeColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  PopupMenuButton<int>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 18),
+                    tooltip: 'خيارات السبورة',
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onSelected: (val) {
+                      switch (val) {
+                        case 1:
+                          _renameBoard(item);
+                          break;
+                        case 2:
+                          _duplicateBoard(item);
+                          break;
+                        case 3:
+                          _deleteBoard(item);
+                          break;
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 1,
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_rounded, size: 17, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('تعديل الاسم'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 2,
+                        child: Row(
+                          children: [
+                            Icon(Icons.copy_rounded, size: 17, color: Colors.teal),
+                            SizedBox(width: 8),
+                            Text('نسخ ومضاعفة'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 3,
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded,
+                                size: 17, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('حذف', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    // Bottom Metadata Row completely guarded from overflow
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.draw_rounded,
+                          size: 13,
+                          color: metaColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${item.strokeCount} خط/رسمة',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: metaColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 13,
+                          color: metaColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            _formatFriendlyDate(item.updatedAt),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: metaColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -404,259 +1202,6 @@ class _PersonalWhiteboardsHubScreenState
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               onPressed: _createNewBoard,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBoardsList(Color primaryAccent, bool isDark) {
-    final list = _filteredBoards;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 900
-            ? 3
-            : (constraints.maxWidth > 550 ? 2 : 1);
-
-        return CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkSurface
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.folder_special_rounded, color: primaryAccent),
-                      const SizedBox(width: 10),
-                      Text(
-                        'إجمالي السبورات المحفوظة: ${_boards.length}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'مساحة شخصية 🔒',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (list.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Text(
-                    'لا توجد سبورة مطابقة لنتيجة البحث',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    mainAxisExtent: 170,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => _buildBoardCard(list[i], primaryAccent, isDark),
-                    childCount: list.length,
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildBoardCard(
-    PersonalWhiteboardItem item,
-    Color primaryAccent,
-    bool isDark,
-  ) {
-    final themeColor = _themeColor(item.bgTheme);
-    final themeIcon = _themeIcon(item.bgTheme);
-    final themeLabel = _themeLabel(item.bgTheme);
-
-    return InkWell(
-      onTap: () => _openBoard(item),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Accent Bar with preview theme
-            Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: themeColor.withValues(alpha: isDark ? 0.18 : 0.08),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-              ),
-              child: Row(
-                children: [
-                  Icon(themeIcon, size: 16, color: themeColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    themeLabel,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: themeColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  PopupMenuButton<int>(
-                    icon: const Icon(Icons.more_vert_rounded, size: 18),
-                    tooltip: 'خيارات',
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    onSelected: (val) {
-                      switch (val) {
-                        case 1:
-                          _renameBoard(item);
-                          break;
-                        case 2:
-                          _duplicateBoard(item);
-                          break;
-                        case 3:
-                          _deleteBoard(item);
-                          break;
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(
-                        value: 1,
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_rounded, size: 18, color: Colors.blue),
-                            SizedBox(width: 10),
-                            Text('تعديل الاسم'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 2,
-                        child: Row(
-                          children: [
-                            Icon(Icons.copy_rounded, size: 18, color: Colors.teal),
-                            SizedBox(width: 10),
-                            Text('نسخ ومضاعفة'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 3,
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline_rounded,
-                                size: 18, color: Colors.red),
-                            SizedBox(width: 10),
-                            Text('حذف', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Content
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.edit_rounded,
-                          size: 13,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${item.strokeCount} رسمة/خط',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 13,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatFriendlyDate(item.updatedAt),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),

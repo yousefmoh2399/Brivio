@@ -619,9 +619,272 @@ class _StudentPersonalBoardScreenState
     );
   }
 
+  void _showBackgroundThemeDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.grid_4x4_rounded, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('نوع خلفية السبورة'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.crop_square_rounded, color: Colors.grey),
+              title: const Text('ورق أبيض ناصع'),
+              selected: _bgTheme == _BoardBackgroundTheme.blankWhite,
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _bgTheme = _BoardBackgroundTheme.blankWhite);
+                _saveBoard();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.grid_on_rounded, color: Colors.blue),
+              title: const Text('شبكة مربعات هندسية (رياضيات)'),
+              selected: _bgTheme == _BoardBackgroundTheme.gridMath,
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _bgTheme = _BoardBackgroundTheme.gridMath);
+                _saveBoard();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.format_line_spacing_rounded, color: Colors.teal),
+              title: const Text('كشكول مسطر (ملاحظات)'),
+              selected: _bgTheme == _BoardBackgroundTheme.linedNotebook,
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _bgTheme = _BoardBackgroundTheme.linedNotebook);
+                _saveBoard();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.nightlight_round, color: Colors.amber),
+              title: const Text('سبورة سوداء كلاسيكية (Blackboard)'),
+              selected: _bgTheme == _BoardBackgroundTheme.darkSlate,
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _bgTheme = _BoardBackgroundTheme.darkSlate);
+                _saveBoard();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildAppBarActions(BuildContext context, double screenWidth) {
+    final saveButton = IconButton(
+      icon: Badge(
+        isLabelVisible: _hasUnsavedChanges,
+        smallSize: 8,
+        backgroundColor: Colors.amber,
+        child: const Icon(Icons.save_rounded),
+      ),
+      tooltip: _hasUnsavedChanges ? 'حفظ السبورة 💾' : 'تم الحفظ ✅',
+      onPressed: () => _saveBoard(showFeedback: true),
+    );
+
+    final undoButton = IconButton(
+      icon: const Icon(Icons.undo_rounded),
+      tooltip: 'تراجع',
+      onPressed: _undoStack.isNotEmpty ? _undo : null,
+    );
+
+    final redoButton = IconButton(
+      icon: const Icon(Icons.redo_rounded),
+      tooltip: 'إعادة',
+      onPressed: _redoStack.isNotEmpty ? _redo : null,
+    );
+
+    if (screenWidth < 520) {
+      final isUltraCompact = screenWidth < 380;
+      return [
+        saveButton,
+        if (!isUltraCompact) undoButton,
+        if (!isUltraCompact) redoButton,
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert_rounded),
+          tooltip: 'المزيد من الخيارات',
+          onSelected: (val) {
+            switch (val) {
+              case 'undo':
+                _undo();
+                break;
+              case 'redo':
+                _redo();
+                break;
+              case 'theme':
+                _showBackgroundThemeDialog();
+                break;
+              case 'zoom':
+                _resetZoom();
+                break;
+              case 'export':
+                _showExportSheet();
+                break;
+              case 'clear':
+                _clearCanvas();
+                break;
+            }
+          },
+          itemBuilder: (ctx) => [
+            if (isUltraCompact) ...[
+              PopupMenuItem(
+                value: 'undo',
+                enabled: _undoStack.isNotEmpty,
+                child: const Row(
+                  children: [
+                    Icon(Icons.undo_rounded, size: 20, color: Colors.blue),
+                    SizedBox(width: 10),
+                    Text('تراجع'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'redo',
+                enabled: _redoStack.isNotEmpty,
+                child: const Row(
+                  children: [
+                    Icon(Icons.redo_rounded, size: 20, color: Colors.blue),
+                    SizedBox(width: 10),
+                    Text('إعادة'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+            ],
+            const PopupMenuItem(
+              value: 'theme',
+              child: Row(
+                children: [
+                  Icon(Icons.grid_4x4_rounded, size: 20, color: Colors.teal),
+                  SizedBox(width: 10),
+                  Text('خلفية السبورة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'zoom',
+              child: Row(
+                children: [
+                  Icon(Icons.center_focus_strong_rounded, size: 20, color: Colors.indigo),
+                  SizedBox(width: 10),
+                  Text('إعادة ضبط العرض'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'export',
+              child: Row(
+                children: [
+                  Icon(Icons.share_rounded, size: 20, color: Colors.deepPurple),
+                  SizedBox(width: 10),
+                  Text('تصدير ومشاركة (PDF / صورة)'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'clear',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
+                  SizedBox(width: 10),
+                  Text('مسح محتوى السبورة', style: TextStyle(color: Colors.redAccent)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ];
+    }
+
+    return [
+      saveButton,
+      undoButton,
+      redoButton,
+      IconButton(
+        icon: const Icon(Icons.center_focus_strong_rounded),
+        tooltip: 'إعادة ضبط العرض',
+        onPressed: _resetZoom,
+      ),
+      PopupMenuButton<_BoardBackgroundTheme>(
+        tooltip: 'نوع خلفية السبورة',
+        icon: const Icon(Icons.grid_4x4_rounded),
+        onSelected: (t) {
+          setState(() => _bgTheme = t);
+          _saveBoard();
+        },
+        itemBuilder: (ctx) => [
+          const PopupMenuItem(
+            value: _BoardBackgroundTheme.blankWhite,
+            child: Row(
+              children: [
+                Icon(Icons.crop_square_rounded, color: Colors.grey),
+                SizedBox(width: 8),
+                Text('ورق أبيض ناصع'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: _BoardBackgroundTheme.gridMath,
+            child: Row(
+              children: [
+                Icon(Icons.grid_on_rounded, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('شبكة مربعات هندسية (رياضيات)'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: _BoardBackgroundTheme.linedNotebook,
+            child: Row(
+              children: [
+                Icon(Icons.format_line_spacing_rounded, color: Colors.teal),
+                SizedBox(width: 8),
+                Text('كشكول مسطر (ملاحظات)'),
+              ],
+            ),
+          ),
+          const PopupMenuItem(
+            value: _BoardBackgroundTheme.darkSlate,
+            child: Row(
+              children: [
+                Icon(Icons.nightlight_round, color: Colors.amber),
+                SizedBox(width: 8),
+                Text('سبورة سوداء كلاسيكية (Blackboard)'),
+              ],
+            ),
+          ),
+        ],
+      ),
+      IconButton(
+        icon: const Icon(Icons.share_rounded, color: Colors.blueAccent),
+        tooltip: 'مشاركة وتصدير السبورة كصورة أو PDF',
+        onPressed: _showExportSheet,
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+        tooltip: 'مسح السبورة',
+        onPressed: _clearCanvas,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkSlate = _bgTheme == _BoardBackgroundTheme.darkSlate;
+    final screenWidth = MediaQuery.sizeOf(context).width;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -655,144 +918,35 @@ class _StudentPersonalBoardScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            _boardTitle,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.edit_outlined,
-                            size: 13, color: Colors.grey),
-                      ],
+                    Text(
+                      _boardTitle,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _hasUnsavedChanges
-                              ? Icons.circle_rounded
-                              : Icons.lock_outline_rounded,
-                          size: 10,
-                          color: _hasUnsavedChanges
-                              ? Colors.amber.shade700
-                              : Colors.green,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _hasUnsavedChanges
-                              ? 'تغييرات غير محفوظة'
-                              : 'مسودة محفوظة 🔒',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _hasUnsavedChanges
-                                ? Colors.amber.shade700
-                                : Colors.green,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      _hasUnsavedChanges
+                          ? 'تغييرات غير محفوظة'
+                          : 'مسودة محفوظة 🔒',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: _hasUnsavedChanges
+                            ? Colors.amber.shade700
+                            : Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ),
               ),
             ),
-            actions: [
-              IconButton(
-                icon: Badge(
-                  isLabelVisible: _hasUnsavedChanges,
-                  smallSize: 8,
-                  backgroundColor: Colors.amber,
-                  child: const Icon(Icons.save_rounded),
-                ),
-                tooltip: _hasUnsavedChanges ? 'حفظ السبورة 💾' : 'تم الحفظ ✅',
-                onPressed: () => _saveBoard(showFeedback: true),
-              ),
-            IconButton(
-              icon: const Icon(Icons.undo_rounded),
-              tooltip: 'تراجع',
-              onPressed: _undoStack.isNotEmpty ? _undo : null,
-            ),
-            IconButton(
-              icon: const Icon(Icons.redo_rounded),
-              tooltip: 'إعادة',
-              onPressed: _redoStack.isNotEmpty ? _redo : null,
-            ),
-            IconButton(
-              icon: const Icon(Icons.center_focus_strong_rounded),
-              tooltip: 'إعادة ضبط العرض',
-              onPressed: _resetZoom,
-            ),
-            PopupMenuButton<_BoardBackgroundTheme>(
-              tooltip: 'نوع خلفية السبورة',
-              icon: const Icon(Icons.grid_4x4_rounded),
-              onSelected: (t) {
-                setState(() => _bgTheme = t);
-                _saveBoard();
-              },
-              itemBuilder: (ctx) => [
-                const PopupMenuItem(
-                  value: _BoardBackgroundTheme.blankWhite,
-                  child: Row(
-                    children: [
-                      Icon(Icons.crop_square_rounded, color: Colors.grey),
-                      SizedBox(width: 8),
-                      Text('ورق أبيض ناصع'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: _BoardBackgroundTheme.gridMath,
-                  child: Row(
-                    children: [
-                      Icon(Icons.grid_on_rounded, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('شبكة مربعات هندسية (رياضيات)'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: _BoardBackgroundTheme.linedNotebook,
-                  child: Row(
-                    children: [
-                      Icon(Icons.format_line_spacing_rounded, color: Colors.teal),
-                      SizedBox(width: 8),
-                      Text('كشكول مسطر (ملاحظات)'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: _BoardBackgroundTheme.darkSlate,
-                  child: Row(
-                    children: [
-                      Icon(Icons.nightlight_round, color: Colors.amber),
-                      SizedBox(width: 8),
-                      Text('سبورة سوداء كلاسيكية (Blackboard)'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.share_rounded, color: Colors.blueAccent),
-              tooltip: 'مشاركة وتصدير السبورة كصورة أو PDF',
-              onPressed: _showExportSheet,
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-              tooltip: 'مسح السبورة',
-              onPressed: _clearCanvas,
-            ),
-          ],
-        ),
+            actions: _buildAppBarActions(context, screenWidth),
+          ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Stack(
