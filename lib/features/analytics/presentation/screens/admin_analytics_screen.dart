@@ -15,11 +15,23 @@ class AdminAnalyticsScreen extends StatefulWidget {
 
 class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   final _viewModel = AdminAnalyticsViewModel();
+  String _selectedPeriod = '6M';
 
   @override
   void initState() {
     super.initState();
-    _viewModel.loadAnalytics();
+    _loadForPeriod(_selectedPeriod);
+  }
+
+  void _loadForPeriod(String period) {
+    setState(() => _selectedPeriod = period);
+    final now = DateTime.now();
+    final start = switch (period) {
+      '1M' => now.subtract(const Duration(days: 30)),
+      '1Y' => now.subtract(const Duration(days: 365)),
+      _ => now.subtract(const Duration(days: 180)),
+    };
+    _viewModel.loadAnalytics(startDate: start, endDate: now);
   }
 
   @override
@@ -34,15 +46,14 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
 
     return PortalPageShell(
       title: 'التحليلات والمؤشرات البيانية 📈',
-      subtitle:
-          'متابعة الإيرادات والتحصيل المالي ومعدلات حضور وأداء الطلاب في السنتر.',
+      subtitle: 'متابعة الإيرادات والتحصيل المالي ومعدلات حضور وأداء الطلاب في السنتر.',
       icon: Icons.analytics_rounded,
       accentColor: Colors.deepPurple,
       actions: [
         PortalAction(
           icon: Icons.refresh_rounded,
           label: 'تحديث',
-          onPressed: () => _viewModel.loadAnalytics(),
+          onPressed: () => _loadForPeriod(_selectedPeriod),
         ),
       ],
       child: ListenableBuilder(
@@ -53,9 +64,26 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
           }
           if (_viewModel.errorMessage != null) {
             return Center(
-              child: Text(
-                _viewModel.errorMessage!,
-                style: const TextStyle(color: Colors.red),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+                    const SizedBox(height: 12),
+                    Text(
+                      _viewModel.errorMessage!,
+                      style: const TextStyle(color: AppColors.error),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => _loadForPeriod(_selectedPeriod),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('إعادة المحاولة'),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -65,330 +93,415 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
           final students = analytics?.totalStudents ?? 0;
           final attendance = analytics?.attendanceRate ?? 0.0;
 
-          return ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              FadeInSlide(
-                delay: const Duration(milliseconds: 100),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isMobile = constraints.maxWidth < 650;
-                    final cards = [
-                      _AnalyticsSummaryCard(
-                        title: 'إجمالي الإيرادات',
-                        value: '${revenue.toStringAsFixed(0)} ج.م',
-                        trend: '+0.0%',
-                        isPositive: true,
-                        icon: Icons.monetization_on_rounded,
-                        color: Colors.green,
-                      ),
-                      _AnalyticsSummaryCard(
-                        title: 'الطلاب المسجلون',
-                        value: '$students طالب',
-                        trend: '+0.0%',
-                        isPositive: true,
-                        icon: Icons.school_rounded,
-                        color: Colors.blue,
-                      ),
-                      _AnalyticsSummaryCard(
-                        title: 'نسبة الحضور',
-                        value: '${attendance.toStringAsFixed(1)}%',
-                        trend: '0.0%',
-                        isPositive: true,
-                        icon: Icons.fact_check_rounded,
-                        color: Colors.orange,
-                      ),
-                    ];
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 650;
+              final isSmall = constraints.maxWidth < 420;
 
-                    if (isMobile) {
-                      return Column(
-                        children: [
-                          cards[0],
-                          const SizedBox(height: 12),
-                          cards[1],
-                          const SizedBox(height: 12),
-                          cards[2],
-                        ],
-                      );
-                    }
-
-                    return Row(
-                      children: [
-                        Expanded(child: cards[0]),
-                        const SizedBox(width: 16),
-                        Expanded(child: cards[1]),
-                        const SizedBox(width: 16),
-                        Expanded(child: cards[2]),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 24),
-              FadeInSlide(
-                delay: const Duration(milliseconds: 200),
-                child: GlassCard(
-                  color: isDark
-                      ? AppColors.darkSurface
-                      : AppColors.lightSurface,
-                  borderColor: isDark
-                      ? AppColors.darkBorder
-                      : AppColors.lightBorder,
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          Text(
-                            'معدل نمو الإيرادات',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          SegmentedButton<String>(
-                            segments: const [
-                              ButtonSegment(value: '1M', label: Text('شهر')),
-                              ButtonSegment(value: '6M', label: Text('6 أشهر')),
-                              ButtonSegment(value: '1Y', label: Text('سنة')),
-                            ],
-                            selected: const {'6M'},
-                            onSelectionChanged: (val) {},
-                            style: SegmentedButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        height: 180,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.deepPurple.withValues(alpha: 0.1),
-                              Colors.deepPurple.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                        child: Stack(
-                          children: [
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: List.generate(
-                                5,
-                                (index) => Divider(
-                                  color: Colors.grey.withValues(alpha: 0.15),
-                                ),
-                              ),
-                            ),
-                            if (analytics != null &&
-                                analytics.revenueGrowth.isNotEmpty &&
-                                analytics.totalRevenue > 0)
-                              CustomPaint(
-                                size: const Size(double.infinity, 180),
-                                painter: _RealChartPainter(
-                                  points: analytics.revenueGrowth,
-                                  color: Colors.deepPurple,
-                                ),
-                              )
-                            else
-                              const Center(
-                                child: Text(
-                                  'لا توجد عمليات تحصيل مسجلة خلال هذه الفترة',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
+              return RefreshIndicator(
+                onRefresh: () async => _loadForPeriod(_selectedPeriod),
+                child: ListView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 12 : 24,
+                    vertical: isMobile ? 12 : 20,
                   ),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    // Top KPI Summary Strip
+                    _buildSummaryCards(
+                      isMobile: isMobile,
+                      isSmall: isSmall,
+                      revenue: revenue,
+                      students: students,
+                      attendance: attendance,
+                    ),
+
+                    SizedBox(height: isMobile ? 14 : 20),
+
+                    // Revenue Growth Chart Card
+                    _buildRevenueChartCard(
+                      isDark: isDark,
+                      isMobile: isMobile,
+                      isSmall: isSmall,
+                      analytics: analytics,
+                    ),
+
+                    SizedBox(height: isMobile ? 14 : 20),
+
+                    // Performance & Demographics Section
+                    _buildDetailsSection(
+                      isDark: isDark,
+                      constraints: constraints,
+                      analytics: analytics,
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isMobile = constraints.maxWidth < 750;
-
-                  final subjectCard = FadeInSlide(
-                    delay: const Duration(milliseconds: 300),
-                    child: GlassCard(
-                      color: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.lightSurface,
-                      borderColor: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'المواد الأكثر تسجيلاً وحضوراً',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 24),
-                          if (analytics?.subjectPerformances != null &&
-                              analytics!.subjectPerformances.isNotEmpty)
-                            ...analytics.subjectPerformances.map((perf) {
-                              final colors = [
-                                Colors.blue,
-                                Colors.purple,
-                                Colors.teal,
-                                Colors.orange,
-                              ];
-                              final colorIndex =
-                                  analytics.subjectPerformances.indexOf(
-                                    perf,
-                                  ) %
-                                  colors.length;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 16.0),
-                                child: _SubjectPerformanceRow(
-                                  subject: perf.subjectName,
-                                  score: perf.averageScore.toInt(),
-                                  color: colors[colorIndex],
-                                ),
-                              );
-                            })
-                          else
-                            const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Center(
-                                child: Text(
-                                  'لا توجد بيانات أداء مسجلة حتى الآن.',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-
-                  final genderCard = FadeInSlide(
-                    delay: const Duration(milliseconds: 400),
-                    child: GlassCard(
-                      color: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.lightSurface,
-                      borderColor: isDark
-                          ? AppColors.darkBorder
-                          : AppColors.lightBorder,
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'توزيع الطلاب',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 24),
-                          Center(
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 130,
-                                  height: 130,
-                                  child: CircularProgressIndicator(
-                                    value:
-                                        analytics
-                                            ?.demographics
-                                            .malePercentage ??
-                                        0.5,
-                                    strokeWidth: 10,
-                                    backgroundColor: Colors.pink.withValues(
-                                      alpha: 0.2,
-                                    ),
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '${((analytics?.demographics.malePercentage ?? 0.5) * 100).toInt()}%',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                    const Text(
-                                      'بنين',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 16,
-                            runSpacing: 8,
-                            children: [
-                              const _LegendItem(
-                                label: 'بنين',
-                                color: Colors.blue,
-                              ),
-                              _LegendItem(
-                                label: 'بنات',
-                                color: Colors.pink.withValues(alpha: 0.8),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-
-                  if (isMobile) {
-                    return Column(
-                      children: [
-                        subjectCard,
-                        const SizedBox(height: 16),
-                        genderCard,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 2, child: subjectCard),
-                      const SizedBox(width: 24),
-                      Expanded(flex: 1, child: genderCard),
-                    ],
-                  );
-                },
-              ),
-            ],
+              );
+            },
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSummaryCards({
+    required bool isMobile,
+    required bool isSmall,
+    required double revenue,
+    required int students,
+    required double attendance,
+  }) {
+    final cards = [
+      _AnalyticsSummaryCard(
+        title: 'إجمالي الإيرادات',
+        value: '${revenue.toStringAsFixed(0)} ج.م',
+        trend: '+0.0%',
+        isPositive: true,
+        icon: Icons.monetization_on_rounded,
+        color: Colors.green,
+      ),
+      _AnalyticsSummaryCard(
+        title: 'الطلاب المسجلون',
+        value: '$students طالب',
+        trend: '+0.0%',
+        isPositive: true,
+        icon: Icons.school_rounded,
+        color: Colors.blue,
+      ),
+      _AnalyticsSummaryCard(
+        title: 'نسبة الحضور',
+        value: '${attendance.toStringAsFixed(1)}%',
+        trend: '0.0%',
+        isPositive: true,
+        icon: Icons.fact_check_rounded,
+        color: Colors.orange,
+      ),
+    ];
+
+    if (isSmall) {
+      return Column(
+        children: [
+          cards[0],
+          const SizedBox(height: 10),
+          cards[1],
+          const SizedBox(height: 10),
+          cards[2],
+        ],
+      );
+    }
+
+    if (isMobile) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 10),
+              Expanded(child: cards[1]),
+            ],
+          ),
+          const SizedBox(height: 10),
+          cards[2],
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: cards[0]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[1]),
+        const SizedBox(width: 16),
+        Expanded(child: cards[2]),
+      ],
+    );
+  }
+
+  Widget _buildRevenueChartCard({
+    required bool isDark,
+    required bool isMobile,
+    required bool isSmall,
+    required AdminAnalytics? analytics,
+  }) {
+    final header = isSmall
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'معدل نمو الإيرادات',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              _buildPeriodSelector(),
+            ],
+          )
+        : Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'معدل نمو الإيرادات والتحصيل',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildPeriodSelector(),
+            ],
+          );
+
+    final chartHeight = isMobile ? 160.0 : 190.0;
+
+    return GlassCard(
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      padding: EdgeInsets.all(isMobile ? 16 : 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          SizedBox(height: isMobile ? 16 : 22),
+          Container(
+            height: chartHeight,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  Colors.deepPurple.withValues(alpha: 0.1),
+                  Colors.deepPurple.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(
+                    5,
+                    (index) => Divider(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.06),
+                      height: 1,
+                    ),
+                  ),
+                ),
+                if (analytics != null &&
+                    analytics.revenueGrowth.isNotEmpty &&
+                    analytics.totalRevenue > 0)
+                  CustomPaint(
+                    size: Size(double.infinity, chartHeight),
+                    painter: _RealChartPainter(
+                      points: analytics.revenueGrowth,
+                      color: Colors.deepPurple,
+                    ),
+                  )
+                else
+                  const Center(
+                    child: Text(
+                      'لا توجد عمليات تحصيل مسجلة خلال هذه الفترة',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(value: '1M', label: Text('شهر')),
+        ButtonSegment(value: '6M', label: Text('6 أشهر')),
+        ButtonSegment(value: '1Y', label: Text('سنة')),
+      ],
+      selected: {_selectedPeriod},
+      onSelectionChanged: (val) {
+        if (val.isNotEmpty) _loadForPeriod(val.first);
+      },
+      style: SegmentedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+      ),
+    );
+  }
+
+  Widget _buildDetailsSection({
+    required bool isDark,
+    required BoxConstraints constraints,
+    required AdminAnalytics? analytics,
+  }) {
+    final isMobile = constraints.maxWidth < 750;
+
+    final subjectCard = GlassCard(
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      padding: EdgeInsets.all(isMobile ? 16 : 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.menu_book_rounded, color: Colors.blue, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'المواد الأكثر تسجيلاً وحضوراً',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isMobile ? 15 : 16,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (analytics?.subjectPerformances != null &&
+              analytics!.subjectPerformances.isNotEmpty)
+            ...analytics.subjectPerformances.map((perf) {
+              final colors = [
+                Colors.blue,
+                Colors.purple,
+                Colors.teal,
+                Colors.orange,
+              ];
+              final colorIndex =
+                  analytics.subjectPerformances.indexOf(perf) % colors.length;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14.0),
+                child: _SubjectPerformanceRow(
+                  subject: perf.subjectName,
+                  score: perf.averageScore.toInt(),
+                  color: colors[colorIndex],
+                  isMobile: constraints.maxWidth < 450,
+                ),
+              );
+            })
+          else
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Center(
+                child: Text(
+                  'لا توجد بيانات أداء للمواد مسجلة حتى الآن.',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    final genderCard = GlassCard(
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+      borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+      padding: EdgeInsets.all(isMobile ? 16 : 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.pie_chart_rounded, color: Colors.deepPurple, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'توزيع الطلاب الديموغرافي',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isMobile ? 15 : 16,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 125,
+                  height: 125,
+                  child: CircularProgressIndicator(
+                    value: analytics?.demographics.malePercentage ?? 0.5,
+                    strokeWidth: 10,
+                    backgroundColor: Colors.pink.withValues(alpha: 0.2),
+                    color: Colors.blue,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${((analytics?.demographics.malePercentage ?? 0.5) * 100).toInt()}%',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const Text(
+                      'بنين',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const _LegendItem(
+                label: 'بنين',
+                color: Colors.blue,
+              ),
+              const SizedBox(width: 20),
+              _LegendItem(
+                label: 'بنات',
+                color: Colors.pink.withValues(alpha: 0.8),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (isMobile) {
+      return Column(
+        children: [
+          subjectCard,
+          const SizedBox(height: 14),
+          genderCard,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 3, child: subjectCard),
+        const SizedBox(width: 18),
+        Expanded(flex: 2, child: genderCard),
+      ],
     );
   }
 }
@@ -402,14 +515,18 @@ class _LegendItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 10,
           height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
       ],
     );
   }
@@ -419,24 +536,62 @@ class _SubjectPerformanceRow extends StatelessWidget {
   final String subject;
   final int score;
   final Color color;
+  final bool isMobile;
 
   const _SubjectPerformanceRow({
     required this.subject,
     required this.score,
     required this.color,
+    this.isMobile = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  subject,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '$score%',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: score / 100,
+              minHeight: 7,
+              backgroundColor: color.withValues(alpha: 0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         Expanded(
-          flex: 2,
+          flex: 3,
           child: Text(
             subject,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        const SizedBox(width: 12),
         Expanded(
           flex: 5,
           child: ClipRRect(
@@ -548,7 +703,7 @@ class _AnalyticsSummaryCard extends StatelessWidget {
     return GlassCard(
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -556,68 +711,69 @@ class _AnalyticsSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 18),
               ),
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isPositive
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isPositive
-                            ? Icons.arrow_upward
-                            : Icons.arrow_downward,
-                        size: 12,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2.5,
+                ),
+                decoration: BoxDecoration(
+                  color: isPositive
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isPositive
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      size: 11,
+                      color: isPositive ? Colors.green : Colors.red,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      trend,
+                      style: TextStyle(
                         color: isPositive ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10.5,
                       ),
-                      const SizedBox(width: 2),
-                      Flexible(
-                        child: Text(
-                          trend,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isPositive ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.grey,
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: 11.5,
             ),
           ),
         ],
