@@ -279,7 +279,10 @@ class _SmartGradingStudioDialogState extends State<SmartGradingStudioDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
                             Text(
                               'استوديو التصحيح الذكي والقلم الرقمي ✍️',
@@ -287,7 +290,6 @@ class _SmartGradingStudioDialogState extends State<SmartGradingStudioDialog> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
@@ -603,11 +605,12 @@ class _SmartGradingStudioDialogState extends State<SmartGradingStudioDialog> {
                   const SizedBox(height: 12),
 
                   // Score Stepper & Final Submission
-                  Row(
-                    children: [
-                      // Score Stepper
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isDesktop = constraints.maxWidth >= 850;
+
+                      final scoreStepperWidget = Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF1E293B) : Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -615,68 +618,67 @@ class _SmartGradingStudioDialogState extends State<SmartGradingStudioDialog> {
                             color: isDark ? Colors.white12 : Colors.black12,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline_rounded, size: 20),
-                              onPressed: () => _adjustScore(-1.0),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.exposure_minus_1_rounded, size: 18),
-                              onPressed: () => _adjustScore(-0.5),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                icon: const Icon(Icons.remove_circle_outline_rounded, size: 20),
+                                onPressed: () => _adjustScore(-1.0),
                               ),
-                              child: Text(
-                                '${_currentScore.toStringAsFixed(1)} / ${widget.maxScore.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 16,
-                                  color: AppColors.primary,
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${_currentScore.toStringAsFixed(1)} / ${widget.maxScore.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.exposure_plus_1_rounded, size: 18),
-                              onPressed: () => _adjustScore(0.5),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-                              onPressed: () => _adjustScore(1.0),
-                            ),
-                            TextButton(
-                              child: const Text('الدرجة النهائية 💯', style: TextStyle(fontSize: 12)),
-                              onPressed: () => setState(() => _currentScore = widget.maxScore),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Feedback Input
-                      Expanded(
-                        child: TextField(
-                          controller: _feedbackCtrl,
-                          decoration: InputDecoration(
-                            hintText: 'ملاحظة المعلم للطالب على كشكول الحل...',
-                            hintStyle: const TextStyle(fontSize: 12),
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+                                onPressed: () => _adjustScore(1.0),
+                              ),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                ),
+                                child: const Text('الدرجة النهائية 💯', style: TextStyle(fontSize: 11)),
+                                onPressed: () => setState(() => _currentScore = widget.maxScore),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                      );
 
-                      // Submit Grade Button
-                      FilledButton.icon(
+                      final feedbackField = TextField(
+                        controller: _feedbackCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'ملاحظة المعلم للطالب على كشكول الحل...',
+                          hintStyle: const TextStyle(fontSize: 12),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+
+                      final submitBtn = FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           backgroundColor: Colors.green.shade700,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -687,10 +689,33 @@ class _SmartGradingStudioDialogState extends State<SmartGradingStudioDialog> {
                             'stampsCount': _stamps.length,
                           });
                         },
-                        icon: const Icon(Icons.check_circle_rounded),
-                        label: const Text('اعتماد التصحيح والدرجة ✨', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ],
+                        icon: const Icon(Icons.check_circle_rounded, size: 18),
+                        label: const Text('اعتماد التصحيح والدرجة ✨', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      );
+
+                      if (isDesktop) {
+                        return Row(
+                          children: [
+                            scoreStepperWidget,
+                            const SizedBox(width: 12),
+                            Expanded(child: feedbackField),
+                            const SizedBox(width: 12),
+                            submitBtn,
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          scoreStepperWidget,
+                          const SizedBox(height: 10),
+                          feedbackField,
+                          const SizedBox(height: 10),
+                          submitBtn,
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),

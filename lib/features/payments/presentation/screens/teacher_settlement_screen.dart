@@ -11,7 +11,20 @@ import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/digital_cash_receipt_dialog.dart';
 
 class TeacherSettlementScreen extends StatefulWidget {
-  const TeacherSettlementScreen({super.key});
+  final List<Teacher>? initialTeachers;
+  final List<GroupEntity>? initialGroups;
+  final Teacher? initialSelectedTeacher;
+  final GroupEntity? initialSelectedGroup;
+  final String? initialCenterName;
+
+  const TeacherSettlementScreen({
+    super.key,
+    this.initialTeachers,
+    this.initialGroups,
+    this.initialSelectedTeacher,
+    this.initialSelectedGroup,
+    this.initialCenterName,
+  });
 
   @override
   State<TeacherSettlementScreen> createState() => _TeacherSettlementScreenState();
@@ -59,10 +72,38 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
   @override
   void initState() {
     super.initState();
-    final wrapper = SupabaseClientWrapper(Supabase.instance.client);
-    _teacherRepo = SupabaseTeacherRepository(wrapper);
-    _groupRepo = SupabaseGroupRepository(wrapper);
-    _loadInitialData();
+    if (widget.initialCenterName != null) {
+      _centerName = widget.initialCenterName!;
+    }
+    if (widget.initialTeachers != null || widget.initialGroups != null) {
+      _teachers = widget.initialTeachers ?? [];
+      _allGroups = widget.initialGroups ?? [];
+      _selectedTeacher = widget.initialSelectedTeacher ??
+          (_teachers.isNotEmpty ? _teachers.first : null);
+      _groups = _allGroups
+          .where((g) =>
+              _selectedTeacher == null ||
+              g.teacherId == _selectedTeacher!.id ||
+              (_selectedTeacher!.profileId.isNotEmpty &&
+                  g.teacherId == _selectedTeacher!.profileId))
+          .toList();
+      if (_groups.isEmpty) _groups = _allGroups;
+      _selectedGroup = widget.initialSelectedGroup ??
+          (_groups.isNotEmpty ? _groups.first : null);
+      _studentCountCtrl.text = '25';
+      _sessionPriceCtrl.text = '75';
+      _isLoading = false;
+    } else {
+      try {
+        final wrapper = SupabaseClientWrapper(Supabase.instance.client);
+        _teacherRepo = SupabaseTeacherRepository(wrapper);
+        _groupRepo = SupabaseGroupRepository(wrapper);
+        _loadInitialData();
+      } catch (e) {
+        debugPrint('Supabase init failed in TeacherSettlementScreen: $e');
+        _isLoading = false;
+      }
+    }
   }
 
   @override
@@ -565,13 +606,28 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
     );
   }
 
+  void _applySplitPreset(double teacherP, double centerP) {
+    setState(() {
+      _teacherPercentCtrl.text = teacherP.toStringAsFixed(0);
+      _centerPercentCtrl.text = centerP.toStringAsFixed(0);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         appBar: AppBar(
-          title: const Text('حاسبة وتصفية أرباح المدرسين والسنتر'),
+          elevation: 0,
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          title: const Text(
+            'حاسبة وتصفية أرباح المدرسين والسنتر',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.print_rounded),
@@ -588,89 +644,357 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildTeacherAndGroupSelector(),
-                    const SizedBox(height: 16),
-                    _buildInputsCard(),
-                    const SizedBox(height: 16),
-                    _buildBookletSalesCard(),
-                    const SizedBox(height: 16),
-                    _buildSummaryCard(),
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 900;
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1100),
+                        child: isWide
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Right/Primary Column (Inputs & Selections) in RTL
+                                  Expanded(
+                                    flex: 6,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        _buildExecutiveHero(isDark),
+                                        const SizedBox(height: 16),
+                                        _buildTeacherAndGroupSelector(isDark),
+                                        const SizedBox(height: 16),
+                                        _buildInputsCard(isDark),
+                                        const SizedBox(height: 16),
+                                        _buildBookletSalesCard(isDark),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  // Left Column (Executive Summary & Action Buttons)
+                                  Expanded(
+                                    flex: 5,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        _buildSummaryCard(isDark),
+                                        const SizedBox(height: 16),
+                                        _buildActionButtons(isDark, isWide),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildExecutiveHero(isDark),
+                                  const SizedBox(height: 16),
+                                  _buildTeacherAndGroupSelector(isDark),
+                                  const SizedBox(height: 16),
+                                  _buildInputsCard(isDark),
+                                  const SizedBox(height: 16),
+                                  _buildBookletSalesCard(isDark),
+                                  const SizedBox(height: 16),
+                                  _buildSummaryCard(isDark),
+                                  const SizedBox(height: 20),
+                                  _buildActionButtons(isDark, isWide),
+                                ],
+                              ),
                       ),
-                      onPressed: _isSettling ? null : _recordSettlement,
-                      icon: _isSettling
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            )
-                          : const Icon(Icons.check_circle_outline_rounded),
-                      label: Text(
-                        'صرف وتوثيق التصفية (${_netTeacherPayout.toStringAsFixed(1)} ج.م)',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            onPressed: _showDigitalReceiptModal,
-                            icon: const Icon(Icons.receipt_long_rounded),
-                            label: const Text('معاينة وطباعة الإيصال'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            onPressed: _shareReceipt,
-                            icon: const Icon(Icons.share_rounded),
-                            label: const Text('مشاركة نص الإيصال'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
       ),
     );
   }
 
-  Widget _buildTeacherAndGroupSelector() {
+  Widget _buildExecutiveHero(bool isDark) {
+    final teacherName = _selectedTeacher?.fullName ?? 'لم يُحدد مدرس';
+    final groupName = _selectedGroup?.name ?? 'الحصة العامة';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+              : [const Color(0xFF1E1B4B), const Color(0xFF312E81)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Info Row
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 420;
+              final avatarAndInfo = Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.white.withValues(alpha: 0.15),
+                    child: const Icon(Icons.school_rounded, color: Colors.amber, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _centerName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          teacherName,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+
+              final groupBadge = Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.groups_rounded, color: Colors.cyanAccent, size: 14),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: (constraints.maxWidth - 60).clamp(60.0, 400.0),
+                      ),
+                      child: Text(
+                        groupName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    avatarAndInfo,
+                    const SizedBox(height: 10),
+                    groupBadge,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: avatarAndInfo),
+                  const SizedBox(width: 8),
+                  groupBadge,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // Main Net Payout Card Highlight
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.payments_rounded, color: Colors.greenAccent, size: 16),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'صافي مستحق المدرس (للتسليم)',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${_netTeacherPayout.toStringAsFixed(1)} ج.م',
+                        style: const TextStyle(
+                          color: Colors.greenAccent,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4)),
+                  ),
+                  child: const Text(
+                    'جاهز للصرف ✨',
+                    style: TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // KPI Mini Metrics
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildHeroKpiPill(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'إيراد كلي',
+                value: '${_totalRevenue.toStringAsFixed(0)} ج.م',
+                color: Colors.amber,
+              ),
+              _buildHeroKpiPill(
+                icon: Icons.domain_rounded,
+                label: 'حصة السنتر',
+                value: '${_netCenterProfit.toStringAsFixed(0)} ج.م',
+                color: Colors.cyanAccent,
+              ),
+              _buildHeroKpiPill(
+                icon: Icons.savings_rounded,
+                label: 'خزينة محصلة',
+                value: '${_groupPaidAmount.toStringAsFixed(0)} ج.م',
+                color: Colors.white,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroKpiPill({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            '$label: ',
+            style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.7)),
+          ),
+          Text(
+            value,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeacherAndGroupSelector(bool isDark) {
     return Card(
       elevation: 0,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+        ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'بيانات المدرس والمجموعة',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.person_pin_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'بيانات المدرس والمجموعة',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             LayoutBuilder(
               builder: (context, constraints) {
                 final isNarrow = constraints.maxWidth < 420;
@@ -679,9 +1003,10 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                   value: _teachers.contains(_selectedTeacher) ? _selectedTeacher : null,
                   isExpanded: true,
                   hint: Text(_teachers.isEmpty ? 'لا يوجد مدرسين مسجلين بالسنتر' : 'اختر المدرس'),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'المدرس',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.badge_outlined),
                   ),
                   items: _teachers.map((t) {
                     return DropdownMenuItem(
@@ -697,9 +1022,10 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                   value: _groups.contains(_selectedGroup) ? _selectedGroup : null,
                   isExpanded: true,
                   hint: Text(_groups.isEmpty ? 'لا توجد مجموعات نشطة' : 'اختر المجموعة'),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'المجموعة / الحصة',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.groups_outlined),
                   ),
                   items: _groups.map((g) {
                     return DropdownMenuItem(
@@ -737,15 +1063,20 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
             if (_selectedGroup != null) ...[
               const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: _groupPaidAmount > 0 ? Colors.green.withValues(alpha: 0.08) : Colors.amber.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _groupPaidAmount > 0
+                      ? Colors.green.withValues(alpha: 0.08)
+                      : Colors.amber.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: _groupPaidAmount > 0 ? Colors.green.withValues(alpha: 0.3) : Colors.amber.withValues(alpha: 0.3),
+                    color: _groupPaidAmount > 0
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.amber.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
                       _groupPaidAmount > 0 ? Icons.check_circle_rounded : Icons.info_outline_rounded,
@@ -764,6 +1095,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: _groupPaidAmount > 0 ? Colors.green.shade900 : Colors.amber.shade900,
+                          height: 1.3,
                         ),
                       ),
                     ),
@@ -777,135 +1109,18 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
     );
   }
 
-  Widget _buildInputsCard() {
+  Widget _buildInputsCard(bool isDark) {
     return Card(
       elevation: 0,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'معايير ونسب الحصة',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _studentCountCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'عدد الطلاب الحاضرين',
-                      suffixText: 'طالب',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _sessionPriceCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'سعر الحصة للطالب',
-                      suffixText: 'ج.م',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _teacherPercentCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'نسبة المدرس',
-                      suffixText: '%',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (val) {
-                      final p = double.tryParse(val) ?? 70;
-                      _centerPercentCtrl.text = (100 - p).clamp(0, 100).toStringAsFixed(0);
-                      setState(() {});
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _centerPercentCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'نسبة السنتر',
-                      suffixText: '%',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (val) {
-                      final p = double.tryParse(val) ?? 30;
-                      _teacherPercentCtrl.text = (100 - p).clamp(0, 100).toStringAsFixed(0);
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: _deductionsCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'خصومات ومصاريف',
-                      suffixText: 'ج.م',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: _deductionReasonCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'سبب الخصم (ملازم / تصوير)',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
-            ),
-          ],
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
         ),
       ),
-    );
-  }
-
-  Widget _buildBookletSalesCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -914,10 +1129,245 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.indigo.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.blue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.menu_book_rounded, color: Colors.indigo),
+                  child: const Icon(Icons.tune_rounded, color: Colors.blue, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'معايير ونسب الحصة',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Quick Split Percentage Presets
+            const Text(
+              'توزيع النسب المئوية السريع:',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildPresetChip('70% مدرس / 30% سنتر', 70, 30),
+                  const SizedBox(width: 8),
+                  _buildPresetChip('75% مدرس / 25% سنتر', 75, 25),
+                  const SizedBox(width: 8),
+                  _buildPresetChip('80% مدرس / 20% سنتر', 80, 20),
+                  const SizedBox(width: 8),
+                  _buildPresetChip('60% مدرس / 40% سنتر', 60, 40),
+                  const SizedBox(width: 8),
+                  _buildPresetChip('مناصفة 50% / 50%', 50, 50),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Student count & price
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 360;
+                final countField = TextField(
+                  controller: _studentCountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'عدد الطلاب الحاضرين',
+                    suffixText: 'طالب',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.people_alt_outlined),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                );
+
+                final priceField = TextField(
+                  controller: _sessionPriceCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'سعر الحصة للطالب',
+                    suffixText: 'ج.م',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.attach_money_rounded),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      countField,
+                      const SizedBox(height: 12),
+                      priceField,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: countField),
+                    const SizedBox(width: 12),
+                    Expanded(child: priceField),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Percentages
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 360;
+                final teacherPercentField = TextField(
+                  controller: _teacherPercentCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'نسبة المدرس',
+                    suffixText: '%',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.person_outline_rounded),
+                  ),
+                  onChanged: (val) {
+                    final p = double.tryParse(val) ?? 70;
+                    _centerPercentCtrl.text = (100 - p).clamp(0, 100).toStringAsFixed(0);
+                    setState(() {});
+                  },
+                );
+
+                final centerPercentField = TextField(
+                  controller: _centerPercentCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'نسبة السنتر',
+                    suffixText: '%',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.apartment_rounded),
+                  ),
+                  onChanged: (val) {
+                    final p = double.tryParse(val) ?? 30;
+                    _teacherPercentCtrl.text = (100 - p).clamp(0, 100).toStringAsFixed(0);
+                    setState(() {});
+                  },
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      teacherPercentField,
+                      const SizedBox(height: 12),
+                      centerPercentField,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: teacherPercentField),
+                    const SizedBox(width: 12),
+                    Expanded(child: centerPercentField),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Deductions
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 360;
+                final deductionsField = TextField(
+                  controller: _deductionsCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'خصومات ومصاريف',
+                    suffixText: 'ج.م',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.remove_circle_outline_rounded),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                );
+
+                final reasonField = TextField(
+                  controller: _deductionReasonCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'سبب الخصم (ملازم / تصوير)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.description_outlined),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      deductionsField,
+                      const SizedBox(height: 12),
+                      reasonField,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(flex: 2, child: deductionsField),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 3, child: reasonField),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetChip(String label, double teacherP, double centerP) {
+    final isSelected = (_teacherPercent == teacherP && _centerPercent == centerP);
+    return ActionChip(
+      label: Text(label),
+      backgroundColor: isSelected ? AppColors.primary.withValues(alpha: 0.15) : null,
+      side: BorderSide(
+        color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.3),
+      ),
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? AppColors.primary : null,
+      ),
+      onPressed: () => _applySplitPreset(teacherP, centerP),
+    );
+  }
+
+  Widget _buildBookletSalesCard(bool isDark) {
+    return Card(
+      elevation: 0,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.menu_book_rounded, color: Colors.indigo, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -932,7 +1382,8 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                         _selectedTeacher != null
                             ? 'الملازم المربوطة بالأستاذ ${_selectedTeacher!.fullName}'
                             : 'اختر المدرس لعرض مبيعات ملازمه',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -946,7 +1397,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             if (_isLoadingBooklets)
               const Center(
                 child: Padding(
@@ -960,7 +1411,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.grey.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Row(
                   children: [
@@ -969,92 +1420,165 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                     Expanded(
                       child: Text(
                         'لا توجد مبيعات ملازم مسجلة لهذا المدرس حتى الآن.\nعند بيع ملازم من شاشة (المخزن ونقطة البيع POS) مربوطة بالمدرس ستظهر هنا تلقائياً.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
+                        style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.3),
                       ),
                     ),
                   ],
                 ),
               )
             else ...[
-              // Metrics Row
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.indigo.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Column(
+              // Metrics LayoutBuilder
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 360;
+                  if (isCompact) {
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.indigo.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('الكمية المباعة:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                '$_bookletsSold نسخة',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('إيراد المبيعات:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                '${_bookletRevenue.toStringAsFixed(1)} ج.م',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('صافي مستحق المدرس:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                '${_bookletTeacherShare.toStringAsFixed(1)} ج.م',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.indigo.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        const Text('الكمية المباعة', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$_bookletsSold نسخة',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Text('الكمية المباعة', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$_bookletsSold نسخة',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(height: 30, width: 1, color: Colors.indigo.withValues(alpha: 0.2)),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Text('إجمالي إيراد المبيعات', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_bookletRevenue.toStringAsFixed(1)} ج.م',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(height: 30, width: 1, color: Colors.indigo.withValues(alpha: 0.2)),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Text('مستحق المدرس', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_bookletTeacherShare.toStringAsFixed(1)} ج.م',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    Container(height: 30, width: 1, color: Colors.indigo.withValues(alpha: 0.2)),
-                    Column(
-                      children: [
-                        const Text('إجمالي إيراد المبيعات', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_bookletRevenue.toStringAsFixed(1)} ج.م',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
-                        ),
-                      ],
-                    ),
-                    Container(height: 30, width: 1, color: Colors.indigo.withValues(alpha: 0.2)),
-                    Column(
-                      children: [
-                        const Text('صافي مستحق المدرس', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_bookletTeacherShare.toStringAsFixed(1)} ج.م',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green.shade800),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 12),
 
               // Inputs for Booklet share & printing cost
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _bookletTeacherPercentCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'نسبة المدرس من الملازم',
-                        suffixText: '%',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      onChanged: (_) => setState(() {}),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 360;
+                  final bookletPercentField = TextField(
+                    controller: _bookletTeacherPercentCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'نسبة المدرس من الملازم',
+                      suffixText: '%',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      isDense: true,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _bookletCenterCostCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'تكلفة الطباعة / حصة السنتر',
-                        suffixText: 'ج.م',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      onChanged: (_) => setState(() {}),
+                    onChanged: (_) => setState(() {}),
+                  );
+
+                  final bookletCostField = TextField(
+                    controller: _bookletCenterCostCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'تكلفة الطباعة / السنتر',
+                      suffixText: 'ج.م',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      isDense: true,
                     ),
-                  ),
-                ],
+                    onChanged: (_) => setState(() {}),
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      children: [
+                        bookletPercentField,
+                        const SizedBox(height: 10),
+                        bookletCostField,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: bookletPercentField),
+                      const SizedBox(width: 12),
+                      Expanded(child: bookletCostField),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
 
@@ -1115,78 +1639,103 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.receipt_long_rounded, color: Colors.amber, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'الملخص المالي للتصفية',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Expanded(
                 child: Text(
                   'إيراد الحصة الدراسية:',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '${_sessionRevenue.toStringAsFixed(1)} ج.م',
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           if (_includeBooklets && _bookletRevenue > 0) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Expanded(
                   child: Text(
                     'إيراد مبيعات الملازم والمذكرات:',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '${_bookletRevenue.toStringAsFixed(1)} ج.م',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Expanded(
                 child: Text(
                   'إجمالي الدخل الكلي:',
-                  style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '${_totalRevenue.toStringAsFixed(1)} ج.م',
-                style: const TextStyle(color: Colors.amber, fontSize: 19, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          const Divider(color: Colors.white24, height: 24),
+          const Divider(color: Colors.white24, height: 26),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1196,17 +1745,20 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.person, color: Colors.greenAccent, size: 20),
+                        Icon(Icons.person_rounded, color: Colors.greenAccent, size: 18),
                         SizedBox(width: 6),
-                        Text(
-                          'صافي مستحق المدرس الكلي:',
-                          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            'صافي مستحق المدرس الكلي:',
+                            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
                     if (_includeBooklets && _bookletTeacherShare > 0)
                       Padding(
-                        padding: const EdgeInsets.only(right: 26, top: 2),
+                        padding: const EdgeInsets.only(right: 24, top: 2),
                         child: Text(
                           '(حصة الحصة: ${_sessionTeacherShare.toStringAsFixed(1)} + الملازم: ${_bookletTeacherShare.toStringAsFixed(1)})',
                           style: const TextStyle(color: Colors.white60, fontSize: 10),
@@ -1218,7 +1770,7 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
               const SizedBox(width: 8),
               Text(
                 '${_netTeacherPayout.toStringAsFixed(1)} ج.م',
-                style: const TextStyle(color: Colors.greenAccent, fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.greenAccent, fontSize: 19, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -1232,17 +1784,20 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.apartment_rounded, color: AppColors.primary, size: 20),
+                        Icon(Icons.apartment_rounded, color: AppColors.primary, size: 18),
                         SizedBox(width: 6),
-                        Text(
-                          'صافي أرباح السنتر الكلي:',
-                          style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            'صافي أرباح السنتر الكلي:',
+                            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
                     if (_includeBooklets && _bookletCenterShare > 0)
                       Padding(
-                        padding: const EdgeInsets.only(right: 26, top: 2),
+                        padding: const EdgeInsets.only(right: 24, top: 2),
                         child: Text(
                           '(حصة الحصة: ${_sessionCenterShare.toStringAsFixed(1)} + الملازم: ${_bookletCenterShare.toStringAsFixed(1)})',
                           style: const TextStyle(color: Colors.white60, fontSize: 10),
@@ -1254,19 +1809,98 @@ class _TeacherSettlementScreenState extends State<TeacherSettlementScreen> {
               const SizedBox(width: 8),
               Text(
                 '${_netCenterProfit.toStringAsFixed(1)} ج.م',
-                style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: AppColors.primary, fontSize: 19, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           if (_deductions > 0) ...[
-            const SizedBox(height: 10),
-            Text(
-              '* تم خصم $_deductions ج.م (${_deductionReasonCtrl.text}) من حصة المدرس لصالح السنتر.',
-              style: const TextStyle(color: Colors.grey, fontSize: 11),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '* تم خصم $_deductions ج.م (${_deductionReasonCtrl.text}) من حصة المدرس لصالح السنتر.',
+                style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ],
       ),
     );
   }
+
+  Widget _buildActionButtons(bool isDark, bool isWide) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.green.shade700,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          onPressed: _isSettling ? null : _recordSettlement,
+          icon: _isSettling
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                )
+              : const Icon(Icons.check_circle_outline_rounded),
+          label: Text(
+            'صرف وتوثيق التصفية (${_netTeacherPayout.toStringAsFixed(1)} ج.م)',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 360;
+            final printBtn = OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: _showDigitalReceiptModal,
+              icon: const Icon(Icons.receipt_long_rounded),
+              label: const Text('معاينة وطباعة الإيصال'),
+            );
+
+            final shareBtn = OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: _shareReceipt,
+              icon: const Icon(Icons.share_rounded),
+              label: const Text('مشاركة نص الإيصال'),
+            );
+
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  printBtn,
+                  const SizedBox(height: 8),
+                  shareBtn,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: printBtn),
+                const SizedBox(width: 10),
+                Expanded(child: shareBtn),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
+
