@@ -721,8 +721,11 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   if (isSubmitted || isGraded) ...[
                     OutlinedButton.icon(
@@ -734,12 +737,13 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                       icon: const Icon(Icons.rate_review_rounded, size: 16),
                       label: const Text('مراجعة النتيجة والحل'),
                     ),
-                    const SizedBox(width: 8),
                   ],
                   if (hw.canSubmit || (isSubmitted && hw.homework.isOpenForSubmission)) ...[
                     PrimaryButton(
                       text: isSubmitted ? 'تعديل الحل' : 'بدء حل الواجب 🚀',
                       color: isSubmitted ? AppColors.info : AppColors.primary,
+                      expand: false,
+                      height: 40,
                       onPressed: () => _submitHomework(hw),
                     ),
                   ],
@@ -1192,6 +1196,8 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   if (exam.canStart)
                     PrimaryButton(
                       text: 'بدء الاختبار الآن 🚀',
+                      expand: false,
+                      height: 40,
                       onPressed: () => _startExam(exam),
                       color: AppColors.primary,
                     )
@@ -1224,6 +1230,8 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
                   else if (exam.attemptCount >= exam.exam.maxAttempts)
                     PrimaryButton(
                       text: 'طلب إعادة محاولة ⚠️',
+                      expand: false,
+                      height: 40,
                       onPressed: () => _requestExamReset(exam),
                       color: AppColors.error,
                     ),

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/localization/app_localizations.dart';
 import '../tokens/colors.dart';
@@ -12,6 +13,9 @@ class PrimaryButton extends StatefulWidget {
   final bool isLoading;
   final IconData? icon;
   final double height;
+  final double? width;
+  final bool? expand;
+  final EdgeInsetsGeometry? padding;
   final Color? color;
   final Gradient? gradient;
 
@@ -22,6 +26,9 @@ class PrimaryButton extends StatefulWidget {
     this.isLoading = false,
     this.icon,
     this.height = 52,
+    this.width,
+    this.expand,
+    this.padding,
     this.color,
     this.gradient,
   });
@@ -59,72 +66,111 @@ class _PrimaryButtonState extends State<PrimaryButton>
   @override
   Widget build(BuildContext context) {
     final gradient = widget.gradient ?? AppColors.primaryGradient;
-    return GestureDetector(
-      onTapDown: _disabled ? null : (_) => _ctrl.reverse(),
-      onTapUp: _disabled ? null : (_) => _ctrl.forward(),
-      onTapCancel: _disabled ? () {} : () => _ctrl.forward(),
-      onTap: _disabled ? null : widget.onPressed,
-      child: ScaleTransition(
-        scale: _scale,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: double.infinity,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: _disabled ? null : gradient,
-            color: _disabled ? AppColors.darkSurfaceSecondary : null,
-            boxShadow: _disabled
-                ? null
-                : [
-                    BoxShadow(
-                      color: (widget.color ?? AppColors.primary).withValues(
-                        alpha: 0.4,
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isBounded = constraints.hasBoundedWidth;
+        final bool shouldExpand = widget.expand ?? isBounded;
+
+        final double? effectiveWidth;
+        if (widget.width != null) {
+          if (widget.width!.isInfinite) {
+            effectiveWidth = isBounded ? constraints.maxWidth : null;
+          } else {
+            effectiveWidth = isBounded
+                ? math.min(widget.width!, constraints.maxWidth)
+                : widget.width;
+          }
+        } else if (shouldExpand && isBounded) {
+          effectiveWidth = double.infinity;
+        } else {
+          effectiveWidth = null;
+        }
+
+        final horizontalPadding =
+            widget.padding ?? const EdgeInsets.symmetric(horizontal: 20);
+
+        return GestureDetector(
+          onTapDown: _disabled ? null : (_) => _ctrl.reverse(),
+          onTapUp: _disabled ? null : (_) => _ctrl.forward(),
+          onTapCancel: _disabled ? () {} : () => _ctrl.forward(),
+          onTap: _disabled ? null : widget.onPressed,
+          child: ScaleTransition(
+            scale: _scale,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: effectiveWidth,
+              height: widget.height,
+              padding: effectiveWidth == null ? horizontalPadding : null,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: _disabled ? null : gradient,
+                color: _disabled ? AppColors.darkSurfaceSecondary : null,
+                boxShadow: _disabled
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: (widget.color ?? AppColors.primary).withValues(
+                            alpha: 0.4,
+                          ),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                          spreadRadius: -4,
+                        ),
+                      ],
+              ),
+              alignment: effectiveWidth != null ? Alignment.center : null,
+              child: Align(
+                alignment: Alignment.center,
+                widthFactor: effectiveWidth == null ? 1.0 : null,
+                child: widget.isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Padding(
+                        padding: effectiveWidth != null
+                            ? (widget.padding ??
+                                const EdgeInsets.symmetric(horizontal: 16))
+                            : EdgeInsets.zero,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.icon != null) ...[
+                              Icon(
+                                widget.icon,
+                                color: _disabled
+                                    ? AppColors.darkTextTertiary
+                                    : Colors.white,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Flexible(
+                              child: Text(
+                                context.l10n.t(widget.text),
+                                style: AppTypography.labelLarge(
+                                  _disabled
+                                      ? AppColors.darkTextTertiary
+                                      : Colors.white,
+                                ).copyWith(fontWeight: FontWeight.w700),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                      spreadRadius: -4,
-                    ),
-                  ],
+              ),
+            ),
           ),
-          alignment: Alignment.center,
-          child: widget.isLoading
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (widget.icon != null) ...[
-                      Icon(
-                        widget.icon,
-                        color: _disabled
-                            ? AppColors.darkTextTertiary
-                            : Colors.white,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    Flexible(
-                      child: Text(
-                        context.l10n.t(widget.text),
-                        style: AppTypography.labelLarge(
-                          _disabled ? AppColors.darkTextTertiary : Colors.white,
-                        ).copyWith(fontWeight: FontWeight.w700),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -138,6 +184,9 @@ class GhostButton extends StatelessWidget {
   final IconData? icon;
   final Color? color;
   final double height;
+  final double? width;
+  final bool? expand;
+  final EdgeInsetsGeometry? padding;
 
   const GhostButton({
     super.key,
@@ -146,44 +195,71 @@ class GhostButton extends StatelessWidget {
     this.icon,
     this.color,
     this.height = 52,
+    this.width,
+    this.expand,
+    this.padding,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = color ?? AppColors.primary;
-    return SizedBox(
-      width: double.infinity,
-      height: height,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: c,
-          side: BorderSide(color: c.withValues(alpha: 0.4), width: 1.2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18, color: c),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Text(
-                context.l10n.t(text),
-                style: AppTypography.labelLarge(
-                  c,
-                ).copyWith(fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isBounded = constraints.hasBoundedWidth;
+        final bool shouldExpand = expand ?? isBounded;
+
+        final double? effectiveWidth;
+        if (width != null) {
+          if (width!.isInfinite) {
+            effectiveWidth = isBounded ? constraints.maxWidth : null;
+          } else {
+            effectiveWidth = isBounded
+                ? math.min(width!, constraints.maxWidth)
+                : width;
+          }
+        } else if (shouldExpand && isBounded) {
+          effectiveWidth = double.infinity;
+        } else {
+          effectiveWidth = null;
+        }
+
+        return SizedBox(
+          width: effectiveWidth,
+          height: height,
+          child: OutlinedButton(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              padding: padding ?? const EdgeInsets.symmetric(horizontal: 18),
+              foregroundColor: c,
+              side: BorderSide(color: c.withValues(alpha: 0.4), width: 1.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
-          ],
-        ),
-      ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: c),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(
+                    context.l10n.t(text),
+                    style: AppTypography.labelLarge(
+                      c,
+                    ).copyWith(fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
