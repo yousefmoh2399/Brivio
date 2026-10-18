@@ -793,46 +793,49 @@ class _StudentGroupDetailsScreenState extends State<StudentGroupDetailsScreen> {
         return GlassCard(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          child: ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: const EdgeInsets.only(top: 8),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.menu_book_rounded,
-                color: AppColors.info,
-                size: 22,
-              ),
-            ),
-            title: Text(
-              semester.name,
-              style: AppTypography.titleMedium(
-                textPrimary,
-              ).copyWith(fontWeight: FontWeight.w800),
-            ),
-            subtitle: Text(
-              '${semester.units.length} وحدات دراسية',
-              style: AppTypography.caption(
-                textSecondary,
-              ).copyWith(fontWeight: FontWeight.w600),
-            ),
-            children: [
-              for (final unit in semester.units)
-                _StudentUnitSection(
-                  semester: semester,
-                  unit: unit,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  isDark: isDark,
-                  onOpenResource: _openResource,
-                  onOpenLessonBoard: _openLessonBoard,
+          child: Material(
+            type: MaterialType.transparency,
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(top: 8),
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-            ],
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: AppColors.info,
+                  size: 22,
+                ),
+              ),
+              title: Text(
+                semester.name,
+                style: AppTypography.titleMedium(
+                  textPrimary,
+                ).copyWith(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text(
+                '${semester.units.length} وحدات دراسية',
+                style: AppTypography.caption(
+                  textSecondary,
+                ).copyWith(fontWeight: FontWeight.w600),
+              ),
+              children: [
+                for (final unit in semester.units)
+                  _StudentUnitSection(
+                    semester: semester,
+                    unit: unit,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    isDark: isDark,
+                    onOpenResource: _openResource,
+                    onOpenLessonBoard: _openLessonBoard,
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -1396,33 +1399,36 @@ class _StudentUnitSection extends StatelessWidget {
           color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
         ),
       ),
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(top: 8),
-        leading: const Icon(Icons.folder_copy_rounded, color: AppColors.info),
-        title: Text(
-          unit.name,
-          style: AppTypography.bodyLarge(
-            textPrimary,
-          ).copyWith(fontWeight: FontWeight.w800),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(top: 8),
+          leading: const Icon(Icons.folder_copy_rounded, color: AppColors.info),
+          title: Text(
+            unit.name,
+            style: AppTypography.bodyLarge(
+              textPrimary,
+            ).copyWith(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text(
+            '${unit.lessons.length} دروس',
+            style: AppTypography.caption(textSecondary),
+          ),
+          children: [
+            for (final lesson in unit.lessons)
+              _StudentLessonRow(
+                semester: semester,
+                unit: unit,
+                lesson: lesson,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                onOpenResource: onOpenResource,
+                onOpenLessonBoard: onOpenLessonBoard,
+              ),
+          ],
         ),
-        subtitle: Text(
-          '${unit.lessons.length} دروس',
-          style: AppTypography.caption(textSecondary),
-        ),
-        children: [
-          for (final lesson in unit.lessons)
-            _StudentLessonRow(
-              semester: semester,
-              unit: unit,
-              lesson: lesson,
-              textPrimary: textPrimary,
-              textSecondary: textSecondary,
-              onOpenResource: onOpenResource,
-              onOpenLessonBoard: onOpenLessonBoard,
-            ),
-        ],
       ),
     );
   }
