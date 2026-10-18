@@ -33,6 +33,7 @@ import '../../features/parent_portal/presentation/screens/parent_financial_ledge
 import '../../features/parent_portal/presentation/screens/child_assignments_screen.dart';
 import '../../features/parent_portal/presentation/screens/child_schedule_screen.dart';
 import 'screens/parent_helpdesk_screen.dart';
+import 'tabs/parent_home_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -648,24 +649,32 @@ class _ParentDashboardState extends State<ParentDashboard> {
                         const Expanded(child: AppSettingsPanel()),
                       ],
                     )
-                  : ListView(
-                      padding: const EdgeInsets.all(20),
-                      children: [
-                        _buildHeader(),
-                        if (_isChildLoading) ...[
-                          const SizedBox(height: 12),
-                          const LinearProgressIndicator(),
-                        ],
-                        if (_errorMessage != null) ...[
-                          const SizedBox(height: 12),
-                          PortalErrorBanner(
-                            message: _errorMessage!,
-                            onRetry: _loadLinkedChildren,
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isMobile = constraints.maxWidth < 600;
+                        return ListView(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 12 : 20,
+                            vertical: isMobile ? 12 : 20,
                           ),
-                        ],
-                        const SizedBox(height: 16),
-                        _buildSelectedPage(),
-                      ],
+                          children: [
+                            _buildHeader(),
+                            if (_isChildLoading) ...[
+                              const SizedBox(height: 12),
+                              const LinearProgressIndicator(),
+                            ],
+                            if (_errorMessage != null) ...[
+                              const SizedBox(height: 12),
+                              PortalErrorBanner(
+                                message: _errorMessage!,
+                                onRetry: _loadLinkedChildren,
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                            _buildSelectedPage(),
+                          ],
+                        );
+                      },
                     ),
         ),
       ),
@@ -709,7 +718,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
             label: const Text('ربط طالب جديد', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
           ),
         ),
-        if (_linkedChildren.length > 1) ...[
+        if (_linkedChildren.length > 1 && _selectedIndex != 0) ...[
           const SizedBox(height: 10),
           _buildChildSelectorBar(),
         ],
@@ -943,119 +952,38 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildOverviewPage() {
-    final progress = _averageProgress();
-    final attendanceRate = _attendanceRate();
-    final balance = _financialSummary?.remainingBalanceMinor ?? 0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _LiveChildPresenceRadar(
-          child: _selectedChild,
-          attendance: _attendance,
-          learningSnapshot: _learningSnapshot,
-          onExcuseRequest: _createLeaveRequest,
-        ),
-        const SizedBox(height: 14),
-        _ParentQuickActionsGrid(
-          onOpenSchedule: () {
-            final child = _selectedChild;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ChildScheduleScreen(
-                  studentId: child?.id,
-                  studentName: child?.fullName,
-                ),
-              ),
-            );
-          },
-          onOpenAttendance: () => setState(() => _selectedIndex = 2),
-          onOpenProgress: () => setState(() => _selectedIndex = 1),
-          onOpenWhatsApp: _launchWhatsAppSupport,
-        ),
-        const SizedBox(height: 18),
-        PortalMetricGrid(
-          children: [
-            PortalMetricCard(
-              label: 'مستوى التقدم الدراسي',
-              value: '${progress.round()}%',
-              icon: Icons.trending_up,
-              accentColor: AppColors.success,
-              onTap: () => setState(() => _selectedIndex = 1),
+    return ParentHomeTab(
+      child: _selectedChild,
+      linkedChildren: _linkedChildren,
+      onChildSelected: (child) {
+        setState(() => _selectedChild = child);
+        _loadChildDetails(child);
+      },
+      onLinkNewChild: _openLinkChildScreen,
+      attendance: _attendance,
+      learningSnapshot: _learningSnapshot,
+      financialSummary: _financialSummary,
+      invoices: _invoices,
+      childGroups: _childGroups,
+      unreadCount: _unreadCount,
+      nextClassSession: _nextClassSession,
+      onExcuseRequest: _createLeaveRequest,
+      onOpenSchedule: () {
+        final child = _selectedChild;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ChildScheduleScreen(
+              studentId: child?.id,
+              studentName: child?.fullName,
             ),
-            PortalMetricCard(
-              label: 'نسبة الحضور والالتزام',
-              value: '${attendanceRate.round()}%',
-              icon: Icons.fact_check,
-              accentColor: AppColors.info,
-              onTap: () => setState(() => _selectedIndex = 2),
-            ),
-            PortalMetricCard(
-              label: 'المستحقات المتبقية',
-              value: _money(balance, _financialSummary?.currency ?? 'EGP'),
-              icon: Icons.receipt_long,
-              accentColor: balance > 0 ? AppColors.warning : AppColors.success,
-              onTap: () => setState(() => _selectedIndex = 3),
-            ),
-            PortalMetricCard(
-              label: 'تنبيهات غير مقروءة',
-              value: _unreadCount.toString(),
-              icon: Icons.notifications_active,
-              accentColor: AppColors.parentRole,
-              onTap: () => setState(() => _selectedIndex = 5),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _ParentInsightPanel(insights: _buildParentInsights()),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(
-          title: 'المجموعات والفصول النشطة',
-          subtitle: 'المجموعات المسجل بها الطالب حالياً بالسنتر والمدرس المشرف.',
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _childGroups.isEmpty,
-          emptyText: 'لا توجد مجموعات نشطة مسجلة لهذا الطالب حالياً.',
-          children: _childGroups
-              .map(
-                (group) => PortalListCard(
-                  icon: Icons.group_work,
-                  accentColor: AppColors.info,
-                  title: group.name,
-                  subtitle: '${group.code} • ${group.status}',
-                  trailing: [PortalStatusChip(status: group.status)],
-                ),
-              )
-              .toList(),
-        ),
-        Row(
-          children: [
-            const Expanded(
-              child: PortalSectionTitle(
-                title: 'الحصة القادمة وجدول المواعيد',
-                subtitle: 'الحصة الدراسية القادمة ومكان انعقادها بالسنتر.',
-              ),
-            ),
-            TextButton.icon(
-              onPressed: () {
-                final child = _selectedChild;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChildScheduleScreen(
-                      studentId: child?.id,
-                      studentName: child?.fullName,
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.calendar_month_outlined, size: 18),
-              label: const Text('جدول المواعيد'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildNextLessonCard(),
-      ],
+          ),
+        );
+      },
+      onOpenAttendance: () => setState(() => _selectedIndex = 2),
+      onOpenProgress: () => setState(() => _selectedIndex = 1),
+      onOpenPayments: () => setState(() => _selectedIndex = 3),
+      onOpenNotifications: () => setState(() => _selectedIndex = 5),
+      onOpenWhatsApp: _launchWhatsAppSupport,
     );
   }
 
@@ -1869,66 +1797,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return futureSessions.isNotEmpty ? futureSessions.first : _scheduleItems.first;
   }
 
-  Widget _buildNextLessonCard() {
-    final nextClass = _nextClassSession;
-    final child = _selectedChild;
-    if (nextClass != null) {
-      return PortalListCard(
-        icon: Icons.access_time_filled_rounded,
-        accentColor: AppColors.primary,
-        title: '${nextClass.subjectName} (${nextClass.groupName})',
-        subtitle:
-            '${nextClass.formattedTiming} • ${nextClass.location} • ${nextClass.teacherName}',
-        trailing: [PortalStatusChip(status: nextClass.statusLabel)],
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ChildScheduleScreen(
-                studentId: child?.id,
-                studentName: child?.fullName,
-              ),
-            ),
-          );
-        },
-      );
-    }
 
-    final lesson = _learningSnapshot?.nextLesson;
-    if (lesson != null) {
-      return PortalListCard(
-        icon: lesson.hasPdf ? Icons.picture_as_pdf : Icons.menu_book,
-        accentColor: AppColors.studentRole,
-        title: lesson.title,
-        subtitle:
-            '${lesson.pathName} • ${lesson.unitName} • ${lesson.progressPercentage}% • ${_formatStudyTime(lesson.timeSpentSeconds)}',
-        trailing: [PortalStatusChip(status: lesson.hasPdf ? 'ملف PDF' : 'شرح')],
-      );
-    }
 
-    return const _InfoList(
-      isEmpty: true,
-      emptyText: 'لا توجد حصص قادمة مجدولة لهذا الطالب حالياً.',
-      children: [],
-    );
-  }
 
-  double _averageProgress() {
-    final lessons = _learningSnapshot?.availableLessons ?? [];
-    if (lessons.isEmpty) return 0;
-    final total = lessons.fold<int>(
-      0,
-      (sum, lesson) => sum + lesson.progressPercentage,
-    );
-    return total / lessons.length;
-  }
-
-  double _attendanceRate() {
-    if (_attendance.isEmpty) return 0;
-    final present = _attendance
-        .where((item) => item.status == 'present' || item.status == 'late')
-        .length;
-    return present * 100 / _attendance.length;
-  }
 
   String _formatStudyTime(int seconds) {
     if (seconds < 60) return '$seconds ثانية';
@@ -1939,72 +1810,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     return rest == 0 ? '$hours ساعة' : '$hours ساعة و $rest دقيقة';
   }
 
-  List<_ParentInsight> _buildParentInsights() {
-    final insights = <_ParentInsight>[];
-    final attendanceRate = _attendanceRate();
-    final progress = _averageProgress();
-    final balance = _financialSummary?.remainingBalanceMinor ?? 0;
-    final absentCount = _attendance
-        .where((item) => item.status == 'absent')
-        .length;
-    final overdueInvoices = _invoices
-        .where((invoice) => invoice.status == 'overdue')
-        .length;
 
-    if (attendanceRate < 75 && _attendance.isNotEmpty) {
-      insights.add(
-        _ParentInsight(
-          icon: Icons.warning_amber,
-          color: AppColors.error,
-          title: 'متابعة نسبة الحضور',
-          body:
-              'نسبة الحضور الحالية ${attendanceRate.round()}% مع تسجيل $absentCount مرات غياب.',
-        ),
-      );
-    }
-    if (progress < 40 &&
-        (_learningSnapshot?.availableLessons.isNotEmpty ?? false)) {
-      insights.add(
-        _ParentInsight(
-          icon: Icons.menu_book,
-          color: AppColors.warning,
-          title: 'مستوى التقدم الدراسي بحاجة لمتابعة',
-          body: 'متوسط إنجاز المناهج والدروس ${progress.round()}% فقط.',
-        ),
-      );
-    }
-    if (balance > 0) {
-      insights.add(
-        _ParentInsight(
-          icon: Icons.payments,
-          color: overdueInvoices > 0 ? AppColors.error : AppColors.warning,
-          title: overdueInvoices > 0 ? 'متأخرات مالية مستحقة' : 'رسوم دراسية مستحقة السداد',
-          body: 'المتبقي للسداد: ${_money(balance, _financialSummary?.currency)}.',
-        ),
-      );
-    }
-    if (_unreadCount > 0) {
-      insights.add(
-        _ParentInsight(
-          icon: Icons.notifications_active,
-          color: AppColors.parentRole,
-          title: 'تنبيهات وإشعارات جديدة',
-          body: 'لديك $_unreadCount إشعارات غير مقروءة من السنتر.',
-        ),
-      );
-    }
-    if (insights.isEmpty) {
-      insights.add(
-        const _ParentInsight(
-          icon: Icons.verified,
-          color: AppColors.success,
-          title: 'المستوى ممتاز ومستقر',
-          body: 'الحضور والتحصيل الدراسي والمدفوعات منتظمة دون أي ملاحظات.',
-        ),
-      );
-    }
-    return insights;
-  }
 
   static String _money(int minor, String? currency) {
     final amount = minor / 100;
@@ -2099,255 +1905,9 @@ class _ReceiptDetailLine extends StatelessWidget {
   }
 }
 
-class _ParentQuickActionsGrid extends StatelessWidget {
-  final VoidCallback onOpenSchedule;
-  final VoidCallback onOpenAttendance;
-  final VoidCallback onOpenProgress;
-  final VoidCallback onOpenWhatsApp;
 
-  const _ParentQuickActionsGrid({
-    required this.onOpenSchedule,
-    required this.onOpenAttendance,
-    required this.onOpenProgress,
-    required this.onOpenWhatsApp,
-  });
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final actions = [
-      _ParentActionData(
-        title: 'جدول المواعيد',
-        subtitle: 'الحصص والقاعات الأسبوعية',
-        badge: 'مواعيد 📅',
-        icon: Icons.calendar_month_rounded,
-        gradient: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
-        borderAccent: const Color(0xFF38BDF8),
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onOpenSchedule();
-        },
-      ),
-      _ParentActionData(
-        title: 'سجل الحضور',
-        subtitle: 'نسبة الالتزام والغياب',
-        badge: 'متابعة 📊',
-        icon: Icons.fact_check_rounded,
-        gradient: const [Color(0xFF0D9488), Color(0xFF14B8A6)],
-        borderAccent: const Color(0xFF14B8A6),
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onOpenAttendance();
-        },
-      ),
-      _ParentActionData(
-        title: 'الواجبات والدرجات',
-        subtitle: 'متابعة الحل والتسليم',
-        badge: 'أكاديمي ✍️',
-        icon: Icons.assignment_rounded,
-        gradient: const [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-        borderAccent: const Color(0xFF818CF8),
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onOpenProgress();
-        },
-      ),
-      _ParentActionData(
-        title: 'خدمة واتساب',
-        subtitle: 'تواصل مباشر مع السنتر',
-        badge: 'دعم 💬',
-        icon: Icons.chat_rounded,
-        gradient: const [Color(0xFF059669), Color(0xFF10B981)],
-        borderAccent: const Color(0xFF10B981),
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onOpenWhatsApp();
-        },
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 640;
-        final crossAxisCount = isWide ? 4 : 2;
-        final childAspectRatio = isWide ? 1.6 : 1.35;
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: actions.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: childAspectRatio,
-          ),
-          itemBuilder: (context, index) {
-            return _ParentActionTile(action: actions[index], isDark: isDark);
-          },
-        );
-      },
-    );
-  }
-}
-
-class _ParentActionData {
-  final String title;
-  final String subtitle;
-  final String badge;
-  final IconData icon;
-  final List<Color> gradient;
-  final Color borderAccent;
-  final VoidCallback onTap;
-
-  const _ParentActionData({
-    required this.title,
-    required this.subtitle,
-    required this.badge,
-    required this.icon,
-    required this.gradient,
-    required this.borderAccent,
-    required this.onTap,
-  });
-}
-
-class _ParentActionTile extends StatelessWidget {
-  final _ParentActionData action;
-  final bool isDark;
-
-  const _ParentActionTile({
-    required this.action,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: action.onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.darkSurface.withValues(alpha: 0.9)
-                : AppColors.lightSurface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: action.borderAccent.withValues(alpha: isDark ? 0.35 : 0.25),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: action.borderAccent.withValues(alpha: isDark ? 0.12 : 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: action.gradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: action.gradient.first.withValues(alpha: 0.3),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(action.icon, color: Colors.white, size: 19),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: action.borderAccent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: action.borderAccent.withValues(alpha: 0.3),
-                        width: 0.7,
-                      ),
-                    ),
-                    child: Text(
-                      action.badge,
-                      style: TextStyle(
-                        color: action.borderAccent,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    action.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    action.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ParentInsight {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String body;
-
-  const _ParentInsight({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.body,
-  });
-}
+typedef _ParentInsight = ParentInsight;
 
 class _ParentInsightPanel extends StatelessWidget {
   final List<_ParentInsight> insights;
@@ -2656,127 +2216,8 @@ class _ParentHomeworkItem {
   }
 }
 
-class _ParentScheduleItem {
-  final String id;
-  final String subjectName;
-  final String groupName;
-  final String teacherName;
-  final String location;
-  final String? startTime;
-  final String? endTime;
-  final DateTime? sessionDate;
-  final int? dayOfWeek;
-  final String status;
-
-  const _ParentScheduleItem({
-    required this.id,
-    required this.subjectName,
-    required this.groupName,
-    required this.teacherName,
-    required this.location,
-    this.startTime,
-    this.endTime,
-    this.sessionDate,
-    this.dayOfWeek,
-    required this.status,
-  });
-
-  String get formattedTiming {
-    final time = (startTime != null && endTime != null)
-        ? '$startTime - $endTime'
-        : (startTime ?? 'الموعد المحدد');
-    final dateStr = sessionDate != null
-        ? '${sessionDate!.day}/${sessionDate!.month}'
-        : _dayName(dayOfWeek ?? 6);
-    return '$dateStr • $time';
-  }
-
-  static String _dayName(int day) {
-    return switch (day) {
-      6 => 'السبت',
-      7 || 0 => 'الأحد',
-      1 => 'الإثنين',
-      2 => 'الثلاثاء',
-      3 => 'الأربعاء',
-      4 => 'الخميس',
-      5 => 'الجمعة',
-      _ => 'يوم الحصة',
-    };
-  }
-
-  String get statusLabel => switch (status.toLowerCase()) {
-    'scheduled' || 'active' => 'مجدولة',
-    'cancelled' => 'ملغاة',
-    'completed' => 'مكتملة',
-    'in_progress' => 'جارية الآن',
-    _ => status,
-  };
-
-  factory _ParentScheduleItem.fromJson(Map json) {
-    DateTime? sessionDate = DateTime.tryParse(json['session_date']?.toString() ?? '');
-    final dayOfWeek = (json['day_of_week'] as num?)?.toInt();
-    if (sessionDate == null && dayOfWeek != null) {
-      final now = DateTime.now();
-      final currentWeekday = now.weekday; // 1 = Mon .. 6 = Sat, 7 = Sun
-      final targetWeekday = (dayOfWeek == 0 || dayOfWeek == 7) ? 7 : dayOfWeek;
-      int daysUntil = targetWeekday - currentWeekday;
-      if (daysUntil < 0) daysUntil += 7;
-      sessionDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
-    }
-    return _ParentScheduleItem(
-      id: json['class_session_id']?.toString() ??
-          json['schedule_id']?.toString() ??
-          json['id']?.toString() ??
-          '',
-      subjectName: json['subject_name']?.toString() ?? 'حصة دراسية',
-      groupName: json['group_name']?.toString() ?? 'المجموعة',
-      teacherName: json['teacher_name']?.toString() ?? 'معلم المادة',
-      location: json['location']?.toString() ??
-          json['room_name']?.toString() ??
-          'القاعة الرئيسية',
-      startTime: json['start_time']?.toString(),
-      endTime: json['end_time']?.toString(),
-      sessionDate: sessionDate,
-      dayOfWeek: dayOfWeek,
-      status: json['status']?.toString() ?? 'scheduled',
-    );
-  }
-}
-
-class _ParentAttendanceItem {
-  final String id;
-  final String classSessionId;
-  final String status;
-  final DateTime? markedAt;
-  final DateTime? sessionDate;
-  final String groupName;
-  final String groupCode;
-  final DateTime? checkOutAt;
-
-  const _ParentAttendanceItem({
-    required this.id,
-    required this.classSessionId,
-    required this.status,
-    required this.markedAt,
-    required this.sessionDate,
-    required this.groupName,
-    required this.groupCode,
-    this.checkOutAt,
-  });
-
-  factory _ParentAttendanceItem.fromJson(Map json) {
-    return _ParentAttendanceItem(
-      id: json['id']?.toString() ?? '',
-      classSessionId: json['class_session_id']?.toString() ?? '',
-      status: json['attendance_status']?.toString() ?? 'unknown',
-      markedAt: DateTime.tryParse(json['marked_at']?.toString() ?? json['check_in_at']?.toString() ?? ''),
-      sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
-      groupName: json['group_name']?.toString() ?? 'المجموعة',
-      groupCode: json['group_code']?.toString() ?? '',
-      checkOutAt: DateTime.tryParse(json['check_out_at']?.toString() ?? ''),
-    );
-  }
-}
+typedef _ParentScheduleItem = ParentScheduleItem;
+typedef _ParentAttendanceItem = ParentAttendanceItem;
 
 class _ParentLeaveItem {
   final String id;
@@ -2807,296 +2248,4 @@ class _ParentLeaveItem {
   }
 }
 
-class _LiveChildPresenceRadar extends StatefulWidget {
-  final Student? child;
-  final List<_ParentAttendanceItem> attendance;
-  final StudentLearningSnapshot? learningSnapshot;
-  final VoidCallback onExcuseRequest;
 
-  const _LiveChildPresenceRadar({
-    required this.child,
-    required this.attendance,
-    required this.learningSnapshot,
-    required this.onExcuseRequest,
-  });
-
-  @override
-  State<_LiveChildPresenceRadar> createState() => _LiveChildPresenceRadarState();
-}
-
-class _LiveChildPresenceRadarState extends State<_LiveChildPresenceRadar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-    _pulseAnimation = CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final child = widget.child;
-    if (child == null) return const SizedBox.shrink();
-
-    final now = DateTime.now();
-    _ParentAttendanceItem? todayItem;
-    for (final item in widget.attendance) {
-      final date = item.sessionDate ?? item.markedAt;
-      if (date != null &&
-          date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day) {
-        todayItem = item;
-        break;
-      }
-    }
-
-    final isPresent = todayItem != null &&
-        (todayItem.status == 'present' || todayItem.status == 'late') &&
-        todayItem.checkOutAt == null;
-    final isCheckedOut = todayItem != null && todayItem.checkOutAt != null;
-    final isAbsent = todayItem != null && todayItem.status == 'absent';
-
-    Color cardColor;
-    Color accentColor;
-    String statusTitle;
-    String statusSubtitle;
-    String badgeText;
-
-    if (isPresent) {
-      cardColor = const Color(0xFF064E3B).withValues(alpha: 0.16);
-      accentColor = const Color(0xFF10B981);
-      statusTitle = 'الطالب متواجد في القاعة الدراسية الآن 🏫';
-      final timeStr = todayItem.markedAt != null
-          ? '${todayItem.markedAt!.hour.toString().padLeft(2, '0')}:${todayItem.markedAt!.minute.toString().padLeft(2, '0')}'
-          : '';
-      final elapsedMinutes = todayItem.markedAt != null
-          ? now.difference(todayItem.markedAt!).inMinutes
-          : 0;
-      statusSubtitle =
-          'سجل حضور الساعة $timeStr • ${todayItem.groupName} • متواجد منذ $elapsedMinutes دقيقة ⏱️';
-      badgeText = 'داخل السنتر الآن 🟢';
-    } else if (isCheckedOut) {
-      cardColor = const Color(0xFF1E3A8A).withValues(alpha: 0.16);
-      accentColor = const Color(0xFF3B82F6);
-      statusTitle = 'غادر السنتر بأمان بعد الحصة 👋';
-      final outTime = todayItem.checkOutAt != null
-          ? '${todayItem.checkOutAt!.hour.toString().padLeft(2, '0')}:${todayItem.checkOutAt!.minute.toString().padLeft(2, '0')}'
-          : '';
-      statusSubtitle =
-          'تم تسجيل الانصراف في تمام $outTime • نتمنى له عودة سالمة للبيت 🏠';
-      badgeText = 'انصرف بنجاح ✔️';
-    } else if (isAbsent) {
-      cardColor = const Color(0xFF7F1D1D).withValues(alpha: 0.20);
-      accentColor = const Color(0xFFEF4444);
-      statusTitle = 'تنبيه غياب: الطالب لم يسجل حضوراً اليوم ⚠️';
-      statusSubtitle =
-          'حصة ${todayItem.groupName} المقررة اليوم لم يتم رصد حضور الطالب بها بالبوابة حتى الآن';
-      badgeText = 'غياب غير مسجل بعذر 🔴';
-    } else {
-      cardColor = AppColors.primary.withValues(alpha: 0.08);
-      accentColor = AppColors.primary;
-      statusTitle = 'رادار التواجد ومتابعة الدخول والخروج';
-      final next = widget.learningSnapshot?.nextLesson;
-      statusSubtitle = next != null
-          ? 'الحصة القادمة: ${next.title} (${next.pathName})'
-          : 'لا توجد حصص مسجلة لليوم.';
-      badgeText = 'في الانتظار ⏳';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: accentColor.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (isPresent)
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      AnimatedBuilder(
-                        animation: _pulseAnimation,
-                        builder: (context, child) {
-                          return Container(
-                            width: 24 + (_pulseAnimation.value * 20),
-                            height: 24 + (_pulseAnimation.value * 20),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: accentColor.withValues(
-                                alpha: (1.0 - _pulseAnimation.value) * 0.45,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: accentColor,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: accentColor.withValues(alpha: 0.6),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.radar_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isAbsent
-                        ? Icons.warning_amber_rounded
-                        : (isCheckedOut
-                            ? Icons.directions_walk_rounded
-                            : Icons.school_rounded),
-                    color: accentColor,
-                    size: 22,
-                  ),
-                ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      statusTitle,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: accentColor,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      statusSubtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.lightTextSecondary,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(
-                    color: accentColor.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Text(
-                  badgeText,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: accentColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (isPresent) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'حضور موثق بالبوابة الإلكترونية الذكية للسنتر • القاعة مؤمنة بالكامل 🛡️',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (isAbsent) ...[
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-                onPressed: widget.onExcuseRequest,
-                icon: const Icon(Icons.note_add_rounded, size: 18),
-                label: const Text(
-                  'تقديم عذر غياب فوري مع تقرير طبي/ورقي 📝',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
