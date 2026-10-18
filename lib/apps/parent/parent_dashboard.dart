@@ -15,15 +15,12 @@ import '../../design_system/tokens/typography.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
-import '../../features/auth/domain/repositories/i_auth_repository.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/data/repositories/supabase_notification_repository.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
 import '../../features/payments/domain/models/payment_models.dart';
-import '../../features/profile/presentation/screens/profile_screen.dart';
-import '../../features/profile/presentation/viewmodels/profile_viewmodel.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../features/parent_portal/presentation/screens/absence_excuse_dialog.dart';
@@ -40,6 +37,7 @@ import 'tabs/parent_payments_tab.dart';
 import 'tabs/parent_monthly_report_tab.dart';
 import 'tabs/parent_notifications_tab.dart';
 import 'tabs/parent_helpdesk_tab.dart';
+import 'tabs/parent_account_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -790,112 +788,32 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildAccountPage() {
-    final profile = widget.authViewModel.currentUser;
-    final name = profile?.fullName ?? 'ولي الأمر';
-    final email = profile?.email ?? '';
-    final phone = profile?.phoneNumber;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const PortalSectionTitle(
-          title: 'الملف الشخصي',
-          subtitle: 'إدارة حساب ولي الأمر وصلاحيات الدخول.',
-        ),
-        const SizedBox(height: 12),
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: EditableAvatar(
-              avatarUrl: profile?.avatarUrl,
-              name: name,
-              role: 'parent',
-              userId: profile?.id,
-              userEmail: profile?.email,
-              radius: 46,
-              onAvatarChanged: (_) async {
-                if (mounted) {
-                  await widget.authViewModel.restoreSession();
-                  setState(() {});
-                }
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        PortalListCard(
-          icon: Icons.account_circle,
-          accentColor: AppColors.parentRole,
-          title: name,
-          subtitle: [
-            if (email.isNotEmpty) email,
-            if (phone != null && phone.isNotEmpty) phone,
-          ].join(' • '),
-          trailing: [
-            FilledButton.icon(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ProfileScreen(
-                      viewModel: ProfileViewModel(
-                        getIt<IAuthRepository>(),
-                        widget.authViewModel.currentUser,
-                      ),
-                      onSignedOut: widget.authViewModel.signOut,
-                    ),
-                  ),
-                );
-                if (mounted) {
-                  await widget.authViewModel.restoreSession();
-                }
-              },
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text('تعديل'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        PortalListCard(
-          icon: Icons.notifications_active,
-          accentColor: AppColors.parentRole,
-          title: 'الإشعارات والتنبيهات',
-          subtitle: _unreadCount == 0
-              ? 'لا توجد إشعارات غير مقروءة.'
-              : 'لديك $_unreadCount إشعارات جديدة غير مقروءة.',
-          trailing: [
-            TextButton(
-              onPressed: () => setState(() => _selectedIndex = 5),
-              child: const Text('عرض'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        PortalListCard(
-          icon: Icons.settings,
-          accentColor: AppColors.info,
-          title: 'الإعدادات',
-          subtitle: 'تخصيص المظهر، تفضيلات التنبيهات، واللغة.',
-          trailing: [
-            TextButton(
-              onPressed: () => setState(() => _selectedIndex = 8),
-              child: const Text('فتح'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        PortalListCard(
-          icon: Icons.logout,
-          accentColor: AppColors.error,
-          title: 'تسجيل الخروج',
-          subtitle: 'الخروج من حساب ولي الأمر على هذا الجهاز.',
-          trailing: [
-            TextButton(
-              onPressed: widget.authViewModel.signOut,
-              child: const Text('تسجيل الخروج'),
-            ),
-          ],
-        ),
-      ],
+    return ParentAccountTab(
+      profile: widget.authViewModel.currentUser,
+      authViewModel: widget.authViewModel,
+      selectedChild: _selectedChild,
+      linkedChildren: _linkedChildren,
+      financialSummary: _financialSummary,
+      invoices: _invoices,
+      receipts: _receipts,
+      childGroups: _childGroups,
+      unreadCount: _unreadCount,
+      onChildSelected: (child) {
+        setState(() => _selectedChild = child);
+        _loadChildDetails(child);
+      },
+      onLinkNewChild: _openLinkChildScreen,
+      onProfileChanged: () async {
+        await widget.authViewModel.restoreSession();
+        if (mounted) setState(() {});
+      },
+      onSignOut: widget.authViewModel.signOut,
+      onNavigateToTab: (index) {
+        setState(() => _selectedIndex = index);
+      },
+      onOpenWhatsApp: _launchWhatsAppSupport,
+      onExportLedger: _exportFinancialLedger,
+      onShowReceipt: _showReceiptDialog,
     );
   }
 
