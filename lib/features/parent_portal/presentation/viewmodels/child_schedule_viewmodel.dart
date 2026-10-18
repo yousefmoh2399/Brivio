@@ -55,15 +55,22 @@ class ScheduleEvent {
     final timeStr = (start.isNotEmpty && end.isNotEmpty) ? '$start - $end' : 'موعد الحصة';
 
     final sessionDateStr = row['session_date']?.toString();
-    final sessionDate = sessionDateStr != null ? DateTime.tryParse(sessionDateStr) : null;
+    DateTime? sessionDate = sessionDateStr != null ? DateTime.tryParse(sessionDateStr) : null;
     final dayNum = (row['day_of_week'] as num?)?.toInt() ?? (sessionDate?.weekday ?? 6);
     final dayName = _dayNameFromNumber(dayNum);
 
-    final isToday = sessionDate != null
-        ? (sessionDate.year == today.year &&
-            sessionDate.month == today.month &&
-            sessionDate.day == today.day)
-        : (_isoWeekday(today) == dayNum);
+    // If sessionDate is null (recurring weekly schedule), calculate the next date for this day_of_week
+    if (sessionDate == null) {
+      final currentWeekday = today.weekday; // 1 = Mon ... 6 = Sat, 7 = Sun
+      final targetWeekday = (dayNum == 0 || dayNum == 7) ? 7 : dayNum;
+      int daysUntil = targetWeekday - currentWeekday;
+      if (daysUntil < 0) daysUntil += 7;
+      sessionDate = DateTime(today.year, today.month, today.day).add(Duration(days: daysUntil));
+    }
+
+    final isToday = (sessionDate.year == today.year &&
+        sessionDate.month == today.month &&
+        sessionDate.day == today.day);
 
     Color color;
     if (rawStatus == 'cancelled') {
@@ -157,10 +164,6 @@ class ScheduleEvent {
       _ => 'يوم الحصة',
     };
   }
-
-  static int _isoWeekday(DateTime dt) {
-    return dt.weekday; // 1 = Mon .. 7 = Sun
-  }
 }
 
 class ChildScheduleViewModel extends ChangeNotifier {
@@ -202,41 +205,164 @@ class ChildScheduleViewModel extends ChangeNotifier {
             'p_to_date': _dateOnly(toDate),
           },
         );
-        if (response is List) rows = response;
-      } catch (_) {
-        // Fallback: direct table query via enrollments -> groups -> schedules
+        if (response is List && response.isNotEmpty) {
+          rows = response;
+        }
+      } catch (_) {}
+
+      // Fallback: robust multi-table resolution if RPC failed or returned no data
+      if (rows.isEmpty) {
         try {
-          final res = await client
+          String effectiveStudentId = studentId;
+          try {
+            final sRes = await client
+                .from('students')
+                .select('id')
+                .or('id.eq.$studentId,profile_id.eq.$studentId')
+                .maybeSingle();
+            if (sRes != null && sRes['id'] != null) {
+              effectiveStudentId = sRes['id'].toString();
+            }
+          } catch (_) {}
+
+          final enRes = await client
               .from('enrollments')
-              .select('group_id, groups(id, name, subject, teachers(profiles(full_name)), schedules(*))')
-              .eq('student_id', studentId)
-              .eq('status', 'active');
+              .select('group_id, status')
+              .or('student_id.eq.$effectiveStudentId,student_id.eq.$studentId');
 
-          final List<Map<String, dynamic>> fallbackRows = [];
-          for (final en in (res as List)) {
-            final grp = en['groups'] as Map<String, dynamic>?;
-            if (grp == null) continue;
-            final grpName = grp['name']?.toString() ?? 'المجموعة';
-            final subject = grp['subject']?.toString() ?? 'حصة دراسية';
-            final teacherProf = grp['teachers']?['profiles'] as Map<String, dynamic>?;
-            final teacherName = teacherProf?['full_name']?.toString() ?? 'معلم المادة';
-            final schList = grp['schedules'] as List<dynamic>? ?? [];
-
-            for (final sch in schList) {
-              final sMap = Map<String, dynamic>.from(sch as Map);
-              fallbackRows.add({
-                'group_name': grpName,
-                'subject_name': subject,
-                'teacher_name': teacherName,
-                'start_time': sMap['start_time'],
-                'end_time': sMap['end_time'],
-                'day_of_week': sMap['day_of_week'],
-                'location': sMap['location'] ?? sMap['room_location'] ?? 'القاعة الرئيسية',
-                'status': sMap['status'] ?? 'active',
-              });
+          final groupIds = <String>{};
+          for (final row in (enRes as List)) {
+            final status = row['status']?.toString().toLowerCase();
+            if (status != 'cancelled' && status != 'dropped' && status != 'suspended') {
+              final gId = row['group_id']?.toString();
+              if (gId != null && gId.isNotEmpty) {
+                groupIds.add(gId);
+              }
             }
           }
-          rows = fallbackRows;
+
+          if (groupIds.isNotEmpty) {
+            final groupsRes = await client
+                .from('groups')
+                .select('id, name, subject_id, teacher_id')
+                .inFilter('id', groupIds.toList());
+
+            final gList = (groupsRes as List).cast<Map<String, dynamic>>();
+
+            final subjectIds = gList
+                .map((g) => g['subject_id']?.toString())
+                .whereType<String>()
+                .where((id) => id.isNotEmpty)
+                .toSet()
+                .toList();
+
+            final Map<String, String> subjectNames = {};
+            if (subjectIds.isNotEmpty) {
+              try {
+                final subs = await client
+                    .from('subjects')
+                    .select('id, name')
+                    .inFilter('id', subjectIds);
+                for (final s in (subs as List)) {
+                  subjectNames[s['id'].toString()] = s['name']?.toString() ?? 'حصة دراسية';
+                }
+              } catch (_) {}
+            }
+
+            final teacherIds = gList
+                .map((g) => g['teacher_id']?.toString())
+                .whereType<String>()
+                .where((id) => id.isNotEmpty)
+                .toSet()
+                .toList();
+
+            final Map<String, String> teacherNames = {};
+            if (teacherIds.isNotEmpty) {
+              try {
+                final tRes = await client
+                    .from('teachers')
+                    .select('id, profiles(full_name)')
+                    .inFilter('id', teacherIds);
+                for (final t in (tRes as List)) {
+                  final prof = t['profiles'] as Map<String, dynamic>?;
+                  if (prof != null && prof['full_name'] != null) {
+                    teacherNames[t['id'].toString()] = prof['full_name'].toString();
+                  }
+                }
+              } catch (_) {}
+            }
+
+            final List<Map<String, dynamic>> fallbackRows = [];
+
+            // 1. Fetch class sessions for date window
+            try {
+              final sessionsRes = await client
+                  .from('class_sessions')
+                  .select('id, group_id, session_date, day_of_week, scheduled_start_at, scheduled_end_at, status, location')
+                  .inFilter('group_id', groupIds.toList())
+                  .gte('session_date', _dateOnly(fromDate))
+                  .lte('session_date', _dateOnly(toDate));
+
+              for (final cs in (sessionsRes as List)) {
+                final gId = cs['group_id']?.toString();
+                final grp = gList.firstWhere(
+                  (g) => g['id'].toString() == gId,
+                  orElse: () => <String, dynamic>{},
+                );
+                final subId = grp['subject_id']?.toString();
+                final tId = grp['teacher_id']?.toString();
+                fallbackRows.add({
+                  'source_type': 'session',
+                  'class_session_id': cs['id'],
+                  'group_id': gId,
+                  'group_name': grp['name'] ?? 'مجموعة دراسية',
+                  'subject_name': subjectNames[subId] ?? 'حصة دراسية',
+                  'teacher_name': teacherNames[tId] ?? 'معلم المادة',
+                  'session_date': cs['session_date'],
+                  'day_of_week': cs['day_of_week'],
+                  'scheduled_start_at': cs['scheduled_start_at'],
+                  'scheduled_end_at': cs['scheduled_end_at'],
+                  'start_time': cs['scheduled_start_at']?.toString().split('T').last.substring(0, 5),
+                  'end_time': cs['scheduled_end_at']?.toString().split('T').last.substring(0, 5),
+                  'status': cs['status'] ?? 'scheduled',
+                  'location': cs['location'] ?? 'القاعة الرئيسية',
+                });
+              }
+            } catch (_) {}
+
+            // 2. Fetch recurring schedules
+            try {
+              final schRes = await client
+                  .from('schedules')
+                  .select('id, group_id, day_of_week, start_time, end_time, location, room_location, status')
+                  .inFilter('group_id', groupIds.toList());
+
+              for (final sch in (schRes as List)) {
+                final gId = sch['group_id']?.toString();
+                final grp = gList.firstWhere(
+                  (g) => g['id'].toString() == gId,
+                  orElse: () => <String, dynamic>{},
+                );
+                final subId = grp['subject_id']?.toString();
+                final tId = grp['teacher_id']?.toString();
+                fallbackRows.add({
+                  'source_type': 'schedule',
+                  'schedule_id': sch['id'],
+                  'group_id': gId,
+                  'group_name': grp['name'] ?? 'مجموعة دراسية',
+                  'subject_name': subjectNames[subId] ?? 'حصة دراسية',
+                  'teacher_name': teacherNames[tId] ?? 'معلم المادة',
+                  'day_of_week': sch['day_of_week'],
+                  'start_time': sch['start_time'],
+                  'end_time': sch['end_time'],
+                  'status': sch['status'] ?? 'active',
+                  'location': sch['location'] ?? sch['room_location'] ?? 'القاعة الرئيسية',
+                });
+              }
+            } catch (_) {}
+
+            rows = fallbackRows;
+          }
         } catch (_) {}
       }
 
@@ -265,6 +391,26 @@ class ChildScheduleViewModel extends ChangeNotifier {
           weeklySchedule.add(event);
         }
       }
+
+      // Sort lists logically
+      todaySchedule.sort((a, b) => a.time.compareTo(b.time));
+      upcomingSchedule.sort((a, b) => (a.date ?? DateTime(2099)).compareTo(b.date ?? DateTime(2099)));
+      const dayOrder = {
+        'السبت': 1,
+        'الأحد': 2,
+        'الإثنين': 3,
+        'الثلاثاء': 4,
+        'الأربعاء': 5,
+        'الخميس': 6,
+        'الجمعة': 7,
+      };
+      weeklySchedule.sort((a, b) {
+        final aDay = dayOrder[a.dayName] ?? 99;
+        final bDay = dayOrder[b.dayName] ?? 99;
+        final cmp = aDay.compareTo(bDay);
+        if (cmp != 0) return cmp;
+        return a.time.compareTo(b.time);
+      });
 
       // 2. Fetch real upcoming exams for this child
       upcomingExams.clear();

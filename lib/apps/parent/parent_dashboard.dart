@@ -284,9 +284,192 @@ class _ParentDashboardState extends State<ParentDashboard> {
         'get_parent_child_schedule',
         params: {'p_student_id': studentId},
       );
-      return (response as List)
-          .map((row) => _ParentScheduleItem.fromJson(row as Map))
+      if (response is List && response.isNotEmpty) {
+        final items = response
+            .map((row) => _ParentScheduleItem.fromJson(row as Map))
+            .toList();
+        items.sort((a, b) {
+          if (a.sessionDate != null && b.sessionDate != null) {
+            final cmp = a.sessionDate!.compareTo(b.sessionDate!);
+            if (cmp != 0) return cmp;
+          }
+          return (a.startTime ?? '').compareTo(b.startTime ?? '');
+        });
+        return items;
+      }
+    } catch (_) {}
+
+    // Fallback: direct table query
+    try {
+      final client = _wrapper.client;
+      String effectiveStudentId = studentId;
+      try {
+        final sRes = await client
+            .from('students')
+            .select('id')
+            .or('id.eq.$studentId,profile_id.eq.$studentId')
+            .maybeSingle();
+        if (sRes != null && sRes['id'] != null) {
+          effectiveStudentId = sRes['id'].toString();
+        }
+      } catch (_) {}
+
+      final enRes = await client
+          .from('enrollments')
+          .select('group_id, status')
+          .or('student_id.eq.$effectiveStudentId,student_id.eq.$studentId');
+
+      final groupIds = <String>{};
+      for (final row in (enRes as List)) {
+        final status = row['status']?.toString().toLowerCase();
+        if (status != 'cancelled' && status != 'dropped' && status != 'suspended') {
+          final gId = row['group_id']?.toString();
+          if (gId != null && gId.isNotEmpty) {
+            groupIds.add(gId);
+          }
+        }
+      }
+
+      if (groupIds.isEmpty) return [];
+
+      final groupsRes = await client
+          .from('groups')
+          .select('id, name, subject_id, teacher_id')
+          .inFilter('id', groupIds.toList());
+
+      final gList = (groupsRes as List).cast<Map<String, dynamic>>();
+
+      final subjectIds = gList
+          .map((g) => g['subject_id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet()
           .toList();
+
+      final Map<String, String> subjectNames = {};
+      if (subjectIds.isNotEmpty) {
+        try {
+          final subs = await client
+              .from('subjects')
+              .select('id, name')
+              .inFilter('id', subjectIds);
+          for (final s in (subs as List)) {
+            subjectNames[s['id'].toString()] = s['name']?.toString() ?? 'حصة دراسية';
+          }
+        } catch (_) {}
+      }
+
+      final teacherIds = gList
+          .map((g) => g['teacher_id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+
+      final Map<String, String> teacherNames = {};
+      if (teacherIds.isNotEmpty) {
+        try {
+          final tRes = await client
+              .from('teachers')
+              .select('id, profiles(full_name)')
+              .inFilter('id', teacherIds);
+          for (final t in (tRes as List)) {
+            final prof = t['profiles'] as Map<String, dynamic>?;
+            if (prof != null && prof['full_name'] != null) {
+              teacherNames[t['id'].toString()] = prof['full_name'].toString();
+            }
+          }
+        } catch (_) {}
+      }
+
+      final List<_ParentScheduleItem> items = [];
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      // 1. Check class_sessions
+      try {
+        final sessionsRes = await client
+            .from('class_sessions')
+            .select('id, group_id, session_date, day_of_week, scheduled_start_at, scheduled_end_at, status, location')
+            .inFilter('group_id', groupIds.toList())
+            .gte('session_date', todayStr)
+            .order('session_date', ascending: true)
+            .limit(10);
+
+        for (final cs in (sessionsRes as List)) {
+          final gId = cs['group_id']?.toString();
+          final grp = gList.firstWhere(
+            (g) => g['id'].toString() == gId,
+            orElse: () => <String, dynamic>{},
+          );
+          final subId = grp['subject_id']?.toString();
+          final tId = grp['teacher_id']?.toString();
+          items.add(_ParentScheduleItem(
+            id: cs['id']?.toString() ?? '',
+            subjectName: subjectNames[subId] ?? 'حصة دراسية',
+            groupName: grp['name']?.toString() ?? 'المجموعة',
+            teacherName: teacherNames[tId] ?? 'معلم المادة',
+            location: cs['location']?.toString() ?? 'القاعة الرئيسية',
+            startTime: cs['scheduled_start_at']?.toString().split('T').last.substring(0, 5),
+            endTime: cs['scheduled_end_at']?.toString().split('T').last.substring(0, 5),
+            sessionDate: DateTime.tryParse(cs['session_date']?.toString() ?? ''),
+            dayOfWeek: (cs['day_of_week'] as num?)?.toInt(),
+            status: cs['status']?.toString() ?? 'scheduled',
+          ));
+        }
+      } catch (_) {}
+
+      // 2. Fallback to recurring schedules if no specific upcoming class_sessions found
+      if (items.isEmpty) {
+        try {
+          final schRes = await client
+              .from('schedules')
+              .select('id, group_id, day_of_week, start_time, end_time, location, room_location, status')
+              .inFilter('group_id', groupIds.toList());
+
+          for (final sch in (schRes as List)) {
+            final gId = sch['group_id']?.toString();
+            final grp = gList.firstWhere(
+              (g) => g['id'].toString() == gId,
+              orElse: () => <String, dynamic>{},
+            );
+            final subId = grp['subject_id']?.toString();
+            final tId = grp['teacher_id']?.toString();
+            final dayNum = (sch['day_of_week'] as num?)?.toInt();
+            DateTime? computedDate;
+            if (dayNum != null) {
+              final currentWeekday = now.weekday;
+              final targetWeekday = (dayNum == 0 || dayNum == 7) ? 7 : dayNum;
+              int daysUntil = targetWeekday - currentWeekday;
+              if (daysUntil < 0) daysUntil += 7;
+              computedDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
+            }
+
+            items.add(_ParentScheduleItem(
+              id: sch['id']?.toString() ?? '',
+              subjectName: subjectNames[subId] ?? 'حصة دراسية',
+              groupName: grp['name']?.toString() ?? 'المجموعة',
+              teacherName: teacherNames[tId] ?? 'معلم المادة',
+              location: sch['location']?.toString() ?? sch['room_location']?.toString() ?? 'القاعة الرئيسية',
+              startTime: sch['start_time']?.toString(),
+              endTime: sch['end_time']?.toString(),
+              sessionDate: computedDate,
+              dayOfWeek: dayNum,
+              status: sch['status']?.toString() ?? 'active',
+            ));
+          }
+        } catch (_) {}
+      }
+
+      items.sort((a, b) {
+        if (a.sessionDate != null && b.sessionDate != null) {
+          final cmp = a.sessionDate!.compareTo(b.sessionDate!);
+          if (cmp != 0) return cmp;
+        }
+        return (a.startTime ?? '').compareTo(b.startTime ?? '');
+      });
+
+      return items;
     } catch (_) {
       return [];
     }
@@ -2530,6 +2713,16 @@ class _ParentScheduleItem {
   };
 
   factory _ParentScheduleItem.fromJson(Map json) {
+    DateTime? sessionDate = DateTime.tryParse(json['session_date']?.toString() ?? '');
+    final dayOfWeek = (json['day_of_week'] as num?)?.toInt();
+    if (sessionDate == null && dayOfWeek != null) {
+      final now = DateTime.now();
+      final currentWeekday = now.weekday; // 1 = Mon .. 6 = Sat, 7 = Sun
+      final targetWeekday = (dayOfWeek == 0 || dayOfWeek == 7) ? 7 : dayOfWeek;
+      int daysUntil = targetWeekday - currentWeekday;
+      if (daysUntil < 0) daysUntil += 7;
+      sessionDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysUntil));
+    }
     return _ParentScheduleItem(
       id: json['class_session_id']?.toString() ??
           json['schedule_id']?.toString() ??
@@ -2543,8 +2736,8 @@ class _ParentScheduleItem {
           'القاعة الرئيسية',
       startTime: json['start_time']?.toString(),
       endTime: json['end_time']?.toString(),
-      sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
-      dayOfWeek: (json['day_of_week'] as num?)?.toInt(),
+      sessionDate: sessionDate,
+      dayOfWeek: dayOfWeek,
       status: json['status']?.toString() ?? 'scheduled',
     );
   }
