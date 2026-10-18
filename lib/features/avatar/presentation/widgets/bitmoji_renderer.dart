@@ -98,6 +98,8 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
     switch (widget.cameraFocus) {
       case AvatarCameraFocus.fullBody:
         return 1.0;
+      case AvatarCameraFocus.bust:
+        return 1.28;
       case AvatarCameraFocus.face:
         return 1.55;
       case AvatarCameraFocus.eyes:
@@ -113,6 +115,8 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
     switch (widget.cameraFocus) {
       case AvatarCameraFocus.fullBody:
         return Offset.zero;
+      case AvatarCameraFocus.bust:
+        return const Offset(0, 0.08);
       case AvatarCameraFocus.face:
         return const Offset(0, 0.16);
       case AvatarCameraFocus.eyes:
@@ -290,13 +294,25 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
                     ],
                   ),
                   border: Border.all(
-                    color: widget.traits.outfitColor.withValues(alpha: 0.55),
-                    width: 2.0,
+                    color: (switch (widget.traits.pedestalStyle) {
+                      'royal_gold' => const Color(0xFFF59E0B),
+                      'emerald_crystal' => const Color(0xFF10B981),
+                      'obsidian_holo' => const Color(0xFF8B5CF6),
+                      'floating_halo' => const Color(0xFF06B6D4),
+                      _ => widget.traits.outfitColor,
+                    }).withValues(alpha: 0.65),
+                    width: 2.2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: widget.traits.outfitColor.withValues(alpha: 0.3),
-                      blurRadius: 14,
+                      color: (switch (widget.traits.pedestalStyle) {
+                        'royal_gold' => const Color(0xFFF59E0B),
+                        'emerald_crystal' => const Color(0xFF10B981),
+                        'obsidian_holo' => const Color(0xFF8B5CF6),
+                        'floating_halo' => const Color(0xFF06B6D4),
+                        _ => widget.traits.outfitColor,
+                      }).withValues(alpha: 0.4),
+                      blurRadius: 16,
                       offset: const Offset(0, -2),
                     ),
                   ],
@@ -319,6 +335,64 @@ class _BitmojiRendererState extends State<BitmojiRenderer>
               ),
             ),
           ),
+
+          // Floating Honor Badge Overlay
+          if (widget.traits.honorBadge != null && widget.traits.honorBadge != 'none')
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                  border: Border.all(color: Colors.white, width: 1.2),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      switch (widget.traits.honorBadge) {
+                        'top_honor' => '🥇',
+                        'star_achiever' => '⭐',
+                        'math_genius' => '🏆',
+                        'student_leader' => '🎖️',
+                        'researcher' => '🔬',
+                        'creative' => '🎨',
+                        _ => '✨',
+                      },
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      switch (widget.traits.honorBadge) {
+                        'top_honor' => 'الأول على الدفعة',
+                        'star_achiever' => 'نجم الأسبوع',
+                        'math_genius' => 'عبقري الرياضيات',
+                        'student_leader' => 'القائد الطلابي',
+                        'researcher' => 'باحث موهوب',
+                        'creative' => 'فنان مبدع',
+                        _ => 'متميز',
+                      },
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

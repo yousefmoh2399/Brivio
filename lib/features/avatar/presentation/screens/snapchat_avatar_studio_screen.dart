@@ -60,6 +60,7 @@ class _SnapchatAvatarStudioScreenState
   AvatarCustomizationSection _currentSection =
       AvatarCustomizationSection.style;
   bool _isSaving = false;
+  String _styleCategoryFilter = 'all';
 
   @override
   void initState() {
@@ -97,9 +98,13 @@ class _SnapchatAvatarStudioScreenState
   void _toggleCameraFocus() {
     HapticFeedback.selectionClick();
     setState(() {
-      _cameraFocus = (_cameraFocus == AvatarCameraFocus.fullBody)
-          ? AvatarCameraFocus.face
-          : AvatarCameraFocus.fullBody;
+      if (_cameraFocus == AvatarCameraFocus.fullBody) {
+        _cameraFocus = AvatarCameraFocus.face;
+      } else if (_cameraFocus == AvatarCameraFocus.face) {
+        _cameraFocus = AvatarCameraFocus.bust;
+      } else {
+        _cameraFocus = AvatarCameraFocus.fullBody;
+      }
     });
   }
 
@@ -156,6 +161,27 @@ class _SnapchatAvatarStudioScreenState
       'assets/avatars/snap_teacher_male.png',
       'assets/avatars/snap_teacher_female.png',
       'assets/avatars/snap_executive_leader.png',
+      'assets/avatars/snap_doctor_scientist.png',
+      'assets/avatars/snap_artist_creative.png',
+      'assets/avatars/snap_athlete_sports.png',
+      'assets/avatars/snap_cyber_hacker.png',
+      'assets/avatars/snap_counselor_female.png',
+    ];
+    final pedestals = [
+      'neon_disc',
+      'royal_gold',
+      'emerald_crystal',
+      'obsidian_holo',
+      'floating_halo',
+    ];
+    final badges = [
+      null,
+      'top_honor',
+      'star_achiever',
+      'math_genius',
+      'student_leader',
+      'researcher',
+      'creative',
     ];
     final chosenAsset = avatars[rnd % avatars.length];
     final isFemale = chosenAsset.contains('girl') || chosenAsset.contains('female') || chosenAsset.contains('star');
@@ -175,6 +201,8 @@ class _SnapchatAvatarStudioScreenState
         facialHair: beards[(rnd ~/ 8) % beards.length],
         eyewear: glasses[(rnd ~/ 9) % glasses.length],
         outfit: clothes[(rnd ~/ 10) % clothes.length],
+        pedestalStyle: pedestals[(rnd ~/ 11) % pedestals.length],
+        honorBadge: badges[(rnd ~/ 12) % badges.length],
       );
     });
   }
@@ -450,7 +478,9 @@ class _SnapchatAvatarStudioScreenState
                   Icon(
                     _cameraFocus == AvatarCameraFocus.face
                         ? Icons.person_rounded
-                        : Icons.face_rounded,
+                        : (_cameraFocus == AvatarCameraFocus.bust
+                            ? Icons.accessibility_new_rounded
+                            : Icons.face_rounded),
                     size: 16,
                     color: widget.roleColor,
                   ),
@@ -458,7 +488,9 @@ class _SnapchatAvatarStudioScreenState
                   Text(
                     _cameraFocus == AvatarCameraFocus.face
                         ? 'عرض الجسم كامل'
-                        : 'تكبير الوجه',
+                        : (_cameraFocus == AvatarCameraFocus.bust
+                            ? 'عرض المنصة 🕺'
+                            : 'تكبير الوجه'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -555,10 +587,12 @@ class _SnapchatAvatarStudioScreenState
         children: [
           _buildSectionTab(AvatarCustomizationSection.style, 'النمط', Icons.auto_awesome_rounded),
           _buildSectionTab(AvatarCustomizationSection.genderBody, 'الجنس', Icons.wc_rounded),
+          _buildSectionTab(AvatarCustomizationSection.skinTone, 'البشرة', Icons.face_rounded),
           _buildSectionTab(AvatarCustomizationSection.hairStyle, 'الشعر', Icons.content_cut_rounded),
+          _buildSectionTab(AvatarCustomizationSection.pedestal, 'المنصة', Icons.album_rounded),
+          _buildSectionTab(AvatarCustomizationSection.honorBadge, 'الأوسمة', Icons.military_tech_rounded),
           _buildSectionTab(AvatarCustomizationSection.headwear, 'الحجاب', Icons.dry_cleaning_rounded),
           _buildSectionTab(AvatarCustomizationSection.outfit, 'الملابس', Icons.checkroom_rounded),
-          _buildSectionTab(AvatarCustomizationSection.skinTone, 'البشرة', Icons.face_rounded),
           _buildSectionTab(AvatarCustomizationSection.hairColor, 'لون الشعر', Icons.format_paint_rounded),
           _buildSectionTab(AvatarCustomizationSection.eyewear, 'النظارات', Icons.visibility_rounded),
           _buildSectionTab(AvatarCustomizationSection.mouth, 'التعبيرات', Icons.mood_rounded),
@@ -589,8 +623,11 @@ class _SnapchatAvatarStudioScreenState
               _currentSection = section;
               if (section == AvatarCustomizationSection.outfit ||
                   section == AvatarCustomizationSection.genderBody ||
-                  section == AvatarCustomizationSection.style) {
+                  section == AvatarCustomizationSection.style ||
+                  section == AvatarCustomizationSection.pedestal) {
                 _cameraFocus = AvatarCameraFocus.fullBody;
+              } else if (section == AvatarCustomizationSection.honorBadge) {
+                _cameraFocus = AvatarCameraFocus.bust;
               } else {
                 _cameraFocus = AvatarCameraFocus.face;
               }
@@ -666,65 +703,118 @@ class _SnapchatAvatarStudioScreenState
 
     switch (_currentSection) {
       case AvatarCustomizationSection.style:
-        return _buildVisualGrid(
-          options: const [
-            {
-              'id': 'snap_boy_curly',
-              'title': 'طالب كيرلي 👦',
-            },
-            {
-              'id': 'snap_girl_hijab',
-              'title': 'طالبة بالحجاب 🧕',
-            },
-            {
-              'id': 'snap_student_star',
-              'title': 'خريج متفوق 🎓',
-            },
-            {
-              'id': 'snap_girl_stylish',
-              'title': 'طالبة مبدعة 🎧',
-            },
-            {
-              'id': 'snap_boy_glasses',
-              'title': 'طالب بنظارات 👓',
-            },
-            {
-              'id': 'snap_teacher_male',
-              'title': 'أستاذ موجه 👨‍🏫',
-            },
-            {
-              'id': 'snap_teacher_female',
-              'title': 'أستاذة قديرة 👩‍🏫',
-            },
-            {
-              'id': 'snap_executive_leader',
-              'title': 'مدير المنظومة 👨‍💼',
-            },
-          ],
-          selectedId: _traits.characterAsset != null
-              ? _traits.characterAsset!.replaceAll('assets/avatars/', '').replaceAll('.png', '')
-              : _traits.resolvedAssetPath.replaceAll('assets/avatars/', '').replaceAll('.png', ''),
-          crossAxisCount: defaultCols,
-          childAspectRatio: 0.90,
-          previewTraitsBuilder: (id) => _traits.copyWith(
-            characterAsset: 'assets/avatars/$id.png',
-          ),
-          onSelected: (id) {
-            final asset = 'assets/avatars/$id.png';
-            setState(() {
-              _traits = _traits.copyWith(
-                characterAsset: asset,
-                gender: (id.contains('girl') || id.contains('female') || id == 'snap_student_star')
-                    ? 'female'
-                    : 'male',
-                headwear: id == 'snap_girl_hijab'
-                    ? 'hijab'
-                    : (id == 'snap_student_star' ? 'graduation_cap' : 'none'),
-                hairStyle: id == 'snap_girl_hijab' ? 'hijab_wrapped' : _traits.hairStyle,
-              );
-            });
+        final allModels = const [
+          {
+            'id': 'snap_boy_curly',
+            'title': 'طالب كيرلي 👦',
+            'category': 'student',
           },
+          {
+            'id': 'snap_girl_hijab',
+            'title': 'طالبة بالحجاب 🧕',
+            'category': 'student',
+          },
+          {
+            'id': 'snap_student_star',
+            'title': 'خريج متفوق 🎓',
+            'category': 'student',
+          },
+          {
+            'id': 'snap_girl_stylish',
+            'title': 'طالبة مبدعة 🎧',
+            'category': 'student',
+          },
+          {
+            'id': 'snap_boy_glasses',
+            'title': 'طالب بنظارات 👓',
+            'category': 'student',
+          },
+          {
+            'id': 'snap_cyber_hacker',
+            'title': 'طالب تكنولوجيا 💻',
+            'category': 'student,talent',
+          },
+          {
+            'id': 'snap_athlete_sports',
+            'title': 'طالب رياضي 🏆',
+            'category': 'student,talent',
+          },
+          {
+            'id': 'snap_artist_creative',
+            'title': 'فنان ومصمم 🎨',
+            'category': 'student,talent',
+          },
+          {
+            'id': 'snap_doctor_scientist',
+            'title': 'باحث علمي 🔬',
+            'category': 'teacher,talent',
+          },
+          {
+            'id': 'snap_teacher_male',
+            'title': 'أستاذ موجه 👨‍🏫',
+            'category': 'teacher',
+          },
+          {
+            'id': 'snap_teacher_female',
+            'title': 'أستاذة قديرة 👩‍🏫',
+            'category': 'teacher',
+          },
+          {
+            'id': 'snap_counselor_female',
+            'title': 'أخصائية إرشاد 📚',
+            'category': 'teacher',
+          },
+          {
+            'id': 'snap_executive_leader',
+            'title': 'مدير المنظومة 👨‍💼',
+            'category': 'admin',
+          },
+        ];
+
+        final filteredModels = allModels.where((m) {
+          if (_styleCategoryFilter == 'all') return true;
+          return m['category']!.contains(_styleCategoryFilter);
+        }).toList();
+
+        return Column(
+          children: [
+            _buildStyleCategoryFilters(),
+            Expanded(
+              child: _buildVisualGrid(
+                options: filteredModels,
+                selectedId: _traits.characterAsset != null
+                    ? _traits.characterAsset!.replaceAll('assets/avatars/', '').replaceAll('.png', '')
+                    : _traits.resolvedAssetPath.replaceAll('assets/avatars/', '').replaceAll('.png', ''),
+                crossAxisCount: defaultCols,
+                childAspectRatio: 0.90,
+                previewTraitsBuilder: (id) => _traits.copyWith(
+                  characterAsset: 'assets/avatars/$id.png',
+                ),
+                onSelected: (id) {
+                  final asset = 'assets/avatars/$id.png';
+                  setState(() {
+                    _traits = _traits.copyWith(
+                      characterAsset: asset,
+                      gender: (id.contains('girl') || id.contains('female') || id == 'snap_student_star')
+                          ? 'female'
+                          : 'male',
+                      headwear: id == 'snap_girl_hijab'
+                          ? 'hijab'
+                          : (id == 'snap_student_star' ? 'graduation_cap' : 'none'),
+                      hairStyle: id == 'snap_girl_hijab' ? 'hijab_wrapped' : _traits.hairStyle,
+                    );
+                  });
+                },
+              ),
+            ),
+          ],
         );
+
+      case AvatarCustomizationSection.pedestal:
+        return _buildPedestalSelector(isWide: isWide);
+
+      case AvatarCustomizationSection.honorBadge:
+        return _buildHonorBadgeSelector(isWide: isWide);
 
       case AvatarCustomizationSection.genderBody:
         return _buildGenderSelector();
@@ -1353,6 +1443,401 @@ class _SnapchatAvatarStudioScreenState
           );
         },
       ),
+    );
+  }
+
+  Widget _buildStyleCategoryFilters() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final filters = const [
+      {'id': 'all', 'label': 'الكل 🌟'},
+      {'id': 'student', 'label': 'الطلاب 🎒'},
+      {'id': 'teacher', 'label': 'المعلمون 👨‍🏫'},
+      {'id': 'admin', 'label': 'الإدارة 👔'},
+      {'id': 'talent', 'label': 'المواهب 🔬'},
+    ];
+
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white10 : Colors.black12,
+            width: 0.6,
+          ),
+        ),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, i) {
+          final f = filters[i];
+          final isSelected = _styleCategoryFilter == f['id'];
+
+          return InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _styleCategoryFilter = f['id']!;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? widget.roleColor.withValues(alpha: 0.15)
+                    : (isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : Colors.black.withValues(alpha: 0.03)),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected ? widget.roleColor : Colors.transparent,
+                  width: 1.2,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  f['label']!,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? widget.roleColor
+                        : (isDark ? Colors.white70 : Colors.black87),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPedestalSelector({required bool isWide}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+
+    final pedestals = [
+      {
+        'id': 'neon_disc',
+        'title': 'ديسك النيون المشع ⚡',
+        'desc': 'حلقة ضوئية زرقاء مستقبلية ثلاثية الأبعاد',
+        'color': const Color(0xFF0EA5E9),
+      },
+      {
+        'id': 'royal_gold',
+        'title': 'المنصة الملكية الذهبية 👑',
+        'desc': 'قاعدة ذهبية فخمة للأوائل والرواد',
+        'color': const Color(0xFFF59E0B),
+      },
+      {
+        'id': 'emerald_crystal',
+        'title': 'الكريستال الزمردي 💎',
+        'desc': 'بلورات متوهجة بلون الزمرد الملكي',
+        'color': const Color(0xFF10B981),
+      },
+      {
+        'id': 'obsidian_holo',
+        'title': 'الأوبسيديان المستقبلي 🌌',
+        'desc': 'حلقة هولوجرامية أرجوانية ساحرة',
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
+        'id': 'floating_halo',
+        'title': 'حلقة الطاقة العائمة 💫',
+        'desc': 'هالة ناعمة بلون وردي مبهج وأنيق',
+        'color': const Color(0xFFEC4899),
+      },
+      {
+        'id': 'none',
+        'title': 'بدون منصة ⭕',
+        'desc': 'عرض الشخصية بالكامل على أرضية محايدة',
+        'color': Colors.grey,
+      },
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      itemCount: pedestals.length,
+      itemBuilder: (context, index) {
+        final p = pedestals[index];
+        final id = p['id'] as String;
+        final title = p['title'] as String;
+        final desc = p['desc'] as String;
+        final color = p['color'] as Color;
+        final isSelected = _traits.pedestalStyle == id;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _traits = _traits.copyWith(pedestalStyle: id);
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? color.withValues(alpha: 0.12)
+                    : cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected
+                      ? color
+                      : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
+                  width: isSelected ? 1.8 : 0.8,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [color, color.withValues(alpha: 0.6)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: isSelected
+                          ? const Icon(Icons.check, size: 20, color: Colors.white)
+                          : Container(
+                              width: 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white70,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? color
+                                : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          desc,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHonorBadgeSelector({required bool isWide}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+
+    final badges = [
+      {
+        'id': 'none',
+        'emoji': '⭕',
+        'title': 'بدون وسام',
+        'desc': 'إخفاء شارة الشرف العائمة',
+        'color': Colors.grey,
+      },
+      {
+        'id': 'top_honor',
+        'emoji': '🥇',
+        'title': 'وسام الشرف والامتياز',
+        'desc': 'مخصص للطلاب الأوائل والمتفوقين أكاديمياً',
+        'color': const Color(0xFFF59E0B),
+      },
+      {
+        'id': 'star_achiever',
+        'emoji': '🌟',
+        'title': 'نجم الإنجاز الأكاديمي',
+        'desc': 'للطلاب ذوي الأنشطة والواجبات المتميزة',
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
+        'id': 'math_genius',
+        'emoji': '📐',
+        'title': 'عبقري الرياضيات والعلوم',
+        'desc': 'لأصحاب التفكير المنطقي والحلول الإبداعية',
+        'color': const Color(0xFF0EA5E9),
+      },
+      {
+        'id': 'student_leader',
+        'emoji': '👑',
+        'title': 'القائد الطلابي المتميز',
+        'desc': 'لأصحاب روح المبادرة والعمل الجماعي',
+        'color': const Color(0xFFEAB308),
+      },
+      {
+        'id': 'researcher',
+        'emoji': '🔬',
+        'title': 'الباحث والمستكشف',
+        'desc': 'لرواد الابتكار والتجارب المعملية',
+        'color': const Color(0xFF10B981),
+      },
+      {
+        'id': 'creative',
+        'emoji': '🎨',
+        'title': 'المبدع والفنان الرقمي',
+        'desc': 'لأصحاب المواهب الفنية والتصميم',
+        'color': const Color(0xFFEC4899),
+      },
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      itemCount: badges.length,
+      itemBuilder: (context, index) {
+        final b = badges[index];
+        final id = b['id'] as String;
+        final emoji = b['emoji'] as String;
+        final title = b['title'] as String;
+        final desc = b['desc'] as String;
+        final color = b['color'] as Color;
+        final isSelected = (id == 'none' && _traits.honorBadge == null) ||
+            _traits.honorBadge == id;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _traits = _traits.copyWith(
+                  honorBadge: id == 'none' ? null : id,
+                );
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? color.withValues(alpha: 0.12)
+                    : cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isSelected
+                      ? color
+                      : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06)),
+                  width: isSelected ? 1.8 : 0.8,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: color.withValues(alpha: 0.15),
+                      border: Border.all(color: color.withValues(alpha: 0.4)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? color
+                                : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          desc,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isSelected)
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

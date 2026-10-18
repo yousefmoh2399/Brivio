@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 /// Represents camera zoom focus in the Snapchat Bitmoji Studio
 enum AvatarCameraFocus {
   fullBody,
+  bust,
   face,
   eyes,
   hair,
@@ -12,6 +13,8 @@ enum AvatarCameraFocus {
 /// Category tabs in the Bitmoji Studio
 enum AvatarCustomizationSection {
   style,
+  pedestal,
+  honorBadge,
   genderBody,
   faceShape,
   skinTone,
@@ -55,6 +58,8 @@ class BitmojiTraits {
   final String backgroundStyle;
   final Color backgroundColor;
   final String? characterAsset;
+  final String pedestalStyle;
+  final String? honorBadge;
 
   const BitmojiTraits({
     this.style = 'avataaars',
@@ -81,6 +86,8 @@ class BitmojiTraits {
     this.backgroundStyle = 'studio_pedestal',
     this.backgroundColor = const Color(0xFFE0F2FE),
     this.characterAsset,
+    this.pedestalStyle = 'neon_disc',
+    this.honorBadge,
   });
 
   /// Resolves the authentic 3D Pixar / Snapchat Bitmoji character asset path
@@ -98,8 +105,23 @@ class BitmojiTraits {
       if (outfit == 'formal_blazer' || outfit == 'blazer_sweater') {
         return 'assets/avatars/snap_teacher_female.png';
       }
+      if (outfit == 'lab_coat') {
+        return 'assets/avatars/snap_doctor_scientist.png';
+      }
+      if (eyewear != 'none') {
+        return 'assets/avatars/snap_counselor_female.png';
+      }
       return 'assets/avatars/snap_girl_stylish.png';
     } else {
+      if (headwear == 'beret') {
+        return 'assets/avatars/snap_artist_creative.png';
+      }
+      if (outfit == 'athletic') {
+        return 'assets/avatars/snap_athlete_sports.png';
+      }
+      if (eyewear == 'smart_glasses' || outfit == 'cyber_tech') {
+        return 'assets/avatars/snap_cyber_hacker.png';
+      }
       if (eyewear != 'none' && eyewear != 'sunglasses') {
         return 'assets/avatars/snap_boy_glasses.png';
       }
@@ -138,6 +160,8 @@ class BitmojiTraits {
     String? backgroundStyle,
     Color? backgroundColor,
     String? characterAsset,
+    String? pedestalStyle,
+    String? honorBadge,
   }) {
     return BitmojiTraits(
       style: style ?? this.style,
@@ -164,6 +188,8 @@ class BitmojiTraits {
       backgroundStyle: backgroundStyle ?? this.backgroundStyle,
       backgroundColor: backgroundColor ?? this.backgroundColor,
       characterAsset: characterAsset ?? this.characterAsset,
+      pedestalStyle: pedestalStyle ?? this.pedestalStyle,
+      honorBadge: honorBadge ?? this.honorBadge,
     );
   }
 
@@ -192,6 +218,8 @@ class BitmojiTraits {
     'backgroundStyle': backgroundStyle,
     'backgroundColor': backgroundColor.toARGB32(),
     'characterAsset': characterAsset,
+    'pedestalStyle': pedestalStyle,
+    'honorBadge': honorBadge,
   };
 
   factory BitmojiTraits.fromJson(Map<String, dynamic> json) => BitmojiTraits(
@@ -219,6 +247,8 @@ class BitmojiTraits {
     backgroundStyle: json['backgroundStyle'] as String? ?? 'studio_pedestal',
     backgroundColor: Color(json['backgroundColor'] as int? ?? 0xFFE0F2FE),
     characterAsset: json['characterAsset'] as String?,
+    pedestalStyle: json['pedestalStyle'] as String? ?? 'neon_disc',
+    honorBadge: json['honorBadge'] as String?,
   );
 
   /// Generates the high-resolution, commercial-grade avatar URL or local 3D asset

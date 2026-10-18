@@ -230,5 +230,63 @@ void main() {
 
       expect(find.byType(SnapchatAvatarStudioScreen), findsOneWidget);
     });
+
+    testWidgets('supports 3-way camera cycling, pedestal styles, and honor badges', (tester) async {
+      tester.view.physicalSize = const Size(1200, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: SnapchatAvatarStudioScreen(
+            userId: 'snap_test_user_2',
+          ),
+        ),
+      );
+
+      // 1. Verify 3-way camera cycling: fullBody -> face -> bust -> fullBody
+      expect(find.text('تكبير الوجه'), findsOneWidget);
+      await tester.tap(find.text('تكبير الوجه'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('عرض الجسم كامل'), findsOneWidget);
+
+      await tester.tap(find.text('عرض الجسم كامل'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('عرض المنصة 🕺'), findsOneWidget);
+
+      await tester.tap(find.text('عرض المنصة 🕺'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('تكبير الوجه'), findsOneWidget);
+
+      // 2. Test Pedestal Section
+      expect(find.text('المنصة'), findsOneWidget);
+      await tester.tap(find.text('المنصة'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('ديسك النيون المشع ⚡'), findsOneWidget);
+      expect(find.text('المنصة الملكية الذهبية 👑'), findsOneWidget);
+      await tester.tap(find.text('المنصة الملكية الذهبية 👑'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 3. Test Honor Badge Section
+      expect(find.text('الأوسمة'), findsOneWidget);
+      await tester.tap(find.text('الأوسمة'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('وسام الشرف والامتياز'), findsOneWidget);
+      expect(find.text('نجم الإنجاز الأكاديمي'), findsOneWidget);
+      await tester.tap(find.text('وسام الشرف والامتياز'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 4. Test Model Category Filtering
+      await tester.tap(find.text('النمط'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('المواهب 🔬'), findsOneWidget);
+      await tester.tap(find.text('المواهب 🔬'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('باحث علمي 🔬'), findsOneWidget);
+    });
   });
 }

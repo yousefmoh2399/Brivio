@@ -124,6 +124,36 @@ class AvatarService {
       category: 'إدارة',
       url: 'assets/avatars/snap_executive_leader.png',
     ),
+    PresetAvatar(
+      id: 'snap_doctor_scientist',
+      titleArabic: 'باحث ومستكشف علمي 🔬',
+      category: 'علوم',
+      url: 'assets/avatars/snap_doctor_scientist.png',
+    ),
+    PresetAvatar(
+      id: 'snap_artist_creative',
+      titleArabic: 'فنان ومصمم مبدع 🎨',
+      category: 'فنون',
+      url: 'assets/avatars/snap_artist_creative.png',
+    ),
+    PresetAvatar(
+      id: 'snap_athlete_sports',
+      titleArabic: 'بطل رياضي وأنشطة 🏆',
+      category: 'رياضة',
+      url: 'assets/avatars/snap_athlete_sports.png',
+    ),
+    PresetAvatar(
+      id: 'snap_cyber_hacker',
+      titleArabic: 'مبرمج وخبير تكنولوجيا 💻',
+      category: 'تكنولوجيا',
+      url: 'assets/avatars/snap_cyber_hacker.png',
+    ),
+    PresetAvatar(
+      id: 'snap_counselor_female',
+      titleArabic: 'أخصائية إرشاد وتوجيه 📚',
+      category: 'إرشاد',
+      url: 'assets/avatars/snap_counselor_female.png',
+    ),
   ];
 
   /// Opens file selector to pick an image from device and uploads or encodes it.
