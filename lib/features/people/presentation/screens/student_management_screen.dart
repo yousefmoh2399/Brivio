@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../core/services/report_generator_service.dart';
+import '../../../../core/services/user_provisioning_service.dart';
 import '../../../../design_system/components/editable_avatar.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -8,8 +13,6 @@ import '../../../academy/data/repositories/supabase_academy_repositories.dart';
 import '../../../academy/domain/models/academy_models.dart';
 import '../widgets/account_login_qr_dialog.dart';
 import '../widgets/account_password_dialog.dart';
-import '../../../../core/services/report_generator_service.dart';
-import '../../../../core/services/user_provisioning_service.dart';
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({super.key});
@@ -24,11 +27,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   List<Student> _students = [];
   List<Branch> _branches = [];
+  Map<String, int> _studentGroupCounts = {};
   bool _isLoading = false;
   String? _errorMessage;
   String? _centerId;
   String _centerName = 'المركز التعليمي';
   final TextEditingController _searchController = TextEditingController();
+  String _selectedStatusFilter = 'all'; // 'all', 'active', 'suspended'
+  String _selectedBranchFilter = 'all';
+  String _selectedGradeFilter = 'all';
 
   static const List<String> _gradeLevels = [
     'الصف الأول الإعدادي',
@@ -56,6 +63,27 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final cleanNumber = phoneNumber.replaceAll(RegExp(r'\s+'), '');
+    final uri = Uri.parse('tel:$cleanNumber');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      }
+    } catch (_) {}
+  }
+
+  void _copyStudentCode(BuildContext context, String code) {
+    Clipboard.setData(ClipboardData(text: code));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تم نسخ كود الطالب ($code) إلى الحافظة 📋'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _loadCenterInfo() async {
@@ -97,7 +125,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
       final res = await _studentRepo.fetchStudents();
 
-      var bQuery = client.from('branches').select().eq('status', 'active');
+      var bQuery = client.from('branches').select();
       if (_centerId != null) {
         bQuery = bQuery.eq('center_id', _centerId!);
       }
@@ -125,10 +153,23 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
         }).toList();
       }
 
+      // Fetch group enrollment count per student
+      final Map<String, int> groupCounts = {};
+      try {
+        final enrollRes = await client.from('enrollments').select('student_id');
+        for (final e in (enrollRes as List)) {
+          final sid = e['student_id']?.toString();
+          if (sid != null) {
+            groupCounts[sid] = (groupCounts[sid] ?? 0) + 1;
+          }
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _students = filteredStudents;
           _branches = branches;
+          _studentGroupCounts = groupCounts;
           _isLoading = false;
         });
       }
@@ -176,96 +217,63 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   color: AppColors.studentRole.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.edit, color: AppColors.studentRole),
+                child: const Icon(Icons.edit_rounded, color: AppColors.studentRole, size: 20),
               ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
                   'تعديل بيانات الطالب',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'الاسم الكامل للطالب *',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
+          content: SizedBox(
+            width: MediaQuery.sizeOf(context).width.clamp(280.0, 480.0),
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الاسم الكامل للطالب *',
+                        prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(height: 12),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth < 460) {
-                            return Column(
-                              children: [
-                                TextFormField(
-                                  controller: codeCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'كود الطالب *',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  validator: (v) =>
-                                      v == null || v.trim().isEmpty ? 'يرجى إدخال كود الطالب' : null,
-                                ),
-                                const SizedBox(height: 12),
-                                TextFormField(
-                                  controller: phoneCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'رقم هاتف الطالب / واتساب',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType: TextInputType.phone,
-                                ),
-                              ],
-                            );
-                          }
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: codeCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'كود الطالب *',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  validator: (v) =>
-                                      v == null || v.trim().isEmpty ? 'يرجى إدخال كود الطالب' : null,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: phoneCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'رقم هاتف الطالب / واتساب',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType: TextInputType.phone,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: codeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'كود الطالب *',
+                        prefixIcon: Icon(Icons.tag_rounded, size: 20),
+                        border: OutlineInputBorder(),
                       ),
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال كود الطالب' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'رقم هاتف الطالب / واتساب',
+                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: selectedGrade,
                       decoration: const InputDecoration(
                         labelText: 'الصف / المرحلة التعليمية',
+                        prefixIcon: Icon(Icons.school_outlined, size: 20),
                         border: OutlineInputBorder(),
                       ),
                       items: _gradeLevels
@@ -276,26 +284,25 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     const SizedBox(height: 12),
                     if (_branches.isNotEmpty)
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         initialValue: selectedBranchId,
                         decoration: const InputDecoration(
-                          labelText: 'الفرع التابع له',
+                          labelText: 'المقر / الفرع التابع له',
+                          prefixIcon: Icon(Icons.domain_rounded, size: 20),
                           border: OutlineInputBorder(),
                         ),
-                        items: _branches
-                            .map(
-                              (b) => DropdownMenuItem<String>(
-                                value: b.id,
-                                child: Text(b.name),
-                              ),
-                            )
-                            .toList()
-                          ..insert(
-                            0,
-                            const DropdownMenuItem(
-                              value: null,
-                              child: Text('بدون فرع محدد'),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('بدون فرع محدد'),
+                          ),
+                          ..._branches.map(
+                            (b) => DropdownMenuItem(
+                              value: b.id,
+                              child: Text(b.name),
                             ),
                           ),
+                        ],
                         onChanged: (v) =>
                             setStateDialog(() => selectedBranchId = v),
                       ),
@@ -304,8 +311,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               ),
             ),
           ),
-        ),
-        actions: [
+          actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
@@ -347,6 +353,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             const SnackBar(
                               content: Text('تم تحديث بيانات الطالب بنجاح!'),
                               backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
                             ),
                           );
                         }
@@ -357,6 +364,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             SnackBar(
                               content: Text('فشل التحديث: $e'),
                               backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
                             ),
                           );
                         }
@@ -405,104 +413,65 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   color: AppColors.studentRole.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.person_add, color: AppColors.studentRole),
+                child: const Icon(Icons.person_add_rounded, color: AppColors.studentRole, size: 20),
               ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
                   'تسجيل وقيد طالب جديد',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'الاسم الكامل للطالب *',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
+          content: SizedBox(
+            width: MediaQuery.sizeOf(context).width.clamp(280.0, 480.0),
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'الاسم الكامل للطالب *',
+                        prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(height: 12),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth < 480) {
-                            return Column(
-                              children: [
-                                TextFormField(
-                                  controller: emailCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'البريد الإلكتروني *',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType: TextInputType.emailAddress,
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) return 'يرجى إدخال البريد';
-                                    if (!v.contains('@')) return 'بريد إلكتروني غير صالح';
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                TextFormField(
-                                  controller: phoneCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'رقم الهاتف / واتساب',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType: TextInputType.phone,
-                                ),
-                              ],
-                            );
-                          }
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: emailCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'البريد الإلكتروني *',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType: TextInputType.emailAddress,
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) return 'يرجى إدخال البريد';
-                                    if (!v.contains('@')) return 'بريد إلكتروني غير صالح';
-                                    return null;
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextFormField(
-                                  controller: phoneCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'رقم الهاتف / واتساب',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  keyboardType: TextInputType.phone,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'يرجى إدخال اسم الطالب' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: emailCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'البريد الإلكتروني *',
+                        hintText: 'student@example.com',
+                        prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        border: OutlineInputBorder(),
                       ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) =>
+                          v == null || !v.contains('@') ? 'يرجى إدخال بريد إلكتروني صحيح' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'رقم هاتف الطالب / ولي الأمر',
+                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: selectedGrade,
                       decoration: const InputDecoration(
                         labelText: 'الصف / المرحلة التعليمية',
+                        prefixIcon: Icon(Icons.school_outlined, size: 20),
                         border: OutlineInputBorder(),
                       ),
                       items: _gradeLevels
@@ -516,6 +485,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                       decoration: const InputDecoration(
                         labelText: 'كود الطالب (اختياري - يولد تلقائياً)',
                         hintText: 'مثال: STU-2024-001',
+                        prefixIcon: Icon(Icons.tag_rounded, size: 20),
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -526,7 +496,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                       decoration: InputDecoration(
                         labelText: 'كلمة المرور (اختياري)',
                         helperText: 'اتركها فارغة إذا كان الطالب سيسجل بـ QR لأول مرة.',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(Icons.lock_outline, size: 20),
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           onPressed: () => setStateDialog(
@@ -536,6 +506,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             obscurePassword
                                 ? Icons.visibility
                                 : Icons.visibility_off,
+                            size: 20,
                           ),
                         ),
                       ),
@@ -543,9 +514,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     const SizedBox(height: 12),
                     if (_branches.isNotEmpty)
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         initialValue: selectedBranchId,
                         decoration: const InputDecoration(
-                          labelText: 'الفرع التابع له',
+                          labelText: 'المقر / الفرع التابع له',
+                          prefixIcon: Icon(Icons.domain_rounded, size: 20),
                           border: OutlineInputBorder(),
                         ),
                         items: _branches
@@ -564,8 +537,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               ),
             ),
           ),
-        ),
-        actions: [
+          actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
@@ -586,6 +558,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           const SnackBar(
                             content: Text('يجب ألا تقل كلمة المرور عن 6 أحرف.'),
                             backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating,
                           ),
                         );
                         return;
@@ -614,6 +587,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             const SnackBar(
                               content: Text('تم إنشاء وقيد حساب الطالب بنجاح!'),
                               backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
                             ),
                           );
                         }
@@ -624,6 +598,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             SnackBar(
                               content: Text('خطأ في القيد: $e'),
                               backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
                             ),
                           );
                         }
@@ -684,13 +659,21 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم تصدير كشف الطلاب بنجاح 📄')),
+          const SnackBar(
+            content: Text('تم تصدير كشف الطلاب بنجاح 📄'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل تصدير التقرير: $e')),
+          SnackBar(
+            content: Text('فشل تصدير التقرير: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
@@ -699,7 +682,10 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   Future<void> _printBulkIdCards() async {
     if (_students.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يوجد طلاب مسجلون لطباعة الكارنيهات.')),
+        const SnackBar(
+          content: Text('لا يوجد طلاب مسجلون لطباعة الكارنيهات.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
@@ -727,231 +713,715 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           const SnackBar(
             content: Text('تم توليد شيت كارنيهات الطلاب بنجاح (جاهز للطباعة والتغليف) 🪪'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل توليد الكارنيهات: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('فشل توليد الكارنيهات: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
+  }
+
+  Widget _buildKpiSection(
+    bool isDark,
+    int total,
+    int active,
+    int enrolledCount,
+    int suspendedCount,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 650;
+        final kpiTotal = _buildKpiItem(
+          label: 'إجمالي الطلاب',
+          value: total.toString(),
+          icon: Icons.school_rounded,
+          color: AppColors.studentRole,
+          isDark: isDark,
+        );
+        final kpiActive = _buildKpiItem(
+          label: 'الطلاب النشطون',
+          value: active.toString(),
+          icon: Icons.check_circle_rounded,
+          color: Colors.green,
+          isDark: isDark,
+        );
+        final kpiEnrolled = _buildKpiItem(
+          label: 'الملتحقون بمجموعات',
+          value: enrolledCount.toString(),
+          icon: Icons.group_work_rounded,
+          color: Colors.blue,
+          isDark: isDark,
+        );
+        final kpiSuspended = _buildKpiItem(
+          label: 'الحسابات المعلقة',
+          value: suspendedCount.toString(),
+          icon: Icons.block_rounded,
+          color: Colors.grey,
+          isDark: isDark,
+        );
+
+        if (isWide) {
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: kpiTotal),
+                const SizedBox(width: 8),
+                Expanded(child: kpiActive),
+                const SizedBox(width: 8),
+                Expanded(child: kpiEnrolled),
+                const SizedBox(width: 8),
+                Expanded(child: kpiSuspended),
+              ],
+            ),
+          );
+        }
+
+        // Mobile Layout: 2 rows of 2
+        return Column(
+          children: [
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: kpiTotal),
+                  const SizedBox(width: 8),
+                  Expanded(child: kpiActive),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: kpiEnrolled),
+                  const SizedBox(width: 8),
+                  Expanded(child: kpiSuspended),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiItem({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : Colors.black12,
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(icon, size: 14, color: color),
+            ],
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilterBar(bool isDark) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 650;
+        final searchField = TextField(
+          controller: _searchController,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: 'بحث باسم الطالب، الكود، البريد، أو الهاتف...',
+            hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+            prefixIcon: const Icon(Icons.search, size: 18),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.studentRole, width: 1.2),
+            ),
+            filled: true,
+            fillColor: isDark ? AppColors.darkSurface : Colors.white,
+          ),
+        );
+
+        final filterChips = Row(
+          mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            _buildStatusFilterChip('all', 'الكل', isDark),
+            const SizedBox(width: 4),
+            _buildStatusFilterChip('active', 'النشطون', isDark),
+            const SizedBox(width: 4),
+            _buildStatusFilterChip('suspended', 'المعلقة', isDark),
+            if (_branches.length > 1) ...[
+              const SizedBox(width: 8),
+              Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurface : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? AppColors.darkBorder : Colors.black12,
+                    width: 0.8,
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedBranchFilter,
+                    icon: const Icon(Icons.domain_rounded, size: 14),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: 'all', child: Text('جميع الفروع')),
+                      ..._branches.map(
+                        (b) => DropdownMenuItem(value: b.id, child: Text(b.name)),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => _selectedBranchFilter = v);
+                    },
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : Colors.black12,
+                  width: 0.8,
+                ),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedGradeFilter,
+                  icon: const Icon(Icons.school_outlined, size: 14),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('جميع الصفوف')),
+                    ..._gradeLevels.map(
+                      (g) => DropdownMenuItem(value: g, child: Text(g)),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedGradeFilter = v);
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: filterChips,
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: searchField),
+            const SizedBox(width: 10),
+            filterChips,
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusFilterChip(String value, String label, bool isDark) {
+    final isSelected = _selectedStatusFilter == value;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => setState(() => _selectedStatusFilter = value),
+      selectedColor: AppColors.studentRole.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        color: isSelected
+            ? AppColors.studentRole
+            : (isDark ? Colors.white70 : Colors.black87),
+      ),
+      side: BorderSide(
+        color: isSelected
+            ? AppColors.studentRole
+            : (isDark ? AppColors.darkBorder : Colors.black12),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    );
   }
 
   Widget _buildStudentCard(BuildContext context, Student s) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final isActive = s.status.toLowerCase() == 'active';
 
     final branchName = _branches
         .where((b) => b.id == s.primaryBranchId)
         .map((b) => b.name)
         .firstOrNull;
 
+    final groupCount = _studentGroupCounts[s.id] ?? 0;
+
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          color: isDark ? AppColors.darkBorder : Colors.black12,
           width: 0.8,
         ),
-      ),
-      padding: const EdgeInsets.all(11),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          EditableAvatar(
-            avatarUrl: s.avatarUrl,
-            name: s.fullName,
-            role: 'student',
-            userId: s.profileId,
-            userEmail: s.email,
-            radius: 19,
-            onAvatarChanged: (_) => _loadStudents(),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  s.fullName,
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Header: Avatar + Name + Student Code + Status Pill
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              EditableAvatar(
+                avatarUrl: s.avatarUrl,
+                name: s.fullName,
+                role: 'student',
+                userId: s.profileId,
+                userEmail: s.email,
+                radius: 18,
+                onAvatarChanged: (_) => _loadStudents(),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    InkWell(
+                      onTap: () => _copyStudentCode(context, s.studentCode),
+                      borderRadius: BorderRadius.circular(5),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.studentRole.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: AppColors.studentRole.withValues(alpha: 0.2),
+                            width: 0.6,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.copy_rounded,
+                              size: 10,
+                              color: AppColors.studentRole,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'كود: ${s.studentCode}',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.studentRole,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isActive ? 'نشط' : 'معلق',
                   style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: textPrimary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: isActive ? Colors.green.shade700 : Colors.orange.shade800,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          // Badges: Grade + Branch + Groups count + Phone
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              if (s.gradeLevel != null && s.gradeLevel!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.2),
+                      width: 0.6,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.school_outlined, size: 11, color: Colors.blue),
+                      const SizedBox(width: 3),
+                      Text(
+                        s.gradeLevel!,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (branchName != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: Colors.teal.withValues(alpha: 0.2),
+                      width: 0.6,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.domain_rounded, size: 11, color: Colors.teal),
+                      const SizedBox(width: 3),
+                      Text(
+                        branchName,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: Colors.deepPurple.withValues(alpha: 0.2),
+                    width: 0.6,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.group_work_rounded, size: 11, color: Colors.deepPurple),
+                    const SizedBox(width: 3),
+                    Text(
+                      groupCount == 0 ? 'غير مسكن بمجموعة' : '$groupCount مجموعة',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (s.phoneNumber != null && s.phoneNumber!.trim().isNotEmpty)
+                InkWell(
+                  onTap: () => _makePhoneCall(s.phoneNumber!),
+                  borderRadius: BorderRadius.circular(5),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: Colors.green.withValues(alpha: 0.2),
+                        width: 0.6,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.phone_outlined, size: 11, color: Colors.green),
+                        const SizedBox(width: 3),
+                        Text(
+                          s.phoneNumber!,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          // Email row
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.email_outlined, size: 12, color: textSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
                   s.email,
                   style: TextStyle(
                     fontSize: 10.5,
                     color: textSecondary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.studentRole.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'كود: ${s.studentCode}',
-                        style: const TextStyle(fontSize: 10.5, color: AppColors.studentRole, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    if (s.gradeLevel != null && s.gradeLevel!.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          s.gradeLevel!,
-                          style: const TextStyle(fontSize: 10.5, color: Colors.blue, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    if (branchName != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'فرع: $branchName',
-                          style: const TextStyle(fontSize: 10.5, color: Colors.teal, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    if (s.phoneNumber != null && s.phoneNumber!.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'هاتف: ${s.phoneNumber}',
-                          style: TextStyle(fontSize: 10.5, color: textSecondary, fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+
+          const Divider(height: 10),
+
+          // Action Toolbar Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              PortalStatusChip(status: s.status),
-              const SizedBox(height: 4),
-              PopupMenuButton<String>(
-                tooltip: 'خيارات الطالب',
-                icon: const Icon(Icons.more_vert_rounded),
-                onSelected: (value) async {
-                  switch (value) {
-                    case 'qr':
-                      _showLoginQr(s);
-                      break;
-                    case 'password':
-                      _showPasswordDialog(s);
-                      break;
-                    case 'edit':
-                      _showEditStudentDialog(s);
-                      break;
-                    case 'activate':
-                      try {
-                        await Supabase.instance.client.rpc(
-                          'activate_user',
-                          params: {'user_uid': s.profileId},
-                        );
-                        _loadStudents();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('تم تنشيط حساب الطالب')),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('خطأ: $e')),
-                          );
-                        }
-                      }
-                      break;
-                    case 'suspend':
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('إيقاف حساب الطالب'),
-                          content: const Text(
-                            'هل أنت متأكد من رغبتك في إيقاف حساب هذا الطالب مؤقتاً؟',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('إلغاء'),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'رمز الدخول السريع (QR)',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.qr_code_2_rounded, size: 18, color: Colors.blue),
+                    onPressed: () => _showLoginQr(s),
+                  ),
+                  IconButton(
+                    tooltip: 'تعيين كلمة المرور',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.password_rounded, size: 18, color: Colors.indigo),
+                    onPressed: () => _showPasswordDialog(s),
+                  ),
+                  IconButton(
+                    tooltip: 'تعديل بيانات الطالب',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_rounded, size: 17, color: AppColors.studentRole),
+                    onPressed: () => _showEditStudentDialog(s),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: isActive ? 'إيقاف الحساب مؤقتاً' : 'تنشيط الحساب',
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                      size: 17,
+                      color: isActive ? Colors.orange : Colors.green,
+                    ),
+                    onPressed: () async {
+                      if (isActive) {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('إيقاف حساب الطالب'),
+                            content: Text('هل أنت متأكد من رغبتك في إيقاف حساب الطالب "${s.fullName}" مؤقتاً؟'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                              FilledButton(
+                                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('إيقاف مؤقت'),
                               ),
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('إيقاف مؤقت'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          try {
+                            await Supabase.instance.client.rpc(
+                              'suspend_user',
+                              params: {'user_uid': s.profileId},
+                            );
+                            _loadStudents();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('تم إيقاف حساب الطالب بنجاح')),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        }
+                      } else {
                         try {
                           await Supabase.instance.client.rpc(
-                            'suspend_user',
+                            'activate_user',
                             params: {'user_uid': s.profileId},
                           );
                           _loadStudents();
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('تم إيقاف حساب الطالب')),
+                              const SnackBar(content: Text('تم تنشيط حساب الطالب بنجاح')),
                             );
                           }
                         } catch (e) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('خطأ: $e')),
+                              SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
                             );
                           }
                         }
                       }
-                      break;
-                    case 'delete':
+                    },
+                  ),
+                  IconButton(
+                    tooltip: 'حذف الطالب نهائياً',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 17, color: Colors.redAccent),
+                    onPressed: () async {
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: const Text('حذف الطالب نهائياً'),
-                          content: const Text(
-                            'هل أنت متأكد من حذف حساب الطالب وسجلاته نهائياً من النظام؟ لا يمكن التراجع عن هذا الإجراء.',
+                          content: Text(
+                            'هل أنت متأكد من حذف حساب الطالب "${s.fullName}" وسجلاته نهائياً من النظام؟ لا يمكن التراجع عن هذا الإجراء.',
                           ),
                           actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('إلغاء'),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Colors.red),
                               onPressed: () => Navigator.pop(ctx, true),
                               child: const Text('حذف نهائي'),
                             ),
@@ -973,64 +1443,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         } catch (e) {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('خطأ: $e')),
+                              SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
                             );
                           }
                         }
                       }
-                      break;
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'qr',
-                    child: ListTile(
-                      leading: Icon(Icons.qr_code_2, size: 20),
-                      title: Text('رمز الدخول السريع (QR)'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'password',
-                    child: ListTile(
-                      leading: Icon(Icons.password, size: 20),
-                      title: Text('تعيين كلمة المرور'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: ListTile(
-                      leading: Icon(Icons.edit, size: 20, color: Colors.blue),
-                      title: Text('تعديل البيانات'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  if (s.status == 'suspended')
-                    const PopupMenuItem(
-                      value: 'activate',
-                      child: ListTile(
-                        leading: Icon(Icons.check_circle, size: 20, color: Colors.green),
-                        title: Text('تنشيط الحساب'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    )
-                  else
-                    const PopupMenuItem(
-                      value: 'suspend',
-                      child: ListTile(
-                        leading: Icon(Icons.block, size: 20, color: Colors.orange),
-                        title: Text('إيقاف الحساب مؤقتاً'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading: Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                      title: Text('حذف الطالب نهائياً', style: TextStyle(color: Colors.red)),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                    },
                   ),
                 ],
               ),
@@ -1044,15 +1462,49 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final filtered = _students.where((s) {
-      final q = _searchController.text.toLowerCase();
-      return s.fullName.toLowerCase().contains(q) ||
+      final q = _searchController.text.toLowerCase().trim();
+      final branchName = _branches
+          .where((b) => b.id == s.primaryBranchId)
+          .map((b) => b.name)
+          .firstOrNull ?? '';
+
+      final matchesSearch = q.isEmpty ||
+          s.fullName.toLowerCase().contains(q) ||
+          s.studentCode.toLowerCase().contains(q) ||
           s.email.toLowerCase().contains(q) ||
-          s.studentCode.toLowerCase().contains(q);
+          (s.phoneNumber != null && s.phoneNumber!.contains(q)) ||
+          (s.gradeLevel != null && s.gradeLevel!.toLowerCase().contains(q)) ||
+          branchName.toLowerCase().contains(q);
+
+      if (!matchesSearch) return false;
+
+      if (_selectedStatusFilter == 'active' && s.status.toLowerCase() != 'active') {
+        return false;
+      }
+      if (_selectedStatusFilter == 'suspended' && s.status.toLowerCase() != 'suspended') {
+        return false;
+      }
+
+      if (_selectedBranchFilter != 'all' && s.primaryBranchId != _selectedBranchFilter) {
+        return false;
+      }
+
+      if (_selectedGradeFilter != 'all' && s.gradeLevel != _selectedGradeFilter) {
+        return false;
+      }
+
+      return true;
     }).toList();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final totalCount = _students.length;
+    final activeCount = _students.where((s) => s.status.toLowerCase() == 'active').length;
+    final suspendedCount = _students.where((s) => s.status.toLowerCase() == 'suspended').length;
+    final enrolledCount = _students.where((s) => (_studentGroupCounts[s.id] ?? 0) > 0).length;
 
     return PortalPageShell(
       title: 'إدارة شؤون الطلاب',
-      subtitle: 'تسجيل وقيد الطلاب، طباعة الكارنيهات والباركود، ومتابعة الفروع.',
+      subtitle: 'تسجيل وقيد الطلاب، طباعة الكارنيهات والباركود، ومتابعة الفروع والمراحل.',
       icon: Icons.school,
       accentColor: AppColors.studentRole,
       actions: [
@@ -1082,26 +1534,69 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       ],
       child: Column(
         children: [
-          PortalSearchField(
-            controller: _searchController,
-            label: 'بحث بالاسم، الكود، أو البريد الإلكتروني...',
-            onChanged: (_) => setState(() {}),
-          ),
+          _buildKpiSection(isDark, totalCount, activeCount, enrolledCount, suspendedCount),
+          const SizedBox(height: 12),
+          _buildSearchAndFilterBar(isDark),
           const SizedBox(height: 12),
           Expanded(
             child: PortalStateView(
               isLoading: _isLoading,
               errorMessage: _errorMessage,
               isEmpty: filtered.isEmpty,
-              emptyTitle: 'لا يوجد طلاب مسجلون',
-              emptySubtitle: 'يمكنك قيد وإضافة طلاب جدد عبر زر (تسجيل طالب جديد) بالأعلى.',
-              emptyIcon: Icons.school,
+              emptyTitle: _searchController.text.isNotEmpty ||
+                      _selectedStatusFilter != 'all' ||
+                      _selectedBranchFilter != 'all' ||
+                      _selectedGradeFilter != 'all'
+                  ? 'لا توجد نتائج تطابق بحثك'
+                  : 'لا يوجد طلاب مسجلون',
+              emptySubtitle: _searchController.text.isNotEmpty ||
+                      _selectedStatusFilter != 'all' ||
+                      _selectedBranchFilter != 'all' ||
+                      _selectedGradeFilter != 'all'
+                  ? 'جرّب تعديل مصطلحات البحث أو إعادة ضبط فلاتر الحالة والصف والفرع.'
+                  : 'يمكنك قيد وإضافة طلاب جدد عبر زر (تسجيل طالب جديد) بالأعلى.',
+              emptyIcon: Icons.school_rounded,
               onRetry: _loadStudents,
-              child: ListView.separated(
-                padding: const EdgeInsets.only(bottom: 24),
-                itemCount: filtered.length,
-                separatorBuilder: (ctx, i) => const SizedBox(height: 10),
-                itemBuilder: (ctx, i) => _buildStudentCard(context, filtered[i]),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 850;
+                  final isMedium = constraints.maxWidth > 580;
+
+                  if (isWide) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 215,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) => _buildStudentCard(context, filtered[i]),
+                    );
+                  }
+
+                  if (isMedium) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 215,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) => _buildStudentCard(context, filtered[i]),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: filtered.length,
+                    separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                    itemBuilder: (ctx, i) => _buildStudentCard(context, filtered[i]),
+                  );
+                },
               ),
             ),
           ),

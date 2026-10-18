@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
-import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../data/repositories/supabase_academy_repositories.dart';
 import '../../domain/models/academy_models.dart';
@@ -22,6 +22,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
   List<GroupEntity> _groups = [];
   bool _isLoading = false;
   String? _errorMessage;
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedDayFilter = 'all'; // 'all', 'today', '1'..'7'
 
   @override
   void initState() {
@@ -30,6 +32,12 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     _scheduleRepo = SupabaseScheduleRepository(wrapper);
     _groupRepo = SupabaseGroupRepository(wrapper);
     _loadSchedules();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSchedules() async {
@@ -105,6 +113,85 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     return '${displayH.toString().padLeft(2, '0')}:$m ${isPm ? "م" : "ص"}';
   }
 
+  String _durationLabel(String start, String end) {
+    try {
+      final sParts = start.split(':');
+      final eParts = end.split(':');
+      final sH = int.parse(sParts[0]);
+      final sM = int.parse(sParts[1]);
+      final eH = int.parse(eParts[0]);
+      final eM = int.parse(eParts[1]);
+      final mins = (eH * 60 + eM) - (sH * 60 + sM);
+      if (mins <= 0) return '';
+      final hours = mins ~/ 60;
+      final remainingMins = mins % 60;
+      if (hours > 0 && remainingMins > 0) {
+        return '$hours س و $remainingMins د';
+      } else if (hours > 0) {
+        return '$hours ${hours == 1 ? "ساعة" : (hours == 2 ? "ساعتان" : "ساعات")}';
+      } else {
+        return '$remainingMins دقيقة';
+      }
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void _showDeleteScheduleDialog(ScheduleEntity s) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 22),
+            SizedBox(width: 8),
+            Text('حذف موعد الحصة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          'هل أنت متأكد من رغبتك في حذف موعد هذه الحصة من الجدول الأسبوعي؟',
+          style: TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await _scheduleRepo.deleteSchedule(s.id);
+                _loadSchedules();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم حذف موعد الحصة بنجاح'),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('فشل الحذف: $e'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCreateScheduleDialog() {
     final formKey = GlobalKey<FormState>();
     String? selectedGroupId = _groups.isNotEmpty ? _groups.first.id : null;
@@ -128,22 +215,20 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     color: AppColors.adminRole.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.schedule, color: AppColors.adminRole),
+                  child: const Icon(Icons.schedule_rounded, color: AppColors.adminRole, size: 20),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
                     'إضافة موعد حصة جديد',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
+            content: SizedBox(
+              width: MediaQuery.sizeOf(context).width.clamp(280.0, 480.0),
+              child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -155,6 +240,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                           initialValue: selectedGroupId,
                           decoration: const InputDecoration(
                             labelText: 'المجموعة الدراسية *',
+                            prefixIcon: Icon(Icons.group_work_rounded, size: 20),
                             border: OutlineInputBorder(),
                           ),
                           items: _groups
@@ -174,6 +260,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                         initialValue: selectedDay,
                         decoration: const InputDecoration(
                           labelText: 'يوم الحصة الأسبوعي',
+                          prefixIcon: Icon(Icons.calendar_today_rounded, size: 20),
                           border: OutlineInputBorder(),
                         ),
                         items: const [
@@ -195,6 +282,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                         decoration: const InputDecoration(
                           labelText: 'اسم / رقم القاعة الدراسية *',
                           hintText: 'مثال: قاعة 1، معمل الفيزياء',
+                          prefixIcon: Icon(Icons.meeting_room_outlined, size: 20),
                           border: OutlineInputBorder(),
                         ),
                         validator: (v) =>
@@ -205,8 +293,11 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              icon: const Icon(Icons.access_time_rounded, size: 16),
-                              label: Text('البداية: ${startTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              icon: const Icon(Icons.access_time_rounded, size: 15),
+                              label: Text(
+                                'البداية: ${startTime.format(context)}',
+                                style: const TextStyle(fontSize: 11),
+                              ),
                               onPressed: () async {
                                 final picked = await showTimePicker(
                                   context: context,
@@ -221,8 +312,11 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
-                              icon: const Icon(Icons.access_time_rounded, size: 16),
-                              label: Text('النهاية: ${endTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              icon: const Icon(Icons.access_time_rounded, size: 15),
+                              label: Text(
+                                'النهاية: ${endTime.format(context)}',
+                                style: const TextStyle(fontSize: 11),
+                              ),
                               onPressed: () async {
                                 final picked = await showTimePicker(
                                   context: context,
@@ -241,7 +335,6 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                 ),
               ),
             ),
-          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -265,6 +358,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                             const SnackBar(
                               content: Text('وقت نهاية الحصة يجب أن يكون بعد وقت البداية'),
                               backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
                             ),
                           );
                           return;
@@ -293,6 +387,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                               const SnackBar(
                                 content: Text('تمت إضافة موعد الحصة بنجاح!'),
                                 backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
                               ),
                             );
                           }
@@ -303,6 +398,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                               SnackBar(
                                 content: Text('تعارض أو خطأ في الموعد: $e'),
                                 backgroundColor: Colors.red,
+                                behavior: SnackBarBehavior.floating,
                               ),
                             );
                           }
@@ -354,22 +450,20 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                     color: AppColors.adminRole.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.edit, color: AppColors.adminRole),
+                  child: const Icon(Icons.edit_rounded, color: AppColors.adminRole, size: 20),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
                     'تعديل موعد الحصة',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
+            content: SizedBox(
+              width: MediaQuery.sizeOf(context).width.clamp(280.0, 480.0),
+              child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -380,6 +474,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                         initialValue: selectedDay,
                         decoration: const InputDecoration(
                           labelText: 'يوم الحصة',
+                          prefixIcon: Icon(Icons.calendar_today_rounded, size: 20),
                           border: OutlineInputBorder(),
                         ),
                         items: const [
@@ -400,6 +495,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                         controller: roomCtrl,
                         decoration: const InputDecoration(
                           labelText: 'اسم / رقم القاعة الدراسية *',
+                          prefixIcon: Icon(Icons.meeting_room_outlined, size: 20),
                           border: OutlineInputBorder(),
                         ),
                         validator: (v) =>
@@ -410,8 +506,11 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              icon: const Icon(Icons.access_time_rounded, size: 16),
-                              label: Text('البداية: ${startTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              icon: const Icon(Icons.access_time_rounded, size: 15),
+                              label: Text(
+                                'البداية: ${startTime.format(context)}',
+                                style: const TextStyle(fontSize: 11),
+                              ),
                               onPressed: () async {
                                 final picked = await showTimePicker(
                                   context: context,
@@ -426,8 +525,11 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
-                              icon: const Icon(Icons.access_time_rounded, size: 16),
-                              label: Text('النهاية: ${endTime.format(context)}', style: const TextStyle(fontSize: 12)),
+                              icon: const Icon(Icons.access_time_rounded, size: 15),
+                              label: Text(
+                                'النهاية: ${endTime.format(context)}',
+                                style: const TextStyle(fontSize: 11),
+                              ),
                               onPressed: () async {
                                 final picked = await showTimePicker(
                                   context: context,
@@ -446,7 +548,6 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                 ),
               ),
             ),
-          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -469,6 +570,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                             const SnackBar(
                               content: Text('وقت نهاية الحصة يجب أن يكون بعد وقت البداية'),
                               backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating,
                             ),
                           );
                           return;
@@ -497,6 +599,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                               const SnackBar(
                                 content: Text('تم تحديث موعد الحصة بنجاح!'),
                                 backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
                               ),
                             );
                           }
@@ -507,6 +610,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                               SnackBar(
                                 content: Text('فشل تحديث الموعد: $e'),
                                 backgroundColor: Colors.red,
+                                behavior: SnackBarBehavior.floating,
                               ),
                             );
                           }
@@ -528,6 +632,269 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
     );
   }
 
+  Widget _buildKpiSection(
+    bool isDark,
+    int total,
+    int todayCount,
+    int roomCount,
+    int groupCount,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 750;
+        final kpiTotal = _buildKpiItem(
+          label: 'إجمالي الحصص',
+          value: total.toString(),
+          icon: Icons.calendar_today_rounded,
+          color: AppColors.adminRole,
+          isDark: isDark,
+        );
+        final kpiToday = _buildKpiItem(
+          label: 'حصص اليوم',
+          value: todayCount.toString(),
+          icon: Icons.today_rounded,
+          color: Colors.green,
+          isDark: isDark,
+        );
+        final kpiRooms = _buildKpiItem(
+          label: 'القاعات النشطة',
+          value: roomCount.toString(),
+          icon: Icons.meeting_room_outlined,
+          color: Colors.deepPurple,
+          isDark: isDark,
+        );
+        final kpiGroups = _buildKpiItem(
+          label: 'المجموعات المجدولة',
+          value: groupCount.toString(),
+          icon: Icons.group_work_rounded,
+          color: Colors.blue,
+          isDark: isDark,
+        );
+
+        if (isWide) {
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: kpiTotal),
+                const SizedBox(width: 8),
+                Expanded(child: kpiToday),
+                const SizedBox(width: 8),
+                Expanded(child: kpiRooms),
+                const SizedBox(width: 8),
+                Expanded(child: kpiGroups),
+              ],
+            ),
+          );
+        }
+
+        // Mobile Layout: 2 rows of 2
+        return Column(
+          children: [
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: kpiTotal),
+                  const SizedBox(width: 8),
+                  Expanded(child: kpiToday),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: kpiRooms),
+                  const SizedBox(width: 8),
+                  Expanded(child: kpiGroups),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiItem({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : Colors.black12,
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(icon, size: 14, color: color),
+            ],
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilterBar(bool isDark) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 650;
+        final searchField = TextField(
+          controller: _searchController,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: 'بحث باسم المجموعة أو رقم القاعة...',
+            hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+            prefixIcon: const Icon(Icons.search, size: 18),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.adminRole, width: 1.2),
+            ),
+            filled: true,
+            fillColor: isDark ? AppColors.darkSurface : Colors.white,
+          ),
+        );
+
+        final dayChips = Row(
+          mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            _buildDayFilterChip('all', 'الكل', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('today', 'اليوم 🌟', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('6', 'السبت', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('7', 'الأحد', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('1', 'الإثنين', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('2', 'الثلاثاء', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('3', 'الأربعاء', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('4', 'الخميس', isDark),
+            const SizedBox(width: 4),
+            _buildDayFilterChip('5', 'الجمعة', isDark),
+          ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: dayChips,
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            searchField,
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: dayChips,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDayFilterChip(String value, String label, bool isDark) {
+    final isSelected = _selectedDayFilter == value;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => setState(() => _selectedDayFilter = value),
+      selectedColor: AppColors.adminRole.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        color: isSelected
+            ? AppColors.adminRole
+            : (isDark ? Colors.white70 : Colors.black87),
+      ),
+      side: BorderSide(
+        color: isSelected
+            ? AppColors.adminRole
+            : (isDark ? AppColors.darkBorder : Colors.black12),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    );
+  }
+
   Widget _buildScheduleCard(BuildContext context, ScheduleEntity s) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
@@ -537,147 +904,209 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
         .map((g) => g.name)
         .firstOrNull ?? 'مجموعة دراسية';
 
+    final isToday = s.dayOfWeek == DateTime.now().weekday;
+    final duration = _durationLabel(s.startTime, s.endTime);
+
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          width: 0.8,
+          color: isToday
+              ? AppColors.primary.withValues(alpha: 0.6)
+              : (isDark ? AppColors.darkBorder : Colors.black12),
+          width: isToday ? 1.4 : 0.8,
         ),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: AppColors.adminRole.withValues(alpha: 0.12),
-            child: const Icon(Icons.access_time_rounded, color: AppColors.adminRole, size: 22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  groupName,
-                  style: AppTypography.titleMedium(textPrimary).copyWith(
-                    fontWeight: FontWeight.w700,
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Header: Day Badge + Group Name + Today Indicator
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isToday
+                      ? AppColors.primary
+                      : AppColors.adminRole.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _dayLabel(s.dayOfWeek),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isToday ? Colors.white : AppColors.adminRole,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  groupName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: textPrimary,
+                  ),
+                ),
+              ),
+              if (isToday)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: const Text(
+                    'اليوم',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          // Badges: Time range + Duration + Room
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: Colors.teal.withValues(alpha: 0.2),
+                    width: 0.6,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _dayLabel(s.dayOfWeek),
-                        style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.schedule, size: 14, color: Colors.teal),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${_formatTimeStr(s.startTime)} - ${_formatTimeStr(s.endTime)}',
-                            style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
-                          ),
-                        ],
+                    const Icon(Icons.access_time_rounded, size: 12, color: Colors.teal),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_formatTimeStr(s.startTime)} - ${_formatTimeStr(s.endTime)}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.teal,
                       ),
                     ),
-                    if (s.roomLocation != null && s.roomLocation!.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.meeting_room_outlined, size: 14, color: Colors.blue),
-                            const SizedBox(width: 4),
-                            Text(
-                              s.roomLocation!,
-                              style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              if (duration.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.2),
+                      width: 0.6,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.timelapse_rounded, size: 12, color: Colors.blue),
+                      const SizedBox(width: 4),
+                      Text(
+                        duration,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (s.roomLocation != null && s.roomLocation!.trim().isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: Colors.deepPurple.withValues(alpha: 0.2),
+                      width: 0.6,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.meeting_room_outlined, size: 12, color: Colors.deepPurple),
+                      const SizedBox(width: 4),
+                      Text(
+                        s.roomLocation!.trim(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(width: 8),
+
+          const Divider(height: 10),
+
+          // Action Toolbar
           Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                tooltip: 'تعديل موعد الحصة',
-                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  side: BorderSide(color: AppColors.adminRole.withValues(alpha: 0.3)),
+                ),
                 onPressed: () => _showEditScheduleDialog(s),
+                icon: const Icon(Icons.edit_rounded, size: 13, color: AppColors.adminRole),
+                label: const Text(
+                  'تعديل الموعد',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.adminRole,
+                  ),
+                ),
               ),
               IconButton(
-                tooltip: 'حذف الموعد',
-                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('حذف موعد الحصة'),
-                      content: const Text(
-                        'هل أنت متأكد من رغبتك في حذف موعد هذه الحصة من الجدول الأسبوعي؟',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('إلغاء'),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('حذف'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirm == true) {
-                    try {
-                      await _scheduleRepo.deleteSchedule(s.id);
-                      _loadSchedules();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('تم حذف موعد الحصة بنجاح')),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('فشل الحذف: $e')),
-                        );
-                      }
-                    }
-                  }
-                },
+                tooltip: 'حذف موعد الحصة',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 17,
+                  color: Colors.redAccent,
+                ),
+                onPressed: () => _showDeleteScheduleDialog(s),
               ),
             ],
           ),
@@ -688,9 +1117,45 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filtered = _schedules.where((s) {
+      final q = _searchController.text.toLowerCase().trim();
+      final groupName = _groups
+          .where((g) => g.id == s.groupId)
+          .map((g) => g.name)
+          .firstOrNull ?? '';
+      final room = s.roomLocation ?? '';
+
+      final matchesSearch = q.isEmpty ||
+          groupName.toLowerCase().contains(q) ||
+          room.toLowerCase().contains(q) ||
+          _dayLabel(s.dayOfWeek).toLowerCase().contains(q);
+
+      if (!matchesSearch) return false;
+
+      if (_selectedDayFilter == 'today') {
+        return s.dayOfWeek == DateTime.now().weekday;
+      }
+      if (_selectedDayFilter != 'all') {
+        final dayNum = int.tryParse(_selectedDayFilter);
+        if (dayNum != null && s.dayOfWeek != dayNum) return false;
+      }
+
+      return true;
+    }).toList();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final totalCount = _schedules.length;
+    final todayCount = _schedules.where((s) => s.dayOfWeek == DateTime.now().weekday).length;
+    final roomCount = _schedules
+        .map((s) => s.roomLocation?.trim())
+        .where((r) => r != null && r.isNotEmpty)
+        .toSet()
+        .length;
+    final scheduledGroupCount = _schedules.map((s) => s.groupId).toSet().length;
+
     return PortalPageShell(
       title: 'جدول الحصص الأسبوعي',
-      subtitle: 'تنظيم المواعيد الأسبوعية والقاعات الدراسية، ومنع تعارض الفترات.',
+      subtitle: 'تنظيم المواعيد الأسبوعية، القاعات الدراسية، ومنع تعارض الفترات.',
       icon: Icons.calendar_today,
       accentColor: AppColors.adminRole,
       actions: [
@@ -706,20 +1171,69 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
           primary: true,
         ),
       ],
-      child: PortalStateView(
-        isLoading: _isLoading,
-        errorMessage: _errorMessage,
-        isEmpty: _schedules.isEmpty,
-        emptyTitle: 'لا توجد مواعيد حصص في الجدول',
-        emptySubtitle: 'قم بإضافة مواعيد الحصص والقاعات عبر زر (إضافة موعد حصة) بالأعلى.',
-        emptyIcon: Icons.calendar_today,
-        onRetry: _loadSchedules,
-        child: ListView.separated(
-          padding: const EdgeInsets.only(bottom: 24),
-          itemCount: _schedules.length,
-          separatorBuilder: (ctx, i) => const SizedBox(height: 10),
-          itemBuilder: (ctx, i) => _buildScheduleCard(context, _schedules[i]),
-        ),
+      child: Column(
+        children: [
+          _buildKpiSection(isDark, totalCount, todayCount, roomCount, scheduledGroupCount),
+          const SizedBox(height: 12),
+          _buildSearchAndFilterBar(isDark),
+          const SizedBox(height: 12),
+          Expanded(
+            child: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: filtered.isEmpty,
+              emptyTitle: _searchController.text.isNotEmpty || _selectedDayFilter != 'all'
+                  ? 'لا توجد حصص تطابق بحثك أو اليوم المحدد'
+                  : 'لا توجد مواعيد حصص في الجدول',
+              emptySubtitle: _searchController.text.isNotEmpty || _selectedDayFilter != 'all'
+                  ? 'جرّب اختيار يوم آخر أو تعديل مصطلحات البحث.'
+                  : 'قم بإضافة مواعيد الحصص والقاعات عبر زر (إضافة موعد حصة) بالأعلى.',
+              emptyIcon: Icons.calendar_today_rounded,
+              onRetry: _loadSchedules,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 850;
+                  final isMedium = constraints.maxWidth > 580;
+
+                  if (isWide) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 175,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) => _buildScheduleCard(context, filtered[i]),
+                    );
+                  }
+
+                  if (isMedium) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 175,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) => _buildScheduleCard(context, filtered[i]),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: filtered.length,
+                    separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                    itemBuilder: (ctx, i) => _buildScheduleCard(context, filtered[i]),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
