@@ -254,19 +254,24 @@ class _CenterSwitcherWidgetState extends State<CenterSwitcherWidget> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.apartment_rounded, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
-              Text(
-                _currentCenter?.centerName ?? 'السنتر',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+              const Icon(Icons.apartment_rounded, size: 15, color: AppColors.primary),
+              const SizedBox(width: 5),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 110),
+                child: Text(
+                  _currentCenter?.centerName ?? 'السنتر',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               if (hasMultiple) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down, size: 18, color: AppColors.primary),
+                const SizedBox(width: 2),
+                const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.primary),
               ],
             ],
           ),

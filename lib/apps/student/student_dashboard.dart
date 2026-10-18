@@ -782,6 +782,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
         onNavigate: (i) => setState(() => _selectedIndex = i),
         onScanQr: _scanAttendanceQr,
         studentCode: _studentCode,
+        avatarUrl: user?.avatarUrl,
+        userId: user?.id,
+        userEmail: user?.email,
       ),
       LearnTab(
         isLoading: _isLoading,

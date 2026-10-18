@@ -34,6 +34,7 @@ class SnapchatAvatarStudioScreen extends StatefulWidget {
     String? userEmail,
     String? initialAvatarUrl,
     Color roleColor = AppColors.primary,
+    ValueChanged<String>? onAvatarSaved,
   }) {
     return Navigator.of(context).push<String>(
       MaterialPageRoute(
@@ -42,6 +43,7 @@ class SnapchatAvatarStudioScreen extends StatefulWidget {
           userEmail: userEmail,
           initialAvatarUrl: initialAvatarUrl,
           roleColor: roleColor,
+          onAvatarSaved: onAvatarSaved,
         ),
       ),
     );

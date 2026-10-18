@@ -19,6 +19,8 @@ import '../../../features/study_workspace/presentation/screens/personal_whiteboa
 import '../../../features/assessment/presentation/widgets/group_leaderboard_widget.dart';
 import '../../../features/assessment/presentation/widgets/student_blitz_quiz_dialog.dart';
 import '../../../features/attendance/presentation/screens/student_qr_attendance_screen.dart';
+import '../../../features/avatar/presentation/screens/snapchat_avatar_studio_screen.dart';
+import '../../../core/services/avatar_service.dart';
 import '../student_dashboard_models.dart';
 
 String _formatMoney(int amountMinor, String currency) {
@@ -49,6 +51,9 @@ class HomeTab extends StatelessWidget {
   final String? seatNumber;
   final VoidCallback? onScanQr;
   final String? studentCode;
+  final String? avatarUrl;
+  final String? userId;
+  final String? userEmail;
 
   const HomeTab({
     super.key,
@@ -70,6 +75,9 @@ class HomeTab extends StatelessWidget {
     this.seatNumber,
     this.onScanQr,
     this.studentCode,
+    this.avatarUrl,
+    this.userId,
+    this.userEmail,
   });
 
   @override
@@ -83,6 +91,10 @@ class HomeTab extends StatelessWidget {
         : AppColors.lightTextSecondary;
     final nextLesson = snapshot?.nextLesson;
     final gamification = snapshot?.gamification;
+
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final horizontalPadding = isMobile ? (screenWidth < 360 ? 10.0 : 14.0) : 24.0;
 
     // Calculate attendance percentage
     final totalSessions = attendanceItems.length;
@@ -114,50 +126,55 @@ class HomeTab extends StatelessWidget {
                 pinned: true,
                 floating: false,
                 elevation: 0,
-                titleSpacing: 16,
+                titleSpacing: isMobile ? 12 : 16,
                 title: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          width: 1,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.school_rounded, size: 16, color: AppColors.primary),
-                          const SizedBox(width: 6),
-                          Text(
-                            'بوابة الطالب الذكية',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : AppColors.primary,
-                            ),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
                         ],
+                      ),
+                      child: const Icon(Icons.school_rounded, size: 15, color: Colors.white),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        isMobile ? 'بوابة الطالب' : 'بوابة الطالب الذكية',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: isMobile ? 14 : 16,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 actions: [
+                  CenterSwitcherWidget(onCenterChanged: onRetry),
                   IconButton(
                     icon: const Icon(Icons.refresh_rounded, size: 20),
                     onPressed: onRetry,
                     tooltip: 'تحديث البيانات',
                   ),
-                  CenterSwitcherWidget(onCenterChanged: onRetry),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                 ],
               ),
 
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                padding: EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 32),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     if (errorMessage != null) ...[
@@ -179,6 +196,10 @@ class HomeTab extends StatelessWidget {
                         centerName: centerName,
                         seatNumber: seatNumber,
                         isDark: isDark,
+                        avatarUrl: avatarUrl,
+                        userId: userId,
+                        userEmail: userEmail,
+                        studentCode: studentCode,
                       ),
                     ),
 
@@ -241,7 +262,7 @@ class HomeTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // 4. Unified Student Command Hub (7 distinct tools)
+                    // 4. Unified Student Command Hub (8 distinct tools)
                     FadeInSlide(
                       duration: const Duration(milliseconds: 550),
                       delay: const Duration(milliseconds: 150),
@@ -261,7 +282,7 @@ class HomeTab extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '7 أدوات متكاملة',
+                                '8 أدوات متكاملة',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -282,6 +303,9 @@ class HomeTab extends StatelessWidget {
                             attendanceRate: attendanceRate.toDouble(),
                             seatNumber: seatNumber,
                             studentCode: studentCode,
+                            avatarUrl: avatarUrl,
+                            userId: userId,
+                            userEmail: userEmail,
                           ),
                         ],
                       ),
@@ -407,10 +431,21 @@ class HomeTab extends StatelessWidget {
     required String? centerName,
     required String? seatNumber,
     required bool isDark,
+    String? avatarUrl,
+    String? userId,
+    String? userEmail,
+    String? studentCode,
   }) {
     final cleanName = userName.trim().isNotEmpty ? userName.trim() : 'طالبنا المتميز';
     final initials = cleanName.split(' ').where((s) => s.isNotEmpty).take(2).map((s) => s[0]).join();
     final firstName = cleanName.split(' ').first;
+    final imageProvider = (avatarUrl != null && avatarUrl.isNotEmpty)
+        ? AvatarService.getImageProvider(avatarUrl)
+        : null;
+
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -447,66 +482,112 @@ class HomeTab extends StatelessWidget {
         children: [
           Row(
             children: [
-              // Student Avatar with active ring
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+              // Interactive 3D Avatar Profile button
+              Tooltip(
+                message: 'استوديو الأفاتار ثلاثي الأبعاد 🎨',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    SnapchatAvatarStudioScreen.open(
+                      context: context,
+                      userId: userId,
+                      userEmail: userEmail,
+                      initialAvatarUrl: avatarUrl,
+                      onAvatarSaved: (_) => onRetry(),
+                    );
+                  },
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        initials.isNotEmpty ? initials : '🎓',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: imageProvider != null
+                              ? Image(
+                                  image: imageProvider,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => Center(
+                                    child: Text(
+                                      initials.isNotEmpty ? initials : '🎓',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    initials.isNotEmpty ? initials : '🎓',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
+                      // 3D Avatar sparkle chip badge
+                      Positioned(
+                        bottom: -3,
+                        left: -3,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                            ),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: Colors.white,
+                            size: 10,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  Positioned(
-                    bottom: -1,
-                    right: -1,
-                    child: Container(
-                      width: 13,
-                      height: 13,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(width: 12),
+              // Student Details & Badges
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'أهلاً بك يا $firstName 🎓',
+                      'أهلاً بك، $firstName 🎓',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.5,
                         fontWeight: FontWeight.w900,
                         color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                         letterSpacing: -0.3,
@@ -514,76 +595,159 @@ class HomeTab extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${centerName?.trim().isNotEmpty == true ? centerName! : "السنتر التعليمي"} • ${seatNumber?.trim().isNotEmpty == true ? seatNumber! : "مقعد عام"}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        // Center Name Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.apartment_rounded, size: 11, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 120),
+                                child: Text(
+                                  centerName?.trim().isNotEmpty == true ? centerName! : "السنتر التعليمي",
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Seat Number Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.event_seat_rounded, size: 11, color: textSecondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                seatNumber?.trim().isNotEmpty == true ? seatNumber! : "مقعد عام",
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Student Code Pill (if present)
+                        if (studentCode != null && studentCode.trim().isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.2 : 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.pin_rounded, size: 11, color: Color(0xFF10B981)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  studentCode.trim(),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Glance Strip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.25)
-                  : AppColors.primary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDark ? Colors.white10 : AppColors.primary.withValues(alpha: 0.12),
-              ),
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
+          const SizedBox(height: 14),
+
+          // Responsive Academic Glance Grid (2x2 on narrow, 1x4 on wide)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 420;
+
+              final item1 = _buildGlanceItem(
+                icon: Icons.school_rounded,
+                label: '$activeCourses مجموعات',
+                color: AppColors.primary,
+                isDark: isDark,
+              );
+              final item2 = _buildGlanceItem(
+                icon: Icons.assignment_rounded,
+                label: '$pendingHomeworkCount واجبات',
+                color: pendingHomeworkCount > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                isDark: isDark,
+              );
+              final item3 = _buildGlanceItem(
+                icon: Icons.stars_rounded,
+                label: 'مستوى $level ($totalXp XP)',
+                color: const Color(0xFFF59E0B),
+                isDark: isDark,
+              );
+              final item4 = _buildGlanceItem(
+                icon: Icons.verified_user_rounded,
+                label: '$attendanceRate% حضور',
+                color: const Color(0xFF10B981),
+                isDark: isDark,
+              );
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: item1),
+                        const SizedBox(width: 8),
+                        Expanded(child: item2),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(child: item3),
+                        const SizedBox(width: 8),
+                        Expanded(child: item4),
+                      ],
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
                 children: [
-                  _buildGlanceItem(
-                    icon: Icons.school_rounded,
-                    label: '$activeCourses مجموعات',
-                    color: AppColors.primary,
-                    isDark: isDark,
-                  ),
-                  const SizedBox(width: 8),
-                  Container(width: 1, height: 14, color: isDark ? Colors.white12 : Colors.black12),
-                  const SizedBox(width: 8),
-                  _buildGlanceItem(
-                    icon: Icons.assignment_rounded,
-                    label: '$pendingHomeworkCount واجبات',
-                    color: pendingHomeworkCount > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
-                    isDark: isDark,
-                  ),
-                  const SizedBox(width: 8),
-                  Container(width: 1, height: 14, color: isDark ? Colors.white12 : Colors.black12),
-                  const SizedBox(width: 8),
-                  _buildGlanceItem(
-                    icon: Icons.stars_rounded,
-                    label: 'مستوى $level ($totalXp XP)',
-                    color: const Color(0xFFF59E0B),
-                    isDark: isDark,
-                  ),
-                  const SizedBox(width: 8),
-                  Container(width: 1, height: 14, color: isDark ? Colors.white12 : Colors.black12),
-                  const SizedBox(width: 8),
-                  _buildGlanceItem(
-                    icon: Icons.verified_user_rounded,
-                    label: '$attendanceRate% حضور',
-                    color: const Color(0xFF10B981),
-                    isDark: isDark,
-                  ),
+                  Expanded(child: item1),
+                  const SizedBox(width: 6),
+                  Expanded(child: item2),
+                  const SizedBox(width: 6),
+                  Expanded(child: item3),
+                  const SizedBox(width: 6),
+                  Expanded(child: item4),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -596,20 +760,36 @@ class HomeTab extends StatelessWidget {
     required Color color,
     required bool isDark,
   }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: color),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white.withValues(alpha: 0.9) : AppColors.lightTextPrimary,
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.25)
+            : AppColors.primary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? Colors.white10 : AppColors.primary.withValues(alpha: 0.1),
         ),
-      ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white.withValues(alpha: 0.9) : AppColors.lightTextPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -626,6 +806,9 @@ class _StudentCommandHub extends StatelessWidget {
   final double attendanceRate;
   final String? seatNumber;
   final String? studentCode;
+  final String? avatarUrl;
+  final String? userId;
+  final String? userEmail;
 
   const _StudentCommandHub({
     required this.onScanQr,
@@ -638,6 +821,9 @@ class _StudentCommandHub extends StatelessWidget {
     this.attendanceRate = 1.0,
     this.seatNumber,
     this.studentCode,
+    this.avatarUrl,
+    this.userId,
+    this.userEmail,
   });
 
   @override
@@ -695,6 +881,24 @@ class _StudentCommandHub extends StatelessWidget {
             attendanceRate: attendanceRate / 100.0,
             activeCoursesCount: enrolledGroups.length,
             seatNumber: seatNumber ?? 'مقعد عام',
+          );
+        },
+      ),
+      _StudentToolItem(
+        title: 'استوديو الأفاتار 3D',
+        subtitle: 'تصميم شخصيتك وبيكسار',
+        badge: 'جديد ✨',
+        icon: Icons.face_retouching_natural_rounded,
+        gradient: const [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+        borderAccent: const Color(0xFFD946EF),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          SnapchatAvatarStudioScreen.open(
+            context: context,
+            userId: userId,
+            userEmail: userEmail,
+            initialAvatarUrl: avatarUrl,
+            onAvatarSaved: (_) => onRetry(),
           );
         },
       ),
@@ -790,10 +994,11 @@ class _StudentCommandHub extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 720;
-        final isMedium = constraints.maxWidth >= 480;
+        final width = constraints.maxWidth;
+        final isWide = width >= 720;
+        final isMedium = width >= 480;
         final crossAxisCount = isWide ? 4 : (isMedium ? 3 : 2);
-        final childAspectRatio = isWide ? 1.6 : (isMedium ? 1.45 : 1.35);
+        final itemHeight = isWide ? 90.0 : (isMedium ? 86.0 : 84.0);
 
         return GridView.builder(
           shrinkWrap: true,
@@ -803,7 +1008,7 @@ class _StudentCommandHub extends StatelessWidget {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: childAspectRatio,
+            mainAxisExtent: itemHeight,
           ),
           itemBuilder: (context, index) {
             return _StudentToolCard(tool: tools[index], isDark: isDark);
@@ -851,103 +1056,95 @@ class _StudentToolCard extends StatelessWidget {
         onTap: tool.onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: isDark
                 ? AppColors.darkSurface.withValues(alpha: 0.9)
                 : AppColors.lightSurface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: tool.borderAccent.withValues(alpha: isDark ? 0.35 : 0.25),
-              width: 1.2,
+              color: tool.borderAccent.withValues(alpha: isDark ? 0.35 : 0.22),
+              width: 1.1,
             ),
             boxShadow: [
               BoxShadow(
-                color: tool.borderAccent.withValues(alpha: isDark ? 0.10 : 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                color: tool.borderAccent.withValues(alpha: isDark ? 0.12 : 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: tool.gradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: tool.gradient.first.withValues(alpha: 0.3),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(tool.icon, color: Colors.white, size: 19),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: tool.gradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tool.borderAccent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: tool.borderAccent.withValues(alpha: 0.3),
-                        width: 0.7,
-                      ),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: tool.gradient.first.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
-                    child: Text(
-                      tool.badge,
-                      style: TextStyle(
-                        color: tool.borderAccent,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Icon(tool.icon, color: Colors.white, size: 18),
               ),
-              const SizedBox(height: 6),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    tool.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.lightTextPrimary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      tool.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    tool.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.lightTextSecondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 2),
+                    Text(
+                      tool.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: tool.borderAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  tool.badge,
+                  style: TextStyle(
+                    color: tool.borderAccent,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -1047,105 +1244,132 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
 
     // Compact Idle State when no lesson is assigned yet
     if (widget.lesson == null) {
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 360;
+
+          final iconWidget = Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.calendar_month_rounded,
-                color: AppColors.primary,
-                size: 20,
-              ),
+            child: const Icon(
+              Icons.calendar_month_rounded,
+              color: AppColors.primary,
+              size: 20,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+          );
+
+          final textDetails = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 4,
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'جدولك الأكاديمي جاهز',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: const Text(
-                          'محدّث 🟢',
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.groupName != null
-                        ? 'أنت ملتحق بـ: ${widget.groupName} • الدروس جاهزة'
-                        : 'لا توجد حصص مباشرة جارية حالياً • يمكنك استعراض المناهج',
+                  const Text(
+                    'جدولك الأكاديمي جاهز',
                     style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: const Text(
+                      'محدّث 🟢',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              const SizedBox(height: 3),
+              Text(
+                widget.groupName != null
+                    ? 'أنت ملتحق بـ: ${widget.groupName} • الدروس جاهزة'
+                    : 'لا توجد حصص مباشرة جارية حالياً • يمكنك استعراض المناهج',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              icon: const Icon(Icons.menu_book_rounded, size: 16),
-              label: const Text(
-                'المناهج',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-              ),
-              onPressed: widget.onNavigateToCourses,
+            ],
+          );
+
+          final actionButton = FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-          ],
-        ),
+            icon: const Icon(Icons.menu_book_rounded, size: 16),
+            label: const Text(
+              'المناهج',
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+            ),
+            onPressed: widget.onNavigateToCourses,
+          );
+
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: isNarrow
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          iconWidget,
+                          const SizedBox(width: 10),
+                          Expanded(child: textDetails),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      actionButton,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      iconWidget,
+                      const SizedBox(width: 12),
+                      Expanded(child: textDetails),
+                      const SizedBox(width: 8),
+                      actionButton,
+                    ],
+                  ),
+          );
+        },
       );
     }
 
@@ -1197,8 +1421,11 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top Status & Badges
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1290,23 +1517,27 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
           // Countdown Ticker (when scheduled in future)
           if (hasScheduledUpcoming) ...[
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildCountdownUnit('$days', 'يوم'),
-                  _buildColon(),
-                  _buildCountdownUnit('$hours'.padLeft(2, '0'), 'ساعة'),
-                  _buildColon(),
-                  _buildCountdownUnit('$minutes'.padLeft(2, '0'), 'دقيقة'),
-                  _buildColon(),
-                  _buildCountdownUnit('$seconds'.padLeft(2, '0'), 'ثانية', isPulsing: true),
-                ],
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildCountdownUnit('$days', 'يوم'),
+                    _buildColon(),
+                    _buildCountdownUnit('$hours'.padLeft(2, '0'), 'ساعة'),
+                    _buildColon(),
+                    _buildCountdownUnit('$minutes'.padLeft(2, '0'), 'دقيقة'),
+                    _buildColon(),
+                    _buildCountdownUnit('$seconds'.padLeft(2, '0'), 'ثانية', isPulsing: true),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 14),
@@ -1414,7 +1645,7 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
     bool isPulsing = false,
   }) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 48),
+      constraints: const BoxConstraints(minWidth: 44),
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: isPulsing ? 0.2 : 0.12),
@@ -1432,7 +1663,7 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
             value,
             style: TextStyle(
               color: isPulsing ? Colors.cyanAccent : Colors.white,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w900,
               fontFamily: 'monospace',
             ),
@@ -1442,7 +1673,7 @@ class _LiveCountdownHeroCardState extends State<LiveCountdownHeroCard> {
             label,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 9.5,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1466,61 +1697,134 @@ class _PendingHomeworkCard extends StatelessWidget {
         ? AppColors.darkTextPrimary
         : AppColors.lightTextPrimary;
     final surfaceColor = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        padding: const EdgeInsets.all(14),
-        color: surfaceColor,
-        borderColor: borderColor,
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.assignment_late_rounded,
-                color: AppColors.warning,
-                size: 22,
-              ),
+    final now = DateTime.now();
+    final difference = homework.homework.dueAt.difference(now);
+    final isOverdue = difference.isNegative;
+    final isDueToday = !isOverdue && difference.inHours < 24;
+
+    final badgeColor = isOverdue
+        ? const Color(0xFFEF4444)
+        : (isDueToday ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
+    final badgeText = isOverdue
+        ? 'متأخر ⚠️'
+        : (isDueToday ? 'تسليم اليوم ⏳' : 'متبقي ${difference.inDays} أيام');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: badgeColor.withValues(alpha: isDark ? 0.35 : 0.22),
+              width: 1.1,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    homework.homework.title,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: textPrimary,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.assignment_late_rounded,
+                  color: badgeColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            homework.homework.title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: badgeColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'تاريخ التسليم: ${DateFormat.yMMMd().format(homework.homework.dueAt)}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: 3),
+                    Text(
+                      'تاريخ التسليم: ${DateFormat.yMMMd().format(homework.homework.dueAt)}',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: AppColors.warning,
-            ),
-          ],
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'بدء الحل',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 9,
+                      color: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

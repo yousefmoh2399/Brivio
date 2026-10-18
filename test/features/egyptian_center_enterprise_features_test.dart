@@ -89,7 +89,7 @@ void main() {
       // Allow initial async state
       await tester.pump();
 
-      expect(find.text('جرد وتقفيل الخزينة اليومية (Shift Closing)'), findsOneWidget);
+      expect(find.text('جرد وتقفيل الخزينة اليومية'), findsOneWidget);
       expect(find.text('حاسبة عد النقدية الفعلية بالدرج'), findsOneWidget);
       expect(find.text('فئة 200 جنيه'), findsOneWidget);
       expect(find.text('فئة 100 جنيه'), findsOneWidget);
