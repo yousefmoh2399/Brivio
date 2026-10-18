@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/network/supabase_client_wrapper.dart';
+import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -9,7 +11,6 @@ import '../../../academy/domain/models/academy_models.dart';
 import '../../data/repositories/supabase_assessment_repositories.dart';
 import '../../domain/models/assessment_models.dart';
 import 'exam_submissions_screen.dart';
-import '../../../../core/services/report_generator_service.dart';
 
 class ExamManagementScreen extends StatefulWidget {
   const ExamManagementScreen({super.key});
@@ -28,6 +29,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedStatusFilter = 'all'; // 'all', 'published', 'closed'
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +40,12 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     _groupRepo = SupabaseGroupRepository(wrapper);
     _questionRepo = SupabaseQuestionBankRepository(wrapper);
     _loadExams();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadExams() async {
@@ -87,6 +97,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -106,11 +117,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ],
           ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width.clamp(280.0, 500.0),
+            child: SingleChildScrollView(
               child: Form(
                 key: formKey,
                 child: Column(
@@ -127,9 +136,12 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                         children: [
                           const Icon(Icons.group, size: 18, color: AppColors.primary),
                           const SizedBox(width: 8),
-                          Text(
-                            'المجموعة: ${selectedGroup.name} (${selectedGroup.code})',
-                            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                          Expanded(
+                            child: Text(
+                              'المجموعة: ${selectedGroup.name} (${selectedGroup.code})',
+                              style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -190,7 +202,6 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ),
           ),
-        ),
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -273,6 +284,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
+          actionsOverflowDirection: VerticalDirection.down,
           title: Row(
             children: [
               Container(
@@ -292,11 +304,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ],
           ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width.clamp(280.0, 500.0),
+            child: SingleChildScrollView(
               child: Form(
                 key: formKey,
                 child: Column(
@@ -359,8 +369,8 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                       ),
                       items: const [
                         DropdownMenuItem(value: 'published', child: Text('منشور ومتاح')),
-                        DropdownMenuItem(value: 'draft', child: Text('مسودة')),
                         DropdownMenuItem(value: 'closed', child: Text('مغلق')),
+                        DropdownMenuItem(value: 'draft', child: Text('مسودة')),
                       ],
                       onChanged: (v) {
                         if (v != null) setStateDialog(() => status = v);
@@ -371,7 +381,6 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               ),
             ),
           ),
-        ),
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -403,12 +412,13 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                               'updated_at': DateTime.now().toIso8601String(),
                             })
                             .eq('id', e.id);
+
                         nav.pop();
                         _loadExams();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('تم تحديث الاختبار بنجاح!'),
+                              content: Text('تم حفظ التعديلات بنجاح!'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -418,7 +428,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('فشل تحديث الاختبار: $err'),
+                              content: Text('فشل حفظ التعديلات: $err'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -445,58 +455,47 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     if (selectedGroup == null) return;
 
     List<Question> bankQuestions = [];
-    bool isBankLoading = true;
-
-    try {
-      bankQuestions = await _questionRepo.fetchQuestionsForSubject(selectedGroup.subjectId);
-    } catch (_) {}
-    isBankLoading = false;
-
-    if (!mounted) return;
+    bool loadingBank = true;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
+          if (loadingBank) {
+            _questionRepo.fetchQuestionsForSubject(selectedGroup.subjectId).then((qList) {
+              if (ctx.mounted) {
+                setStateDialog(() {
+                  bankQuestions = qList;
+                  loadingBank = false;
+                });
+              }
+            }).catchError((_) {
+              if (ctx.mounted) {
+                setStateDialog(() => loadingBank = false);
+              }
+            });
+          }
+
           final linkedIds = exam.questions.map((q) => q.id).toSet();
 
           return AlertDialog(
             title: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.adminRole.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.format_list_numbered_rtl, color: AppColors.adminRole),
-                ),
-                const SizedBox(width: 12),
+                const Icon(Icons.format_list_numbered_rtl, color: AppColors.adminRole),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'إدارة أسئلة الاختبار',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        '${exam.title} (${exam.questions.length} سؤال مرتبط)',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
+                  child: Text(
+                    'إدارة أسئلة: ${exam.title}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            content: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 580,
-                maxHeight: MediaQuery.of(context).size.height * 0.7,
-              ),
-              child: SizedBox(
-                width: double.maxFinite,
-                child: isBankLoading
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width.clamp(280.0, 520.0),
+              height: 480,
+              child: loadingBank
                   ? const Center(child: CircularProgressIndicator())
                   : bankQuestions.isEmpty
                       ? const Center(
@@ -514,8 +513,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                             final isLinked = linkedIds.contains(q.id);
 
                             return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                               leading: Icon(
-                                isLinked ? Icons.check_box : Icons.check_box_outline_blank,
+                                isLinked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
                                 color: isLinked ? Colors.green : Colors.grey,
                               ),
                               title: Text(
@@ -524,19 +524,21 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontWeight: isLinked ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 13,
+                                  fontSize: 12.5,
                                 ),
                               ),
                               subtitle: Text(
                                 'النوع: ${_questionTypeLabel(q.questionType)} | الدرجة: ${q.defaultPoints}',
-                                style: const TextStyle(fontSize: 11),
+                                style: const TextStyle(fontSize: 10.5),
                               ),
                               trailing: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isLinked ? Colors.red.shade50 : Colors.green.shade50,
                                   foregroundColor: isLinked ? Colors.red : Colors.green.shade800,
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 onPressed: () async {
                                   try {
@@ -547,24 +549,27 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                     }
                                     _loadExams();
                                     Navigator.pop(ctx);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(isLinked ? 'تم إزالة السؤال من الاختبار' : 'تم ربط السؤال بالاختبار'),
-                                      ),
-                                    );
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(isLinked ? 'تمت إزالة السؤال من الاختبار' : 'تم ربط السؤال بالاختبار بنجاح'),
+                                        ),
+                                      );
+                                    }
                                   } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('فشل تحديث الارتباط: $e'), backgroundColor: Colors.red),
-                                    );
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('فشل تحديث الارتباط: $e'), backgroundColor: Colors.red),
+                                      );
+                                    }
                                   }
                                 },
-                                child: Text(isLinked ? 'إزالة' : 'ربط بالاختبار', style: const TextStyle(fontSize: 11)),
+                                child: Text(isLinked ? 'إزالة' : 'ربط', style: const TextStyle(fontSize: 11)),
                               ),
                             );
                           },
                         ),
             ),
-          ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -623,224 +628,550 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     }
   }
 
-  Widget _buildExamCard(BuildContext context, Exam e) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+  Widget _buildKpiSection(
+    bool isDark,
+    int totalCount,
+    int activeCount,
+    int closedCount,
+    int totalQuestionsLinked,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 600;
+        final kpiCards = [
+          _buildKpiCard(
+            title: 'إجمالي الاختبارات',
+            value: '$totalCount',
+            icon: Icons.quiz_rounded,
+            color: AppColors.adminRole,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'اختبارات نشطة',
+            value: '$activeCount',
+            icon: Icons.check_circle_outline_rounded,
+            color: Colors.green,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'اختبارات مغلقة',
+            value: '$closedCount',
+            icon: Icons.lock_clock_rounded,
+            color: Colors.grey,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'إجمالي الأسئلة المرتبطة',
+            value: '$totalQuestionsLinked',
+            icon: Icons.format_list_numbered_rtl_rounded,
+            color: Colors.blue,
+            isDark: isDark,
+          ),
+        ];
 
+        if (isNarrow) {
+          return GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.3,
+            children: kpiCards,
+          );
+        }
+
+        return Row(
+          children: kpiCards
+              .map(
+                (card) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: card,
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          color: isDark ? AppColors.darkBorder : Colors.black12,
           width: 0.8,
         ),
       ),
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilterBar(bool isDark) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 750;
+
+        final groupSelector = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isDark ? AppColors.darkBorder : Colors.black12, width: 0.8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<GroupEntity>(
+              value: _selectedGroup,
+              isExpanded: true,
+              hint: const Text('اختر المجموعة الدراسية...'),
+              items: _groups
+                  .map(
+                    (g) => DropdownMenuItem(
+                      value: g,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.group_rounded, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${g.name} (${g.code})',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (group) {
+                if (group == null) return;
+                setState(() => _selectedGroup = group);
+                _loadExams();
+              },
+            ),
+          ),
+        );
+
+        final searchField = TextField(
+          controller: _searchController,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: 'بحث في عنوان الاختبار...',
+            hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+            prefixIcon: const Icon(Icons.search, size: 18),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.adminRole, width: 1.2),
+            ),
+            filled: true,
+            fillColor: isDark ? AppColors.darkSurface : Colors.white,
+          ),
+        );
+
+        final filterChips = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildStatusFilterChip('all', 'جميع الاختبارات', isDark),
+            const SizedBox(width: 4),
+            _buildStatusFilterChip('published', 'النشطة ومتاحة', isDark),
+            const SizedBox(width: 4),
+            _buildStatusFilterChip('closed', 'المغلقة', isDark),
+          ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              groupSelector,
+              const SizedBox(height: 8),
+              searchField,
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: filterChips,
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(flex: 2, child: groupSelector),
+                const SizedBox(width: 10),
+                Expanded(flex: 3, child: searchField),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: filterChips,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusFilterChip(String value, String label, bool isDark) {
+    final isSelected = _selectedStatusFilter == value;
+    final color = value == 'closed' ? Colors.grey : AppColors.adminRole;
+
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => setState(() => _selectedStatusFilter = value),
+      selectedColor: color.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        color: isSelected
+            ? color
+            : (isDark ? Colors.white70 : Colors.black87),
+      ),
+      side: BorderSide(
+        color: isSelected
+            ? color
+            : (isDark ? AppColors.darkBorder : Colors.black12),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    );
+  }
+
+  Widget _buildExamCard(BuildContext context, Exam e) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final isClosed = e.status.toLowerCase() == 'closed';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : Colors.black12,
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Header Row: Quiz Icon + Title + Status Chip
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: AppColors.adminRole.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.quiz, color: AppColors.adminRole, size: 22),
+                child: const Icon(Icons.quiz_rounded, color: AppColors.adminRole, size: 20),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       e.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.titleMedium(textPrimary).copyWith(
                         fontWeight: FontWeight.w700,
-                        height: 1.3,
+                        fontSize: 13.5,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'المدة: ${e.durationMinutes} دقيقة',
-                            style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'نسبة النجاح: ${e.passScore}%',
-                            style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'الأسئلة: ${e.questions.length} سؤال',
-                            style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'المعرف: ${e.id.length > 8 ? e.id.substring(0, 8) : e.id}',
+                      style: const TextStyle(fontSize: 10.5, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isClosed
+                      ? Colors.grey.withValues(alpha: 0.12)
+                      : Colors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isClosed ? 'مغلق' : 'نشط ومتاح',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: isClosed ? Colors.grey.shade700 : Colors.green.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Metadata Badges: Duration, Pass score, Questions count
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2), width: 0.6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.timer_outlined, size: 12, color: Colors.blue),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${e.durationMinutes} دقيقة',
+                      style: const TextStyle(fontSize: 10.5, color: Colors.blue, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.teal.withValues(alpha: 0.2), width: 0.6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_outline, size: 12, color: Colors.teal),
+                    const SizedBox(width: 3),
+                    Text(
+                      'النجاح: ${e.passScore}%',
+                      style: const TextStyle(fontSize: 10.5, color: Colors.teal, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 0.6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.format_list_numbered_rtl, size: 12, color: AppColors.primary),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${e.questions.length} أسئلة',
+                      style: const TextStyle(fontSize: 10.5, color: AppColors.primary, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const Divider(height: 12),
+
+          // Action Toolbar Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.adminRole,
+                  side: const BorderSide(color: AppColors.adminRole, width: 0.8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                ),
+                icon: const Icon(Icons.people_alt_rounded, size: 15),
+                label: const Text(
+                  'عرض الإجابات والتصحيح',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) => ExamSubmissionsScreen(exam: e),
+                    ),
+                  );
+                },
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  PortalStatusChip(status: e.status),
-                  const SizedBox(height: 4),
-                  PopupMenuButton<String>(
-                    tooltip: 'خيارات',
-                    icon: const Icon(Icons.more_vert_rounded),
-                    onSelected: (value) async {
-                      switch (value) {
-                        case 'submissions':
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (ctx) => ExamSubmissionsScreen(exam: e),
-                            ),
-                          );
-                          break;
-                        case 'questions':
-                          _showManageQuestionsDialog(e);
-                          break;
-                        case 'edit':
-                          _showEditExamDialog(e);
-                          break;
-                        case 'close':
-                          if (e.status == 'closed') return;
-                          try {
-                            await Supabase.instance.client
-                                .from('exams')
-                                .update({
-                                  'status': 'closed',
-                                  'updated_at': DateTime.now().toIso8601String(),
-                                })
-                                .eq('id', e.id);
-                            _loadExams();
-                          } catch (err) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('فشل إغلاق الاختبار: $err')),
-                              );
-                            }
+                  IconButton(
+                    tooltip: 'إدارة أسئلة الاختبار',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.format_list_numbered_rtl_rounded, size: 18, color: Colors.indigo),
+                    onPressed: () => _showManageQuestionsDialog(e),
+                  ),
+                  IconButton(
+                    tooltip: 'تعديل الاختبار',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_outlined, size: 17, color: Colors.blue),
+                    onPressed: () => _showEditExamDialog(e),
+                  ),
+                  if (!isClosed)
+                    IconButton(
+                      tooltip: 'إغلاق الاختبار',
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.lock_outline_rounded, size: 17, color: Colors.orange),
+                      onPressed: () async {
+                        try {
+                          await Supabase.instance.client
+                              .from('exams')
+                              .update({
+                                'status': 'closed',
+                                'updated_at': DateTime.now().toIso8601String(),
+                              })
+                              .eq('id', e.id);
+                          _loadExams();
+                        } catch (err) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل إغلاق الاختبار: $err')),
+                            );
                           }
-                          break;
-                        case 'delete':
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('حذف الاختبار'),
-                              content: const Text(
-                                'هل أنت متأكد من رغبتك في حذف هذا الاختبار نهائياً؟',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('إلغاء'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('حذف'),
-                                ),
-                              ],
+                        }
+                      },
+                    ),
+                  IconButton(
+                    tooltip: 'حذف الاختبار نهائياً',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 17, color: Colors.red),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('حذف الاختبار'),
+                          content: Text('هل أنت متأكد من رغبتك في حذف اختبار "${e.title}" نهائياً؟'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('تأكيد الحذف'),
                             ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await Supabase.instance.client.rpc(
+                            'delete_exam',
+                            params: {'exam_id': e.id},
                           );
-                          if (confirm == true) {
-                            try {
-                              await Supabase.instance.client.rpc(
-                                'delete_exam',
-                                params: {'exam_id': e.id},
-                              );
-                              _loadExams();
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('تم حذف الاختبار بنجاح')),
-                                );
-                              }
-                            } catch (err) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('فشل الحذف: $err')),
-                                );
-                              }
-                            }
+                          _loadExams();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم حذف الاختبار بنجاح')),
+                            );
                           }
-                          break;
+                        } catch (err) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل الحذف: $err')),
+                            );
+                          }
+                        }
                       }
                     },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'submissions',
-                        child: ListTile(
-                          leading: Icon(Icons.people, size: 18),
-                          title: Text('عرض الإجابات والتصحيح'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'questions',
-                        child: ListTile(
-                          leading: Icon(Icons.format_list_numbered_rtl, size: 18),
-                          title: Text('إدارة أسئلة الاختبار'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: Icon(Icons.edit, size: 18),
-                          title: Text('تعديل الاختبار'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      if (e.status != 'closed')
-                        const PopupMenuItem(
-                          value: 'close',
-                          child: ListTile(
-                            leading: Icon(Icons.lock_outline, size: 18),
-                            title: Text('إغلاق الاختبار'),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: ListTile(
-                          leading: Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                          title: Text('حذف الاختبار', style: TextStyle(color: Colors.red)),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -853,10 +1184,29 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final q = _searchController.text.toLowerCase().trim();
+
+    final filtered = _exams.where((e) {
+      final matchesSearch = q.isEmpty || e.title.toLowerCase().contains(q);
+      if (!matchesSearch) return false;
+
+      final isClosed = e.status.toLowerCase() == 'closed';
+      if (_selectedStatusFilter == 'published' && isClosed) return false;
+      if (_selectedStatusFilter == 'closed' && !isClosed) return false;
+
+      return true;
+    }).toList();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final totalCount = _exams.length;
+    final activeCount = _exams.where((e) => e.status.toLowerCase() != 'closed').length;
+    final closedCount = _exams.where((e) => e.status.toLowerCase() == 'closed').length;
+    final totalQuestionsLinked = _exams.fold<int>(0, (sum, e) => sum + e.questions.length);
+
     return PortalPageShell(
       title: 'إدارة الاختبارات والتقييمات',
-      subtitle: 'نشر وجدولة اختبارات المجموعات وتحديد زمن الإجابة والتصحيح الآلي.',
-      icon: Icons.quiz,
+      subtitle: 'نشر وجدولة اختبارات المجموعات، تحديد زمن الإجابة، وإدارة بنود الأسئلة.',
+      icon: Icons.quiz_rounded,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
@@ -885,41 +1235,76 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         isEmpty: false,
         emptyTitle: 'لا توجد بيانات اختبارات',
         emptySubtitle: 'قم باختيار أو إنشاء مجموعة دراسية أولاً.',
-        emptyIcon: Icons.quiz,
+        emptyIcon: Icons.quiz_rounded,
         onRetry: _loadExams,
         child: Column(
           children: [
-            if (_groups.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DropdownButtonFormField<GroupEntity>(
-                  initialValue: _selectedGroup,
-                  decoration: const InputDecoration(labelText: 'اختر المجموعة الدراسية'),
-                  items: _groups
-                      .map(
-                        (g) => DropdownMenuItem(
-                          value: g,
-                          child: Text('${g.name} (${g.code})'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (group) {
-                    if (group == null) return;
-                    setState(() => _selectedGroup = group);
-                    _loadExams();
-                  },
-                ),
-              ),
+            _buildKpiSection(
+              isDark,
+              totalCount,
+              activeCount,
+              closedCount,
+              totalQuestionsLinked,
+            ),
+            const SizedBox(height: 12),
+            if (_groups.isNotEmpty) _buildSearchAndFilterBar(isDark),
+            const SizedBox(height: 12),
             Expanded(
               child: _selectedGroup == null
-                  ? const Center(child: Text('لا توجد مجموعات دراسية نشطة حالياً.', style: TextStyle(color: Colors.grey)))
-                  : _exams.isEmpty
-                      ? const Center(child: Text('لا توجد اختبارات مسجلة لهذه المجموعة.', style: TextStyle(color: Colors.grey)))
-                      : ListView.separated(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          itemCount: _exams.length,
-                          separatorBuilder: (ctx, i) => const SizedBox(height: 12),
-                          itemBuilder: (ctx, i) => _buildExamCard(context, _exams[i]),
+                  ? const Center(child: Text('لا توجد مجموعات دراسية نشطة حالياً.'))
+                  : filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.quiz_outlined, size: 48, color: Colors.grey),
+                              const SizedBox(height: 12),
+                              Text(
+                                _searchController.text.isNotEmpty || _selectedStatusFilter != 'all'
+                                    ? 'لا توجد اختبارات تطابق معايير البحث والتصفية'
+                                    : 'لا توجد اختبارات مسجلة لهذه المجموعة.',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'يمكنك إضافة اختبار جديد وربطه بالأسئلة من بنك الأسئلة.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.icon(
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('إضافة أول اختبار'),
+                                onPressed: _showCreateExamDialog,
+                              ),
+                            ],
+                          ),
+                        )
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWide = constraints.maxWidth > 850;
+                            final isMedium = constraints.maxWidth > 580;
+
+                            if (isWide || isMedium) {
+                              return GridView.builder(
+                                padding: const EdgeInsets.only(bottom: 24),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  mainAxisExtent: 200,
+                                ),
+                                itemCount: filtered.length,
+                                itemBuilder: (ctx, i) => _buildExamCard(context, filtered[i]),
+                              );
+                            }
+
+                            return ListView.separated(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              itemCount: filtered.length,
+                              separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                              itemBuilder: (ctx, i) => _buildExamCard(context, filtered[i]),
+                            );
+                          },
                         ),
             ),
           ],
