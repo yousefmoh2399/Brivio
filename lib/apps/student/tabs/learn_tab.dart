@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../design_system/components/glass_card.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../../../design_system/tokens/typography.dart';
 import '../../../features/academy/domain/models/academy_models.dart';
 import '../../../design_system/widgets/portal_components.dart';
 import '../../../features/study_workspace/domain/models/study_workspace_models.dart';
-import '../../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
+import '../../../features/study_workspace/presentation/screens/personal_whiteboards_hub_screen.dart';
 
 class LearnTab extends StatelessWidget {
   final bool isLoading;
@@ -55,12 +56,17 @@ class LearnTab extends StatelessWidget {
           ),
           actions: [
             IconButton(
-              tooltip: 'سبورتي ومسودتي الشخصية',
+              tooltip: 'سبوراتي الذاتية ومسودات المذاكرة 🎨',
               onPressed: () {
+                final uId =
+                    Supabase.instance.client.auth.currentUser?.id ?? 'guest';
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const StudentPersonalBoardScreen(),
+                    builder: (context) => PersonalWhiteboardsHubScreen(
+                      userId: uId,
+                      role: 'student',
+                    ),
                   ),
                 );
               },

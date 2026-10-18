@@ -15,7 +15,7 @@ import '../../../features/code_playground/presentation/screens/code_playground_s
 import '../../../features/academy/presentation/widgets/center_switcher_widget.dart';
 import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 import '../../../features/student/presentation/widgets/student_digital_id_card.dart';
-import '../../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
+import '../../../features/study_workspace/presentation/screens/personal_whiteboards_hub_screen.dart';
 import '../../../features/assessment/presentation/widgets/group_leaderboard_widget.dart';
 import '../../../features/assessment/presentation/widgets/student_blitz_quiz_dialog.dart';
 import '../../../features/attendance/presentation/screens/student_qr_attendance_screen.dart';
@@ -719,10 +719,15 @@ class _StudentCommandHub extends StatelessWidget {
           if (onOpenPersonalBoard != null) {
             onOpenPersonalBoard!();
           } else {
+            final uId =
+                Supabase.instance.client.auth.currentUser?.id ?? 'guest';
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const StudentPersonalBoardScreen(),
+                builder: (_) => PersonalWhiteboardsHubScreen(
+                  userId: uId,
+                  role: 'student',
+                ),
               ),
             );
           }

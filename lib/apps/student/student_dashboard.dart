@@ -30,7 +30,7 @@ import '../../features/study_workspace/data/repositories/supabase_student_learni
 import '../../features/study_workspace/data/repositories/supabase_study_workspace_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../features/study_workspace/presentation/screens/study_workspace_screen.dart';
-import '../../features/study_workspace/presentation/screens/student_personal_board_screen.dart';
+import '../../features/study_workspace/presentation/screens/personal_whiteboards_hub_screen.dart';
 import '../../features/assessment/presentation/widgets/student_homework_submission_dialog.dart';
 
 import 'student_dashboard_models.dart';
@@ -318,9 +318,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   void _openPersonalBoard() {
+    final userId = widget.authViewModel.currentUser?.id ??
+        Supabase.instance.client.auth.currentUser?.id ??
+        'guest';
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const StudentPersonalBoardScreen(),
+        builder: (_) => PersonalWhiteboardsHubScreen(
+          userId: userId,
+          role: 'student',
+        ),
       ),
     );
   }

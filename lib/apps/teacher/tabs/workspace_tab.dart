@@ -9,6 +9,7 @@ import '../../../features/assessment/presentation/screens/teacher_question_bank_
 import '../../../features/attendance/presentation/screens/teacher_session_board_screen.dart';
 import '../../../features/attendance/presentation/screens/teacher_attendance_screen.dart';
 import '../../../features/study_workspace/presentation/screens/study_replay_screen.dart';
+import '../../../features/study_workspace/presentation/screens/personal_whiteboards_hub_screen.dart';
 import '../../../features/academy/presentation/screens/teacher_assistants_screen.dart';
 import '../../../features/assessment/presentation/screens/smart_exam_generator_dialog.dart';
 import '../../../features/communication/presentation/screens/class_broadcast_dialog.dart';
@@ -82,6 +83,21 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                           ),
                         ),
                         if (isCompact) ...[
+                          IconButton(
+                            tooltip: 'سبوراتي ومسودات التحضير 🧠',
+                            icon: const Icon(Icons.auto_stories_rounded, color: Colors.purple, size: 22),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PersonalWhiteboardsHubScreen(
+                                    userId: widget.teacherId,
+                                    role: 'teacher',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                           IconButton(
                             tooltip: 'السبورة الذكية للشرح 🎨',
                             icon: const Icon(Icons.draw_rounded, color: Colors.teal, size: 22),
@@ -197,6 +213,21 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                         ] else
                           Row(
                             children: [
+                              IconButton(
+                                tooltip: 'سبوراتي ومسودات التحضير 🧠',
+                                icon: const Icon(Icons.auto_stories_rounded, color: Colors.purple),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => PersonalWhiteboardsHubScreen(
+                                        userId: widget.teacherId,
+                                        role: 'teacher',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                               IconButton(
                                 tooltip: 'السبورة الذكية للشرح 🎨',
                                 icon: const Icon(Icons.draw_rounded, color: Colors.teal),

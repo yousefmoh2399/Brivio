@@ -1,14 +1,14 @@
-import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
+import '../../data/services/personal_whiteboards_storage.dart';
+import '../../domain/models/personal_whiteboard_item.dart';
 
 enum _BoardBackgroundTheme {
   blankWhite,
@@ -83,16 +83,20 @@ class _PersonalStroke {
   }
 }
 
-/// 100% Native, high-performance standalone personal whiteboard for the student.
+/// 100% Native, high-performance standalone personal whiteboard for the student or teacher.
 /// Completely private, persistent, and independent of any class or teacher.
 class StudentPersonalBoardScreen extends StatefulWidget {
   final String? studentId;
+  final String? boardId;
   final String title;
+  final bool isTeacher;
 
   const StudentPersonalBoardScreen({
     super.key,
     this.studentId,
+    this.boardId,
     this.title = 'سبورة الملاحظات والمسودة الشخصية',
+    this.isTeacher = false,
   });
 
   @override
@@ -100,8 +104,14 @@ class StudentPersonalBoardScreen extends StatefulWidget {
       _StudentPersonalBoardScreenState();
 }
 
-class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen> {
+class _StudentPersonalBoardScreenState
+    extends State<StudentPersonalBoardScreen> {
   final TransformationController _transformCtrl = TransformationController();
+
+  late String _boardId;
+  late String _boardTitle;
+  DateTime? _createdAt;
+  bool _hasUnsavedChanges = false;
 
   List<_PersonalStroke> _strokes = [];
   final List<List<_PersonalStroke>> _undoStack = [];
@@ -128,6 +138,9 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
   @override
   void initState() {
     super.initState();
+    _boardId =
+        widget.boardId ?? 'board_${DateTime.now().millisecondsSinceEpoch}';
+    _boardTitle = widget.title;
     _loadSavedBoard();
   }
 
@@ -137,45 +150,198 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
     super.dispose();
   }
 
-  String get _storageKey =>
-      'student_personal_board_${widget.studentId ?? "guest"}';
-
   Future<void> _loadSavedBoard() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
-      if (raw != null && raw.isNotEmpty) {
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        final strokesList = (decoded['strokes'] as List? ?? [])
-            .whereType<Map>()
-            .map((s) => _PersonalStroke.fromJson(Map<String, dynamic>.from(s)))
-            .toList();
-        final savedTheme = decoded['theme'] as String?;
-        if (savedTheme != null) {
-          try {
-            _bgTheme = _BoardBackgroundTheme.values.byName(savedTheme);
-          } catch (_) {}
+      if (widget.boardId != null) {
+        final content =
+            await PersonalWhiteboardsStorage.loadBoardContent(widget.boardId!);
+        if (content != null) {
+          final strokesList = (content['strokes'] as List? ?? [])
+              .whereType<Map>()
+              .map((s) => _PersonalStroke.fromJson(Map<String, dynamic>.from(s)))
+              .toList();
+          final savedTheme = content['theme'] as String?;
+          if (savedTheme != null) {
+            try {
+              _bgTheme = _BoardBackgroundTheme.values.byName(savedTheme);
+            } catch (_) {}
+          }
+          _strokes = strokesList;
+          _createdAt =
+              DateTime.tryParse(content['created_at']?.toString() ?? '');
         }
-        _strokes = strokesList;
       }
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _saveBoard() async {
+  Future<void> _saveBoard({bool showFeedback = false}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final data = {
+      final uId = widget.studentId ?? 'guest';
+      final now = DateTime.now();
+      _createdAt ??= now;
+      final metadata = PersonalWhiteboardItem(
+        id: _boardId,
+        userId: uId,
+        title: _boardTitle,
+        createdAt: _createdAt!,
+        updatedAt: now,
+        bgTheme: _bgTheme.name,
+        strokeCount: _strokes.length,
+      );
+      final content = {
         'theme': _bgTheme.name,
-        'updated_at': DateTime.now().toIso8601String(),
+        'created_at': _createdAt!.toIso8601String(),
+        'updated_at': now.toIso8601String(),
         'strokes': _strokes.map((s) => s.toJson()).toList(),
       };
-      await prefs.setString(_storageKey, jsonEncode(data));
+      await PersonalWhiteboardsStorage.saveBoard(
+        metadata: metadata,
+        content: content,
+      );
+      if (mounted) {
+        setState(() => _hasUnsavedChanges = false);
+        if (showFeedback) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
+                  SizedBox(width: 8),
+                  Text('تم حفظ السبورة والمسودة بنجاح ✅'),
+                ],
+              ),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     } catch (_) {}
   }
 
+  void _promptRename() {
+    final ctrl = TextEditingController(text: _boardTitle);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('تغيير اسم السبورة ✏️'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textDirection: TextDirection.rtl,
+          decoration: const InputDecoration(
+            labelText: 'اسم السبورة',
+            hintText: 'أدخل اسماً للسبورة...',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = ctrl.text.trim();
+              if (name.isNotEmpty) {
+                setState(() {
+                  _boardTitle = name;
+                  _hasUnsavedChanges = true;
+                });
+                _saveBoard();
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleExit() async {
+    // If the canvas is completely blank and no strokes were ever drawn, just exit
+    if (_strokes.isEmpty && !_hasUnsavedChanges) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    // If there are unsaved changes or this is a new board with strokes:
+    final ctrl = TextEditingController(text: _boardTitle);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final action = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: const [
+            Icon(Icons.save_as_rounded, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('حفظ السبورة والمسودة 💾'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'هل ترغب في حفظ ملاحظاتك ومسودتك في دفترك للرجوع إليها لاحقاً؟ يمكنك تحديد اسم للسبورة:',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              textDirection: TextDirection.rtl,
+              decoration: InputDecoration(
+                labelText: 'اسم السبورة',
+                hintText: 'مثال: مراجعة الفيزياء، حل مسائل...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.edit_note_rounded),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('cancel'),
+            child: const Text('متابعة المذاكرة'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop('discard'),
+            child: const Text('خروج دون حفظ'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('حفظ وخروج'),
+            onPressed: () => Navigator.of(ctx).pop('save'),
+          ),
+        ],
+      ),
+    );
+
+    if (action == 'save') {
+      final newName = ctrl.text.trim();
+      if (newName.isNotEmpty) {
+        _boardTitle = newName;
+      }
+      await _saveBoard(showFeedback: false);
+      if (mounted) Navigator.of(context).pop();
+    } else if (action == 'discard') {
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
   void _recordHistory() {
+    _hasUnsavedChanges = true;
     _undoStack.add(List.from(_strokes));
     if (_undoStack.length > 30) _undoStack.removeAt(0);
     _redoStack.clear();
@@ -185,6 +351,7 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
     if (_undoStack.isEmpty) return;
     HapticFeedback.selectionClick();
     setState(() {
+      _hasUnsavedChanges = true;
       _redoStack.add(List.from(_strokes));
       _strokes = _undoStack.removeLast();
     });
@@ -195,6 +362,7 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
     if (_redoStack.isEmpty) return;
     HapticFeedback.selectionClick();
     setState(() {
+      _hasUnsavedChanges = true;
       _undoStack.add(List.from(_strokes));
       _strokes = _redoStack.removeLast();
     });
@@ -457,39 +625,97 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: isDarkSlate ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        appBar: AppBar(
-          backgroundColor: isDarkSlate ? const Color(0xFF1E293B) : Colors.white,
-          foregroundColor: isDarkSlate ? Colors.white : Colors.black87,
-          elevation: 1,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.title,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.lock_outline_rounded, size: 12, color: Colors.green),
-                  SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      'مسودة خاصة 🔒',
-                      style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          await _handleExit();
+        },
+        child: Scaffold(
+          backgroundColor: isDarkSlate
+              ? const Color(0xFF0F172A)
+              : const Color(0xFFF8FAFC),
+          appBar: AppBar(
+            backgroundColor:
+                isDarkSlate ? const Color(0xFF1E293B) : Colors.white,
+            foregroundColor: isDarkSlate ? Colors.white : Colors.black87,
+            elevation: 1,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'رجوع لقائمة السبورات',
+              onPressed: _handleExit,
+            ),
+            title: InkWell(
+              onTap: _promptRename,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _boardTitle,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit_outlined,
+                            size: 13, color: Colors.grey),
+                      ],
                     ),
-                  ),
-                ],
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _hasUnsavedChanges
+                              ? Icons.circle_rounded
+                              : Icons.lock_outline_rounded,
+                          size: 10,
+                          color: _hasUnsavedChanges
+                              ? Colors.amber.shade700
+                              : Colors.green,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _hasUnsavedChanges
+                              ? 'تغييرات غير محفوظة'
+                              : 'مسودة محفوظة 🔒',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _hasUnsavedChanges
+                                ? Colors.amber.shade700
+                                : Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
-          actions: [
+            ),
+            actions: [
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: _hasUnsavedChanges,
+                  smallSize: 8,
+                  backgroundColor: Colors.amber,
+                  child: const Icon(Icons.save_rounded),
+                ),
+                tooltip: _hasUnsavedChanges ? 'حفظ السبورة 💾' : 'تم الحفظ ✅',
+                onPressed: () => _saveBoard(showFeedback: true),
+              ),
             IconButton(
               icon: const Icon(Icons.undo_rounded),
               tooltip: 'تراجع',
@@ -610,6 +836,7 @@ class _StudentPersonalBoardScreenState extends State<StudentPersonalBoardScreen>
                   ),
                 ],
               ),
+        ),
       ),
     );
   }

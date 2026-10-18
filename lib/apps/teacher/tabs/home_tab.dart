@@ -13,6 +13,7 @@ import '../../../features/attendance/presentation/screens/reception_qr_gate_scre
 import '../../../features/payments/presentation/screens/teacher_settlement_screen.dart';
 import '../../../features/reports/presentation/screens/attendance_reports_screen.dart';
 import '../../../features/attendance/presentation/screens/teacher_session_board_screen.dart';
+import '../../../features/study_workspace/presentation/screens/personal_whiteboards_hub_screen.dart';
 import '../../../features/academy/presentation/widgets/join_center_dialog.dart';
 import '../../../features/assessment/presentation/widgets/live_blitz_quiz_dialog.dart';
 import '../../../features/communication/presentation/screens/class_broadcast_dialog.dart';
@@ -525,7 +526,27 @@ class _TeacherCommandHub extends StatelessWidget {
 
     final tools = [
       _TeacherToolItem(
-        title: 'السبورة الذكية',
+        title: 'سبوراتي ومسودات التحضير',
+        subtitle: 'دفتر السبورات والمذكرات الشخصية',
+        badge: 'خاص 🧠',
+        icon: Icons.auto_stories_rounded,
+        gradient: const [Color(0xFF8B5CF6), Color(0xFFA855F7)],
+        borderAccent: const Color(0xFFA855F7),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PersonalWhiteboardsHubScreen(
+                userId: teacherId,
+                role: 'teacher',
+              ),
+            ),
+          );
+        },
+      ),
+      _TeacherToolItem(
+        title: 'سبورة الحصة المباشرة',
         subtitle: 'شروحات حية ورسم وتصدير',
         badge: 'مباشر 🎨',
         icon: Icons.draw_rounded,
