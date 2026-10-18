@@ -47,9 +47,13 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
     });
 
     try {
+      final params = <String, dynamic>{};
+      if (widget.teacherId.isNotEmpty && widget.teacherId != 'null') {
+        params['p_teacher_id'] = widget.teacherId;
+      }
       final response = await Supabase.instance.client.rpc(
         'get_teacher_financial_overview',
-        params: {'p_teacher_id': widget.teacherId},
+        params: params.isNotEmpty ? params : null,
       );
       final rows = response is List ? response : <dynamic>[];
       if (!mounted) return;

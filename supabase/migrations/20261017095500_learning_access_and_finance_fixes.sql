@@ -160,6 +160,9 @@ END;
 $$;
 
 -- 5. Fix get_teacher_financial_overview
+ALTER TABLE public.groups
+  ADD COLUMN IF NOT EXISTS teacher_id UUID REFERENCES public.teachers(id) ON DELETE SET NULL;
+
 DROP FUNCTION IF EXISTS public.get_teacher_financial_overview(UUID);
 CREATE OR REPLACE FUNCTION public.get_teacher_financial_overview(p_teacher_id UUID DEFAULT NULL)
 RETURNS TABLE (
