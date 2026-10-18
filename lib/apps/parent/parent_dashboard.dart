@@ -35,6 +35,7 @@ import '../../features/parent_portal/presentation/screens/child_schedule_screen.
 import 'screens/parent_helpdesk_screen.dart';
 import 'tabs/parent_home_tab.dart';
 import 'tabs/parent_progress_tab.dart';
+import 'tabs/parent_attendance_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -1018,97 +1019,17 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildAttendancePage() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PortalMetricGrid(
-          children: [
-            PortalMetricCard(
-              label: 'حضور',
-              value: _attendance
-                  .where((item) => item.status == 'present')
-                  .length
-                  .toString(),
-              icon: Icons.check_circle,
-              accentColor: AppColors.success,
-            ),
-            PortalMetricCard(
-              label: 'غياب',
-              value: _attendance
-                  .where((item) => item.status == 'absent')
-                  .length
-                  .toString(),
-              icon: Icons.cancel,
-              accentColor: AppColors.error,
-            ),
-            PortalMetricCard(
-              label: 'تأخير',
-              value: _attendance
-                  .where((item) => item.status == 'late')
-                  .length
-                  .toString(),
-              icon: Icons.schedule,
-              accentColor: AppColors.warning,
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            const Expanded(
-              child: PortalSectionTitle(
-                title: 'أعذار وطلبات الغياب',
-                subtitle: 'تقديم ومتابعة طلبات الاعتذار عن الحضور للسنتر.',
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: _selectedChild == null ? null : _createLeaveRequest,
-              icon: const Icon(Icons.add),
-              label: const Text('تقديم عذر'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _leaveRequests.isEmpty,
-          emptyText: 'لا توجد طلبات أعذار غياب مسجلة.',
-          children: _leaveRequests
-              .map(
-                (item) => PortalListCard(
-                  icon: Icons.event_busy,
-                  accentColor: _statusColor(item.status),
-                  title: item.reason,
-                  subtitle:
-                      '${item.groupName} • ${_formatDate(item.submittedAt)}',
-                  trailing: [PortalStatusChip(status: item.status)],
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(title: 'سجل الحضور والغياب التفصيلي'),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _attendance.isEmpty,
-          emptyText: 'لا توجد حصص مسجلة في سجل الحضور بعد.',
-          children: _attendance
-              .map(
-                (item) => PortalListCard(
-                  icon: item.status == 'present'
-                      ? Icons.check_circle
-                      : item.status == 'late'
-                      ? Icons.schedule
-                      : Icons.cancel,
-                  accentColor: _statusColor(item.status),
-                  title: item.groupName,
-                  subtitle:
-                      '${_formatDate(item.sessionDate)} • ${item.groupCode}',
-                  trailing: [PortalStatusChip(status: item.status)],
-                ),
-              )
-              .toList(),
-        ),
-      ],
+    return ParentAttendanceTab(
+      child: _selectedChild,
+      linkedChildren: _linkedChildren,
+      onChildSelected: (child) {
+        setState(() => _selectedChild = child);
+        _loadChildDetails(child);
+      },
+      attendance: _attendance,
+      leaveRequests: _leaveRequests,
+      childGroups: _childGroups,
+      onExcuseRequest: _createLeaveRequest,
     );
   }
 
@@ -1941,33 +1862,6 @@ typedef _ParentHomeworkItem = ParentHomeworkItem;
 typedef _ParentScheduleItem = ParentScheduleItem;
 typedef _ParentAttendanceItem = ParentAttendanceItem;
 
-class _ParentLeaveItem {
-  final String id;
-  final String reason;
-  final String status;
-  final DateTime? submittedAt;
-  final DateTime? sessionDate;
-  final String groupName;
-
-  const _ParentLeaveItem({
-    required this.id,
-    required this.reason,
-    required this.status,
-    required this.submittedAt,
-    required this.sessionDate,
-    required this.groupName,
-  });
-
-  factory _ParentLeaveItem.fromJson(Map json) {
-    return _ParentLeaveItem(
-      id: json['id']?.toString() ?? '',
-      reason: json['reason']?.toString() ?? 'طلب إذن غياب',
-      status: json['status']?.toString() ?? 'pending',
-      submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
-      sessionDate: DateTime.tryParse(json['session_date']?.toString() ?? ''),
-      groupName: json['group_name']?.toString() ?? 'عام',
-    );
-  }
-}
+typedef _ParentLeaveItem = ParentLeaveItem;
 
 
