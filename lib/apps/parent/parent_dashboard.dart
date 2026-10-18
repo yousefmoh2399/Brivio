@@ -34,6 +34,7 @@ import '../../features/parent_portal/presentation/screens/child_assignments_scre
 import '../../features/parent_portal/presentation/screens/child_schedule_screen.dart';
 import 'screens/parent_helpdesk_screen.dart';
 import 'tabs/parent_home_tab.dart';
+import 'tabs/parent_progress_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -988,167 +989,31 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   Widget _buildProgressPage() {
-    final snapshot = _learningSnapshot;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PortalMetricGrid(
-          children: (snapshot?.metrics ?? const <StudyMetric>[])
-              .map(
-                (metric) => PortalMetricCard(
-                  label: metric.label,
-                  value: metric.value,
-                  icon: Icons.insights,
-                  accentColor: AppColors.studentRole,
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(
-          title: 'الاختبارات والتقييمات',
-          subtitle: 'الاختبارات المنجزة، الدرجات المسجلة، ومراجعة الإجابات.',
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _examItems.isEmpty,
-          emptyText: 'لا توجد اختبارات مسجلة لهذا الطالب حتى الآن.',
-          children: _examItems
-              .map(
-                (item) => PortalListCard(
-                  icon: Icons.quiz,
-                  accentColor: item.canReview
-                      ? AppColors.success
-                      : item.attemptCount > 0
-                      ? AppColors.warning
-                      : AppColors.info,
-                  title: item.title,
-                  subtitle:
-                      '${item.groupName} • ${item.durationMinutes} دقيقة • المحاولات: ${item.attemptCount}/${item.maxAttempts}',
-                  trailing: [
-                    if (item.scoreLabel != null)
-                      PortalStatusChip(status: item.scoreLabel!),
-                    PortalStatusChip(
-                      status: item.lastAttemptStatus ?? item.status,
-                    ),
-                  ],
-                  onTap: item.canReview
-                      ? () => _showParentExamReview(item)
-                      : null,
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            const Expanded(
-              child: PortalSectionTitle(
-                title: 'الواجبات والتكليفات المدرسية',
-                subtitle: 'متابعة حل وتسليم الواجبات والتكليفات الدورية.',
-              ),
+    return ParentProgressTab(
+      child: _selectedChild,
+      linkedChildren: _linkedChildren,
+      onChildSelected: (child) {
+        setState(() => _selectedChild = child);
+        _loadChildDetails(child);
+      },
+      learningSnapshot: _learningSnapshot,
+      examItems: _examItems,
+      homeworkItems: _homeworkItems,
+      childGroups: _childGroups,
+      attendance: _attendance,
+      onOpenAssignments: () {
+        final child = _selectedChild;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ChildAssignmentsScreen(
+              studentId: child?.id,
+              studentName: child?.fullName,
             ),
-            OutlinedButton.icon(
-              onPressed: () {
-                final child = _selectedChild;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChildAssignmentsScreen(
-                      studentId: child?.id,
-                      studentName: child?.fullName,
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.assignment_outlined, size: 18),
-              label: const Text('كافة الواجبات'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: _homeworkItems.isEmpty,
-          emptyText: 'لا توجد واجبات أو تكليفات مدرسية مسجلة لهذا الطالب حالياً.',
-          children: _homeworkItems
-              .take(5)
-              .map(
-                (hw) => PortalListCard(
-                  icon: Icons.assignment_outlined,
-                  accentColor: hw.status == 'graded'
-                      ? AppColors.success
-                      : hw.status == 'submitted'
-                          ? AppColors.info
-                          : hw.status == 'missing'
-                              ? AppColors.error
-                              : AppColors.warning,
-                  title: hw.title,
-                  subtitle:
-                      '${hw.subjectName} • ${hw.groupName}${hw.dueAt != null ? ' • التسليم قبل: ${_formatDate(hw.dueAt)}' : ''}',
-                  trailing: [
-                    if (hw.scoreLabel != null)
-                      PortalStatusChip(status: hw.scoreLabel!),
-                    PortalStatusChip(
-                      status: hw.status == 'graded'
-                          ? 'تم التصحيح'
-                          : hw.status == 'submitted'
-                              ? 'تم التسليم'
-                              : hw.status == 'missing'
-                                  ? 'متأخر'
-                                  : 'مطلوب حله',
-                    ),
-                  ],
-                  onTap: () {
-                    final child = _selectedChild;
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ChildAssignmentsScreen(
-                          studentId: child?.id,
-                          studentName: child?.fullName,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 18),
-        const PortalSectionTitle(
-          title: 'الدروس والمناهج المنشورة',
-          subtitle: 'يتم احتساب التقدم الدراسي بناءً على إنجاز الطالب.',
-        ),
-        const SizedBox(height: 8),
-        _InfoList(
-          isEmpty: snapshot == null || snapshot.availableLessons.isEmpty,
-          emptyText: 'لا توجد دروس أو شروحات منشورة لهذا الطالب حالياً.',
-          children: (snapshot?.availableLessons ?? const <StudyLessonSummary>[])
-              .map(
-                (lesson) => Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          lesson.title,
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: 4),
-                        Text('${lesson.pathName} • ${lesson.unitName}'),
-                        const SizedBox(height: 10),
-                        LinearProgressIndicator(value: lesson.progress),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${lesson.progressPercentage}% • صفحة ${lesson.lastPage} من ${lesson.totalPages} • ${_formatStudyTime(lesson.timeSpentSeconds)}',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      ],
+          ),
+        );
+      },
+      onOpenReportCard: _openOfficialReportCard,
+      onReviewExam: _showParentExamReview,
     );
   }
 
@@ -1801,14 +1666,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
 
 
-  String _formatStudyTime(int seconds) {
-    if (seconds < 60) return '$seconds ثانية';
-    final minutes = seconds ~/ 60;
-    if (minutes < 60) return '$minutes دقيقة';
-    final hours = minutes ~/ 60;
-    final rest = minutes % 60;
-    return rest == 0 ? '$hours ساعة' : '$hours ساعة و $rest دقيقة';
-  }
+
 
 
 
@@ -2078,144 +1936,8 @@ class _ParentMonthlyReport {
   }
 }
 
-class _ParentExamItem {
-  final String id;
-  final String title;
-  final String? description;
-  final String? groupId;
-  final String groupName;
-  final int durationMinutes;
-  final int maxAttempts;
-  final String status;
-  final String? lastAttemptStatus;
-  final int attemptCount;
-  final double? lastScore;
-  final double? maxScore;
-
-  const _ParentExamItem({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.groupId,
-    required this.groupName,
-    required this.durationMinutes,
-    required this.maxAttempts,
-    required this.status,
-    required this.lastAttemptStatus,
-    required this.attemptCount,
-    required this.lastScore,
-    required this.maxScore,
-  });
-
-  bool get canReview =>
-      lastAttemptStatus == 'submitted' ||
-      lastAttemptStatus == 'graded' ||
-      lastAttemptStatus == 'expired';
-
-  double? get percentage =>
-      (lastScore != null && maxScore != null && maxScore! > 0)
-          ? (lastScore! / maxScore!) * 100
-          : null;
-
-  String? get scoreLabel {
-    if (lastScore == null) return null;
-    final score = lastScore == lastScore!.roundToDouble()
-        ? lastScore!.toStringAsFixed(0)
-        : lastScore!.toStringAsFixed(1);
-    final max = maxScore == null
-        ? ''
-        : maxScore == maxScore!.roundToDouble()
-        ? ' / ${maxScore!.toStringAsFixed(0)}'
-        : ' / ${maxScore!.toStringAsFixed(1)}';
-    return '$score$max';
-  }
-
-  factory _ParentExamItem.fromJson(Map json) {
-    return _ParentExamItem(
-      id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'اختبار',
-      description: json['description']?.toString(),
-      groupId: json['group_id']?.toString(),
-      groupName: json['group_name']?.toString() ?? 'المجموعة',
-      durationMinutes: (json['duration_minutes'] as num? ?? 30).toInt(),
-      maxAttempts: (json['max_attempts'] as num? ?? 1).toInt(),
-      status: json['status']?.toString() ?? 'published',
-      lastAttemptStatus: json['last_attempt_status']?.toString(),
-      attemptCount: (json['attempt_count'] as num? ?? 0).toInt(),
-      lastScore: (json['last_score'] as num?)?.toDouble(),
-      maxScore: (json['max_score'] as num?)?.toDouble(),
-    );
-  }
-}
-
-class _ParentHomeworkItem {
-  final String id;
-  final String title;
-  final String? description;
-  final String? subjectId;
-  final String subjectName;
-  final String? groupId;
-  final String groupName;
-  final DateTime? dueAt;
-  final double? maxScore;
-  final String status;
-  final String? submissionStatus;
-  final double? score;
-  final DateTime? submittedAt;
-
-  const _ParentHomeworkItem({
-    required this.id,
-    required this.title,
-    this.description,
-    this.subjectId,
-    required this.subjectName,
-    this.groupId,
-    required this.groupName,
-    this.dueAt,
-    this.maxScore,
-    required this.status,
-    this.submissionStatus,
-    this.score,
-    this.submittedAt,
-  });
-
-  double? get percentage =>
-      (score != null && maxScore != null && maxScore! > 0)
-          ? (score! / maxScore!) * 100
-          : null;
-
-  String? get scoreLabel {
-    if (score == null) return null;
-    final s = score == score!.roundToDouble()
-        ? score!.toStringAsFixed(0)
-        : score!.toStringAsFixed(1);
-    final m = maxScore == null
-        ? ''
-        : maxScore == maxScore!.roundToDouble()
-            ? ' / ${maxScore!.toStringAsFixed(0)}'
-            : ' / ${maxScore!.toStringAsFixed(1)}';
-    return '$s$m';
-  }
-
-  factory _ParentHomeworkItem.fromJson(Map json) {
-    return _ParentHomeworkItem(
-      id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'واجب منزلي',
-      description: json['description']?.toString(),
-      subjectId: json['subject_id']?.toString(),
-      subjectName: json['subject_name']?.toString() ?? 'مادة دراسية',
-      groupId: json['group_id']?.toString(),
-      groupName: json['group_name']?.toString() ?? 'المجموعة',
-      dueAt: DateTime.tryParse(json['due_at']?.toString() ?? ''),
-      maxScore: (json['max_score'] as num?)?.toDouble(),
-      status: json['status']?.toString() ?? 'pending',
-      submissionStatus: json['submission_status']?.toString(),
-      score: (json['score'] as num?)?.toDouble(),
-      submittedAt: DateTime.tryParse(json['submitted_at']?.toString() ?? ''),
-    );
-  }
-}
-
+typedef _ParentExamItem = ParentExamItem;
+typedef _ParentHomeworkItem = ParentHomeworkItem;
 typedef _ParentScheduleItem = ParentScheduleItem;
 typedef _ParentAttendanceItem = ParentAttendanceItem;
 
