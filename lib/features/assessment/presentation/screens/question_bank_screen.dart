@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -25,6 +26,10 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedTypeFilter = 'all'; // 'all', 'multiple_choice', 'true_false', 'written'
+  String _selectedDifficultyFilter = 'all'; // 'all', 'easy', 'medium', 'hard'
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +40,12 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
       SupabaseClientWrapper(Supabase.instance.client),
     );
     _loadQuestions();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadQuestions() async {
@@ -124,6 +135,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
+            actionsOverflowDirection: VerticalDirection.down,
             title: Row(
               children: [
                 Container(
@@ -143,11 +155,9 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ],
             ),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 540),
-              child: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width.clamp(280.0, 520.0),
+              child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -164,9 +174,12 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           children: [
                             const Icon(Icons.menu_book_rounded, size: 18, color: AppColors.primary),
                             const SizedBox(width: 8),
-                            Text(
-                              'المادة: ${selectedSubject.name} (${selectedSubject.code})',
-                              style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                            Expanded(
+                              child: Text(
+                                'المادة: ${selectedSubject.name} (${selectedSubject.code})',
+                                style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -414,7 +427,6 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ),
             ),
-          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -467,7 +479,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                             );
                           }
 
-                          final q = Question(
+                          final newQ = Question(
                             id: '',
                             subjectId: selectedSubject.id,
                             questionType: QuestionTypeExtension.fromString(qType),
@@ -480,13 +492,13 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                                 double.tryParse(ptsCtrl.text.trim()) ?? 5.0,
                           );
 
-                          await _questionRepo.createQuestion(q, options);
+                          await _questionRepo.createQuestion(newQ, options);
                           nav.pop();
                           _loadQuestions();
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('تمت إضافة السؤال وخياراته بنجاح!'),
+                                content: Text('تمت إضافة السؤال بنجاح!'),
                                 backgroundColor: Colors.green,
                               ),
                             );
@@ -523,7 +535,8 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
     final formKey = GlobalKey<FormState>();
     final textCtrl = TextEditingController(text: q.prompt);
     final ptsCtrl = TextEditingController(text: q.defaultPoints.toString());
-    final explanationCtrl = TextEditingController(text: q.explanation ?? '');
+    final explanationCtrl =
+        TextEditingController(text: q.explanation ?? '');
     String qType = q.questionType.toDbValue();
     String difficulty = q.difficulty;
 
@@ -536,21 +549,19 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
     int correctMcqIndex = 0;
     bool trueFalseCorrect = true;
 
-    if (q.questionType == QuestionType.multipleChoice) {
-      for (int i = 0; i < 4; i++) {
-        if (i < q.options.length) {
-          optCtrls[i].text = q.options[i].text;
-          if (q.options[i].isCorrect) {
-            correctMcqIndex = i;
-          }
+    if (qType == 'multiple_choice') {
+      for (int i = 0; i < q.options.length && i < 4; i++) {
+        optCtrls[i].text = q.options[i].text;
+        if (q.options[i].isCorrect) {
+          correctMcqIndex = i;
         }
       }
-    } else if (q.questionType == QuestionType.trueFalse) {
-      final trueOpt = q.options.firstWhere(
-        (o) => o.text.trim() == 'صواب' || o.text.trim().toLowerCase() == 'true',
-        orElse: () => QuestionOption(id: '', questionId: '', text: '', isCorrect: false),
-      );
-      trueFalseCorrect = trueOpt.isCorrect;
+    } else if (qType == 'true_false') {
+      for (final opt in q.options) {
+        if (opt.isCorrect && opt.text == 'خطأ') {
+          trueFalseCorrect = false;
+        }
+      }
     }
 
     bool isSubmitting = false;
@@ -561,6 +572,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
+            actionsOverflowDirection: VerticalDirection.down,
             title: Row(
               children: [
                 Container(
@@ -580,11 +592,9 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ],
             ),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 540),
-              child: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width.clamp(280.0, 520.0),
+              child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -675,35 +685,9 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                       // MCQ Options Builder
                       if (qType == 'multiple_choice') ...[
                         const Divider(height: 24),
-                        Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            const Text(
-                              'خيارات الإجابة (حدد الإجابة الصحيحة):',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.check_circle, size: 14, color: Colors.green),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'الإجابة الصحيحة بالدائرة الخضراء',
-                                    style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        const Text(
+                          'خيارات الإجابة (حدد الإجابة الصحيحة):',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         const SizedBox(height: 10),
                         for (int i = 0; i < 4; i++)
@@ -711,22 +695,19 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
                               children: [
-                                Tooltip(
-                                  message: correctMcqIndex == i ? 'الإجابة الصحيحة' : 'اضغط لتحديد كإجابة صحيحة',
-                                  child: IconButton(
-                                    icon: Icon(
-                                      correctMcqIndex == i
-                                          ? Icons.check_circle_rounded
-                                          : Icons.radio_button_unchecked,
-                                      color: correctMcqIndex == i
-                                          ? Colors.green
-                                          : Colors.grey,
-                                      size: 24,
-                                    ),
-                                    onPressed: () {
-                                      setStateDialog(() => correctMcqIndex = i);
-                                    },
+                                IconButton(
+                                  icon: Icon(
+                                    correctMcqIndex == i
+                                        ? Icons.check_circle_rounded
+                                        : Icons.radio_button_unchecked,
+                                    color: correctMcqIndex == i
+                                        ? Colors.green
+                                        : Colors.grey,
+                                    size: 24,
                                   ),
+                                  onPressed: () {
+                                    setStateDialog(() => correctMcqIndex = i);
+                                  },
                                 ),
                                 Expanded(
                                   child: TextFormField(
@@ -830,7 +811,6 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 ),
               ),
             ),
-          ),
             actions: [
               TextButton(
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -937,6 +917,334 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
     );
   }
 
+  Widget _buildKpiSection(
+    bool isDark,
+    int totalCount,
+    int mcqCount,
+    int trueFalseCount,
+    int writtenCount,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 600;
+        final kpiCards = [
+          _buildKpiCard(
+            title: 'إجمالي الأسئلة',
+            value: '$totalCount',
+            icon: Icons.help_outline_rounded,
+            color: AppColors.adminRole,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'اختيار من متعدد',
+            value: '$mcqCount',
+            icon: Icons.checklist_rounded,
+            color: Colors.blue,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'صواب وخطأ',
+            value: '$trueFalseCount',
+            icon: Icons.check_circle_outline_rounded,
+            color: Colors.teal,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'أسئلة مقالية وقصيرة',
+            value: '$writtenCount',
+            icon: Icons.edit_note_rounded,
+            color: Colors.purple,
+            isDark: isDark,
+          ),
+        ];
+
+        if (isNarrow) {
+          return GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.3,
+            children: kpiCards,
+          );
+        }
+
+        return Row(
+          children: kpiCards
+              .map(
+                (card) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: card,
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : Colors.black12,
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilterBar(bool isDark) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 750;
+
+        final subjectSelector = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isDark ? AppColors.darkBorder : Colors.black12, width: 0.8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<SubjectEntity>(
+              value: _selectedSubject,
+              isExpanded: true,
+              hint: const Text('اختر المادة الدراسية...'),
+              items: _subjects
+                  .map(
+                    (s) => DropdownMenuItem(
+                      value: s,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.menu_book_rounded, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${s.name} (${s.code})',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (subject) {
+                if (subject == null) return;
+                setState(() => _selectedSubject = subject);
+                _loadQuestions();
+              },
+            ),
+          ),
+        );
+
+        final searchField = TextField(
+          controller: _searchController,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: 'بحث في نص السؤال أو الخيارات...',
+            hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+            prefixIcon: const Icon(Icons.search, size: 18),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.adminRole, width: 1.2),
+            ),
+            filled: true,
+            fillColor: isDark ? AppColors.darkSurface : Colors.white,
+          ),
+        );
+
+        final typeChips = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTypeFilterChip('all', 'جميع الأنواع', isDark),
+            const SizedBox(width: 4),
+            _buildTypeFilterChip('multiple_choice', 'اختيار من متعدد', isDark),
+            const SizedBox(width: 4),
+            _buildTypeFilterChip('true_false', 'صواب أو خطأ', isDark),
+            const SizedBox(width: 4),
+            _buildTypeFilterChip('written', 'مقالي وقصير', isDark),
+            const SizedBox(width: 8),
+            _buildDifficultyFilterChip('all', 'جميع المستويات', isDark),
+            const SizedBox(width: 4),
+            _buildDifficultyFilterChip('easy', 'سهل', isDark),
+            const SizedBox(width: 4),
+            _buildDifficultyFilterChip('medium', 'متوسط', isDark),
+            const SizedBox(width: 4),
+            _buildDifficultyFilterChip('hard', 'صعب', isDark),
+          ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              subjectSelector,
+              const SizedBox(height: 8),
+              searchField,
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: typeChips,
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(flex: 2, child: subjectSelector),
+                const SizedBox(width: 10),
+                Expanded(flex: 3, child: searchField),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: typeChips,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTypeFilterChip(String value, String label, bool isDark) {
+    final isSelected = _selectedTypeFilter == value;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => setState(() => _selectedTypeFilter = value),
+      selectedColor: AppColors.adminRole.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        color: isSelected
+            ? AppColors.adminRole
+            : (isDark ? Colors.white70 : Colors.black87),
+      ),
+      side: BorderSide(
+        color: isSelected
+            ? AppColors.adminRole
+            : (isDark ? AppColors.darkBorder : Colors.black12),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    );
+  }
+
+  Widget _buildDifficultyFilterChip(String value, String label, bool isDark) {
+    final isSelected = _selectedDifficultyFilter == value;
+    final color = value == 'easy'
+        ? Colors.green
+        : value == 'hard'
+            ? Colors.red
+            : Colors.orange;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => setState(() => _selectedDifficultyFilter = value),
+      selectedColor: color.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        color: isSelected
+            ? color
+            : (isDark ? Colors.white70 : Colors.black87),
+      ),
+      side: BorderSide(
+        color: isSelected
+            ? color
+            : (isDark ? AppColors.darkBorder : Colors.black12),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    );
+  }
+
   Widget _buildQuestionCard(BuildContext context, Question q) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
@@ -944,14 +1252,21 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          color: isDark ? AppColors.darkBorder : Colors.black12,
           width: 0.8,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -959,15 +1274,15 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: AppColors.adminRole.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.help_outline, color: AppColors.adminRole, size: 22),
+                child: const Icon(Icons.help_outline_rounded, color: AppColors.adminRole, size: 20),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -976,27 +1291,28 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                       q.prompt,
                       style: AppTypography.titleMedium(textPrimary).copyWith(
                         fontWeight: FontWeight.w700,
-                        height: 1.3,
+                        fontSize: 14,
+                        height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
                             color: AppColors.adminRole.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             _qTypeLabel(q.questionType),
-                            style: const TextStyle(fontSize: 12, color: AppColors.adminRole, fontWeight: FontWeight.w600),
+                            style: const TextStyle(fontSize: 11, color: AppColors.adminRole, fontWeight: FontWeight.bold),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
                             color: _difficultyColor(q.difficulty).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
@@ -1004,21 +1320,21 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           child: Text(
                             'المستوى: ${_difficultyLabel(q.difficulty)}',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: _difficultyColor(q.difficulty),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
                             color: Colors.blue.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'الدرجات: ${q.defaultPoints}',
-                            style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
+                            '${q.defaultPoints} درجات',
+                            style: const TextStyle(fontSize: 11, color: Colors.blue, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ],
@@ -1026,76 +1342,53 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                tooltip: 'خيارات',
-                icon: const Icon(Icons.more_vert_rounded),
-                onSelected: (value) async {
-                  if (value == 'edit') {
-                    _showEditQuestionDialog(q);
-                    return;
-                  }
-                  if (value == 'delete') {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('حذف السؤال'),
-                        content: const Text(
-                          'هل أنت متأكد من رغبتك في حذف هذا السؤال من بنك الأسئلة؟',
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'تعديل السؤال',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
+                    onPressed: () => _showEditQuestionDialog(q),
+                  ),
+                  IconButton(
+                    tooltip: 'حذف السؤال',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('حذف السؤال'),
+                          content: const Text('هل أنت متأكد من رغبتك في حذف هذا السؤال من بنك الأسئلة؟'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('تأكيد الحذف'),
+                            ),
+                          ],
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('إلغاء'),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('تأكيد الحذف'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      try {
-                        await _questionRepo.deleteQuestion(q.id);
-                        _loadQuestions();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('تم حذف السؤال بنجاح')),
-                          );
-                        }
-                      } catch (err) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('فشل حذف السؤال: $err'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                      );
+                      if (confirm == true) {
+                        try {
+                          await _questionRepo.deleteQuestion(q.id);
+                          _loadQuestions();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم حذف السؤال بنجاح')),
+                            );
+                          }
+                        } catch (err) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل حذف السؤال: $err')),
+                            );
+                          }
                         }
                       }
-                    }
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: ListTile(
-                      leading: Icon(Icons.edit, size: 18),
-                      title: Text('تعديل السؤال'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: ListTile(
-                      leading: Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                      title: Text('حذف السؤال', style: TextStyle(color: Colors.red)),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                    },
                   ),
                 ],
               ),
@@ -1104,14 +1397,14 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
 
           // Render options if present
           if (q.options.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
-                borderRadius: BorderRadius.circular(10),
+                color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                  color: isDark ? AppColors.darkBorder : Colors.black.withValues(alpha: 0.05),
                   width: 0.6,
                 ),
               ),
@@ -1120,20 +1413,20 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                 children: [
                   for (int i = 0; i < q.options.length; i++) ...[
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 3),
                       child: Row(
                         children: [
                           Icon(
                             q.options[i].isCorrect ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                            size: 16,
-                            color: q.options[i].isCorrect ? Colors.green : textSecondary,
+                            size: 15,
+                            color: q.options[i].isCorrect ? Colors.green : Colors.grey,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               q.options[i].text,
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 fontWeight: q.options[i].isCorrect ? FontWeight.bold : FontWeight.normal,
                                 color: q.options[i].isCorrect ? Colors.green.shade700 : textPrimary,
                               ),
@@ -1141,21 +1434,21 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           ),
                           if (q.options[i].isCorrect)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.15),
+                                color: Colors.green.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
-                                'الإجابة الصحيحة',
-                                style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                                'صحيحة',
+                                style: TextStyle(fontSize: 9.5, color: Colors.green, fontWeight: FontWeight.bold),
                               ),
                             ),
                         ],
                       ),
                     ),
                     if (i < q.options.length - 1)
-                      Divider(height: 8, color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                      Divider(height: 6, color: isDark ? AppColors.darkBorder : Colors.black12),
                   ],
                 ],
               ),
@@ -1166,20 +1459,20 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
           if (q.explanation != null && q.explanation!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.amber.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.lightbulb_outline, size: 16, color: Colors.amber),
+                  const Icon(Icons.lightbulb_outline, size: 14, color: Colors.amber),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'الشرح: ${q.explanation}',
-                      style: AppTypography.caption(textSecondary),
+                      style: AppTypography.caption(textSecondary).copyWith(fontSize: 11),
                     ),
                   ),
                 ],
@@ -1193,10 +1486,44 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final qSearch = _searchController.text.toLowerCase().trim();
+
+    final filtered = _questions.where((q) {
+      final matchesSearch = qSearch.isEmpty ||
+          q.prompt.toLowerCase().contains(qSearch) ||
+          (q.explanation?.toLowerCase().contains(qSearch) ?? false) ||
+          q.options.any((opt) => opt.text.toLowerCase().contains(qSearch));
+
+      if (!matchesSearch) return false;
+
+      if (_selectedTypeFilter == 'multiple_choice' && q.questionType != QuestionType.multipleChoice) {
+        return false;
+      }
+      if (_selectedTypeFilter == 'true_false' && q.questionType != QuestionType.trueFalse) {
+        return false;
+      }
+      if (_selectedTypeFilter == 'written' &&
+          (q.questionType != QuestionType.shortAnswer && q.questionType != QuestionType.longAnswer)) {
+        return false;
+      }
+
+      if (_selectedDifficultyFilter != 'all' && q.difficulty.toLowerCase() != _selectedDifficultyFilter) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final totalCount = _questions.length;
+    final mcqCount = _questions.where((q) => q.questionType == QuestionType.multipleChoice).length;
+    final trueFalseCount = _questions.where((q) => q.questionType == QuestionType.trueFalse).length;
+    final writtenCount = _questions.where((q) => q.questionType == QuestionType.shortAnswer || q.questionType == QuestionType.longAnswer).length;
+
     return PortalPageShell(
       title: 'بنك الأسئلة',
-      subtitle: 'إنشاء وإدارة بنك الأسئلة لإعداد الاختبارات والواجبات حسب المادة.',
-      icon: Icons.help_outline,
+      subtitle: 'إنشاء وتصنيف وإدارة بنك الأسئلة لإعداد الاختبارات والواجبات التفاعلية.',
+      icon: Icons.help_outline_rounded,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
@@ -1222,42 +1549,53 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
         onRetry: _loadQuestions,
         child: Column(
           children: [
-            if (_subjects.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DropdownButtonFormField<SubjectEntity>(
-                  initialValue: _selectedSubject,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'المادة الدراسية'),
-                  items: _subjects
-                      .map(
-                        (s) => DropdownMenuItem(
-                          value: s,
-                          child: Text('${s.name} (${s.code})'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (subject) {
-                    if (subject == null) return;
-                    setState(() => _selectedSubject = subject);
-                    _loadQuestions();
-                  },
-                ),
-              ),
+            _buildKpiSection(
+              isDark,
+              totalCount,
+              mcqCount,
+              trueFalseCount,
+              writtenCount,
+            ),
+            const SizedBox(height: 12),
+            if (_subjects.isNotEmpty) _buildSearchAndFilterBar(isDark),
+            const SizedBox(height: 12),
             Expanded(
               child: _selectedSubject == null
                   ? const Center(child: Text('لا توجد مواد دراسية نشطة حالياً.'))
-                  : _questions.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'لا توجد أسئلة مسجلة في بنك الأسئلة لهذه المادة.',
+                  : filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.help_outline_rounded, size: 48, color: Colors.grey),
+                              const SizedBox(height: 12),
+                              Text(
+                                _searchController.text.isNotEmpty ||
+                                        _selectedTypeFilter != 'all' ||
+                                        _selectedDifficultyFilter != 'all'
+                                    ? 'لا توجد أسئلة تطابق معايير البحث والتصفية'
+                                    : 'لا توجد أسئلة مسجلة في بنك الأسئلة لهذه المادة.',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'يمكنك إضافة أسئلة اختيار من متعدد، صواب وخطأ، أو أسئلة مقالية.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.icon(
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('إضافة أول سؤال'),
+                                onPressed: _showCreateQuestionDialog,
+                              ),
+                            ],
                           ),
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.only(bottom: 24),
-                          itemCount: _questions.length,
-                          separatorBuilder: (ctx, i) => const SizedBox(height: 12),
-                          itemBuilder: (ctx, i) => _buildQuestionCard(context, _questions[i]),
+                          itemCount: filtered.length,
+                          separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                          itemBuilder: (ctx, i) => _buildQuestionCard(context, filtered[i]),
                         ),
             ),
           ],

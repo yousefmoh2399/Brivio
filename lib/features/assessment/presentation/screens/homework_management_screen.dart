@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -27,6 +28,9 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedStatusFilter = 'all'; // 'all', 'active', 'closed', 'overdue'
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +41,12 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
       SupabaseClientWrapper(Supabase.instance.client),
     );
     _loadHomeworks();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadHomeworks() async {
@@ -132,9 +142,12 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                         children: [
                           const Icon(Icons.group, size: 18, color: AppColors.primary),
                           const SizedBox(width: 8),
-                          Text(
-                            'المجموعة: ${selectedGroup.name} (${selectedGroup.code})',
-                            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                          Expanded(
+                            child: Text(
+                              'المجموعة: ${selectedGroup.name} (${selectedGroup.code})',
+                              style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -261,7 +274,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('تم إنشاء ونشر الواجب بنجاح!'),
+                              content: Text('تم نشر الواجب للمجموعة بنجاح!'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -271,7 +284,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('فشل إنشاء الواجب: $e'),
+                              content: Text('فشل إضافة الواجب: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -285,7 +298,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.check, size: 18),
-              label: Text(isSubmitting ? 'جاري النشر...' : 'نشر الواجب'),
+              label: Text(isSubmitting ? 'جاري النشر...' : 'تأكيد ونشر الواجب'),
             ),
           ],
         ),
@@ -293,13 +306,13 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
     );
   }
 
-  void _showEditHomeworkDialog(Homework h) {
+  void _showEditHomeworkDialog(Homework homework) {
     final formKey = GlobalKey<FormState>();
-    final titleCtrl = TextEditingController(text: h.title);
-    final descCtrl = TextEditingController(text: h.description ?? '');
-    final ptsCtrl = TextEditingController(text: h.maxScore.toString());
-    DateTime dueAt = h.dueAt;
-    String status = h.status;
+    final titleCtrl = TextEditingController(text: homework.title);
+    final descCtrl = TextEditingController(text: homework.description ?? '');
+    final ptsCtrl = TextEditingController(text: homework.maxScore.toString());
+    DateTime dueAt = homework.dueAt;
+    String status = homework.status;
     bool isSubmitting = false;
 
     showDialog(
@@ -349,7 +362,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                     TextFormField(
                       controller: descCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'التعليمات والتفاصيل',
+                        labelText: 'التعليمات والإرشادات',
                         border: OutlineInputBorder(),
                       ),
                       maxLines: 3,
@@ -366,9 +379,8 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                             ),
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'يرجى إدخال الدرجة';
-                              final num = double.tryParse(v.trim());
-                              if (num == null || num <= 0) return 'قيمة أكبر من صفر';
+                              if (v == null || v.trim().isEmpty) return 'أدخل الدرجة';
+                              if (double.tryParse(v.trim()) == null) return 'رقم غير صحيح';
                               return null;
                             },
                           ),
@@ -382,9 +394,9 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                               border: OutlineInputBorder(),
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'published', child: Text('متاح للتسليم')),
-                              DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                              DropdownMenuItem(value: 'published', child: Text('منشور ومفتوح')),
                               DropdownMenuItem(value: 'closed', child: Text('مغلق التسليم')),
+                              DropdownMenuItem(value: 'draft', child: Text('مسودة')),
                             ],
                             onChanged: (v) {
                               if (v != null) setStateDialog(() => status = v);
@@ -408,7 +420,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('موعد التسليم النهائي', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                const Text('آخر موعد للتسليم', style: TextStyle(fontSize: 12, color: Colors.grey)),
                                 const SizedBox(height: 2),
                                 Text(
                                   _formatDate(dueAt),
@@ -430,7 +442,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                               }
                             },
                             icon: const Icon(Icons.calendar_month, size: 16),
-                            label: const Text('تغيير التاريخ'),
+                            label: const Text('تغيير'),
                           ),
                         ],
                       ),
@@ -456,19 +468,18 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                       if (!formKey.currentState!.validate()) return;
                       setStateDialog(() => isSubmitting = true);
 
-                      final maxScore = double.tryParse(ptsCtrl.text.trim()) ?? 10.0;
                       final nav = Navigator.of(ctx);
                       try {
                         final updated = Homework(
-                          id: h.id,
-                          subjectId: h.subjectId,
-                          groupId: h.groupId,
+                          id: homework.id,
+                          subjectId: homework.subjectId,
+                          groupId: homework.groupId,
                           title: titleCtrl.text.trim(),
                           description: descCtrl.text.trim().isEmpty
                               ? null
                               : descCtrl.text.trim(),
                           dueAt: dueAt,
-                          maxScore: maxScore,
+                          maxScore: double.tryParse(ptsCtrl.text.trim()) ?? homework.maxScore,
                           status: status,
                         );
 
@@ -478,7 +489,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('تم تحديث بيانات الواجب بنجاح!'),
+                              content: Text('تم حفظ تعديلات الواجب بنجاح!'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -488,7 +499,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('فشل تحديث الواجب: $e'),
+                              content: Text('فشل حفظ التعديلات: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -510,248 +521,6 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
     );
   }
 
-  Widget _buildHomeworkCard(BuildContext context, Homework h) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
-    final isOverdue = DateTime.now().isAfter(h.dueAt) && h.status != 'closed';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-          width: 0.8,
-        ),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.adminRole.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.assignment, color: AppColors.adminRole, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      h.title,
-                      style: AppTypography.titleMedium(textPrimary).copyWith(
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                      ),
-                    ),
-                    if (h.description != null && h.description!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        h.description!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.caption(textSecondary),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'الدرجة العظمى: ${h.maxScore}',
-                            style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isOverdue
-                                ? Colors.red.withValues(alpha: 0.12)
-                                : Colors.teal.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.event,
-                                size: 14,
-                                color: isOverdue ? Colors.red : Colors.teal,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'التسليم: ${_formatDate(h.dueAt)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isOverdue ? Colors.red : Colors.teal,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  PortalStatusChip(status: h.status),
-                  const SizedBox(height: 4),
-                  PopupMenuButton<String>(
-                    tooltip: 'خيارات',
-                    icon: const Icon(Icons.more_vert_rounded),
-                    onSelected: (value) async {
-                      switch (value) {
-                        case 'submissions':
-                          _showSubmissionsDialog(h);
-                          break;
-                        case 'edit':
-                          _showEditHomeworkDialog(h);
-                          break;
-                        case 'close':
-                          if (h.status == 'closed') return;
-                          try {
-                            await _homeworkRepo.closeHomework(h.id);
-                            _loadHomeworks();
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('فشل إغلاق الواجب: $e')),
-                              );
-                            }
-                          }
-                          break;
-                        case 'delete':
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('حذف الواجب'),
-                              content: const Text(
-                                'هل أنت متأكد من رغبتك في حذف هذا الواجب نهائياً؟',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('إلغاء'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('حذف'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await _homeworkRepo.deleteHomework(h.id);
-                              _loadHomeworks();
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('تم حذف الواجب بنجاح')),
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('فشل الحذف: $e')),
-                                );
-                              }
-                            }
-                          }
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'submissions',
-                        child: ListTile(
-                          leading: Icon(Icons.assignment_turned_in_outlined, color: AppColors.adminRole, size: 18),
-                          title: Text('كشف التسليمات والتصحيح'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: Icon(Icons.edit, size: 18),
-                          title: Text('تعديل الواجب'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      if (h.status != 'closed')
-                        const PopupMenuItem(
-                          value: 'close',
-                          child: ListTile(
-                            leading: Icon(Icons.lock_outline, size: 18),
-                            title: Text('إغلاق التسليم'),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: ListTile(
-                          leading: Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                          title: Text('حذف الواجب', style: TextStyle(color: Colors.red)),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const Divider(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.adminRole,
-                  side: const BorderSide(color: AppColors.adminRole),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                icon: const Icon(Icons.assignment_turned_in_rounded, size: 18),
-                label: const Text('تسليمات الطلاب والتصحيح', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                onPressed: () => _showSubmissionsDialog(h),
-              ),
-              Text(
-                'معرف: ${h.id.length > 8 ? h.id.substring(0, 8) : h.id}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showSubmissionsDialog(Homework h) {
     if (_selectedGroup == null) return;
     showDialog(
@@ -764,12 +533,593 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
     );
   }
 
+  Widget _buildKpiSection(
+    bool isDark,
+    int totalCount,
+    int activeCount,
+    int overdueCount,
+    int closedCount,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 600;
+        final kpiCards = [
+          _buildKpiCard(
+            title: 'إجمالي الواجبات',
+            value: '$totalCount',
+            icon: Icons.assignment_rounded,
+            color: AppColors.adminRole,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'الواجبات النشطة',
+            value: '$activeCount',
+            icon: Icons.pending_actions_rounded,
+            color: Colors.teal,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'تجاوزت الموعد',
+            value: '$overdueCount',
+            icon: Icons.alarm_off_rounded,
+            color: Colors.red,
+            isDark: isDark,
+          ),
+          _buildKpiCard(
+            title: 'واجبات مغلقة',
+            value: '$closedCount',
+            icon: Icons.lock_clock_rounded,
+            color: Colors.blueGrey,
+            isDark: isDark,
+          ),
+        ];
+
+        if (isNarrow) {
+          return GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.3,
+            children: kpiCards,
+          );
+        }
+
+        return Row(
+          children: kpiCards
+              .map(
+                (card) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: card,
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : Colors.black12,
+          width: 0.8,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndFilterBar(bool isDark) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 750;
+
+        final groupSelector = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isDark ? AppColors.darkBorder : Colors.black12, width: 0.8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<GroupEntity>(
+              value: _selectedGroup,
+              isExpanded: true,
+              hint: const Text('اختر المجموعة الدراسية...'),
+              items: _groups
+                  .map(
+                    (g) => DropdownMenuItem(
+                      value: g,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.group_rounded, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${g.name} (${g.code})',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (group) {
+                if (group == null) return;
+                setState(() => _selectedGroup = group);
+                _loadHomeworks();
+              },
+            ),
+          ),
+        );
+
+        final searchField = TextField(
+          controller: _searchController,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: 'بحث في عنوان الواجب أو التعليمات...',
+            hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+            prefixIcon: const Icon(Icons.search, size: 18),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: isDark ? AppColors.darkBorder : Colors.black12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.adminRole, width: 1.2),
+            ),
+            filled: true,
+            fillColor: isDark ? AppColors.darkSurface : Colors.white,
+          ),
+        );
+
+        final filterChips = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildStatusFilterChip('all', 'جميع الواجبات', isDark),
+            const SizedBox(width: 4),
+            _buildStatusFilterChip('active', 'النشطة مفتوحة', isDark),
+            const SizedBox(width: 4),
+            _buildStatusFilterChip('overdue', 'متأخرة', isDark),
+            const SizedBox(width: 4),
+            _buildStatusFilterChip('closed', 'مغلقة', isDark),
+          ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              groupSelector,
+              const SizedBox(height: 8),
+              searchField,
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: filterChips,
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(flex: 2, child: groupSelector),
+                const SizedBox(width: 10),
+                Expanded(flex: 3, child: searchField),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: filterChips,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusFilterChip(String value, String label, bool isDark) {
+    final isSelected = _selectedStatusFilter == value;
+    final color = value == 'overdue'
+        ? Colors.red
+        : value == 'closed'
+            ? Colors.grey
+            : AppColors.adminRole;
+
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => setState(() => _selectedStatusFilter = value),
+      selectedColor: color.withValues(alpha: 0.15),
+      labelStyle: TextStyle(
+        color: isSelected
+            ? color
+            : (isDark ? Colors.white70 : Colors.black87),
+      ),
+      side: BorderSide(
+        color: isSelected
+            ? color
+            : (isDark ? AppColors.darkBorder : Colors.black12),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    );
+  }
+
+  Widget _buildHomeworkCard(BuildContext context, Homework h) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    final isClosed = h.status.toLowerCase() == 'closed';
+    final isOverdue = DateTime.now().isAfter(h.dueAt) && !isClosed;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : Colors.black12,
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Header Row: Assignment icon + Title / Description + Status Chip
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: (isOverdue ? Colors.red : AppColors.adminRole).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.assignment_rounded,
+                  color: isOverdue ? Colors.red : AppColors.adminRole,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      h.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.titleMedium(textPrimary).copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    if (h.description != null && h.description!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        h.description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isClosed
+                      ? Colors.grey.withValues(alpha: 0.12)
+                      : isOverdue
+                          ? Colors.red.withValues(alpha: 0.12)
+                          : Colors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isClosed
+                      ? 'مغلق'
+                      : isOverdue
+                          ? 'متأخر'
+                          : 'مفتوح',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: isClosed
+                        ? Colors.grey.shade700
+                        : isOverdue
+                            ? Colors.red.shade700
+                            : Colors.green.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Metadata badges: Max score, Due date
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2), width: 0.6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star_border_rounded, size: 12, color: Colors.blue),
+                    const SizedBox(width: 3),
+                    Text(
+                      'الدرجة: ${h.maxScore}',
+                      style: const TextStyle(fontSize: 10.5, color: Colors.blue, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: isOverdue ? Colors.red.withValues(alpha: 0.08) : Colors.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: isOverdue ? Colors.red.withValues(alpha: 0.25) : Colors.teal.withValues(alpha: 0.25),
+                    width: 0.6,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.event_outlined,
+                      size: 12,
+                      color: isOverdue ? Colors.red : Colors.teal,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      'التسليم: ${_formatDate(h.dueAt)}',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: isOverdue ? Colors.red : Colors.teal,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const Divider(height: 12),
+
+          // Action Toolbar Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.adminRole,
+                  side: const BorderSide(color: AppColors.adminRole, width: 0.8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                ),
+                icon: const Icon(Icons.assignment_turned_in_rounded, size: 15),
+                label: const Text(
+                  'كشف التسليمات والتصحيح',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                ),
+                onPressed: () => _showSubmissionsDialog(h),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'تعديل الواجب',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_outlined, size: 17, color: Colors.blue),
+                    onPressed: () => _showEditHomeworkDialog(h),
+                  ),
+                  if (!isClosed)
+                    IconButton(
+                      tooltip: 'إغلاق التسليم',
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.lock_outline_rounded, size: 17, color: Colors.orange),
+                      onPressed: () async {
+                        try {
+                          await _homeworkRepo.closeHomework(h.id);
+                          _loadHomeworks();
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل إغلاق الواجب: $e')),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  IconButton(
+                    tooltip: 'حذف الواجب',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 17, color: Colors.red),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('حذف الواجب'),
+                          content: Text('هل أنت متأكد من رغبتك في حذف واجب "${h.title}" نهائياً؟'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('تأكيد الحذف'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await _homeworkRepo.deleteHomework(h.id);
+                          _loadHomeworks();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم حذف الواجب بنجاح')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل الحذف: $e')),
+                            );
+                          }
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final q = _searchController.text.toLowerCase().trim();
+
+    final filtered = _homeworks.where((h) {
+      final matchesSearch = q.isEmpty ||
+          h.title.toLowerCase().contains(q) ||
+          (h.description?.toLowerCase().contains(q) ?? false);
+
+      if (!matchesSearch) return false;
+
+      final isClosed = h.status.toLowerCase() == 'closed';
+      final isOverdue = DateTime.now().isAfter(h.dueAt) && !isClosed;
+      final isActive = !isClosed && !isOverdue;
+
+      if (_selectedStatusFilter == 'active' && !isActive) return false;
+      if (_selectedStatusFilter == 'overdue' && !isOverdue) return false;
+      if (_selectedStatusFilter == 'closed' && !isClosed) return false;
+
+      return true;
+    }).toList();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final totalCount = _homeworks.length;
+    final activeCount = _homeworks.where((h) => h.status.toLowerCase() != 'closed' && !DateTime.now().isAfter(h.dueAt)).length;
+    final overdueCount = _homeworks.where((h) => h.status.toLowerCase() != 'closed' && DateTime.now().isAfter(h.dueAt)).length;
+    final closedCount = _homeworks.where((h) => h.status.toLowerCase() == 'closed').length;
+
     return PortalPageShell(
       title: 'إدارة الواجبات والتكليفات',
-      subtitle: 'نشر ومتابعة واجبات المجموعات، مواعيد التسليم، والدرجات المستحقة.',
-      icon: Icons.assignment,
+      subtitle: 'نشر ومتابعة واجبات المجموعات، مواعيد التسليم، ومتابعة تصحيح كشوفات الطلاب.',
+      icon: Icons.assignment_rounded,
       accentColor: AppColors.adminRole,
       actions: [
         PortalAction(
@@ -791,43 +1141,76 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
         isEmpty: false,
         emptyTitle: 'لا توجد بيانات واجبات',
         emptySubtitle: 'قم باختيار أو إنشاء مجموعة دراسية أولاً.',
-        emptyIcon: Icons.assignment,
+        emptyIcon: Icons.assignment_rounded,
         onRetry: _loadHomeworks,
         child: Column(
           children: [
-            if (_groups.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DropdownButtonFormField<GroupEntity>(
-                  initialValue: _selectedGroup,
-                  decoration: const InputDecoration(labelText: 'اختر المجموعة الدراسية'),
-                  items: _groups
-                      .map(
-                        (g) => DropdownMenuItem(
-                          value: g,
-                          child: Text('${g.name} (${g.code})'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (group) {
-                    if (group == null) return;
-                    setState(() => _selectedGroup = group);
-                    _loadHomeworks();
-                  },
-                ),
-              ),
+            _buildKpiSection(
+              isDark,
+              totalCount,
+              activeCount,
+              overdueCount,
+              closedCount,
+            ),
+            const SizedBox(height: 12),
+            if (_groups.isNotEmpty) _buildSearchAndFilterBar(isDark),
+            const SizedBox(height: 12),
             Expanded(
               child: _selectedGroup == null
-                  ? const Center(child: Text('لا توجد مجموعات دراسية نشطة حالياً.', style: TextStyle(color: Colors.grey)))
-                  : _homeworks.isEmpty
-                      ? const Center(
-                          child: Text('لا توجد واجبات مسجلة لهذه المجموعة.', style: TextStyle(color: Colors.grey)),
+                  ? const Center(child: Text('لا توجد مجموعات دراسية نشطة حالياً.'))
+                  : filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.assignment_late_outlined, size: 48, color: Colors.grey),
+                              const SizedBox(height: 12),
+                              Text(
+                                _searchController.text.isNotEmpty || _selectedStatusFilter != 'all'
+                                    ? 'لا توجد واجبات تطابق معايير البحث'
+                                    : 'لا توجد واجبات مسجلة لهذه المجموعة.',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'يمكنك إضافة واجب جديد لطلاب المجموعة وتحديد الموعد والدرجات.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.icon(
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('إضافة أول واجب'),
+                                onPressed: _showCreateHomeworkDialog,
+                              ),
+                            ],
+                          ),
                         )
-                      : ListView.separated(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          itemCount: _homeworks.length,
-                          separatorBuilder: (ctx, i) => const SizedBox(height: 12),
-                          itemBuilder: (ctx, i) => _buildHomeworkCard(context, _homeworks[i]),
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWide = constraints.maxWidth > 850;
+                            final isMedium = constraints.maxWidth > 580;
+
+                            if (isWide || isMedium) {
+                              return GridView.builder(
+                                padding: const EdgeInsets.only(bottom: 24),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  mainAxisExtent: 200,
+                                ),
+                                itemCount: filtered.length,
+                                itemBuilder: (ctx, i) => _buildHomeworkCard(context, filtered[i]),
+                              );
+                            }
+
+                            return ListView.separated(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              itemCount: filtered.length,
+                              separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                              itemBuilder: (ctx, i) => _buildHomeworkCard(context, filtered[i]),
+                            );
+                          },
                         ),
             ),
           ],
