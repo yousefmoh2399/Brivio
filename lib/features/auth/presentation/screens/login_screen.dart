@@ -17,8 +17,12 @@ import '../../domain/models/user_profile.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../../academy/presentation/screens/register_center_screen.dart';
 import '../../../legal/presentation/screens/privacy_and_terms_screen.dart';
+import 'package:get_it/get_it.dart';
 import '../../../../core/services/saved_accounts_service.dart';
 import '../../../../core/services/avatar_service.dart';
+import '../../../../core/services/settings_service.dart';
+import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/localization/app_locale_controller.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -462,8 +466,10 @@ class _LoginScreenState extends State<LoginScreen>
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
+
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: ListenableBuilder(
         listenable: widget.viewModel,
         builder: (context, _) {
@@ -541,41 +547,82 @@ class _LoginScreenState extends State<LoginScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (widget.hasSavedAccounts && widget.onNavigateToSavedAccounts != null) ...[
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: InkWell(
-                                  onTap: widget.onNavigateToSavedAccounts,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (widget.hasSavedAccounts && widget.onNavigateToSavedAccounts != null)
+                                  InkWell(
+                                    onTap: widget.onNavigateToSavedAccounts,
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: _roleColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: _roleColor.withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isAr ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+                                            size: 15,
+                                            color: _roleColor,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            context.tr('التبديل إلى الحسابات المحفوظة 👥'),
+                                            style: TextStyle(
+                                              color: _roleColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 11.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox.shrink(),
+                                // Language switch button
+                                InkWell(
+                                  onTap: () {
+                                    final settings = GetIt.instance<SettingsService>();
+                                    final nextLang = settings.language == AppLanguage.arabic
+                                        ? AppLanguage.english
+                                        : AppLanguage.arabic;
+                                    settings.updateLanguage(nextLang);
+                                  },
                                   borderRadius: BorderRadius.circular(20),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                                     decoration: BoxDecoration(
-                                      color: _roleColor.withValues(alpha: 0.12),
+                                      color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: _roleColor.withValues(alpha: 0.3),
+                                        color: isDark ? Colors.white24 : Colors.black12,
                                       ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.arrow_forward_rounded, size: 16, color: _roleColor),
-                                        const SizedBox(width: 8),
                                         Text(
-                                          'التبديل إلى الحسابات المحفوظة 👥',
+                                          isAr ? '🇬🇧 English' : '🇪🇬 العربية',
                                           style: TextStyle(
-                                            color: _roleColor,
+                                            color: textPrimary,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 12,
+                                            fontSize: 11.5,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
 
                             // ── 1. Hero Brand Panel ──
                             FadeInSlide(
@@ -622,7 +669,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  'تسجيل الدخول',
+                                                  context.tr('تسجيل الدخول'),
                                                   style: AppTypography.displaySmall(textPrimary).copyWith(
                                                     fontWeight: FontWeight.w900,
                                                     letterSpacing: -0.5,
@@ -630,7 +677,7 @@ class _LoginScreenState extends State<LoginScreen>
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  'أهلاً بك مجدداً! أدخل بيانات حسابك للمتابعة.',
+                                                  context.tr('أهلاً بك مجدداً! أدخل بيانات حسابك للمتابعة.'),
                                                   style: AppTypography.bodySmall(textSecondary),
                                                 ),
                                               ],
@@ -667,17 +714,17 @@ class _LoginScreenState extends State<LoginScreen>
 
                                       // Email Field
                                       CustomTextField(
-                                        label: 'البريد الإلكتروني',
+                                        label: context.tr('البريد الإلكتروني'),
                                         hint: 'name@example.com',
                                         controller: _emailController,
                                         keyboardType: TextInputType.emailAddress,
                                         prefixIcon: Icons.alternate_email_rounded,
                                         validator: (value) {
                                           if (value == null || value.trim().isEmpty) {
-                                            return 'يرجى إدخال البريد الإلكتروني';
+                                            return context.tr('يرجى إدخال البريد الإلكتروني');
                                           }
                                           if (!value.contains('@')) {
-                                            return 'صيغة البريد الإلكتروني غير صالحة';
+                                            return context.tr('صيغة البريد الإلكتروني غير صالحة');
                                           }
                                           return null;
                                         },
@@ -686,7 +733,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                                       // Password Field
                                       CustomTextField(
-                                        label: 'كلمة المرور',
+                                        label: context.tr('كلمة المرور'),
                                         hint: '••••••••',
                                         controller: _passwordController,
                                         obscureText: _obscurePassword,
@@ -705,10 +752,10 @@ class _LoginScreenState extends State<LoginScreen>
                                         ),
                                         validator: (value) {
                                           if (value == null || value.trim().isEmpty) {
-                                            return 'يرجى إدخال كلمة المرور';
+                                            return context.tr('يرجى إدخال كلمة المرور');
                                           }
                                           if (value.length < 6) {
-                                            return 'كلمة المرور يجب ألا تقل عن 6 أحرف';
+                                            return context.tr('كلمة المرور يجب ألا تقل عن 6 أحرف');
                                           }
                                           return null;
                                         },
@@ -743,7 +790,7 @@ class _LoginScreenState extends State<LoginScreen>
                                                 ),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  'تذكرني',
+                                                  context.tr('تذكرني'),
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w600,
@@ -768,7 +815,7 @@ class _LoginScreenState extends State<LoginScreen>
                                               visualDensity: VisualDensity.compact,
                                             ),
                                             child: Text(
-                                              'نسيت كلمة المرور؟',
+                                              context.tr('نسيت كلمة المرور؟'),
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w700,
@@ -782,7 +829,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                                       // Submit Button
                                       PrimaryButton(
-                                        text: 'تسجيل الدخول',
+                                        text: context.tr('تسجيل الدخول'),
                                         isLoading: state.status == AuthStatus.loading,
                                         onPressed: _handleLogin,
                                         icon: Icons.login_rounded,
@@ -807,7 +854,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       // QR Login Button
                                       const SizedBox(height: 14),
                                       GhostButton(
-                                        text: 'تسجيل الدخول السريع عبر QR Code 📷',
+                                        text: context.tr('تسجيل الدخول السريع عبر QR Code 📷'),
                                         icon: Icons.qr_code_scanner_rounded,
                                         onPressed: state.status == AuthStatus.loading
                                             ? null
@@ -837,8 +884,8 @@ class _LoginScreenState extends State<LoginScreen>
                                           color: AppColors.primary,
                                           size: 18,
                                         ),
-                                        label: const Text(
-                                          'صاحب سنتر؟ سجّل سنترك الآن مجاناً 🏢',
+                                        label: Text(
+                                          context.tr('صاحب سنتر؟ سجّل سنترك الآن مجاناً 🏢'),
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: AppColors.primary,
@@ -877,7 +924,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   color: textSecondary.withValues(alpha: 0.7),
                                 ),
                                 label: Text(
-                                  'شروط الخدمة وسياسة الخصوصية وأمان البيانات',
+                                  context.tr('شروط الخدمة وسياسة الخصوصية وأمان البيانات'),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -960,7 +1007,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
         child: Text(
-          label,
+          context.tr(label),
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -992,7 +1039,7 @@ class _LoginScreenState extends State<LoginScreen>
               const Icon(Icons.bolt_rounded, size: 14, color: Colors.amber),
               const SizedBox(width: 4),
               Text(
-                'تجربة سريعة بحسابات افتراضية:',
+                context.tr('تجربة سريعة بحسابات افتراضية:'),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -1034,7 +1081,7 @@ class _LoginScreenState extends State<LoginScreen>
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
-          label,
+          context.tr(label),
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.bold,
@@ -1066,33 +1113,33 @@ class _AppleHeroPanel extends StatelessWidget {
     final String roleSubtitle;
     if (role == null) {
       roleIcon = Icons.school_rounded;
-      roleSubtitle = 'المنظومة الرقمية الشاملة لإدارة المراكز والسناتر التعليمية';
+      roleSubtitle = context.tr('المنظومة الرقمية الشاملة لإدارة المراكز والسناتر التعليمية');
     } else {
       switch (role!) {
         case UserRole.admin:
         case UserRole.superAdmin:
           roleIcon = Icons.admin_panel_settings_rounded;
-          roleSubtitle = 'مساحة عمل إدارة السنتر والفروع والخزينة';
+          roleSubtitle = context.tr('مساحة عمل إدارة السنتر والفروع والخزينة');
           break;
         case UserRole.teacher:
           roleIcon = Icons.co_present_rounded;
-          roleSubtitle = 'بوابة المعلم لإدارة الحصص والطلاب والواجبات';
+          roleSubtitle = context.tr('بوابة المعلم لإدارة الحصص والطلاب والواجبات');
           break;
         case UserRole.student:
           roleIcon = Icons.menu_book_rounded;
-          roleSubtitle = 'بوابة الطالب لمتابعة الدروس والواجبات والمذكرات';
+          roleSubtitle = context.tr('بوابة الطالب لمتابعة الدروس والواجبات والمذكرات');
           break;
         case UserRole.parent:
           roleIcon = Icons.family_restroom_rounded;
-          roleSubtitle = 'بوابة ولي الأمر لمتابعة حضور ونتائج الأبناء';
+          roleSubtitle = context.tr('بوابة ولي الأمر لمتابعة حضور ونتائج الأبناء');
           break;
         case UserRole.staff:
           roleIcon = Icons.badge_rounded;
-          roleSubtitle = 'بوابة موظفي الاستقبال والعمليات';
+          roleSubtitle = context.tr('بوابة موظفي الاستقبال والعمليات');
           break;
         case UserRole.unknown:
           roleIcon = Icons.school_rounded;
-          roleSubtitle = 'تسجيل الدخول إلى حسابك';
+          roleSubtitle = context.tr('تسجيل الدخول إلى حسابك');
           break;
       }
     }

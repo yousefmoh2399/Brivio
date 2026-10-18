@@ -32,6 +32,7 @@ import '../../features/study_workspace/domain/models/study_workspace_models.dart
 import '../../features/study_workspace/presentation/screens/study_workspace_screen.dart';
 import '../../features/study_workspace/presentation/screens/personal_whiteboards_hub_screen.dart';
 import '../../features/assessment/presentation/widgets/student_homework_submission_dialog.dart';
+import '../../core/localization/app_localizations.dart';
 
 import 'student_dashboard_models.dart';
 import 'tabs/home_tab.dart';
@@ -856,20 +857,20 @@ class _StudentDashboardState extends State<StudentDashboard> {
                               color: AppColors.primary,
                             ),
                             destinations: [
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.house_outlined),
-                                selectedIcon: Icon(Icons.house_rounded),
-                                label: Text('الرئيسية'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.house_outlined),
+                                selectedIcon: const Icon(Icons.house_rounded),
+                                label: Text(context.tr('الرئيسية')),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.menu_book_outlined),
-                                selectedIcon: Icon(Icons.menu_book_rounded),
-                                label: Text('الدروس والمناهج'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.menu_book_outlined),
+                                selectedIcon: const Icon(Icons.menu_book_rounded),
+                                label: Text(context.tr('الدروس والمناهج')),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.bolt_outlined),
-                                selectedIcon: Icon(Icons.bolt_rounded),
-                                label: Text('الأنشطة والمهام'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.bolt_outlined),
+                                selectedIcon: const Icon(Icons.bolt_rounded),
+                                label: Text(context.tr('الأنشطة والمهام')),
                               ),
                               NavigationRailDestination(
                                 icon: Badge(
@@ -883,12 +884,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
                                 ),
                                 selectedIcon:
                                     const Icon(Icons.notifications_rounded),
-                                label: const Text('الإشعارات'),
+                                label: Text(context.tr('الإشعارات')),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.person_outline_rounded),
-                                selectedIcon: Icon(Icons.person_rounded),
-                                label: Text('حسابي'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.person_outline_rounded),
+                                selectedIcon: const Icon(Icons.person_rounded),
+                                label: Text(context.tr('حسابي')),
                               ),
                             ],
                           ),
@@ -941,32 +942,32 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       setState(() => _selectedIndex = i),
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: [
-                    const NavigationDestination(
-                      icon: Icon(Icons.house_outlined, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.house_outlined, size: 21),
+                      selectedIcon: const Icon(
                         Icons.house_rounded,
                         color: AppColors.primary,
                         size: 21,
                       ),
-                      label: 'الرئيسية',
+                      label: context.tr('الرئيسية'),
                     ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.menu_book_outlined, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.menu_book_outlined, size: 21),
+                      selectedIcon: const Icon(
                         Icons.menu_book_rounded,
                         color: AppColors.primary,
                         size: 21,
                       ),
-                      label: 'الدروس',
+                      label: context.tr('الدروس'),
                     ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.bolt_outlined, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.bolt_outlined, size: 21),
+                      selectedIcon: const Icon(
                         Icons.bolt_rounded,
                         color: AppColors.primary,
                         size: 21,
                       ),
-                      label: 'الأنشطة',
+                      label: context.tr('الأنشطة'),
                     ),
                     NavigationDestination(
                       icon: Badge(
@@ -979,16 +980,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         color: AppColors.primary,
                         size: 21,
                       ),
-                      label: 'الإشعارات',
+                      label: context.tr('الإشعارات'),
                     ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.person_outline_rounded, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.person_outline_rounded, size: 21),
+                      selectedIcon: const Icon(
                         Icons.person_rounded,
                         color: AppColors.primary,
                         size: 21,
                       ),
-                      label: 'حسابي',
+                      label: context.tr('حسابي'),
                     ),
                   ],
                 ),

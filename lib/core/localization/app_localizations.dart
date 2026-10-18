@@ -17,9 +17,114 @@ class AppLocalizations {
 
   bool get isArabic => locale.languageCode == 'ar';
 
+  static Map<String, String>? _arToEnCache;
+  static Map<String, String>? _lowerEnToArCache;
+  static Map<String, String>? _lowerEnCache;
+  static Set<String>? _arValuesCache;
+
+  static Map<String, String> get _arToEn => _arToEnCache ??= _buildArToEn();
+  static Map<String, String> get _lowerEnToAr => _lowerEnToArCache ??= _buildLowerEnToAr();
+  static Map<String, String> get _lowerEn => _lowerEnCache ??= _buildLowerEn();
+  static Set<String> get _arValuesSet => _arValuesCache ??= {
+    ..._ar.values,
+    ..._customEnToAr.values,
+    ..._customArToEn.keys,
+  };
+
+  static Map<String, String> _buildArToEn() {
+    final map = <String, String>{};
+    for (final entry in _ar.entries) {
+      final enVal = _en[entry.key] ?? entry.key;
+      map[entry.value] = enVal;
+      map[entry.value.trim()] = enVal;
+    }
+    for (final entry in _customArToEn.entries) {
+      map[entry.key] = entry.value;
+      map[entry.key.trim()] = entry.value;
+    }
+    return map;
+  }
+
+  static Map<String, String> _buildLowerEnToAr() {
+    final map = <String, String>{};
+    for (final entry in _ar.entries) {
+      map[entry.key.toLowerCase().trim()] = entry.value;
+    }
+    for (final entry in _customEnToAr.entries) {
+      map[entry.key.toLowerCase().trim()] = entry.value;
+    }
+    return map;
+  }
+
+  static Map<String, String> _buildLowerEn() {
+    final map = <String, String>{};
+    for (final entry in _en.entries) {
+      map[entry.key.toLowerCase().trim()] = entry.value;
+    }
+    for (final entry in _customEnToAr.keys) {
+      map[entry.toLowerCase().trim()] = entry;
+    }
+    return map;
+  }
+
   String t(String key) {
-    final language = isArabic ? _ar : _en;
-    return language[key] ?? _en[key] ?? key;
+    if (key.isEmpty) return key;
+
+    final trimmed = key.trim();
+
+    if (isArabic) {
+      if (_ar.containsKey(trimmed)) return _ar[trimmed]!;
+      if (_customEnToAr.containsKey(trimmed)) return _customEnToAr[trimmed]!;
+
+      if (_arValuesSet.contains(trimmed)) return key;
+
+      final lower = trimmed.toLowerCase();
+      if (_lowerEnToAr.containsKey(lower)) return _lowerEnToAr[lower]!;
+
+      final stripped = _stripSurroundingSymbols(trimmed);
+      if (stripped.isNotEmpty && stripped != trimmed) {
+        if (_ar.containsKey(stripped)) {
+          return trimmed.replaceFirst(stripped, _ar[stripped]!);
+        }
+        if (_customEnToAr.containsKey(stripped)) {
+          return trimmed.replaceFirst(stripped, _customEnToAr[stripped]!);
+        }
+        if (_lowerEnToAr.containsKey(stripped.toLowerCase())) {
+          return trimmed.replaceFirst(stripped, _lowerEnToAr[stripped.toLowerCase()]!);
+        }
+      }
+
+      return key;
+    } else {
+      if (_en.containsKey(trimmed)) return _en[trimmed]!;
+
+      if (_arToEn.containsKey(trimmed)) return _arToEn[trimmed]!;
+      if (_customArToEn.containsKey(trimmed)) return _customArToEn[trimmed]!;
+
+      final lower = trimmed.toLowerCase();
+      if (_lowerEn.containsKey(lower)) return _lowerEn[lower]!;
+
+      final stripped = _stripSurroundingSymbols(trimmed);
+      if (stripped.isNotEmpty && stripped != trimmed) {
+        if (_arToEn.containsKey(stripped)) {
+          return trimmed.replaceFirst(stripped, _arToEn[stripped]!);
+        }
+        if (_customArToEn.containsKey(stripped)) {
+          return trimmed.replaceFirst(stripped, _customArToEn[stripped]!);
+        }
+        if (_en.containsKey(stripped)) {
+          return trimmed.replaceFirst(stripped, _en[stripped]!);
+        }
+      }
+
+      return key;
+    }
+  }
+
+  static String _stripSurroundingSymbols(String text) {
+    return text
+        .replaceAll(RegExp(r'[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1FA00}-\u{1FAFF}•✔️⚡🔔🖨️🧹💬🔒👥👑👨‍🏫🎓👨‍👩‍👦🏛️]+', unicode: true), '')
+        .trim();
   }
 
   static const Map<String, String> _en = {
@@ -1867,6 +1972,347 @@ class AppLocalizations {
     'Open code playground': 'فتح مختبر البرمجة',
     'Administrator': 'مسؤول السنتر',
     'Global access': 'صلاحية كاملة على كل الفروع',
+  };
+
+  static const Map<String, String> _customArToEn = {
+    // Portals & Destinations
+    'نظرة عامة': 'Overview',
+    'الفروع': 'Branches',
+    'المواد': 'Subjects',
+    'المجموعات': 'Groups',
+    'الجداول': 'Schedules',
+    'الطلاب': 'Students',
+    'أولياء الأمور': 'Parents',
+    'المعلمون': 'Teachers',
+    'الموظفون': 'Staff',
+    'المناهج': 'Curricula',
+    'الأسئلة': 'Questions',
+    'الواجبات': 'Homework',
+    'الاختبارات': 'Exams',
+    'الحضور': 'Attendance',
+    'المالية': 'Finance',
+    'الصلاحيات': 'Permissions',
+    'سجل العمليات': 'Activity Log',
+    'تسجيلات الحصص': 'Session Recordings',
+    'استيراد البيانات': 'Data Import',
+    'الإعدادات': 'Settings',
+    'التحليلات': 'Analytics',
+    'الدعم الفني': 'Support',
+    'التقارير': 'Reports',
+    'إدارة السنتر والمنظومة': 'Center & System Management',
+    'لوحة التحكم الإدارية المتكاملة': 'Integrated Admin Dashboard',
+    'الرئيسية': 'Home',
+    'التقدم الدراسي': 'Academic Progress',
+    'سجل الحضور': 'Attendance Record',
+    'المدفوعات': 'Payments',
+    'التقرير الشهري': 'Monthly Report',
+    'الإشعارات': 'Notifications',
+    'حسابي': 'My Account',
+    'لوحة العمليات': 'Operations Dashboard',
+    'طوابير المهام': 'Task Queues',
+    'الحضور والغياب': 'Attendance',
+    'الخزينة والمالية': 'Treasury & Finance',
+    'مساحة العمل': 'Workspace',
+    'الدروس': 'Lessons',
+    'الدروس والمناهج': 'Lessons & Curriculum',
+    'الأنشطة': 'Activities',
+    'الأنشطة والمهام': 'Activities & Tasks',
+    'السبورات الشخصية': 'Personal Whiteboards',
+    'مختبر البرمجة': 'Code Playground',
+    'مجموعاتي': 'My Groups',
+    'السبورة الذكية': 'Smart Whiteboard',
+    'الدرجات والتصحيح': 'Grades & Grading',
+    'تصفية الأرباح': 'Profit Settlement',
+    'المذكرات والملازم': 'Booklets & Materials',
+    'بطاقة الطالب الرقمية': 'Digital Student ID',
+    'تسجيل الحضور عبر QR': 'QR Attendance',
+    'تسليم الواجب': 'Submit Homework',
+    'بدء الاختبار': 'Start Exam',
+    'طلب إذن غياب': 'Leave Request',
+
+    // Roles
+    'مدير النظام والسنتر 👑': 'Center Admin 👑',
+    'معلم معتمد 👨‍🏫': 'Certified Teacher 👨‍🏫',
+    'طالب 🎓': 'Student 🎓',
+    'ولي أمر 👨‍👩‍👦': 'Guardian 👨‍👩‍👦',
+    'موظف استقبال وإدارة 🏛️': 'Reception & Staff 🏛️',
+    'مستخدم بريفيو': 'Brivio User',
+    'مدير النظام': 'System Admin',
+    'معلم': 'Teacher',
+    'طالب': 'Student',
+    'ولي أمر': 'Guardian',
+    'موظف': 'Staff',
+
+    // Settings Categories & Sections
+    'الكل': 'All',
+    'الحساب والملف': 'Account & Profile',
+    'المظهر واللغة': 'Appearance & Language',
+    'المظهر والعرض': 'Appearance & Display',
+    'الطابعات والعتاد': 'Printers & Hardware',
+    'الأمان والخصوصية': 'Security & Privacy',
+    'الصيانة والدعم': 'Maintenance & Support',
+    'إعدادات المنظومة والتطبيق': 'System & App Settings',
+    'تخصيص المظهر العام، لغة العرض، الإشعارات، طابعات الفواتير، والأمان المتقدم.':
+        'Customize appearance, display language, notifications, printers, and security.',
+    'المظهر وتنسيق الشاشة': 'Appearance & Screen Layout',
+    'نمط العرض (السمة)': 'Display Theme',
+    'اختر بين المظهر الفاتح المناسب للقاعات المضيئة أو الداكن المريح للعين.':
+        'Choose light mode for bright rooms or dark mode for comfort.',
+    'تلقائي': 'System',
+    'فاتح': 'Light',
+    'داكن': 'Dark',
+    'حسب الجهاز': 'Follow system',
+    'نهاري': 'Day mode',
+    'ليلي': 'Night mode',
+    'سلاسة المؤثرات الحركية (120Hz)': '120Hz Smooth Animations',
+    'تفعيل الانتقالات الفائقة وتأثيرات الواجهة السلسة':
+        'Enable high-refresh transitions and smooth effects',
+    'المؤثرات الصوتية والاهتزاز': 'Sound Effects & Haptics',
+    'إصدار صوت وتنبيه لمسي عند مسح الكود أو تسجيل الحضور':
+        'Play audio and vibration upon QR scan or attendance',
+    'اللغة والإعدادات الإقليمية': 'Language & Regional Settings',
+    'لغة واجهة التطبيق': 'App Interface Language',
+    'اللغة العربية': 'Arabic',
+    'المنطقة الزمنية للمنظومة': 'System Timezone',
+    'الإشعارات والتنبيهات الفورية': 'Instant Notifications & Alerts',
+    'الإشعارات الفورية (Push Notifications)': 'Push Notifications',
+    'استلام تنبيهات لحظية عند تسجيل الحضور أو إعلان الدرجات':
+        'Receive real-time alerts for attendance, grades, and news',
+    'اختبار إرسال إشعار تجريبي فوري': 'Send Instant Test Notification',
+    'إطلاق إشعار محلي وتنبيه صوتي للتأكد من وصول التنبيهات لجهازك':
+        'Trigger local alert and sound to verify notification delivery',
+    'النشرة والملخص اليومي': 'Daily Digest & Report',
+    'إرسال ملخص بالعمليات اليومية وحالات الغياب والتقارير':
+        'Send daily operational summary, absences, and reports',
+    'طابعات الإيصالات والعتاد (ESC / POS)': 'Receipt Printers & Hardware (ESC / POS)',
+    'إعدادات طابعة الإيصالات الحرارية': 'Thermal Receipt Printer Settings',
+    'ربط طابعات فواتير السنتر عبر USB / Bluetooth / الشبكة وطباعة إيصال فوري تجريبي':
+        'Connect receipt printers via USB/Bluetooth/Network and print test receipt',
+    'يدعم النظام جميع طابعات الكاشير الحرارية القياسية (80mm و 58mm) مع دعم الباركود وفواتير الملازم والحصص.':
+        'Supports standard thermal POS printers (80mm & 58mm) with barcodes and invoice printing.',
+    'الأمان والخصوصية وحماية البيانات': 'Security, Privacy & Data Protection',
+    'قفل التطبيق بالبصمة / Face ID': 'Biometric App Lock / Face ID',
+    'طلب التحقق الحيوي عند فتح التطبيق لحماية الخصوصية والدرجات':
+        'Require biometric verification on launch to protect privacy',
+    'المصادقة الثنائية (2FA)': 'Two-Factor Authentication (2FA)',
+    'إلزام التحقق بخطوتين عند تسجيل الدخول لحسابات السنتر':
+        'Enforce 2-step verification when logging in to center accounts',
+    'تحسين تجربة الاستخدام واستقرار النظام': 'Improve Experience & Stability',
+    'إرسال تقارير أداء مجهولة لتسريع النظام ومنع الأعطال':
+        'Send anonymous telemetry to boost speed and prevent crashes',
+    'تغيير كلمة المرور للحساب': 'Change Account Password',
+    'تحديث كلمة المرور لحماية الحساب ومزامنتها على السحابة':
+        'Update account password and sync securely with the cloud',
+    'سياسة الخصوصية وشروط الخدمة': 'Privacy Policy & Terms of Service',
+    'الاطلاع على بنود حماية بيانات الطلاب والتراخيص الأكاديمية':
+        'Read student data protection policies and academy terms',
+    'صيانة المنظومة وسرعة الاستجابة': 'System Maintenance & Speed',
+    'فحص الاتصال بالسحابة (Ping Test)': 'Cloud Ping & Latency Test',
+    'التحقق من جودة الاتصال بقاعدة بيانات السنتر السحابية':
+        'Check connection quality to the center cloud database',
+    'تفريغ الذاكرة المؤقتة (Clear Cache)': 'Clear Cache & Temp Storage',
+    'إزالة الصور المؤقتة وملفات التخزين لتسريع التطبيق وحل أي بطء':
+        'Remove cached images and temporary files to restore performance',
+    'المساعدة والدعم الفني المباشر': 'Live Technical Support & Help',
+    'مراسلة الدعم الفني عبر واتساب': 'Chat with Support on WhatsApp',
+    'تواصل مباشر مع فريق الدعم للمساعدة الفورية أو الاستفسارات':
+        'Direct contact with support team for immediate help',
+    'نسخ بيانات التشخيص للدعم الفني': 'Copy Diagnostic Data for Support',
+    'معلومات الحساب والمنظومة': 'Account & System Information',
+    'منظومة بريفيو لإدارة المراكز التعليمية • Brivio LMS':
+        'Brivio LMS • Educational Center Management Platform',
+    'الإصدار 2.5.0 (Build 850) • متصل بالسحابة':
+        'Version 2.5.0 (Build 850) • Cloud Connected',
+    'مستقر ✔️': 'Stable ✔️',
+    'تسجيل الخروج من الحساب': 'Sign Out of Account',
+    'الخروج الآمن والعودة لشاشة تسجيل الدخول':
+        'Safely sign out and return to the login screen',
+    'حذف الحساب نهائياً': 'Permanently Delete Account',
+    'إزالة بيانات الدخول والملف الشخصي نهائياً من النظام':
+        'Remove credentials and user profile permanently from system',
+
+    // Common Actions & Form Fields
+    'تعديل البيانات': 'Edit Profile',
+    'تغيير كلمة المرور': 'Change Password',
+    'تسجيل الخروج': 'Sign Out',
+    'إلغاء': 'Cancel',
+    'حفظ': 'Save',
+    'حفظ التعديلات': 'Save Changes',
+    'تأكيد التغيير': 'Confirm Change',
+    'تأكيد الحذف': 'Confirm Deletion',
+    'تأكيد الحذف النهائي': 'Confirm Permanent Deletion',
+    'إلغاء وتراجع': 'Cancel & Go Back',
+    'رجوع': 'Back',
+    'تحديث': 'Refresh',
+    'بحث': 'Search',
+    'إضافة': 'Add',
+    'تعديل': 'Edit',
+    'حذف': 'Delete',
+    'إغلاق': 'Close',
+    'متصل': 'Connected',
+    'غير متصل': 'Disconnected',
+    'تجربة الآن 🔔': 'Test Now 🔔',
+    'تهيئة واختبار 🖨️': 'Configure & Test 🖨️',
+    'واتساب 💬': 'WhatsApp 💬',
+    'تنظيف 🧹': 'Clean 🧹',
+    'فحص ⚡': 'Check ⚡',
+    'الاسم الكامل': 'Full Name',
+    'أدخل اسمك الكامل': 'Enter your full name',
+    'رقم الهاتف للتواصل': 'Contact Phone Number',
+    'كلمة المرور الجديدة': 'New Password',
+    'تأكيد كلمة المرور الجديدة': 'Confirm New Password',
+    'أعد كتابة كلمة المرور للتأكيد': 'Re-enter password to confirm',
+    'تسجيل الدخول': 'Sign In',
+    'أهلاً بك مجدداً! أدخل بيانات حسابك للمتابعة.':
+        'Welcome back! Enter your credentials to continue.',
+    'التبديل إلى الحسابات المحفوظة 👥': 'Switch to Saved Accounts 👥',
+    'البريد الإلكتروني': 'Email',
+    'كلمة المرور': 'Password',
+    'تذكر الحساب': 'Remember Account',
+    'غير مسجل بريد إلكتروني': 'No email registered',
+    'تعديل البيانات الشخصية': 'Edit Personal Information',
+    'اختر المنطقة الزمنية للمنظومة': 'Select System Time Zone',
+    'هل ترغب في تسجيل الخروج من حسابك الحالي على هذه المنظومة؟':
+        'Do you want to sign out of your current account?',
+    'هل أنت متأكد تماماً من رغبتك في حذف حسابك؟ سيتم إيقاف صلاحيات الدخول وإزالة بياناتك الشخصية وفقاً لسياسة الخصوصية. هذا الإجراء نهائي ولا يمكن التراجع عنه.':
+        'Are you sure you want to permanently delete your account? This action cannot be undone.',
+    'نسخ معلومات الحساب وإصدار التطبيق لتقديمها عند طلب المساعدة':
+        'Copy account info and app version for support assistance',
+    '6 أحرف أو أرقام على الأقل': 'At least 6 characters',
+    'يرجى إدخال الاسم الكامل': 'Please enter your full name',
+    'كلمة المرور يجب ألا تقل عن 6 أحرف': 'Password must be at least 6 characters',
+    'كلمتا المرور غير متطابقتين': 'Passwords do not match',
+    'تم تغيير كلمة المرور بنجاح 🔒': 'Password changed successfully 🔒',
+    'تم تحديث البيانات الشخصية بنجاح ✔️': 'Profile updated successfully ✔️',
+    'تم إرسال إشعار تجريبي بنجاح 🔔': 'Test notification sent successfully 🔔',
+    'تم نسخ تقرير التشخيص إلى الحافظة بنجاح 📋': 'Diagnostic report copied to clipboard 📋',
+    'تم تفعيل القفل الحيوي بالبصمة بنجاح 🔒': 'Biometric lock enabled successfully 🔒',
+    'تم تعطيل القفل بالبصمة': 'Biometric lock disabled',
+    'السنتر التعليمي': 'Educational Center',
+    'توقيت مصر والأردن (GMT+2)': 'Egypt & Jordan Time (GMT+2)',
+    'توقيت مكة المكرمة والقاهرة صيفاً (GMT+3)': 'Makkah & Cairo Summer Time (GMT+3)',
+    'توقيت الإمارات وعُمان (GMT+4)': 'UAE & Oman Time (GMT+4)',
+    'توقيت الجزائر والمغرب وتونس (GMT+1)': 'Algeria, Morocco & Tunisia Time (GMT+1)',
+    'توقيت غرينتش العالمي (UTC+0)': 'Greenwich Mean Time (UTC+0)',
+    'زمن الاستجابة': 'Latency',
+    'متصل ومستقر ⚡': 'Connected & Stable ⚡',
+    'تذكرني': 'Remember me',
+    'نسيت كلمة المرور؟': 'Forgot password?',
+    'تسجيل الدخول السريع عبر QR Code 📷': 'Quick QR Code Login 📷',
+    'صاحب سنتر؟ سجّل سنترك الآن مجاناً 🏢': 'Center Owner? Register Free 🏢',
+    'صيغة البريد الإلكتروني غير صالحة': 'Invalid email format',
+    'يرجى إدخال البريد الإلكتروني': 'Please enter email',
+    'يرجى إدخال كلمة المرور': 'Please enter password',
+    'بيانات الدخول غير صحيحة. يرجى مراجعة البريد وكلمة المرور.':
+        'Invalid login credentials. Please check email and password.',
+    'تعذر الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.':
+        'Cannot connect to server. Please check your connection.',
+    'محاولات دخول كثيرة خاطئة. يرجى الانتظار قليلاً ثم المحاولة.':
+        'Too many failed attempts. Please wait before trying again.',
+    'البريد الإلكتروني غير مؤكد. يرجى تفعيل حسابك أولاً.':
+        'Email not confirmed. Please activate your account first.',
+    'المنظومة الرقمية الشاملة لإدارة المراكز والسناتر التعليمية':
+        'Comprehensive Digital LMS for Educational Centers',
+    'مساحة عمل إدارة السنتر والفروع والخزينة':
+        'Center Admin, Branches & Treasury Workspace',
+    'بوابة المعلم لإدارة الحصص والطلاب والواجبات':
+        'Teacher Portal for Classes, Students & Homework',
+    'بوابة الطالب لمتابعة الدروس والواجبات والمذكرات':
+        'Student Portal for Lessons, Tasks & Booklets',
+    'بوابة ولي الأمر لمتابعة حضور ونتائج الأبناء':
+        'Guardian Portal for Tracking Attendance & Results',
+    'بوابة موظفي الاستقبال والعمليات':
+        'Reception & Operations Staff Portal',
+    'تسجيل الدخول إلى حسابك': 'Sign in to your account',
+    '👨‍💼 الإدارة': '👨‍💼 Admin',
+    '👨‍🏫 المعلم': '👨‍🏫 Teacher',
+    '🎓 الطالب': '🎓 Student',
+    '👨‍👩‍👦 ولي الأمر': '👨‍👩‍👦 Guardian',
+    'أدمن': 'Admin',
+    'تجربة سريعة بحسابات افتراضية:': 'Quick Demo Accounts:',
+    'شروط الخدمة وسياسة الخصوصية وأمان البيانات':
+        'Terms of Service, Privacy Policy & Security',
+  };
+
+  static const Map<String, String> _customEnToAr = {
+    // English Keys -> Arabic Values
+    'Overview': 'نظرة عامة',
+    'Branches': 'الفروع',
+    'Subjects': 'المواد',
+    'Groups': 'المجموعات',
+    'Schedules': 'الجداول',
+    'Students': 'الطلاب',
+    'Parents': 'أولياء الأمور',
+    'Teachers': 'المعلمون',
+    'Staff': 'الموظفون',
+    'Curricula': 'المناهج',
+    'Questions': 'الأسئلة',
+    'Homework': 'الواجبات',
+    'Exams': 'الاختبارات',
+    'Attendance': 'الحضور',
+    'Finance': 'المالية',
+    'Permissions': 'الصلاحيات',
+    'Activity Log': 'سجل العمليات',
+    'Session Recordings': 'تسجيلات الحصص',
+    'Data Import': 'استيراد البيانات',
+    'Settings': 'الإعدادات',
+    'Analytics': 'التحليلات',
+    'Support': 'الدعم الفني',
+    'Reports': 'التقارير',
+    'Home': 'الرئيسية',
+    'Academic Progress': 'التقدم الدراسي',
+    'Attendance Record': 'سجل الحضور',
+    'Payments': 'المدفوعات',
+    'Monthly Report': 'التقرير الشهري',
+    'Notifications': 'الإشعارات',
+    'My Account': 'حسابي',
+    'Account': 'حسابي',
+    'Operations Dashboard': 'لوحة العمليات',
+    'Task Queues': 'طوابير المهام',
+    'Treasury & Finance': 'الخزينة والمالية',
+    'Workspace': 'مساحة العمل',
+    'Lessons': 'الدروس',
+    'Lessons & Curriculum': 'الدروس والمناهج',
+    'Activities': 'الأنشطة',
+    'Activities & Tasks': 'الأنشطة والمهام',
+    'Personal Whiteboards': 'السبورات الشخصية',
+    'Code Playground': 'مختبر البرمجة',
+    'My Groups': 'مجموعاتي',
+    'Smart Whiteboard': 'السبورة الذكية',
+    'Grades & Grading': 'الدرجات والتصحيح',
+    'Profit Settlement': 'تصفية الأرباح',
+    'Booklets & Materials': 'المذكرات والملازم',
+    'Digital Student ID': 'بطاقة الطالب الرقمية',
+    'QR Attendance': 'تسجيل الحضور عبر QR',
+    'Submit Homework': 'تسليم الواجب',
+    'Start Exam': 'بدء الاختبار',
+    'Leave Request': 'طلب إذن غياب',
+    'All': 'الكل',
+    'Account & Profile': 'الحساب والملف',
+    'Appearance & Language': 'المظهر واللغة',
+    'Appearance & Display': 'المظهر والعرض',
+    'Printers & Hardware': 'الطابعات والعتاد',
+    'Security & Privacy': 'الأمان والخصوصية',
+    'Maintenance & Support': 'الصيانة والدعم',
+    'Edit Profile': 'تعديل البيانات',
+    'Change Password': 'تغيير كلمة المرور',
+    'Sign Out': 'تسجيل الخروج',
+    'Cancel': 'إلغاء',
+    'Save': 'حفظ',
+    'Save Changes': 'حفظ التعديلات',
+    'Confirm Change': 'تأكيد التغيير',
+    'Confirm Deletion': 'تأكيد الحذف',
+    'Confirm Permanent Deletion': 'تأكيد الحذف النهائي',
+    'Back': 'رجوع',
+    'Refresh': 'تحديث',
+    'Search': 'بحث',
+    'Add': 'إضافة',
+    'Edit': 'تعديل',
+    'Delete': 'حذف',
+    'Close': 'إغلاق',
+    'Connected': 'متصل',
+    'Disconnected': 'غير متصل',
+    'Sign In': 'تسجيل الدخول',
   };
 }
 

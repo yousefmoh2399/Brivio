@@ -17,6 +17,7 @@ import 'tabs/classes_tab.dart';
 import 'tabs/workspace_tab.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/account_tab.dart';
+import '../../core/localization/app_localizations.dart';
 
 class TeacherDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -332,27 +333,27 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                               color: AppColors.teacherRole,
                             ),
                             destinations: [
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.home_outlined),
-                                selectedIcon: Icon(Icons.home_rounded),
-                                label: Text('الرئيسية'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.home_outlined),
+                                selectedIcon: const Icon(Icons.home_rounded),
+                                label: Text(context.tr('الرئيسية')),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.groups_2_outlined),
-                                selectedIcon: Icon(Icons.groups_2_rounded),
-                                label: Text('المجموعات'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.groups_2_outlined),
+                                selectedIcon: const Icon(Icons.groups_2_rounded),
+                                label: Text(context.tr('المجموعات')),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.dashboard_customize_outlined),
-                                selectedIcon: Icon(
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.dashboard_customize_outlined),
+                                selectedIcon: const Icon(
                                   Icons.dashboard_customize_rounded,
                                 ),
-                                label: Text('مساحة العمل'),
+                                label: Text(context.tr('مساحة العمل')),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.insights_outlined),
-                                selectedIcon: Icon(Icons.insights_rounded),
-                                label: Text('التقارير'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.insights_outlined),
+                                selectedIcon: const Icon(Icons.insights_rounded),
+                                label: Text(context.tr('التقارير')),
                               ),
                               NavigationRailDestination(
                                 icon: Badge(
@@ -366,12 +367,12 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                                 ),
                                 selectedIcon:
                                     const Icon(Icons.notifications_rounded),
-                                label: const Text('الإشعارات'),
+                                label: Text(context.tr('الإشعارات')),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.person_outline_rounded),
-                                selectedIcon: Icon(Icons.person_rounded),
-                                label: Text('حسابي'),
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.person_outline_rounded),
+                                selectedIcon: const Icon(Icons.person_rounded),
+                                label: Text(context.tr('حسابي')),
                               ),
                             ],
                           ),
@@ -425,41 +426,41 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                       setState(() => _selectedIndex = i),
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: [
-                    const NavigationDestination(
-                      icon: Icon(Icons.home_outlined, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.home_outlined, size: 21),
+                      selectedIcon: const Icon(
                         Icons.home_rounded,
                         color: AppColors.teacherRole,
                         size: 21,
                       ),
-                      label: 'الرئيسية',
+                      label: context.tr('الرئيسية'),
                     ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.groups_2_outlined, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.groups_2_outlined, size: 21),
+                      selectedIcon: const Icon(
                         Icons.groups_2_rounded,
                         color: AppColors.teacherRole,
                         size: 21,
                       ),
-                      label: 'المجموعات',
+                      label: context.tr('المجموعات'),
                     ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.dashboard_customize_outlined, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.dashboard_customize_outlined, size: 21),
+                      selectedIcon: const Icon(
                         Icons.dashboard_customize_rounded,
                         color: AppColors.teacherRole,
                         size: 21,
                       ),
-                      label: 'مساحة العمل',
+                      label: context.tr('مساحة العمل'),
                     ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.insights_outlined, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.insights_outlined, size: 21),
+                      selectedIcon: const Icon(
                         Icons.insights_rounded,
                         color: AppColors.teacherRole,
                         size: 21,
                       ),
-                      label: 'التقارير',
+                      label: context.tr('التقارير'),
                     ),
                     NavigationDestination(
                       icon: Badge(
@@ -472,16 +473,16 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                         color: AppColors.teacherRole,
                         size: 21,
                       ),
-                      label: 'الإشعارات',
+                      label: context.tr('الإشعارات'),
                     ),
-                    const NavigationDestination(
-                      icon: Icon(Icons.person_outline_rounded, size: 21),
-                      selectedIcon: Icon(
+                    NavigationDestination(
+                      icon: const Icon(Icons.person_outline_rounded, size: 21),
+                      selectedIcon: const Icon(
                         Icons.person_rounded,
                         color: AppColors.teacherRole,
                         size: 21,
                       ),
-                      label: 'حسابي',
+                      label: context.tr('حسابي'),
                     ),
                   ],
                 ),

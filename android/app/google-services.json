@@ -7,9 +7,28 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:918187336558:android:8cc236bde2f11757be177f",
+        "mobilesdk_app_id": "1:918187336558:android:3d9f0a1fab31f2e4be177f",
         "android_client_info": {
           "package_name": "com.brivio.center"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxBlLHCMks3RfKjuzNCjPSGPEhuj-BcB0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:918187336558:android:8cc236bde2f11757be177f",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
         }
       },
       "oauth_client": [],

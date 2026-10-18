@@ -5,6 +5,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../localization/app_locale_controller.dart';
+import '../localization/app_localizations.dart';
 import '../notifications/push_notification_service.dart';
 import '../services/settings_service.dart';
 import '../services/whatsapp_service.dart';
@@ -43,9 +44,9 @@ class AppSettingsScreen extends StatelessWidget {
       return Scaffold(
         backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
         appBar: AppBar(
-          title: const Text(
-            'إعدادات المنظومة والتطبيق',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          title: Text(
+            context.tr('إعدادات المنظومة والتطبيق'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           centerTitle: true,
           elevation: 0,
@@ -53,7 +54,7 @@ class AppSettingsScreen extends StatelessWidget {
           backgroundColor: (isDark ? AppColors.darkSurface : AppColors.lightSurface).withValues(alpha: 0.95),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: 'رجوع',
+            tooltip: context.tr('رجوع'),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -61,13 +62,13 @@ class AppSettingsScreen extends StatelessWidget {
       );
     }
 
-    return const PortalPageShell(
-      title: 'إعدادات المنظومة والتطبيق',
-      subtitle: 'تخصيص المظهر العام، لغة العرض، الإشعارات، طابعات الفواتير، والأمان المتقدم.',
+    return PortalPageShell(
+      title: context.tr('إعدادات المنظومة والتطبيق'),
+      subtitle: context.tr('تخصيص المظهر العام، لغة العرض، الإشعارات، طابعات الفواتير، والأمان المتقدم.'),
       icon: Icons.settings_suggest_rounded,
       accentColor: AppColors.primary,
-      eyebrow: 'الإعدادات العامة',
-      child: Material(
+      eyebrow: context.tr('الإعدادات العامة'),
+      child: const Material(
         type: MaterialType.transparency,
         child: AppSettingsPanel(),
       ),
@@ -397,10 +398,10 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
-              children: const [
-                Icon(Icons.person_outline_rounded, color: AppColors.primary),
-                SizedBox(width: 8),
-                Text('تعديل البيانات الشخصية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              children: [
+                const Icon(Icons.person_outline_rounded, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(context.tr('تعديل البيانات الشخصية'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             content: SingleChildScrollView(
@@ -408,18 +409,18 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('الاسم الكامل', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text(context.tr('الاسم الكامل'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.badge_outlined, size: 20),
-                      hintText: 'أدخل اسمك الكامل',
+                      hintText: context.tr('أدخل اسمك الكامل'),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text('رقم الهاتف للتواصل', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text(context.tr('رقم الهاتف للتواصل'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: phoneController,
@@ -436,7 +437,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             actions: [
               TextButton(
                 onPressed: isSaving ? null : () => Navigator.pop(ctx),
-                child: const Text('إلغاء'),
+                child: Text(context.tr('إلغاء')),
               ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
@@ -491,7 +492,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 icon: isSaving
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.check_rounded, size: 18),
-                label: const Text('حفظ التعديلات'),
+                label: Text(context.tr('حفظ التعديلات')),
               ),
             ],
           );
@@ -515,10 +516,10 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
-              children: const [
-                Icon(Icons.lock_reset_rounded, color: AppColors.primary),
-                SizedBox(width: 8),
-                Text('تغيير كلمة المرور', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              children: [
+                const Icon(Icons.lock_reset_rounded, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(context.tr('تغيير كلمة المرور'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             content: SingleChildScrollView(
@@ -526,7 +527,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('كلمة المرور الجديدة', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text(context.tr('كلمة المرور الجديدة'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: passController,
@@ -537,19 +538,19 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                         icon: Icon(obscurePass ? Icons.visibility_off : Icons.visibility, size: 20),
                         onPressed: () => setDialogState(() => obscurePass = !obscurePass),
                       ),
-                      hintText: '6 أحرف أو أرقام على الأقل',
+                      hintText: context.tr('6 أحرف أو أرقام على الأقل'),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text('تأكيد كلمة المرور الجديدة', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text(context.tr('تأكيد كلمة المرور الجديدة'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: confirmController,
                     obscureText: obscurePass,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                      hintText: 'أعد كتابة كلمة المرور للتأكيد',
+                      hintText: context.tr('أعد كتابة كلمة المرور للتأكيد'),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
@@ -559,7 +560,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             actions: [
               TextButton(
                 onPressed: isSaving ? null : () => Navigator.pop(ctx),
-                child: const Text('إلغاء'),
+                child: Text(context.tr('إلغاء')),
               ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
@@ -573,13 +574,13 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                         final confirm = confirmController.text;
                         if (pass.length < 6) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('كلمة المرور يجب ألا تقل عن 6 أحرف'), backgroundColor: Colors.red),
+                            SnackBar(content: Text(context.tr('كلمة المرور يجب ألا تقل عن 6 أحرف')), backgroundColor: Colors.red),
                           );
                           return;
                         }
                         if (pass != confirm) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('كلمتا المرور غير متطابقتين'), backgroundColor: Colors.red),
+                            SnackBar(content: Text(context.tr('كلمتا المرور غير متطابقتين')), backgroundColor: Colors.red),
                           );
                           return;
                         }
@@ -589,7 +590,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           await client.auth.updateUser(UserAttributes(password: pass));
                           if (mounted) {
                             Navigator.pop(ctx);
-                            _showSnackBar('تم تغيير كلمة المرور بنجاح 🔒');
+                            _showSnackBar(context.tr('تم تغيير كلمة المرور بنجاح 🔒'));
                           }
                         } catch (e) {
                           setDialogState(() => isSaving = false);
@@ -603,7 +604,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 icon: isSaving
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.check_rounded, size: 18),
-                label: const Text('تأكيد التغيير'),
+                label: Text(context.tr('تأكيد التغيير')),
               ),
             ],
           );
@@ -614,12 +615,12 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
 
   String _formatRole(String? role) {
     return switch (role?.toLowerCase()) {
-      'admin' || 'superadmin' => 'مدير النظام والسنتر 👑',
-      'teacher' => 'معلم معتمد 👨‍🏫',
-      'student' => 'طالب 🎓',
-      'parent' => 'ولي أمر 👨‍👩‍👦',
-      'staff' => 'موظف استقبال وإدارة 🏛️',
-      _ => 'مستخدم بريفيو',
+      'admin' || 'superadmin' => context.tr('مدير النظام والسنتر 👑'),
+      'teacher' => context.tr('معلم معتمد 👨‍🏫'),
+      'student' => context.tr('طالب 🎓'),
+      'parent' => context.tr('ولي أمر 👨‍👩‍👦'),
+      'staff' => context.tr('موظف استقبال وإدارة 🏛️'),
+      _ => context.tr('مستخدم بريفيو'),
     };
   }
 
@@ -637,12 +638,13 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
 
   void _pickTimeZone(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
     final timezones = [
-      {'code': 'UTC+02:00', 'label': 'توقيت مصر والأردن (GMT+2)'},
-      {'code': 'UTC+03:00', 'label': 'توقيت مكة المكرمة والقاهرة صيفاً (GMT+3)'},
-      {'code': 'UTC+04:00', 'label': 'توقيت الإمارات وعُمان (GMT+4)'},
-      {'code': 'UTC+01:00', 'label': 'توقيت الجزائر والمغرب وتونس (GMT+1)'},
-      {'code': 'UTC+00:00', 'label': 'توقيت غرينتش العالمي (UTC+0)'},
+      {'code': 'UTC+02:00', 'label': context.tr('توقيت مصر والأردن (GMT+2)')},
+      {'code': 'UTC+03:00', 'label': context.tr('توقيت مكة المكرمة والقاهرة صيفاً (GMT+3)')},
+      {'code': 'UTC+04:00', 'label': context.tr('توقيت الإمارات وعُمان (GMT+4)')},
+      {'code': 'UTC+01:00', 'label': context.tr('توقيت الجزائر والمغرب وتونس (GMT+1)')},
+      {'code': 'UTC+00:00', 'label': context.tr('توقيت غرينتش العالمي (UTC+0)')},
     ];
 
     showModalBottomSheet(
@@ -653,7 +655,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       ),
       builder: (ctx) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -661,11 +663,11 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Text(
-                      'اختر المنطقة الزمنية للمنظومة',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                      context.tr('اختر المنطقة الزمنية للمنظومة'),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
                     ),
                   ),
                   const Divider(),
@@ -678,7 +680,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           : null,
                       onTap: () {
                         _updateSetting<String>(
-                          'time_zone',
+                           'time_zone',
                           tz['code']!,
                           (v) => _timeZone = v,
                         );
@@ -701,20 +703,20 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
-          children: const [
-            Icon(Icons.logout_rounded, color: Colors.deepOrange),
-            SizedBox(width: 8),
-            Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.bold)),
+          children: [
+            const Icon(Icons.logout_rounded, color: Colors.deepOrange),
+            const SizedBox(width: 8),
+            Text(context.tr('تسجيل الخروج'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
-        content: const Text(
-          'هل ترغب في تسجيل الخروج من حسابك الحالي على هذه المنظومة؟',
-          style: TextStyle(fontSize: 14),
+        content: Text(
+          context.tr('هل ترغب في تسجيل الخروج من حسابك الحالي على هذه المنظومة؟'),
+          style: const TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
+            child: Text(context.tr('إلغاء')),
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
@@ -726,7 +728,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
               }
             },
             icon: const Icon(Icons.logout_rounded, size: 18),
-            label: const Text('تسجيل الخروج'),
+            label: Text(context.tr('تسجيل الخروج')),
           ),
         ],
       ),
@@ -739,23 +741,23 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
-          children: const [
-            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
-            SizedBox(width: 8),
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            const SizedBox(width: 8),
             Text(
-              'حذف الحساب نهائياً',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+              context.tr('حذف الحساب نهائياً'),
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
             ),
           ],
         ),
-        content: const Text(
-          'هل أنت متأكد تماماً من رغبتك في حذف حسابك؟ سيتم إيقاف صلاحيات الدخول وإزالة بياناتك الشخصية وفقاً لسياسة الخصوصية. هذا الإجراء نهائي ولا يمكن التراجع عنه.',
-          style: TextStyle(fontSize: 13.5, height: 1.5),
+        content: Text(
+          context.tr('هل أنت متأكد تماماً من رغبتك في حذف حسابك؟ سيتم إيقاف صلاحيات الدخول وإزالة بياناتك الشخصية وفقاً لسياسة الخصوصية. هذا الإجراء نهائي ولا يمكن التراجع عنه.'),
+          style: const TextStyle(fontSize: 13.5, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء وتراجع'),
+            child: Text(context.tr('إلغاء وتراجع')),
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -781,7 +783,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
               }
             },
             icon: const Icon(Icons.delete_forever_rounded, size: 18),
-            label: const Text('تأكيد الحذف النهائي'),
+            label: Text(context.tr('تأكيد الحذف النهائي')),
           ),
         ],
       ),
@@ -806,8 +808,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
     return ListenableBuilder(
       listenable: settingsService,
       builder: (context, _) {
+        final isAr = settingsService.language == AppLanguage.arabic;
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 880),
@@ -840,13 +843,13 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'نمط العرض (السمة)',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              Text(
+                                context.tr('نمط العرض (السمة)'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'اختر بين المظهر الفاتح المناسب للقاعات المضيئة أو الداكن المريح للعين.',
+                                context.tr('اختر بين المظهر الفاتح المناسب للقاعات المضيئة أو الداكن المريح للعين.'),
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   color: isDark ? Colors.white70 : Colors.black54,
@@ -934,9 +937,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'لغة واجهة التطبيق',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              Text(
+                                context.tr('لغة واجهة التطبيق'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                               ),
                               const SizedBox(height: 12),
                               Row(
@@ -968,7 +971,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           icon: Icons.schedule_rounded,
                           iconColor: Colors.blue,
                           title: 'المنطقة الزمنية للمنظومة',
-                          subtitle: 'التوقيت المعتمد لحساب الحصص والمواعيد: $_timeZone',
+                          subtitle: '${context.tr('التوقيت المعتمد لحساب الحصص والمواعيد')}: $_timeZone',
                           trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                           onTap: () => _pickTimeZone(context),
                         ),
@@ -1016,9 +1019,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                               color: Colors.amber.shade700.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              'تجربة الآن 🔔',
-                              style: TextStyle(
+                            child: Text(
+                              context.tr('تجربة الآن 🔔'),
+                              style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.orange,
@@ -1064,9 +1067,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                               color: Colors.teal.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              'تهيئة واختبار 🖨️',
-                              style: TextStyle(
+                            child: Text(
+                              context.tr('تهيئة واختبار 🖨️'),
+                              style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.teal,
@@ -1084,7 +1087,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'يدعم النظام جميع طابعات الكاشير الحرارية القياسية (80mm و 58mm) مع دعم الباركود وفواتير الملازم والحصص.',
+                                  context.tr('يدعم النظام جميع طابعات الكاشير الحرارية القياسية (80mm و 58mm) مع دعم الباركود وفواتير الملازم والحصص.'),
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     color: isDark ? Colors.white60 : Colors.black54,
@@ -1223,8 +1226,8 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           iconColor: Colors.blue,
                           title: 'فحص الاتصال بالسحابة (Ping Test)',
                           subtitle: _lastPingMs != null
-                              ? 'زمن الاستجابة: $_lastPingMs مللي ثانية • متصل ومستقر ⚡'
-                              : 'التحقق من جودة الاتصال بقاعدة بيانات السنتر السحابية',
+                              ? '${context.tr('زمن الاستجابة')}: $_lastPingMs ms • ${context.tr('متصل ومستقر ⚡')}'
+                              : context.tr('التحقق من جودة الاتصال بقاعدة بيانات السنتر السحابية'),
                           trailing: _isTestingPing
                               ? const SizedBox(
                                   width: 20,
@@ -1237,7 +1240,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
-                                  child: const Text('فحص ⚡', style: TextStyle(fontSize: 12)),
+                                  child: Text(context.tr('فحص ⚡'), style: const TextStyle(fontSize: 12)),
                                 ),
                           onTap: _testCloudPing,
                         ),
@@ -1255,18 +1258,18 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                 child: const Icon(Icons.storage_rounded, color: Colors.cyan, size: 22),
                               ),
                               const SizedBox(width: 14),
-                              const Expanded(
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'تفريغ الذاكرة المؤقتة (Clear Cache)',
-                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                      context.tr('تفريغ الذاكرة المؤقتة (Clear Cache)'),
+                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                                     ),
-                                    SizedBox(height: 3),
+                                    const SizedBox(height: 3),
                                     Text(
-                                      'إزالة الصور المؤقتة وملفات التخزين لتسريع التطبيق وحل أي بطء',
-                                      style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                                      context.tr('إزالة الصور المؤقتة وملفات التخزين لتسريع التطبيق وحل أي بطء'),
+                                      style: const TextStyle(fontSize: 11.5, color: Colors.grey),
                                     ),
                                   ],
                                 ),
@@ -1286,7 +1289,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                       ),
-                                      child: const Text('تنظيف 🧹', style: TextStyle(fontSize: 12)),
+                                      child: Text(context.tr('تنظيف 🧹'), style: const TextStyle(fontSize: 12)),
                                     ),
                             ],
                           ),
@@ -1313,9 +1316,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                               color: Colors.green.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              'واتساب 💬',
-                              style: TextStyle(
+                            child: Text(
+                              context.tr('واتساب 💬'),
+                              style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green,
@@ -1367,16 +1370,16 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'منظومة بريفيو لإدارة المراكز التعليمية • Brivio LMS',
-                                      style: TextStyle(
+                                    Text(
+                                      context.tr('منظومة بريفيو لإدارة المراكز التعليمية • Brivio LMS'),
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14.5,
                                       ),
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      'الإصدار 2.5.0 (Build 850) • متصل بالسحابة',
+                                      context.tr('الإصدار 2.5.0 (Build 850) • متصل بالسحابة'),
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: isDark ? Colors.white60 : Colors.black54,
@@ -1391,9 +1394,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                                   color: AppColors.success.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Text(
-                                  'مستقر ✔️',
-                                  style: TextStyle(
+                                child: Text(
+                                  context.tr('مستقر ✔️'),
+                                  style: const TextStyle(
                                     color: AppColors.success,
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.bold,
@@ -1486,7 +1489,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    cat.label,
+                    context.tr(cat.label),
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -1585,7 +1588,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                _lastPingMs != null ? '$_lastPingMs ms' : 'متصل',
+                                _lastPingMs != null ? '$_lastPingMs ms' : context.tr('متصل'),
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -1601,7 +1604,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _userEmail ?? 'غير مسجل بريد إلكتروني',
+                      _userEmail ?? context.tr('غير مسجل بريد إلكتروني'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1661,9 +1664,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                   ),
                   icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text(
-                    'تعديل البيانات',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  label: Text(
+                    context.tr('تعديل البيانات'),
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -1679,9 +1682,9 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     ),
                   ),
                   icon: const Icon(Icons.lock_reset_rounded, size: 16),
-                  label: const Text(
-                    'تغيير كلمة المرور',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  label: Text(
+                    context.tr('تغيير كلمة المرور'),
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -1725,7 +1728,7 @@ class _SettingsGroup extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              title,
+              context.tr(title),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 15.5,
@@ -1797,7 +1800,7 @@ class _ThemeSelectCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              label,
+              context.tr(label),
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 13,
@@ -1805,7 +1808,7 @@ class _ThemeSelectCard extends StatelessWidget {
               ),
             ),
             Text(
-              subtitle,
+              context.tr(subtitle),
               style: TextStyle(
                 fontSize: 10.5,
                 color: isDark ? Colors.white54 : Colors.black45,
@@ -1915,7 +1918,7 @@ class _SettingsSwitchTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  context.tr(title),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
@@ -1923,7 +1926,7 @@ class _SettingsSwitchTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  subtitle,
+                  context.tr(subtitle),
                   style: TextStyle(
                     fontSize: 11.5,
                     color: isDark ? Colors.white60 : Colors.black54,
@@ -1985,7 +1988,7 @@ class _SettingsActionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    context.tr(title),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -1993,7 +1996,7 @@ class _SettingsActionTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    subtitle,
+                    context.tr(subtitle),
                     style: TextStyle(
                       fontSize: 11.5,
                       color: isDark ? Colors.white60 : Colors.black54,
