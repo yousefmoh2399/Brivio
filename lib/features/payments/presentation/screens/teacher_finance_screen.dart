@@ -84,6 +84,12 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     return Container(
       color: Colors.transparent,
       child: PortalStateView(
@@ -160,13 +166,13 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                                 Text(
                                   group.groupName,
                                   style: AppTypography.titleMedium(
-                                    AppColors.darkTextPrimary,
+                                    textPrimary,
                                   ),
                                 ),
                                 Text(
                                   '${group.subjectName} • ${group.paidStudents}/${group.totalStudents} مسدد • المتبقي: ${_money(group.remainingAmountMinor, group.currency)}',
                                   style: AppTypography.bodySmall(
-                                    AppColors.darkTextSecondary,
+                                    textSecondary,
                                   ),
                                 ),
                               ],
@@ -181,9 +187,9 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                                 : ChipStatus.warning,
                           ),
                           const SizedBox(width: 8),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right,
-                            color: AppColors.darkTextSecondary,
+                            color: textSecondary,
                           ),
                         ],
                       ),

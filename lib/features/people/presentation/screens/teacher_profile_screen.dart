@@ -57,6 +57,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
     final user = widget.authViewModel.currentUser;
     final bootstrap = widget.authViewModel.bootstrap;
 
@@ -68,7 +73,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
           children: [
             FadeInSlide(
               child: GlassCard(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -81,7 +86,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                         role: 'teacher',
                         userId: user?.id,
                         userEmail: user?.email,
-                        radius: 48,
+                        radius: 46,
                         onAvatarChanged: (newUrl) {
                           setState(() {
                             _avatarController.text = newUrl ?? '';
@@ -107,14 +112,15 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                             },
                           );
                         },
-                        icon: const Icon(Icons.photo_camera_rounded, size: 18),
+                        icon: const Icon(Icons.photo_camera_rounded, size: 17),
                         label: const Text('تغيير صورة الحساب'),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _nameController,
+                        style: TextStyle(color: textPrimary, fontSize: 13.5),
                         decoration: const InputDecoration(
-                          labelText: 'الاسم الكامل',
+                          labelText: 'الاسم الكامل للمعلم',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
                         validator: (value) => (value?.trim().isEmpty ?? true)
@@ -124,14 +130,23 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _phoneController,
+                        style: TextStyle(color: textPrimary, fontSize: 13.5),
                         keyboardType: TextInputType.phone,
                         decoration: const InputDecoration(
-                          labelText: 'رقم الهاتف',
+                          labelText: 'رقم الهاتف للتواصل',
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
                       ),
                       const SizedBox(height: 16),
                       FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.teacherRole,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                         onPressed: _isSaving ? null : _save,
                         icon: _isSaving
                             ? const SizedBox(
@@ -139,10 +154,14 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
+                                  color: Colors.white,
                                 ),
                               )
-                            : const Icon(Icons.save),
-                        label: const Text('Save profile'),
+                            : const Icon(Icons.check_circle_rounded, size: 18),
+                        label: const Text(
+                          'حفظ تعديلات الملف الشخصي',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ),
                     ],
                   ),
@@ -158,29 +177,26 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Account Specifications',
-                      style: AppTypography.titleLarge(
-                        AppColors.darkTextPrimary,
+                      'بيانات واعتماد الحساب الأكاديمي',
+                      style: AppTypography.titleLarge(textPrimary).copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 16),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const CircleIcon(
-                        icon: Icons.badge,
-                        color: AppColors.info,
+                        icon: Icons.badge_rounded,
+                        color: AppColors.teacherRole,
                       ),
                       title: Text(
-                        'Teacher Domain ID',
-                        style: AppTypography.titleMedium(
-                          AppColors.darkTextPrimary,
-                        ),
+                        'معرف حساب المعلم (Domain ID)',
+                        style: AppTypography.titleMedium(textPrimary),
                       ),
                       subtitle: Text(
-                        bootstrap?.teacherId ?? 'Not provisioned',
-                        style: AppTypography.bodySmall(
-                          AppColors.darkTextSecondary,
-                        ),
+                        bootstrap?.teacherId ?? 'غير مربوط بملف معلم',
+                        style: AppTypography.bodySmall(textSecondary),
                       ),
                     ),
                     ListTile(
@@ -190,58 +206,52 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                         color: AppColors.warning,
                       ),
                       title: Text(
-                        'Email',
-                        style: AppTypography.titleMedium(
-                          AppColors.darkTextPrimary,
-                        ),
+                        'البريد الإلكتروني المسجل',
+                        style: AppTypography.titleMedium(textPrimary),
                       ),
                       subtitle: Text(
                         user?.email ?? 'teacher@academy.com',
-                        style: AppTypography.bodySmall(
-                          AppColors.darkTextSecondary,
-                        ),
+                        style: AppTypography.bodySmall(textSecondary),
                       ),
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const CircleIcon(
-                        icon: Icons.security,
+                        icon: Icons.security_rounded,
                         color: AppColors.success,
                       ),
                       title: Text(
-                        'Effective Permissions',
-                        style: AppTypography.titleMedium(
-                          AppColors.darkTextPrimary,
-                        ),
+                        'صلاحيات النظام المفعلة',
+                        style: AppTypography.titleMedium(textPrimary),
                       ),
                       subtitle: Text(
-                        '${bootstrap?.effectivePermissions.length ?? 0} active system permissions',
-                        style: AppTypography.bodySmall(
-                          AppColors.darkTextSecondary,
-                        ),
+                        '${bootstrap?.effectivePermissions.length ?? 0} صلاحيات أكاديمية وإدارية نشطة',
+                        style: AppTypography.bodySmall(textSecondary),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             FadeInSlide(
               delay: const Duration(milliseconds: 200),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(56),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: BorderSide(
+                    color: AppColors.error.withValues(alpha: 0.5),
+                  ),
+                  minimumSize: const Size.fromHeight(50),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 onPressed: () => widget.authViewModel.signOut(),
-                icon: const Icon(Icons.logout),
-                label: Text(
-                  'Sign Out',
-                  style: AppTypography.labelLarge(Colors.white),
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: const Text(
+                  'تسجيل الخروج من الحساب',
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ),
