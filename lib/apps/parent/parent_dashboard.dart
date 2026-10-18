@@ -39,6 +39,7 @@ import 'tabs/parent_attendance_tab.dart';
 import 'tabs/parent_payments_tab.dart';
 import 'tabs/parent_monthly_report_tab.dart';
 import 'tabs/parent_notifications_tab.dart';
+import 'tabs/parent_helpdesk_tab.dart';
 
 class ParentDashboard extends StatefulWidget {
   final AuthViewModel authViewModel;
@@ -634,27 +635,17 @@ class _ParentDashboardState extends State<ParentDashboard> {
               'يرجى إدخال كود الطالب المسلّم لك من إدارة السنتر لربطه بحسابك ومتابعة دراسته لحظياً.',
           emptyIcon: Icons.family_restroom,
           onRetry: _openLinkChildScreen,
-          child: _selectedIndex == 6
+          child: _selectedIndex == 8
               ? Column(
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                       child: _buildHeader(),
                     ),
-                    const Expanded(child: ParentHelpdeskScreen()),
+                    const Expanded(child: AppSettingsPanel()),
                   ],
                 )
-              : _selectedIndex == 8
-                  ? Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                          child: _buildHeader(),
-                        ),
-                        const Expanded(child: AppSettingsPanel()),
-                      ],
-                    )
-                  : LayoutBuilder(
+              : LayoutBuilder(
                       builder: (context, constraints) {
                         final isMobile = constraints.maxWidth < 600;
                         return ListView(
@@ -791,7 +782,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       3 => _buildPaymentsPage(),
       4 => _buildMonthlyReportPage(),
       5 => _buildNotificationsPage(),
-      6 => const ParentHelpdeskScreen(),
+      6 => _buildHelpdeskPage(),
       7 => _buildAccountPage(),
       8 => const AppSettingsPanel(),
       _ => _buildOverviewPage(),
@@ -1080,6 +1071,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
       onMarkAllRead: _markAllNotificationsRead,
       onNotificationTap: _openNotification,
       onMarkRead: _markNotificationRead,
+    );
+  }
+
+  Widget _buildHelpdeskPage() {
+    return ParentHelpdeskTab(
+      child: _selectedChild,
+      childGroups: _childGroups,
     );
   }
 
