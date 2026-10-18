@@ -1772,7 +1772,9 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                   ],
                                                 ),
                                                 const SizedBox(height: 6),
-                                                Row(
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 4,
                                                   children: [
                                                     Container(
                                                       padding: const EdgeInsets.symmetric(
@@ -1792,7 +1794,6 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                                         ),
                                                       ),
                                                     ),
-                                                    const SizedBox(width: 8),
                                                     Container(
                                                       padding: const EdgeInsets.symmetric(
                                                         horizontal: 8,

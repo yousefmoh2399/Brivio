@@ -1243,10 +1243,15 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 12),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          alignment: WrapAlignment.spaceBetween,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
                                           children: [
-                                            Row(
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 4,
                                               children: [
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(
@@ -1266,7 +1271,6 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                                const SizedBox(width: 8),
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(
                                                     horizontal: 8,

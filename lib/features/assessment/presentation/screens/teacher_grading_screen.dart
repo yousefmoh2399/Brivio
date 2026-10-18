@@ -8,8 +8,15 @@ import 'student_submissions_screen.dart';
 
 class TeacherGradingScreen extends StatefulWidget {
   final String teacherId;
+  final List<Map<String, dynamic>>? initialSubmissions;
+  final List<Map<String, dynamic>>? initialResetRequests;
 
-  const TeacherGradingScreen({super.key, required this.teacherId});
+  const TeacherGradingScreen({
+    super.key,
+    required this.teacherId,
+    this.initialSubmissions,
+    this.initialResetRequests,
+  });
 
   @override
   State<TeacherGradingScreen> createState() => _TeacherGradingScreenState();
@@ -24,7 +31,16 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
   @override
   void initState() {
     super.initState();
-    _loadGradingQueue();
+    if (widget.initialSubmissions != null || widget.initialResetRequests != null) {
+      _homeworkSubmissions = widget.initialSubmissions != null
+          ? List<Map<String, dynamic>>.from(widget.initialSubmissions!)
+          : [];
+      _resetRequests = widget.initialResetRequests != null
+          ? List<Map<String, dynamic>>.from(widget.initialResetRequests!)
+          : [];
+    } else {
+      _loadGradingQueue();
+    }
   }
 
   Future<void> _loadGradingQueue() async {
@@ -155,16 +171,46 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                 ),
               ],
             )
-          : _homeworkSubmissions.isEmpty
+          : (_homeworkSubmissions.isEmpty && _resetRequests.isEmpty)
           ? CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
-                    child: Text(
-                      'لا توجد تسليمات معلقة تتطلب تصحيحاً يدوياً حالياً.',
-                      style: AppTypography.bodyMedium(subtitleColor),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.fact_check_outlined,
+                              size: 48,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'لا توجد تسليمات معلقة للتصحيح حالياً',
+                            style: AppTypography.titleMedium(textColor).copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'تم رصد جميع درجات الطلاب والواجبات بنجاح. ستظهر هنا أي تسليمات أو طلبات إعادة فور وصولها. ✨',
+                            style: AppTypography.bodySmall(subtitleColor),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -173,20 +219,39 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
           : CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 if (_resetRequests.isNotEmpty) ...[
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16.0,
-                      vertical: 8.0,
+                      vertical: 6.0,
                     ),
                     sliver: SliverToBoxAdapter(
-                      child: Text(
-                        'طلبات إعادة الامتحان المعلقة',
-                        style: AppTypography.titleMedium(textColor).copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.error,
-                        ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              color: AppColors.error,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'طلبات إعادة الامتحان المعلقة (${_resetRequests.length})',
+                              style: AppTypography.titleMedium(textColor).copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -195,176 +260,337 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((ctx, i) {
                         final req = _resetRequests[i];
-                        final studentName =
-                            req['students']?['profiles']?['full_name'] ??
-                            'طالب';
-                        final examTitle = req['exams']?['title'] ?? 'امتحان';
-                        return Card(
-                          color: isDark
-                              ? AppColors.darkSurface
-                              : AppColors.lightSurface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: const BorderSide(color: AppColors.error),
-                          ),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: const Icon(
-                              Icons.warning_amber_rounded,
-                              color: AppColors.error,
-                            ),
-                            title: Text(
-                              'طلب الطالب $studentName إعادة امتحان: $examTitle',
-                              style: TextStyle(
-                                color: textColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'سبب الطلب: ${req["reason"] ?? "لم يتم تحديد سبب"}',
-                              style: TextStyle(color: subtitleColor),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'رفض',
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: Colors.grey,
-                                  ),
-                                  onPressed: () =>
-                                      _handleResetRequest(req, false),
-                                ),
-                                IconButton(
-                                  tooltip: 'قبول',
-                                  icon: const Icon(
-                                    Icons.check,
-                                    color: AppColors.success,
-                                  ),
-                                  onPressed: () =>
-                                      _handleResetRequest(req, true),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
+                        return _buildResetRequestCard(req, isDark, textColor, subtitleColor);
                       }, childCount: _resetRequests.length),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                ],
+                if (_homeworkSubmissions.isNotEmpty) ...[
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16.0,
-                      vertical: 8.0,
+                      vertical: 6.0,
                     ),
                     sliver: SliverToBoxAdapter(
-                      child: Text(
-                        'تسليمات الطلاب للتصحيح والرصد',
-                        style: AppTypography.titleMedium(
-                          textColor,
-                        ).copyWith(fontWeight: FontWeight.bold),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.assignment_turned_in_rounded,
+                              color: AppColors.primary,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'تسليمات الطلاب للتصحيح والرصد (${_homeworkSubmissions.length})',
+                              style: AppTypography.titleMedium(
+                                textColor,
+                              ).copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 4.0, 16.0, 80.0),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((ctx, i) {
+                        final sub = _homeworkSubmissions[i];
+                        return _buildSubmissionCard(sub, i, isDark, textColor, subtitleColor);
+                      }, childCount: _homeworkSubmissions.length),
+                    ),
+                  ),
                 ],
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 80.0),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((ctx, i) {
-                      final sub = _homeworkSubmissions[i];
-                      final isGraded = sub['status'] == 'graded';
-                      final typeLabel = sub['assessment_type'] == 'exam' ? 'امتحان' : 'واجب';
-                      final statusLabel = isGraded ? 'تم التصحيح' : 'بانتظار التقييم';
-                      final scoreLabel = sub['score'] != null ? '${sub['score']} درجة' : 'قيد الرصد';
+              ],
+            ),
+    );
+  }
 
-                      return FadeInSlide(
-                        duration: Duration(milliseconds: 300 + (i * 50)),
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: GlassCard(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: isGraded
-                                      ? Colors.green.withValues(alpha: 0.2)
-                                      : Colors.orange.withValues(alpha: 0.2),
-                                  child: Icon(
-                                    Icons.grading,
-                                    color: isGraded
-                                        ? Colors.green
-                                        : Colors.orange,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'الطالب: ${sub['student_full_name'] ?? "طالب"}',
-                                        style: AppTypography.titleMedium(
-                                          textColor,
-                                        ).copyWith(fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '[$typeLabel] ${sub['assessment_title'] ?? "تقييم"} | الحالة: $statusLabel | الدرجة: $scoreLabel',
-                                        style: AppTypography.caption(
-                                          subtitleColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                isGraded
-                                    ? Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'تم التصحيح',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      )
-                                    : ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed: () =>
-                                            _showGradeSubmissionDialog(sub),
-                                        child: const Text('تصحيح'),
-                                      ),
-                              ],
-                            ),
-                          ),
+  Widget _buildResetRequestCard(
+    Map<String, dynamic> req,
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    final studentName = req['students']?['profiles']?['full_name'] ?? 'طالب';
+    final examTitle = req['exams']?['title'] ?? 'امتحان';
+    final reason = req['reason'] ?? 'لم يتم تحديد سبب';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkCard : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.35), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.error.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.error.withValues(alpha: 0.12),
+                  child: const Icon(Icons.person_outline_rounded, color: AppColors.error, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        studentName,
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
-                      );
-                    }, childCount: _homeworkSubmissions.length),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'طلب إعادة: $examTitle',
+                        style: TextStyle(
+                          color: subtitleColor,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'قيد المراجعة',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.black.withValues(alpha: 0.02),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'السبب: $reason',
+                style: TextStyle(color: subtitleColor, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => _handleResetRequest(req, true),
+                  icon: const Icon(Icons.check_rounded, size: 16),
+                  label: const Text('قبول وإعادة المحاولة', style: TextStyle(fontSize: 12)),
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => _handleResetRequest(req, false),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  label: const Text('رفض الطلب', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubmissionCard(
+    Map<String, dynamic> sub,
+    int index,
+    bool isDark,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    final isGraded = sub['status'] == 'graded';
+    final typeLabel = sub['assessment_type'] == 'exam' ? 'امتحان' : 'واجب';
+    final statusLabel = isGraded ? 'تم التصحيح' : 'بانتظار التقييم';
+    final scoreLabel = sub['score'] != null ? '${sub['score']} درجة' : 'قيد الرصد';
+    final studentName = sub['student_full_name'] ?? 'طالب';
+    final assessmentTitle = sub['assessment_title'] ?? 'تقييم';
+
+    return FadeInSlide(
+      duration: Duration(milliseconds: 250 + (index * 30)),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: GlassCard(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: isGraded
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : Colors.orange.withValues(alpha: 0.15),
+                    child: Icon(
+                      isGraded ? Icons.check_circle_rounded : Icons.grading_rounded,
+                      color: isGraded ? Colors.green : Colors.orange,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          studentName,
+                          style: AppTypography.titleMedium(textColor).copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          assessmentTitle,
+                          style: AppTypography.caption(subtitleColor).copyWith(
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (isGraded ? Colors.green : Colors.orange).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      statusLabel,
+                      style: TextStyle(
+                        color: isGraded ? Colors.green : Colors.orange,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      typeLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'الدرجة: $scoreLabel',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.teal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: isGraded
+                    ? OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.green,
+                          side: BorderSide(color: Colors.green.withValues(alpha: 0.4)),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => _showGradeSubmissionDialog(sub),
+                        icon: const Icon(Icons.rate_review_outlined, size: 16),
+                        label: const Text('مراجعة وتعديل التصحيح ✏️', style: TextStyle(fontSize: 12)),
+                      )
+                    : FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => _showGradeSubmissionDialog(sub),
+                        icon: const Icon(Icons.edit_note_rounded, size: 18),
+                        label: const Text('بدء التصحيح والرصد الفوري 📝', style: TextStyle(fontSize: 12)),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
