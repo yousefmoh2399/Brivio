@@ -1,6 +1,10 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:get_it/get_it.dart';
+import '../../../../core/localization/app_locale_controller.dart';
+import '../../../../core/localization/notification_localizer.dart';
+import '../../../../core/services/settings_service.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -45,22 +49,28 @@ class NotificationService {
   }
 
   Future<void> _showLocalNotification(String? title, String? body) async {
-    const AndroidNotificationDetails androidDetails =
+    final isAr = GetIt.instance.isRegistered<SettingsService>()
+        ? GetIt.instance<SettingsService>().language == AppLanguage.arabic
+        : true;
+    final finalTitle = NotificationLocalizer.localizeTitle(title, isArabic: isAr);
+    final finalBody = NotificationLocalizer.localizeMessage(body, isArabic: isAr);
+
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'parent_portal_channel',
-          'Parent Portal Notifications',
+          isAr ? 'إشعارات أولياء الأمور' : 'Parent Portal Notifications',
           importance: Importance.max,
           priority: Priority.high,
         );
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
-    const NotificationDetails platformDetails = NotificationDetails(
+    final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
     await _localNotificationsPlugin.show(
       id: 0,
-      title: title ?? 'Notification',
-      body: body ?? '',
+      title: finalTitle,
+      body: finalBody,
       notificationDetails: platformDetails,
     );
   }

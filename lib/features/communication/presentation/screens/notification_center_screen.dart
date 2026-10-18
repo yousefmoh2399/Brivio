@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/localization/notification_localizer.dart';
 import '../../../../core/network/supabase_client_wrapper.dart';
 import '../../../../core/notifications/push_notification_service.dart';
 import '../../../../design_system/components/glass_card.dart';
@@ -82,110 +83,116 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         ? AppColors.darkTextSecondary
         : AppColors.lightTextSecondary;
 
-    return ListenableBuilder(
-      listenable: widget.viewModel,
-      builder: (context, _) {
-        final vm = widget.viewModel;
+    final isAr = AppLocalizations.of(context).isArabic;
 
-        final allNotifs = vm.notifications;
-        final academicNotifs = allNotifs.where((n) => _resolveCategory(n) == NotificationCategoryFilter.academic).toList();
-        final financialNotifs = allNotifs.where((n) => _resolveCategory(n) == NotificationCategoryFilter.financial).toList();
-        final generalNotifs = allNotifs.where((n) => _resolveCategory(n) == NotificationCategoryFilter.general).toList();
+    return Directionality(
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+      child: ListenableBuilder(
+        listenable: widget.viewModel,
+        builder: (context, _) {
+          final vm = widget.viewModel;
 
-        List<AppNotification> filteredList;
-        switch (_selectedFilter) {
-          case NotificationCategoryFilter.academic:
-            filteredList = academicNotifs;
-            break;
-          case NotificationCategoryFilter.financial:
-            filteredList = financialNotifs;
-            break;
-          case NotificationCategoryFilter.general:
-            filteredList = generalNotifs;
-            break;
-          case NotificationCategoryFilter.all:
-            filteredList = allNotifs;
-        }
+          final allNotifs = vm.notifications;
+          final academicNotifs = allNotifs.where((n) => _resolveCategory(n) == NotificationCategoryFilter.academic).toList();
+          final financialNotifs = allNotifs.where((n) => _resolveCategory(n) == NotificationCategoryFilter.financial).toList();
+          final generalNotifs = allNotifs.where((n) => _resolveCategory(n) == NotificationCategoryFilter.general).toList();
 
-        return Scaffold(
-          backgroundColor: backgroundColor,
-          appBar: AppBar(
+          List<AppNotification> filteredList;
+          switch (_selectedFilter) {
+            case NotificationCategoryFilter.academic:
+              filteredList = academicNotifs;
+              break;
+            case NotificationCategoryFilter.financial:
+              filteredList = financialNotifs;
+              break;
+            case NotificationCategoryFilter.general:
+              filteredList = generalNotifs;
+              break;
+            case NotificationCategoryFilter.all:
+              filteredList = allNotifs;
+          }
+
+          final unreadCount = allNotifs.where((n) => !n.isRead).length;
+
+          return Scaffold(
             backgroundColor: backgroundColor,
-            surfaceTintColor: Colors.transparent,
-            title: Row(
-              children: [
-                Text(context.tr('Notifications')),
-                const SizedBox(width: 8),
-                if (allNotifs.any((n) => !n.isRead))
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(12),
+            appBar: AppBar(
+              backgroundColor: backgroundColor,
+              surfaceTintColor: Colors.transparent,
+              title: Row(
+                children: [
+                  Text(context.tr('Notifications')),
+                  const SizedBox(width: 8),
+                  if (unreadCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        isAr ? '$unreadCount جديد' : '$unreadCount New',
+                        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    child: Text(
-                      '${allNotifs.where((n) => !n.isRead).length} جديد',
-                      style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
+                ],
+              ),
+              actions: [
+                if (unreadCount > 0)
+                  TextButton.icon(
+                    onPressed: vm.markAllRead,
+                    icon: const Icon(Icons.done_all_rounded, size: 16),
+                    label: Text(context.tr('Mark All Read')),
                   ),
               ],
             ),
-            actions: [
-              if (vm.notifications.any((n) => !n.isRead))
-                TextButton.icon(
-                  onPressed: vm.markAllRead,
-                  icon: const Icon(Icons.done_all_rounded, size: 16),
-                  label: Text(context.tr('Mark All Read')),
+            body: Column(
+              children: [
+                // Categories Filter Tabs
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      _buildFilterChip(
+                        label: context.tr('الكل'),
+                        count: allNotifs.length,
+                        filter: NotificationCategoryFilter.all,
+                        icon: Icons.inbox_rounded,
+                        activeColor: AppColors.primary,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        label: context.tr('أكاديمية 🔔'),
+                        count: academicNotifs.length,
+                        filter: NotificationCategoryFilter.academic,
+                        icon: Icons.school_rounded,
+                        activeColor: Colors.blue.shade700,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        label: context.tr('مالية 💳'),
+                        count: financialNotifs.length,
+                        filter: NotificationCategoryFilter.financial,
+                        icon: Icons.payments_rounded,
+                        activeColor: Colors.teal.shade700,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        label: context.tr('طوارئ وعامة 📢'),
+                        count: generalNotifs.length,
+                        filter: NotificationCategoryFilter.general,
+                        icon: Icons.campaign_rounded,
+                        activeColor: Colors.amber.shade800,
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
                 ),
-            ],
-          ),
-          body: Column(
-            children: [
-              // Categories Filter Tabs
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    _buildFilterChip(
-                      label: 'الكل',
-                      count: allNotifs.length,
-                      filter: NotificationCategoryFilter.all,
-                      icon: Icons.inbox_rounded,
-                      activeColor: AppColors.primary,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'أكاديمية 🔔',
-                      count: academicNotifs.length,
-                      filter: NotificationCategoryFilter.academic,
-                      icon: Icons.school_rounded,
-                      activeColor: Colors.blue.shade700,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'مالية 💳',
-                      count: financialNotifs.length,
-                      filter: NotificationCategoryFilter.financial,
-                      icon: Icons.payments_rounded,
-                      activeColor: Colors.teal.shade700,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'طوارئ وعامة 📢',
-                      count: generalNotifs.length,
-                      filter: NotificationCategoryFilter.general,
-                      icon: Icons.campaign_rounded,
-                      activeColor: Colors.amber.shade800,
-                      isDark: isDark,
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
+                const Divider(height: 1),
 
               // Content List
               Expanded(
@@ -313,7 +320,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                                       borderRadius: BorderRadius.circular(4),
                                                     ),
                                                     child: Text(
-                                                      catLabel,
+                                                      NotificationLocalizer.localizeCategory(catLabel, isArabic: isAr),
                                                       style: TextStyle(fontSize: 10, color: accentColor, fontWeight: FontWeight.bold),
                                                     ),
                                                   ),
@@ -325,7 +332,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                               ),
                                               const SizedBox(height: 6),
                                               Text(
-                                                notif.title,
+                                                NotificationLocalizer.localizeTitle(notif.title, isArabic: isAr),
                                                 style: AppTypography.titleSmall(textPrimary).copyWith(
                                                   fontWeight: notif.isRead
                                                       ? FontWeight.w600
@@ -336,7 +343,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
-                                                notif.message,
+                                                NotificationLocalizer.localizeMessage(notif.message, isArabic: isAr),
                                                 style: AppTypography.bodySmall(textSecondary),
                                                 maxLines: 3,
                                                 overflow: TextOverflow.ellipsis,
@@ -369,6 +376,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           ),
         );
       },
+    ),
     );
   }
 

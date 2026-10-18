@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/localization/notification_localizer.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -68,14 +70,16 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
+    final isAr = AppLocalizations.of(context).isArabic;
+
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
         appBar: AppBar(
-          title: const Text(
-            'مركز التواصل والإعلانات 📢',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          title: Text(
+            context.tr('مركز التواصل والإعلانات 📢'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           elevation: 0,
           bottom: TabBar(
@@ -83,9 +87,9 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
             indicatorColor: AppColors.parentRole,
             labelColor: AppColors.parentRole,
             unselectedLabelColor: textSecondary,
-            tabs: const [
-              Tab(text: 'إعلانات السنتر', icon: Icon(Icons.campaign_outlined)),
-              Tab(text: 'المحادثة والرسائل', icon: Icon(Icons.chat_bubble_outline_rounded)),
+            tabs: [
+              Tab(text: context.tr('إعلانات السنتر'), icon: const Icon(Icons.campaign_outlined)),
+              Tab(text: context.tr('المحادثة والرسائل'), icon: const Icon(Icons.chat_bubble_outline_rounded)),
             ],
           ),
         ),
@@ -101,6 +105,7 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
 
   Widget _buildAnnouncementsTab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = AppLocalizations.of(context).isArabic;
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
@@ -114,7 +119,7 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
               Icon(Icons.campaign_outlined, size: 64, color: textSecondary.withValues(alpha: 0.5)),
               const SizedBox(height: 16),
               Text(
-                'لا توجد إعلانات عامة أو تنبيهات منشورة من السنتر حالياً.',
+                context.tr('لا توجد إعلانات عامة أو تنبيهات منشورة من السنتر حالياً.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: textSecondary, fontSize: 15),
               ),
@@ -145,7 +150,7 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      announcement.author,
+                      context.tr(announcement.author),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -161,14 +166,14 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                announcement.title,
+                NotificationLocalizer.localizeTitle(announcement.title, isArabic: isAr),
                 style: AppTypography.titleMedium(textPrimary).copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                announcement.content,
+                NotificationLocalizer.localizeMessage(announcement.content, isArabic: isAr),
                 style: AppTypography.bodySmall(textSecondary).copyWith(height: 1.5),
               ),
             ],
@@ -195,7 +200,7 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
                         Icon(Icons.chat_outlined, size: 56, color: textSecondary.withValues(alpha: 0.4)),
                         const SizedBox(height: 12),
                         Text(
-                          'تواصل مباشرة مع إدارة السنتر وسكرتارية المعلم.',
+                          context.tr('تواصل مباشرة مع إدارة السنتر وسكرتارية المعلم.'),
                           style: TextStyle(color: textSecondary),
                         ),
                       ],
@@ -304,7 +309,7 @@ class _ParentCommsScreenState extends State<ParentCommsScreen>
               child: TextField(
                 controller: _messageController,
                 decoration: InputDecoration(
-                  hintText: 'اكتب رسالتك للإدارة أو المدرس...',
+                  hintText: context.tr('اكتب رسالتك للإدارة أو المدرس...'),
                   hintStyle: TextStyle(color: textSecondary),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),

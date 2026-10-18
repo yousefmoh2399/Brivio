@@ -17,6 +17,10 @@ import '../../main.dart';
 import '../config/app_config.dart';
 import '../logging/app_logger.dart';
 import '../network/supabase_client_wrapper.dart';
+import 'package:get_it/get_it.dart';
+import '../localization/app_locale_controller.dart';
+import '../localization/notification_localizer.dart';
+import '../services/settings_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -36,12 +40,24 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class PushNotificationService {
-  static const _androidChannel = AndroidNotificationChannel(
-    'academy_notifications',
-    'Academy notifications',
-    description: 'Operational, payment, attendance, and learning alerts.',
-    importance: Importance.high,
-  );
+  bool get _isArabic {
+    if (GetIt.instance.isRegistered<SettingsService>()) {
+      return GetIt.instance<SettingsService>().language == AppLanguage.arabic;
+    }
+    return true;
+  }
+
+  AndroidNotificationChannel _getAndroidChannel() {
+    final isAr = _isArabic;
+    return AndroidNotificationChannel(
+      'academy_notifications',
+      isAr ? 'إشعارات الأكاديمية والسنتر' : 'Academy & Center Notifications',
+      description: isAr
+          ? 'تنبيهات الحصص والواجبات والامتحانات والمدفوعات والحضور.'
+          : 'Operational, payment, attendance, and learning alerts.',
+      importance: Importance.high,
+    );
+  }
 
   final SupabaseClientWrapper _clientWrapper;
   FirebaseMessaging? messaging;
@@ -116,7 +132,7 @@ class PushNotificationService {
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >()
-          ?.createNotificationChannel(_androidChannel);
+          ?.createNotificationChannel(_getAndroidChannel());
       await _localNotifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
@@ -283,49 +299,64 @@ class PushNotificationService {
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
-    final title = notification?.title ?? message.data['title']?.toString();
-    final body = notification?.body ?? message.data['body']?.toString();
-    if (title == null && body == null) return;
+    final rawTitle = notification?.title ?? message.data['title']?.toString();
+    final rawBody = notification?.body ?? message.data['body']?.toString();
+    if (rawTitle == null && rawBody == null) return;
+
+    final isAr = _isArabic;
+    final title = NotificationLocalizer.localizeTitle(rawTitle, isArabic: isAr);
+    final body = NotificationLocalizer.localizeMessage(rawBody, isArabic: isAr);
+    final channel = _getAndroidChannel();
 
     await _localNotifications.show(
       id: message.hashCode,
       title: title,
       body: body,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          'academy_notifications',
-          'Academy notifications',
-          channelDescription:
-              'Operational, payment, attendance, and learning alerts.',
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
           importance: Importance.high,
           priority: Priority.high,
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
       payload: jsonEncode(message.data),
     );
   }
 
   Future<void> showTestNotification({
-    String title = 'تنبيه تجريبي من منصة بريفيو 🔔',
-    String body = 'نظام الإشعارات الفورية يعمل بكفاءة على جهازك ومستعد لاستقبال التنبيهات.',
+    String? title,
+    String? body,
   }) async {
     try {
       await initialize();
+      final isAr = _isArabic;
+      final defaultTitle = isAr
+          ? 'تنبيه تجريبي من منصة بريفيو 🔔'
+          : 'Test Alert from Brivio Platform 🔔';
+      final defaultBody = isAr
+          ? 'نظام الإشعارات الفورية يعمل بكفاءة على جهازك ومستعد لاستقبال التنبيهات.'
+          : 'The push notification system is working properly on your device and ready to receive alerts.';
+
+      final finalTitle = NotificationLocalizer.localizeTitle(title ?? defaultTitle, isArabic: isAr);
+      final finalBody = NotificationLocalizer.localizeMessage(body ?? defaultBody, isArabic: isAr);
+      final channel = _getAndroidChannel();
+
       await _localNotifications.show(
         id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        title: title,
-        body: body,
-        notificationDetails: const NotificationDetails(
+        title: finalTitle,
+        body: finalBody,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            'academy_notifications',
-            'Academy notifications',
-            channelDescription:
-                'Operational, payment, attendance, and learning alerts.',
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
             importance: Importance.high,
             priority: Priority.high,
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
       );
     } catch (e, st) {
