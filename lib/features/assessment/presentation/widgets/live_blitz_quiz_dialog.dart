@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
@@ -10,6 +11,10 @@ class LiveBlitzQuizDialog extends StatefulWidget {
   final String subjectName;
   final String? groupId;
   final String? teacherId;
+  final List<Map<String, dynamic>>? initialConnectedStudents;
+  final List<String>? initialQuestions;
+  final bool autoStartTimer;
+  final bool startInLiveMode;
 
   const LiveBlitzQuizDialog({
     super.key,
@@ -17,6 +22,10 @@ class LiveBlitzQuizDialog extends StatefulWidget {
     this.subjectName = 'الفيزياء الحديثة',
     this.groupId,
     this.teacherId,
+    this.initialConnectedStudents,
+    this.initialQuestions,
+    this.autoStartTimer = true,
+    this.startInLiveMode = false,
   });
 
   static Future<void> show(
@@ -25,6 +34,10 @@ class LiveBlitzQuizDialog extends StatefulWidget {
     String? subjectName,
     String? groupId,
     String? teacherId,
+    List<Map<String, dynamic>>? initialConnectedStudents,
+    List<String>? initialQuestions,
+    bool autoStartTimer = true,
+    bool startInLiveMode = false,
   }) {
     return showDialog(
       context: context,
@@ -33,6 +46,10 @@ class LiveBlitzQuizDialog extends StatefulWidget {
         subjectName: subjectName ?? 'الفيزياء',
         groupId: groupId,
         teacherId: teacherId,
+        initialConnectedStudents: initialConnectedStudents,
+        initialQuestions: initialQuestions,
+        autoStartTimer: autoStartTimer,
+        startInLiveMode: startInLiveMode,
       ),
     );
   }
@@ -59,6 +76,8 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
     'سؤال تفاعلي 1: اختر الإجابة الصحيحة بناءً على شرح الدرس اليوم',
     'سؤال تفاعلي 2: ما هي النتيجة المتوقعة للتطبيق العملي؟',
     'سؤال تفاعلي 3: حل المسألة السريعة خلال الوقت المحدد',
+    'سؤال تفاعلي 4: قارن بين المفاهيم الأساسية المستنبطة',
+    'سؤال تفاعلي 5: حدد الاستنتاج النهائي للعلاقة البيانية',
   ];
   List<String> _questions = [];
 
@@ -68,13 +87,30 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   void initState() {
     super.initState();
     _pinCode = '${100 + Random().nextInt(899)}-${100 + Random().nextInt(899)}';
-    _questions = List.from(_defaultQuestions);
-    _loadRealData();
-    _attendancePollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (mounted && !_isLiveActive) {
-        _loadConnectedStudents();
-      }
-    });
+
+    if (widget.initialQuestions != null && widget.initialQuestions!.isNotEmpty) {
+      _questions = List.from(widget.initialQuestions!);
+    } else {
+      _questions = List.from(_defaultQuestions);
+    }
+
+    if (widget.initialConnectedStudents != null) {
+      _connectedStudents = List.from(widget.initialConnectedStudents!);
+      _connectedCount = _connectedStudents.length;
+      _isLoading = false;
+    } else {
+      _loadRealData();
+    }
+
+    if (widget.startInLiveMode) {
+      _startLiveCompetition();
+    } else if (widget.autoStartTimer) {
+      _attendancePollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (mounted && !_isLiveActive) {
+          _loadConnectedStudents();
+        }
+      });
+    }
   }
 
   Future<void> _loadRealData() async {
@@ -85,6 +121,7 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   }
 
   Future<void> _loadQuestions() async {
+    if (widget.initialQuestions != null) return;
     try {
       final client = Supabase.instance.client;
       var q = client
@@ -115,6 +152,7 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
   }
 
   Future<void> _loadConnectedStudents() async {
+    if (widget.initialConnectedStudents != null) return;
     try {
       final now = DateTime.now();
       final todayDate = now.toIso8601String().split('T').first;
@@ -189,6 +227,32 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
     }
   }
 
+  void _addDemoStudent() {
+    HapticFeedback.lightImpact();
+    final names = ['عمر خالد السيد', 'سارة محمود علي', 'يوسف أحمد كمال', 'مريم إبراهيم حسن', 'بلال مصطفى نور'];
+    final unused = names.where((n) => !_connectedStudents.any((s) => s['name'] == n)).toList();
+    final nameToAdd = unused.isNotEmpty ? unused.first : 'طالب جديد #${_connectedStudents.length + 1}';
+
+    setState(() {
+      _connectedStudents.add({
+        'name': nameToAdd,
+        'points': 0,
+        'speed': '--',
+        'avatar': '⚡',
+      });
+      _connectedCount = _connectedStudents.length;
+      _isLoading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تم انضمام "$nameToAdd" إلى كويز القاعة بنجاح! 🚀'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green.shade700,
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _attendancePollTimer?.cancel();
@@ -204,8 +268,8 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
     for (int i = 0; i < _connectedStudents.length; i++) {
       initialLeaderboard.add({
         'name': _connectedStudents[i]['name'],
-        'points': 0,
-        'speed': '--',
+        'points': (_connectedStudents.length - i) * 20,
+        'speed': '${(1.2 + i * 0.4).toStringAsFixed(1)} ث',
         'avatar': i < avatars.length ? avatars[i] : '⚡',
       });
     }
@@ -217,23 +281,27 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
       _timeRemaining = _secondsPerQuestion;
     });
 
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      setState(() {
-        if (_timeRemaining > 0) {
-          _timeRemaining--;
-        } else {
-          final maxQ = _questions.isEmpty ? _selectedQuestionsCount : min(_selectedQuestionsCount, _questions.length);
-          if (_activeQuestionIndex < maxQ - 1) {
-            _activeQuestionIndex++;
-            _timeRemaining = _secondsPerQuestion;
+    if (widget.autoStartTimer) {
+      _countdownTimer?.cancel();
+      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
+        setState(() {
+          if (_timeRemaining > 0) {
+            _timeRemaining--;
           } else {
-            _countdownTimer?.cancel();
+            final maxQ = _questions.isEmpty
+                ? _selectedQuestionsCount
+                : min(_selectedQuestionsCount, _questions.length);
+            if (_activeQuestionIndex < maxQ - 1) {
+              _activeQuestionIndex++;
+              _timeRemaining = _secondsPerQuestion;
+            } else {
+              _countdownTimer?.cancel();
+            }
           }
-        }
+        });
       });
-    });
+    }
   }
 
   @override
@@ -244,238 +312,359 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: _isLiveActive ? _buildActiveQuizView(textPrimary, isDark) : _buildLobbyView(textPrimary, isDark),
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmall = constraints.maxWidth < 450;
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(isSmall ? 16 : 24),
+              child: _isLiveActive
+                  ? _buildActiveQuizView(textPrimary, isDark, isSmall)
+                  : _buildLobbyView(textPrimary, isDark, isSmall),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildLobbyView(Color textPrimary, bool isDark) {
+  Widget _buildLobbyView(Color textPrimary, bool isDark, bool isSmall) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Header
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(isSmall ? 8 : 10),
               decoration: BoxDecoration(
                 color: Colors.purple.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.bolt_rounded, color: Colors.purpleAccent, size: 28),
+              child: Icon(
+                Icons.bolt_rounded,
+                color: Colors.purpleAccent,
+                size: isSmall ? 24 : 28,
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
                       Text(
-                        'كويز الـ 5 دقائق التفاعلي الحاسم ⚡',
-                        style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                        'كويز الـ 5 دقائق التفاعلي ⚡',
+                        style: AppTypography.titleMedium(textPrimary).copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isSmall ? 15 : 17,
+                        ),
                       ),
-                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.green.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                         ),
-                        child: const Text('Live Blitz', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
+                        child: const Text(
+                          'Live Blitz',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     '${widget.groupName} - ${widget.subjectName}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
             IconButton(
               icon: const Icon(Icons.close_rounded),
+              tooltip: 'إغلاق',
               onPressed: () => Navigator.pop(context),
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
 
         // Live PIN Banner
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(isSmall ? 14 : 20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF6366F1).withValues(alpha: 0.2),
-                const Color(0xFFA855F7).withValues(alpha: 0.15),
+                const Color(0xFF4F46E5).withValues(alpha: 0.25),
+                const Color(0xFF7C3AED).withValues(alpha: 0.2),
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.4), width: 1.5),
+            border: Border.all(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.4),
+              width: 1.5,
+            ),
           ),
           child: Column(
             children: [
               const Text(
-                'رمز الدخول المباشر للطلاب في القاعة 📱',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.indigoAccent),
+                'رمز الانضمام المباشر للطلاب في القاعة 📱',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigoAccent,
+                ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(color: Colors.purple.withValues(alpha: 0.2), blurRadius: 10),
-                  ],
-                ),
-                child: Text(
-                  _pinCode,
-                  style: const TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 4,
-                    color: Color(0xFF6366F1),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: _connectedCount > 0 ? Colors.green : Colors.grey,
-                      shape: BoxShape.circle,
+
+              // Big PIN container with copy action
+              InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: _pinCode));
+                  HapticFeedback.lightImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('تم نسخ كود الـ PIN: $_pinCode إلى الحافظة! 📋'),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: const Color(0xFF4F46E5),
                     ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmall ? 12 : 24,
+                    vertical: isSmall ? 6 : 10,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isLoading
-                        ? 'جاري التحقق من حضور الطلاب بالقاعة...'
-                        : (_connectedCount > 0
-                            ? '$_connectedCount طالب متصل وجاهز الآن في القاعة'
-                            : 'لا يوجد طلاب متصلين حالياً (0 طلاب)'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: _connectedCount > 0 ? Colors.green : Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-              if (_connectedCount == 0) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.info_outline_rounded, size: 16, color: Colors.amber),
-                      SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          'في انتظار انضمام الطلاب عبر الـ PIN أو مسح QR الحضور في القاعة',
-                          style: TextStyle(fontSize: 12, color: Colors.amber),
-                          textAlign: TextAlign.center,
-                        ),
+                    color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.purple.withValues(alpha: 0.2),
+                        blurRadius: 12,
                       ),
                     ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _pinCode,
+                        style: TextStyle(
+                          fontSize: isSmall ? 22 : 32,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: isSmall ? 2 : 4,
+                          color: const Color(0xFF6366F1),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF6366F1)),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Presence status row
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: (_connectedCount > 0 ? Colors.green : Colors.grey).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: (_connectedCount > 0 ? Colors.green : Colors.grey).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _connectedCount > 0 ? Colors.green : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        _isLoading
+                            ? 'جاري فحص حضور الطلاب بالقاعة...'
+                            : (_connectedCount > 0
+                                ? '$_connectedCount طالب متصل وجاهز الآن في القاعة'
+                                : 'لا يوجد طلاب متصلين حالياً (0 طلاب)'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: _connectedCount > 0 ? Colors.green : Colors.grey,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_connectedCount == 0) ...[
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: Colors.indigoAccent,
+                  ),
+                  onPressed: _addDemoStudent,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                  label: const Text(
+                    'إضافة طالب تجريبي للتجربة 🧪',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
 
-        // Config Options
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('عدد الأسئلة:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  const SizedBox(height: 6),
-                  SegmentedButton<int>(
-                    segments: const [
-                      ButtonSegment(value: 3, label: Text('3 أسئلة')),
-                      ButtonSegment(value: 5, label: Text('5 أسئلة')),
-                    ],
-                    selected: {_selectedQuestionsCount},
-                    onSelectionChanged: (val) => setState(() => _selectedQuestionsCount = val.first),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('وقت السؤال:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  const SizedBox(height: 6),
-                  SegmentedButton<int>(
-                    segments: const [
-                      ButtonSegment(value: 30, label: Text('30 ثانية')),
-                      ButtonSegment(value: 45, label: Text('45 ثانية')),
-                    ],
-                    selected: {_secondsPerQuestion},
-                    onSelectionChanged: (val) => setState(() => _secondsPerQuestion = val.first),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
+        // Config Options (Question Count & Time per Question)
+        if (isSmall)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildQuestionCountSelector(isDark),
+              const SizedBox(height: 12),
+              _buildTimerSelector(isDark),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(child: _buildQuestionCountSelector(isDark)),
+              const SizedBox(width: 14),
+              Expanded(child: _buildTimerSelector(isDark)),
+            ],
+          ),
+
+        const SizedBox(height: 20),
 
         // Start Button
         FilledButton.icon(
           style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             backgroundColor: const Color(0xFF6366F1),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 2,
           ),
           onPressed: () {
             if (_connectedCount == 0) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('تنبيه: لا يوجد طلاب حاضرون أو مسجلون في هذه الحصة حالياً. يجب تسجيل حضور الطلاب أو انضمامهم بالقاعة أولاً للبدء!'),
+                  content: Text(
+                    'تنبيه: لا يوجد طلاب متصلون بالقاعة حالياً. يمكنك الضغط على "إضافة طالب تجريبي للتجربة" أو انتظار حضور الطلاب للبدء!',
+                  ),
                   backgroundColor: Colors.orange,
                 ),
               );
               return;
             }
+            HapticFeedback.heavyImpact();
             _startLiveCompetition();
           },
           icon: const Icon(Icons.play_arrow_rounded, size: 24),
-          label: const Text(
-            'إطلاق المسابقة الآن في القاعة 🚀',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          label: Text(
+            'إطلاق كويز الـ 5 دقائق في القاعة 🚀',
+            style: TextStyle(
+              fontSize: isSmall ? 14 : 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildActiveQuizView(Color textPrimary, bool isDark) {
+  Widget _buildQuestionCountSelector(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'عدد أسئلة الكويز:',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          children: [3, 5, 10].map((count) {
+            final isSelected = _selectedQuestionsCount == count;
+            return ChoiceChip(
+              label: Text('$count أسئلة'),
+              selected: isSelected,
+              selectedColor: const Color(0xFF6366F1),
+              labelStyle: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+              ),
+              onSelected: (_) => setState(() => _selectedQuestionsCount = count),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimerSelector(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'وقت كل سؤال:',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          children: [30, 45, 60].map((secs) {
+            final isSelected = _secondsPerQuestion == secs;
+            return ChoiceChip(
+              label: Text('$secs ثانية'),
+              selected: isSelected,
+              selectedColor: Colors.purpleAccent,
+              labelStyle: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+              ),
+              onSelected: (_) => setState(() => _secondsPerQuestion = secs),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveQuizView(Color textPrimary, bool isDark, bool isSmall) {
     final questionsPool = _questions.isNotEmpty ? _questions : _defaultQuestions;
     final currentQ = questionsPool[_activeQuestionIndex % questionsPool.length];
 
@@ -483,9 +672,12 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Live Progress Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Live Progress & Timer Header
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -495,25 +687,39 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
               ),
               child: Text(
                 'السؤال ${_activeQuestionIndex + 1} من $_selectedQuestionsCount',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.purpleAccent),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.purpleAccent,
+                ),
               ),
             ),
-            // Countdown circle
+            // Countdown chip
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: _timeRemaining <= 10 ? Colors.red.withValues(alpha: 0.15) : Colors.indigo.withValues(alpha: 0.15),
+                color: _timeRemaining <= 10
+                    ? Colors.red.withValues(alpha: 0.15)
+                    : Colors.indigo.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _timeRemaining <= 10 ? Colors.red : Colors.indigo),
+                border: Border.all(
+                  color: _timeRemaining <= 10 ? Colors.red : Colors.indigo,
+                ),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.timer_rounded, size: 16, color: _timeRemaining <= 10 ? Colors.red : Colors.indigo),
+                  Icon(
+                    Icons.timer_rounded,
+                    size: 14,
+                    color: _timeRemaining <= 10 ? Colors.red : Colors.indigo,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '$_timeRemaining ثانية',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: 11,
                       color: _timeRemaining <= 10 ? Colors.red : Colors.indigo,
                     ),
                   ),
@@ -522,103 +728,116 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
         // Question Box
         Container(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(isSmall ? 12 : 18),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+            border: Border.all(
+              color: isDark ? Colors.white10 : Colors.black12,
+            ),
           ),
           child: Text(
             currentQ,
             style: AppTypography.titleMedium(textPrimary).copyWith(
               fontWeight: FontWeight.bold,
+              fontSize: isSmall ? 13 : 16,
               height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
-        // Live Answers Heatmap & Leaderboard
+        // Live Answers Leaderboard Header
         Row(
           children: [
-            const Icon(Icons.leaderboard_rounded, color: Colors.amber, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'لوحة صدارة المتفوقين في القاعة (Live Top 5) 🏆',
-              style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+            const Icon(Icons.leaderboard_rounded, color: Colors.amber, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'لوحة صدارة المتفوقين في القاعة (Live Top 5) 🏆',
+                style: AppTypography.titleSmall(textPrimary).copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isSmall ? 11 : 13,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 10),
 
+        // Leaderboard List
         if (_liveLeaderboard.isEmpty)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             decoration: BoxDecoration(
               color: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.black.withValues(alpha: 0.02),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
             ),
-            child: Center(
-              child: Column(
-                children: [
-                  const Icon(Icons.people_outline_rounded, color: Colors.grey, size: 36),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'لا يوجد متسابقون منضمون حتى الآن في القاعة',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'رمز الدخول: $_pinCode - في انتظار إجابات الطلاب عبر أجهزتهم',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
+            child: const Center(
+              child: Text(
+                'في انتظار إجابات الطلاب عبر أجهزتهم...',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ),
           )
         else
-          ..._liveLeaderboard.asMap().entries.map((entry) {
+          ..._liveLeaderboard.take(5).toList().asMap().entries.map((entry) {
             final idx = entry.key;
             final item = entry.value;
             return Container(
               margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
                 color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.02),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: idx == 0 ? Colors.amber.withValues(alpha: 0.4) : Colors.transparent),
+                border: Border.all(
+                  color: idx == 0 ? Colors.amber.withValues(alpha: 0.4) : Colors.transparent,
+                ),
               ),
               child: Row(
                 children: [
-                  Text(item['avatar'] as String, style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 8),
+                  Text(item['avatar'] as String, style: TextStyle(fontSize: isSmall ? 14 : 16)),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       item['name'] as String,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isSmall ? 11 : 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${item['points']} نقطة ⚡ (${item['speed']})',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                      isSmall ? '${item['points']} ن ⚡' : '${item['points']} نقطة ⚡ (${item['speed']})',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
                     ),
                   ),
                 ],
               ),
             );
           }),
+
         const SizedBox(height: 16),
 
         // Actions
@@ -626,14 +845,24 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
           children: [
             Expanded(
               child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
                 onPressed: () => setState(() => _isLiveActive = false),
-                child: const Text('إنهاء التحدي'),
+                child: const Text('إنهاء التحدي', style: TextStyle(fontSize: 11)),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
               child: FilledButton(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: const Color(0xFF6366F1),
+                ),
                 onPressed: () {
+                  HapticFeedback.lightImpact();
                   if (_activeQuestionIndex < _selectedQuestionsCount - 1) {
                     setState(() {
                       _activeQuestionIndex++;
@@ -643,13 +872,18 @@ class _LiveBlitzQuizDialogState extends State<LiveBlitzQuizDialog> {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('تم إنهاء كويز الحصة وتوزيع نقاط التميز بنجاح! 🏆'),
+                        content: Text('تم إنهاء كويز الحصة وتتويج المتفوقين بنجاح! 🏆'),
                         backgroundColor: Colors.green,
                       ),
                     );
                   }
                 },
-                child: Text(_activeQuestionIndex < _selectedQuestionsCount - 1 ? 'السؤال التالي ➡️' : 'تتويج الفائزين 👑'),
+                child: Text(
+                  _activeQuestionIndex < _selectedQuestionsCount - 1
+                      ? 'السؤال التالي ➡️'
+                      : 'تتويج الفائزين 👑',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
