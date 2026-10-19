@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/avatar_service.dart';
 import '../../../../design_system/tokens/colors.dart';
@@ -420,15 +419,19 @@ class _SnapAvatarStudioScreenState extends State<SnapAvatarStudioScreen>
                           color: AppColors.primary,
                         ),
                       )
-                    : SvgPicture.network(
+                    : Image.network(
                         avatarUrl,
                         fit: BoxFit.cover,
-                        placeholderBuilder: (context) => const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        ),
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stack) => _buildAvatarFallback(),
                       ),
               ),
             ),
@@ -440,6 +443,25 @@ class _SnapAvatarStudioScreenState extends State<SnapAvatarStudioScreen>
             child: _buildQuickBgPicker(isDark),
           ),
         ],
+      ),
+    );
+  }
+
+
+  /// Fallback when avatar image fails to load (no network / API error)
+  Widget _buildAvatarFallback() {
+    final initials = (widget.userEmail ?? 'A').substring(0, 1).toUpperCase();
+    return Container(
+      color: _config.backgroundColor,
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: 64,
+            fontWeight: FontWeight.bold,
+            color: widget.roleColor,
+          ),
+        ),
       ),
     );
   }
@@ -1137,15 +1159,23 @@ class _SnapAvatarStudioScreenState extends State<SnapAvatarStudioScreen>
                   child: Container(
                     color: preset.config.backgroundColor,
                     width: double.infinity,
-                    child: SvgPicture.network(
+                    child: Image.network(
                       previewUrl,
                       fit: BoxFit.contain,
-                      placeholderBuilder: (_) => const Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.person_rounded,
+                        size: 40,
+                        color: Colors.grey,
                       ),
                     ),
                   ),
@@ -1232,13 +1262,21 @@ class _OptionTile extends StatelessWidget {
           children: [
             if (avatarPreviewUrl != null)
               Expanded(
-                child: SvgPicture.network(
+                child: Image.network(
                   avatarPreviewUrl!,
                   fit: BoxFit.contain,
-                  placeholderBuilder: (_) => const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 1.5),
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.person_rounded,
+                    color: isSelected ? roleColor : Colors.grey,
+                    size: 30,
                   ),
                 ),
               )

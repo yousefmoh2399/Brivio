@@ -205,8 +205,8 @@ class AvatarConfig {
         .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
         .join('&');
 
-    // DiceBear v9 endpoint — returns high-quality SVG
-    return 'https://api.dicebear.com/9.x/avataaars/svg?$query';
+    // DiceBear v9 endpoint — PNG format (reliable on all Flutter platforms)
+    return 'https://api.dicebear.com/9.x/avataaars/png?$query';
   }
 
   static String _colorHex(Color c) {
