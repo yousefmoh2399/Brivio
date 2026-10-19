@@ -1651,6 +1651,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
     String? selectedStudentId = _allStudents.isNotEmpty ? _allStudents.first.id : null;
     final priceCtrl = TextEditingController(text: '0');
     final discountCtrl = TextEditingController(text: '0');
+    DateTime dueDate = DateTime.now().add(const Duration(days: 7));
     bool isSubmitting = false;
 
     showDialog(
@@ -1658,6 +1659,9 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) {
+          final dueDateStr =
+              '${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}';
+
           return AlertDialog(
             actionsOverflowDirection: VerticalDirection.down,
             title: Row(
@@ -1711,7 +1715,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                       TextFormField(
                         controller: priceCtrl,
                         decoration: const InputDecoration(
-                          labelText: 'السعر النهائي / الحصة (ج.م)',
+                          labelText: 'المبلغ المطلوب / الاشتراك (ج.م)',
                           prefixIcon: Icon(Icons.payments_outlined, size: 20),
                           border: OutlineInputBorder(),
                         ),
@@ -1726,6 +1730,45 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: dueDate,
+                            firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            helpText: 'اختر تاريخ استحقاق سداد الفاتورة',
+                          );
+                          if (picked != null) {
+                            setStateDialog(() => dueDate = picked);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).dividerColor),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.studentRole),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'تاريخ استحقاق السداد: $dueDateStr',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              const Text('تغيير 📅', style: TextStyle(fontSize: 11, color: AppColors.studentRole)),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1755,6 +1798,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                             groupId: widget.group.id,
                             totalMinor: price * 100,
                             discountMinor: discount * 100,
+                            dueAt: dueDate,
                           );
                           nav.pop();
                           _loadTabResources();

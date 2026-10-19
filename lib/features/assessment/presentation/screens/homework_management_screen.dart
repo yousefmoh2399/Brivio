@@ -997,35 +997,45 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.adminRole,
-                  side: const BorderSide(color: AppColors.adminRole, width: 0.8),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+              Flexible(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.adminRole,
+                    side: const BorderSide(color: AppColors.adminRole, width: 0.8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                  ),
+                  icon: const Icon(Icons.assignment_turned_in_rounded, size: 15),
+                  label: const Text(
+                    'كشف التسليمات والتصحيح',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                  ),
+                  onPressed: () => _showSubmissionsDialog(h),
                 ),
-                icon: const Icon(Icons.assignment_turned_in_rounded, size: 15),
-                label: const Text(
-                  'كشف التسليمات والتصحيح',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
-                ),
-                onPressed: () => _showSubmissionsDialog(h),
               ),
+              const SizedBox(width: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     tooltip: 'تعديل الواجب',
                     visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(5),
+                    constraints: const BoxConstraints(),
                     icon: const Icon(Icons.edit_outlined, size: 17, color: Colors.blue),
                     onPressed: () => _showEditHomeworkDialog(h),
                   ),
-                  if (!isClosed)
+                  if (!isClosed) ...[
+                    const SizedBox(width: 4),
                     IconButton(
                       tooltip: 'إغلاق التسليم',
                       visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(5),
+                      constraints: const BoxConstraints(),
                       icon: const Icon(Icons.lock_outline_rounded, size: 17, color: Colors.orange),
                       onPressed: () async {
                         try {
@@ -1040,9 +1050,13 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                         }
                       },
                     ),
+                  ],
+                  const SizedBox(width: 4),
                   IconButton(
                     tooltip: 'حذف الواجب',
                     visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(5),
+                    constraints: const BoxConstraints(),
                     icon: const Icon(Icons.delete_outline_rounded, size: 17, color: Colors.red),
                     onPressed: () async {
                       final confirm = await showDialog<bool>(

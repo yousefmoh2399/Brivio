@@ -781,8 +781,12 @@ class _AccountTabState extends State<AccountTab> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const Scaffold(
-                        body: SafeArea(child: AppSettingsScreen()),
+                      builder: (_) => Scaffold(
+                        body: SafeArea(
+                          child: AppSettingsScreen(
+                            authViewModel: widget.authViewModel,
+                          ),
+                        ),
                       ),
                     ),
                   );

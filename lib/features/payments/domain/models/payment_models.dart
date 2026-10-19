@@ -66,20 +66,20 @@ class Invoice {
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     return Invoice(
-      id: json['id'] as String,
-      invoiceNumber: json['invoice_number'] as String? ?? '',
-      studentId: json['student_id'] as String,
-      subscriptionId: json['subscription_id'] as String?,
-      currency: json['currency'] as String? ?? 'EGP',
-      subtotalMinor: json['subtotal_minor'] as int? ?? 0,
-      discountMinor: json['discount_minor'] as int? ?? 0,
-      totalMinor: json['total_minor'] as int? ?? 0,
-      amountPaidMinor: json['amount_paid_minor'] as int? ?? 0,
-      status: json['status'] as String? ?? 'issued',
+      id: json['id']?.toString() ?? '',
+      invoiceNumber: json['invoice_number']?.toString() ?? '',
+      studentId: json['student_id']?.toString() ?? '',
+      subscriptionId: json['subscription_id']?.toString(),
+      currency: json['currency']?.toString() ?? 'EGP',
+      subtotalMinor: (json['subtotal_minor'] as num?)?.toInt() ?? 0,
+      discountMinor: (json['discount_minor'] as num?)?.toInt() ?? 0,
+      totalMinor: (json['total_minor'] as num?)?.toInt() ?? 0,
+      amountPaidMinor: (json['amount_paid_minor'] as num?)?.toInt() ?? 0,
+      status: json['status']?.toString() ?? 'issued',
       dueAt:
-          DateTime.tryParse(json['due_at'] as String? ?? '') ?? DateTime.now(),
+          DateTime.tryParse(json['due_at']?.toString() ?? '') ?? DateTime.now(),
       issuedAt:
-          DateTime.tryParse(json['issued_at'] as String? ?? '') ??
+          DateTime.tryParse(json['issued_at']?.toString() ?? '') ??
           DateTime.now(),
     );
   }
@@ -108,14 +108,14 @@ class PaymentAttempt {
 
   factory PaymentAttempt.fromJson(Map<String, dynamic> json) {
     return PaymentAttempt(
-      id: json['id'] as String,
-      invoiceId: json['invoice_id'] as String,
-      provider: json['provider'] as String,
-      providerReference: json['provider_reference'] as String?,
-      amountMinor: json['amount_minor'] as int? ?? 0,
-      currency: json['currency'] as String? ?? 'EGP',
-      status: json['status'] as String? ?? 'pending',
-      idempotencyKey: json['idempotency_key'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      invoiceId: json['invoice_id']?.toString() ?? '',
+      provider: json['provider']?.toString() ?? 'cash',
+      providerReference: json['provider_reference']?.toString(),
+      amountMinor: (json['amount_minor'] as num?)?.toInt() ?? 0,
+      currency: json['currency']?.toString() ?? 'EGP',
+      status: json['status']?.toString() ?? 'pending',
+      idempotencyKey: json['idempotency_key']?.toString() ?? '',
     );
   }
 }
@@ -143,15 +143,15 @@ class Receipt {
 
   factory Receipt.fromJson(Map<String, dynamic> json) {
     return Receipt(
-      id: json['id'] as String,
-      receiptNumber: json['receipt_number'] as String? ?? '',
-      transactionId: json['transaction_id'] as String,
-      invoiceId: json['invoice_id'] as String,
-      studentId: json['student_id'] as String,
-      amountMinor: json['amount_minor'] as int? ?? 0,
-      currency: json['currency'] as String? ?? 'EGP',
+      id: json['id']?.toString() ?? '',
+      receiptNumber: json['receipt_number']?.toString() ?? '',
+      transactionId: json['transaction_id']?.toString() ?? '',
+      invoiceId: json['invoice_id']?.toString() ?? '',
+      studentId: json['student_id']?.toString() ?? '',
+      amountMinor: (json['amount_minor'] as num?)?.toInt() ?? 0,
+      currency: json['currency']?.toString() ?? 'EGP',
       issuedAt:
-          DateTime.tryParse(json['issued_at'] as String? ?? '') ??
+          DateTime.tryParse(json['issued_at']?.toString() ?? '') ??
           DateTime.now(),
     );
   }

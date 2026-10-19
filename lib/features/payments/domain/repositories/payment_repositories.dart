@@ -8,6 +8,11 @@ abstract class ISubscriptionPlanRepository {
 abstract class IInvoiceRepository {
   Future<List<Invoice>> fetchInvoicesForStudent(String studentId);
   Future<Invoice> fetchInvoiceById(String invoiceId);
+  Future<void> rescheduleDueDate({
+    required String invoiceId,
+    required DateTime newDueAt,
+    String? reason,
+  });
 }
 
 abstract class IPaymentRepository {
@@ -24,6 +29,11 @@ abstract class IPaymentRepository {
   });
   Future<FinancialSummary> fetchStudentFinancialSummary(String studentId);
   Future<SystemFinancialSummary> fetchSystemFinancialSummary();
+  Future<Map<String, dynamic>> generateMonthlyBillingCycle({
+    DateTime? billingMonth,
+    int dueDays = 7,
+    String? centerId,
+  });
 }
 
 abstract class IReceiptRepository {

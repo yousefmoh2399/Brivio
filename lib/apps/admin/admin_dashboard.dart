@@ -723,7 +723,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const AuditLogScreen(),
       const StudyReplayScreen(),
       const DataImportScreen(),
-      const AppSettingsScreen(),
+      AppSettingsScreen(authViewModel: widget.authViewModel),
       const AdminAnalyticsScreen(),
       const HelpdeskManagementScreen(),
       const ReportsDashboardScreen(),
@@ -1694,7 +1694,7 @@ class _AdminOverviewState extends State<_AdminOverview> {
           // Top Row: Live badge + CenterSwitcherWidget + Quick Actions Toolbar
           LayoutBuilder(
             builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 620;
+              final isNarrow = constraints.maxWidth < 900;
 
               final liveBadge = Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -1774,7 +1774,10 @@ class _AdminOverviewState extends State<_AdminOverview> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         liveBadge,
-                        CenterSwitcherWidget(onCenterChanged: widget.onRetry),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: CenterSwitcherWidget(onCenterChanged: widget.onRetry),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1791,13 +1794,23 @@ class _AdminOverviewState extends State<_AdminOverview> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   liveBadge,
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CenterSwitcherWidget(onCenterChanged: widget.onRetry),
-                      const SizedBox(width: 8),
-                      ...actionPills,
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CenterSwitcherWidget(onCenterChanged: widget.onRetry),
+                            const SizedBox(width: 8),
+                            ...actionPills,
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               );

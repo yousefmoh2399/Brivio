@@ -11,6 +11,7 @@ import '../../data/repositories/supabase_payment_repositories.dart';
 import '../../domain/models/payment_models.dart';
 import 'daily_cash_register_screen.dart';
 import 'teacher_settlement_screen.dart';
+import '../widgets/digital_cash_receipt_dialog.dart';
 
 class FinanceManagementScreen extends StatefulWidget {
   const FinanceManagementScreen({super.key});
@@ -665,6 +666,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                         );
                         nav.pop();
                         _loadFinanceData();
+                        final recNum = 'REC-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                        final dateStr = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -673,6 +676,25 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               ),
                               backgroundColor: Colors.green,
                             ),
+                          );
+                          DigitalCashReceiptDialog.show(
+                            context: context,
+                            receiptType: ReceiptType.studentPayment,
+                            centerName: 'منظومة بريفيو التعليمية المتطورة',
+                            receiptNumber: recNum,
+                            dateStr: dateStr,
+                            recipientName: _selectedStudent?.fullName ?? 'طالب المركز',
+                            studentCode: _selectedStudent?.studentCode ?? '',
+                            groupName: 'الاشتراك الدراسي المعتمد',
+                            amount: amtEgp,
+                            paymentPurpose: notesCtrl.text.trim().isNotEmpty
+                                ? notesCtrl.text.trim()
+                                : 'سداد فاتورة #${inv.invoiceNumber}',
+                            parentOrTeacherPhone: _selectedStudent?.phoneNumber,
+                            paymentMethod: paymentMethod == 'cash'
+                                ? 'نقداً بالخزينة (كاش) 💵'
+                                : paymentMethod,
+                            invoiceNumber: inv.invoiceNumber,
                           );
                         }
                       } catch (e) {
@@ -739,6 +761,610 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         );
       }
     }
+  }
+
+  void _showRescheduleInvoiceDialog(Invoice inv) {
+    DateTime selectedDate = inv.dueAt.isAfter(DateTime.now())
+        ? inv.dueAt
+        : DateTime.now().add(const Duration(days: 7));
+    final reasonCtrl = TextEditingController();
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final formattedCurrent =
+              '${inv.dueAt.year}-${inv.dueAt.month.toString().padLeft(2, '0')}-${inv.dueAt.day.toString().padLeft(2, '0')}';
+          final formattedSelected =
+              '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.edit_calendar_rounded,
+                      color: Colors.blue, size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'تعديل موعد استحقاق الفاتورة #${inv.invoiceNumber}',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width.clamp(280.0, 480.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('تاريخ الاستحقاق الحالي:',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                              Text(formattedCurrent,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('المبلغ المستحق:',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                              Text(_money(inv.totalMinor - inv.amountPaidMinor),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: Colors.red)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('اختر موعد الاستحقاق الجديد:',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    // Quick Preset Chips
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        ActionChip(
+                          avatar: const Icon(Icons.calendar_today, size: 14),
+                          label: const Text('+3 أيام',
+                              style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            setStateDialog(() {
+                              selectedDate =
+                                  DateTime.now().add(const Duration(days: 3));
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.calendar_today, size: 14),
+                          label: const Text('+أسبوع (7 أيام)',
+                              style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            setStateDialog(() {
+                              selectedDate =
+                                  DateTime.now().add(const Duration(days: 7));
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.calendar_today, size: 14),
+                          label: const Text('+أسبوعين (14 يوم)',
+                              style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            setStateDialog(() {
+                              selectedDate =
+                                  DateTime.now().add(const Duration(days: 14));
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.calendar_today, size: 14),
+                          label: const Text('نهاية الشهر',
+                              style: TextStyle(fontSize: 11)),
+                          onPressed: () {
+                            final now = DateTime.now();
+                            final end = DateTime(now.year, now.month + 1, 0);
+                            setStateDialog(() {
+                              selectedDate = end;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate:
+                              DateTime.now().subtract(const Duration(days: 30)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
+                          helpText: 'اختر تاريخ استحقاق الفاتورة',
+                        );
+                        if (picked != null) {
+                          setStateDialog(() => selectedDate = picked);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          border:
+                              Border.all(color: Theme.of(context).dividerColor),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_month_rounded,
+                                    color: AppColors.adminRole, size: 20),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'الموعد المحدد: $formattedSelected',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            const Text('تغيير 📅',
+                                style: TextStyle(
+                                    fontSize: 12, color: AppColors.adminRole)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: reasonCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'سبب تمديد أو تعديل موعد السداد (اختياري)',
+                        hintText:
+                            'مثال: بناءً على طلب ولي الأمر / تأجيل لظروف السفر',
+                        prefixIcon: Icon(Icons.comment_outlined, size: 20),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'سيتم تحديث موعد الاستحقاق فوراً وإشعار الطالب وولي الأمر بالموعد الجديد عبر الإشعارات.',
+                              style:
+                                  TextStyle(fontSize: 11, color: Colors.blue),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: const Text('حفظ موعد الاستحقاق الجديد'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.adminRole,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        setStateDialog(() => isSaving = true);
+                        final nav = Navigator.of(ctx);
+                        try {
+                          await _invoiceRepo.rescheduleDueDate(
+                            invoiceId: inv.id,
+                            newDueAt: selectedDate,
+                            reason: reasonCtrl.text.trim().isNotEmpty
+                                ? reasonCtrl.text.trim()
+                                : null,
+                          );
+                          nav.pop();
+                          _loadFinanceData();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'تم تعديل موعد استحقاق الفاتورة #${inv.invoiceNumber} بنجاح وإشعار الطالب 📅'),
+                                backgroundColor: Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isSaving = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('فشل تعديل موعد الاستحقاق: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showMonthlyBillingCycleDialog() {
+    DateTime targetMonth =
+        DateTime(DateTime.now().year, DateTime.now().month, 1);
+    int dueDays = 7;
+    bool isProcessing = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final monthLabel = 'شهر ${targetMonth.month} / ${targetMonth.year}';
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.electric_bolt_rounded,
+                      color: Colors.deepPurple, size: 24),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'توليد مطالبات ومصروفات الشهر الجديد',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width.clamp(280.0, 520.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: Colors.deepPurple.withValues(alpha: 0.2)),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.deepPurple, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'تقوم هذه العملية الآلية بحصر جميع الطلاب المقيدين في المجموعات الدراسية النشطة، وإصدار فواتير ومطالبات الشهر الجديد تلقائياً مع تفادي التكرار، وتحديد موعد الاستحقاق وإرسال إشعارات فورية للطلاب وأولياء الأمور.',
+                              style: TextStyle(fontSize: 12, height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('الشهر المستهدف للفوترة:',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.today_rounded, size: 16),
+                            label: Text(
+                                'الشهر الحالي (${DateTime.now().month}/${DateTime.now().year})',
+                                style: const TextStyle(fontSize: 11)),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor:
+                                  targetMonth.month == DateTime.now().month
+                                      ? Colors.deepPurple
+                                          .withValues(alpha: 0.1)
+                                      : null,
+                            ),
+                            onPressed: () {
+                              setStateDialog(() {
+                                targetMonth = DateTime(DateTime.now().year,
+                                    DateTime.now().month, 1);
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.next_plan_outlined,
+                                size: 16),
+                            label: Text(
+                              'الشهر القادم (${DateTime.now().month == 12 ? 1 : DateTime.now().month + 1}/${DateTime.now().month == 12 ? DateTime.now().year + 1 : DateTime.now().year})',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor:
+                                  targetMonth.month != DateTime.now().month
+                                      ? Colors.deepPurple
+                                          .withValues(alpha: 0.1)
+                                      : null,
+                            ),
+                            onPressed: () {
+                              final now = DateTime.now();
+                              setStateDialog(() {
+                                targetMonth =
+                                    DateTime(now.year, now.month + 1, 1);
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('مهلة سداد المطالبة (أيام الاستحقاق):',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      initialValue: dueDays,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.timer_outlined),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 3,
+                            child: Text('خلال 3 أيام من أول الشهر')),
+                        DropdownMenuItem(
+                            value: 7,
+                            child:
+                                Text('خلال أسبوع (7 أيام - الموصى به)')),
+                        DropdownMenuItem(
+                            value: 10,
+                            child: Text('خلال 10 أيام من أول الشهر')),
+                        DropdownMenuItem(
+                            value: 14,
+                            child: Text('خلال أسبوعين (14 يوماً)')),
+                        DropdownMenuItem(
+                            value: 30,
+                            child: Text('حتى نهاية الشهر بالكامل')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setStateDialog(() => dueDays = v);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                icon: isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.bolt_rounded, size: 20),
+                label: Text(isProcessing
+                    ? 'جارٍ توليد المطالبات...'
+                    : 'بدء توليد مطالبات $monthLabel'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: isProcessing
+                    ? null
+                    : () async {
+                        setStateDialog(() => isProcessing = true);
+                        final nav = Navigator.of(ctx);
+                        try {
+                          final result =
+                              await _paymentRepo.generateMonthlyBillingCycle(
+                            billingMonth: targetMonth,
+                            dueDays: dueDays,
+                          );
+                          nav.pop();
+                          _loadFinanceData();
+
+                          final created =
+                              result['invoices_created'] ?? 0;
+                          final totalMinor =
+                              (result['total_amount_minor'] as num?)?.toInt() ??
+                                  0;
+                          final skipped =
+                              result['invoices_skipped'] ?? 0;
+
+                          if (mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (c) => AlertDialog(
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.check_circle_rounded,
+                                        color: Colors.green, size: 24),
+                                    SizedBox(width: 8),
+                                    Text('اكتملت دورة الفوترة الشهرية ⚡'),
+                                  ],
+                                ),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        'تم الانتهاء بنجاح من دورة مطالبات $monthLabel:'),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green
+                                            .withValues(alpha: 0.08),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                        border: Border.all(
+                                            color: Colors.green
+                                                .withValues(alpha: 0.2)),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment
+                                                    .spaceBetween,
+                                            children: [
+                                              const Text(
+                                                  'الفواتير الجديدة الصادرة:'),
+                                              Text('$created فاتورة',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.green)),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment
+                                                    .spaceBetween,
+                                            children: [
+                                              const Text(
+                                                  'إجمالي المبالغ المستحقة:'),
+                                              Text(_money(totalMinor),
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.green)),
+                                            ],
+                                          ),
+                                          if (skipped > 0) ...[
+                                            const SizedBox(height: 6),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text(
+                                                    'تم تخطيهم (تمت فوترتهم مسبقاً):'),
+                                                Text('$skipped طالب',
+                                                    style: const TextStyle(
+                                                        color: Colors.grey)),
+                                              ],
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'تم إرسال إشعارات بالمطالبات ومواعيد السداد للطلاب وأولياء الأمور فوراً 📲.',
+                                      style: TextStyle(
+                                          fontSize: 12, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(c),
+                                    child: const Text('تم'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          setStateDialog(() => isProcessing = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('فشل توليد مطالبات الشهر: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _exportFinancialData() async {
@@ -948,6 +1574,12 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
         accentColor: AppColors.adminRole,
         actions: [
           PortalAction(
+            icon: Icons.electric_bolt_rounded,
+            label: 'توليد مطالبات الشهر ⚡',
+            onPressed: _showMonthlyBillingCycleDialog,
+            primary: true,
+          ),
+          PortalAction(
             icon: Icons.point_of_sale_rounded,
             label: 'جرد وتقفيل الخزينة',
             onPressed: () {
@@ -957,7 +1589,6 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 ),
               );
             },
-            primary: true,
           ),
           PortalAction(
             icon: Icons.calculate_rounded,
@@ -1973,38 +2604,103 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
           ),
           // Actions
           if (isUnpaid)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _showRecordPaymentDialog(inv),
-                icon: const Icon(Icons.payments_rounded, size: 16),
-                label: const Text('تحصيل سداد نقدي'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  visualDensity: VisualDensity.compact,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => _showRecordPaymentDialog(inv),
+                    icon: const Icon(Icons.payments_rounded, size: 16),
+                    label: const Text('تحصيل سداد نقدي'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showRescheduleInvoiceDialog(inv),
+                    icon: const Icon(Icons.edit_calendar_rounded, size: 15),
+                    label: const Text(
+                      'تعديل موعد الاستحقاق / تمديد السداد 📅',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+              ],
             )
           else
-            Container(
+            SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'تم السداد بالكامل',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+              child: FilledButton.tonalIcon(
+                onPressed: () => _openInvoiceReceipt(inv),
+                icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                label: const Text('عرض الإيصال الرسمي 🧾'),
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
             ),
         ],
       ),
+    );
+  }
+
+  void _openReceiptDialog(Receipt rec) {
+    final s = _selectedStudent;
+    final dateStr =
+        '${rec.issuedAt.year}-${rec.issuedAt.month.toString().padLeft(2, '0')}-${rec.issuedAt.day.toString().padLeft(2, '0')}';
+    final recNum = rec.receiptNumber.isNotEmpty
+        ? rec.receiptNumber
+        : 'REC-${rec.id.length >= 8 ? rec.id.substring(0, 8).toUpperCase() : rec.id}';
+
+    DigitalCashReceiptDialog.show(
+      context: context,
+      receiptType: ReceiptType.studentPayment,
+      centerName: 'منظومة بريفيو التعليمية المتطورة',
+      receiptNumber: recNum,
+      dateStr: dateStr,
+      recipientName: s?.fullName ?? 'طالب المركز',
+      studentCode: s?.studentCode ?? (rec.studentId.length >= 8 ? rec.studentId.substring(0, 8).toUpperCase() : rec.studentId),
+      groupName: 'الاشتراك الدراسي المعتمد',
+      amount: rec.amountMinor / 100.0,
+      paymentPurpose: 'سداد رسوم واشتراك معتمد بالخزينة',
+      parentOrTeacherPhone: s?.phoneNumber,
+      paymentMethod: 'إيصال تحصيل رسمي معتمد',
+      invoiceNumber: rec.invoiceId.isNotEmpty
+          ? 'INV-${rec.invoiceId.length >= 8 ? rec.invoiceId.substring(0, 8).toUpperCase() : rec.invoiceId}'
+          : null,
+      transactionId: rec.transactionId.isNotEmpty ? rec.transactionId : null,
+    );
+  }
+
+  void _openInvoiceReceipt(Invoice inv) {
+    final s = _selectedStudent;
+    final dateStr =
+        '${inv.issuedAt.year}-${inv.issuedAt.month.toString().padLeft(2, '0')}-${inv.issuedAt.day.toString().padLeft(2, '0')}';
+    final recNum = 'REC-${inv.invoiceNumber.isNotEmpty ? inv.invoiceNumber : (inv.id.length >= 8 ? inv.id.substring(0, 8).toUpperCase() : inv.id)}';
+
+    DigitalCashReceiptDialog.show(
+      context: context,
+      receiptType: ReceiptType.studentPayment,
+      centerName: 'منظومة بريفيو التعليمية المتطورة',
+      receiptNumber: recNum,
+      dateStr: dateStr,
+      recipientName: s?.fullName ?? 'طالب المركز',
+      studentCode: s?.studentCode ?? '',
+      groupName: 'الاشتراك الدراسي المعتمد',
+      amount: inv.amountPaidMinor > 0 ? (inv.amountPaidMinor / 100.0) : (inv.totalMinor / 100.0),
+      paymentPurpose: 'سداد معتمد للفاتورة #${inv.invoiceNumber}',
+      parentOrTeacherPhone: s?.phoneNumber,
+      paymentMethod: 'إيصال دفع معتمد',
+      invoiceNumber: inv.invoiceNumber,
     );
   }
 
@@ -2145,85 +2841,108 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     final dateStr =
         '${rec.issuedAt.year}-${rec.issuedAt.month.toString().padLeft(2, '0')}-${rec.issuedAt.day.toString().padLeft(2, '0')}';
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _openReceiptDialog(rec),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.teal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.receipt_rounded,
-                  color: Colors.teal,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'إيصال تحصيل $receiptLabel',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      'تاريخ السداد: $dateStr',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.teal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _money(rec.amountMinor),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long_rounded,
                     color: Colors.teal,
+                    size: 20,
                   ),
                 ),
-              ),
-            ],
-          ),
-          Text(
-            'رقم المعاملة: ${rec.transactionId}',
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'إيصال تحصيل $receiptLabel',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'تاريخ السداد: $dateStr',
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _money(rec.amountMinor),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.teal,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'رقم المعاملة: ${rec.transactionId.length >= 8 ? rec.transactionId.substring(0, 8) : rec.transactionId}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () => _openReceiptDialog(rec),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 14),
+                  label: const Text('معاينة وطباعة 🧾', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

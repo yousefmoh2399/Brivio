@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/widgets/portal_components.dart';
@@ -11,6 +12,7 @@ String _statusArabic(String status) {
   return switch (status.toLowerCase()) {
     'open' => 'مفتوحة',
     'in_progress' => 'قيد المتابعة',
+    'resolved' => 'تم الحل',
     'closed' => 'مغلقة',
     _ => status,
   };
@@ -90,7 +92,11 @@ class _StudentHelpdeskScreenState extends State<StudentHelpdeskScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _TicketDetailsSheet(ticket: ticket, repo: _repo),
+      builder: (context) => _TicketDetailsSheet(
+        ticket: ticket,
+        repo: _repo,
+        onStatusChanged: _loadTickets,
+      ),
     );
   }
 
@@ -738,8 +744,13 @@ class _CreateTicketDialogState extends State<_CreateTicketDialog> {
 class _TicketDetailsSheet extends StatefulWidget {
   final SupportTicket ticket;
   final HelpdeskRepository repo;
+  final VoidCallback? onStatusChanged;
 
-  const _TicketDetailsSheet({required this.ticket, required this.repo});
+  const _TicketDetailsSheet({
+    required this.ticket,
+    required this.repo,
+    this.onStatusChanged,
+  });
 
   @override
   State<_TicketDetailsSheet> createState() => _TicketDetailsSheetState();
@@ -750,10 +761,12 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
   bool _isLoading = true;
   final _replyCtrl = TextEditingController();
   bool _isReplying = false;
+  late String _currentStatus;
 
   @override
   void initState() {
     super.initState();
+    _currentStatus = widget.ticket.status;
     _loadReplies();
   }
 
@@ -761,7 +774,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
     setState(() => _isLoading = true);
     try {
       final replies = await widget.repo.getReplies(widget.ticket.id);
-      setState(() => _replies = replies);
+      if (mounted) {
+        setState(() => _replies = replies);
+      }
     } catch (e) {
       debugPrint('Error loading replies: $e');
     } finally {
@@ -770,21 +785,45 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
   }
 
   Future<void> _sendReply() async {
-    if (_replyCtrl.text.isEmpty) return;
+    final text = _replyCtrl.text.trim();
+    if (text.isEmpty || _isReplying) return;
+
     setState(() => _isReplying = true);
     try {
       final newReply = await widget.repo.addReply(
         widget.ticket.id,
-        _replyCtrl.text,
+        text,
       );
+      if (!mounted) return;
       setState(() {
         _replies.add(newReply);
         _replyCtrl.clear();
+        if (_currentStatus == 'open') {
+          _currentStatus = 'in_progress';
+        }
       });
+      widget.onStatusChanged?.call();
     } catch (e) {
       debugPrint('Error sending reply: $e');
     } finally {
       if (mounted) setState(() => _isReplying = false);
+    }
+  }
+
+  Future<void> _resolveTicket() async {
+    try {
+      await widget.repo.updateTicketStatus(widget.ticket.id, 'resolved');
+      if (!mounted) return;
+      setState(() => _currentStatus = 'resolved');
+      widget.onStatusChanged?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تأكيد حل التذكرة بنجاح! شكراً لتواصلك مع السنتر.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error resolving ticket: $e');
     }
   }
 
@@ -819,6 +858,8 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
   }
 
   Widget _buildHeader(SupportTicket t, bool isDark, Color textPrimary, Color textSecondary) {
+    final canResolve = _currentStatus != 'resolved' && _currentStatus != 'closed';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -854,8 +895,8 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                 ),
               ),
               StatusChip(
-                label: _statusArabic(t.status),
-                status: _getChipStatus(t.status),
+                label: _statusArabic(_currentStatus),
+                status: _getChipStatus(_currentStatus),
               ),
             ],
           ),
@@ -868,6 +909,26 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
               height: 1.4,
             ),
           ),
+          if (canResolve) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _resolveTicket,
+                icon: const Icon(Icons.check_circle_outline, size: 16),
+                label: const Text(
+                  'تم حل استفساري بنجاح ✅',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.success,
+                  side: const BorderSide(color: AppColors.success),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -897,7 +958,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75,
+              maxWidth: MediaQuery.of(context).size.width * 0.78,
             ),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -910,16 +971,36 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isMine ? Icons.person_rounded : Icons.school_rounded,
+                      size: 13,
+                      color: isMine ? Colors.white70 : AppColors.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isMine ? 'أنت (الطالب)' : 'المعلم / إدارة السنتر 👨‍🏫',
+                      style: TextStyle(
+                        color: isMine ? Colors.white : AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(
                   reply.message,
                   style: TextStyle(color: bubbleText, fontSize: 14),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${reply.createdAt.hour}:${reply.createdAt.minute.toString().padLeft(2, '0')}',
+                  timeago.format(reply.createdAt, locale: 'ar'),
                   style: TextStyle(
                     color: timeText,
-                    fontSize: 11,
+                    fontSize: 10,
                   ),
                 ),
               ],

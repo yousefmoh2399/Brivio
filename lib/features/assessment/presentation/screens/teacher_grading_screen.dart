@@ -52,6 +52,275 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     super.dispose();
   }
 
+  Future<String?> _resolveCanonicalTeacherId() async {
+    final client = Supabase.instance.client;
+    final currentUid = client.auth.currentUser?.id;
+
+    if (widget.teacherId.isNotEmpty) {
+      // 1. Is widget.teacherId already a record in teachers table?
+      try {
+        final t = await client
+            .from('teachers')
+            .select('id')
+            .eq('id', widget.teacherId)
+            .maybeSingle();
+        if (t != null && t['id'] != null) {
+          return t['id'].toString();
+        }
+      } catch (_) {}
+
+      // 2. Is widget.teacherId a profile_id?
+      try {
+        final t = await client
+            .from('teachers')
+            .select('id')
+            .eq('profile_id', widget.teacherId)
+            .maybeSingle();
+        if (t != null && t['id'] != null) {
+          return t['id'].toString();
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback to auth.uid()
+    if (currentUid != null) {
+      try {
+        final t = await client
+            .from('teachers')
+            .select('id')
+            .eq('profile_id', currentUid)
+            .maybeSingle();
+        if (t != null && t['id'] != null) {
+          return t['id'].toString();
+        }
+      } catch (_) {}
+    }
+
+    return widget.teacherId.isNotEmpty ? widget.teacherId : currentUid;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchGradingQueueDirect(
+    String? teacherId,
+    String? profileId,
+  ) async {
+    final client = Supabase.instance.client;
+    final List<Map<String, dynamic>> items = [];
+
+    // 1. Find teacher's assigned groups
+    final Set<String> groupIds = {};
+    if (teacherId != null && teacherId.isNotEmpty) {
+      try {
+        final gRes = await client
+            .from('groups')
+            .select('id')
+            .eq('teacher_id', teacherId);
+        for (final row in (gRes as List<dynamic>)) {
+          if (row['id'] != null) groupIds.add(row['id'].toString());
+        }
+      } catch (_) {}
+
+      try {
+        final gtRes = await client
+            .from('group_teachers')
+            .select('group_id')
+            .eq('teacher_id', teacherId);
+        for (final row in (gtRes as List<dynamic>)) {
+          if (row['group_id'] != null) groupIds.add(row['group_id'].toString());
+        }
+      } catch (_) {}
+    }
+
+    if (profileId != null && profileId.isNotEmpty) {
+      try {
+        final gRes = await client
+            .from('groups')
+            .select('id')
+            .eq('created_by', profileId);
+        for (final row in (gRes as List<dynamic>)) {
+          if (row['id'] != null) groupIds.add(row['id'].toString());
+        }
+      } catch (_) {}
+    }
+
+    // 2. Fetch homework
+    final Map<String, Map<String, dynamic>> homeworkMap = {};
+    try {
+      final List<dynamic> hwList;
+      if (groupIds.isNotEmpty && profileId != null) {
+        hwList = await client
+            .from('homework')
+            .select('id, title, max_score, group_id, assigned_by')
+            .or('assigned_by.eq.$profileId,group_id.in.(${groupIds.join(",")})');
+      } else if (profileId != null) {
+        hwList = await client
+            .from('homework')
+            .select('id, title, max_score, group_id, assigned_by')
+            .eq('assigned_by', profileId);
+      } else if (groupIds.isNotEmpty) {
+        hwList = await client
+            .from('homework')
+            .select('id, title, max_score, group_id, assigned_by')
+            .inFilter('group_id', groupIds.toList());
+      } else {
+        hwList = await client
+            .from('homework')
+            .select('id, title, max_score, group_id, assigned_by')
+            .limit(100);
+      }
+
+      for (final hw in hwList) {
+        homeworkMap[hw['id'].toString()] = Map<String, dynamic>.from(hw as Map);
+      }
+    } catch (_) {}
+
+    // 3. Fetch homework submissions
+    final Set<String> studentIdsToResolve = {};
+    final List<Map<String, dynamic>> rawHwSubs = [];
+    if (homeworkMap.isNotEmpty) {
+      try {
+        final hwIds = homeworkMap.keys.toList();
+        final subsRes = await client
+            .from('homework_submissions')
+            .select('id, homework_id, student_id, status, score, submitted_at, submission_text, attachment_url')
+            .inFilter('homework_id', hwIds)
+            .order('submitted_at', ascending: false);
+
+        for (final sub in (subsRes as List<dynamic>)) {
+          final sMap = Map<String, dynamic>.from(sub as Map);
+          rawHwSubs.add(sMap);
+          if (sMap['student_id'] != null) {
+            studentIdsToResolve.add(sMap['student_id'].toString());
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 4. Fetch exams
+    final Map<String, Map<String, dynamic>> examMap = {};
+    try {
+      final List<dynamic> exList;
+      if (groupIds.isNotEmpty && profileId != null) {
+        exList = await client
+            .from('exams')
+            .select('id, title, max_score, group_id, created_by')
+            .or('created_by.eq.$profileId,group_id.in.(${groupIds.join(",")})');
+      } else if (profileId != null) {
+        exList = await client
+            .from('exams')
+            .select('id, title, max_score, group_id, created_by')
+            .eq('created_by', profileId);
+      } else if (groupIds.isNotEmpty) {
+        exList = await client
+            .from('exams')
+            .select('id, title, max_score, group_id, created_by')
+            .inFilter('group_id', groupIds.toList());
+      } else {
+        exList = await client
+            .from('exams')
+            .select('id, title, max_score, group_id, created_by')
+            .limit(100);
+      }
+
+      for (final ex in exList) {
+        examMap[ex['id'].toString()] = Map<String, dynamic>.from(ex as Map);
+      }
+    } catch (_) {}
+
+    // 5. Fetch exam attempts
+    final List<Map<String, dynamic>> rawExamAttempts = [];
+    if (examMap.isNotEmpty) {
+      try {
+        final examIds = examMap.keys.toList();
+        final attRes = await client
+            .from('exam_attempts')
+            .select('id, exam_id, student_id, status, score, submitted_at, max_score')
+            .inFilter('exam_id', examIds)
+            .inFilter('status', ['submitted', 'graded'])
+            .order('submitted_at', ascending: false);
+
+        for (final att in (attRes as List<dynamic>)) {
+          final aMap = Map<String, dynamic>.from(att as Map);
+          rawExamAttempts.add(aMap);
+          if (aMap['student_id'] != null) {
+            studentIdsToResolve.add(aMap['student_id'].toString());
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 6. Bulk resolve student names & emails
+    final Map<String, String> studentNames = {};
+    final Map<String, String> studentEmails = {};
+    if (studentIdsToResolve.isNotEmpty) {
+      try {
+        final sRes = await client
+            .from('students')
+            .select('id, profile:profiles(full_name, email)')
+            .inFilter('id', studentIdsToResolve.toList());
+
+        for (final s in (sRes as List<dynamic>)) {
+          final sId = s['id']?.toString();
+          final prof = s['profile'] as Map<String, dynamic>?;
+          if (sId != null && prof != null) {
+            if (prof['full_name'] != null) studentNames[sId] = prof['full_name'].toString();
+            if (prof['email'] != null) studentEmails[sId] = prof['email'].toString();
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 7. Assemble final list
+    for (final sMap in rawHwSubs) {
+      final sId = sMap['student_id']?.toString();
+      final hwInfo = homeworkMap[sMap['homework_id']?.toString()] ?? {};
+      items.add({
+        'id': sMap['id'],
+        'assessment_id': sMap['homework_id'],
+        'student_id': sMap['student_id'],
+        'status': sMap['status'] ?? 'submitted',
+        'score': sMap['score'],
+        'submitted_at': sMap['submitted_at'],
+        'max_score': hwInfo['max_score'] ?? 20,
+        'assessment_title': hwInfo['title'] ?? 'واجب منزلي',
+        'group_id': hwInfo['group_id'],
+        'student_full_name': studentNames[sId] ?? 'طالب',
+        'student_email': studentEmails[sId] ?? '',
+        'submission_text': sMap['submission_text'],
+        'attachment_url': sMap['attachment_url'],
+        'assessment_type': 'homework',
+      });
+    }
+
+    for (final aMap in rawExamAttempts) {
+      final sId = aMap['student_id']?.toString();
+      final exInfo = examMap[aMap['exam_id']?.toString()] ?? {};
+      items.add({
+        'id': aMap['id'],
+        'assessment_id': aMap['exam_id'],
+        'student_id': aMap['student_id'],
+        'status': aMap['status'] ?? 'submitted',
+        'score': aMap['score'],
+        'submitted_at': aMap['submitted_at'],
+        'max_score': aMap['max_score'] ?? exInfo['max_score'] ?? 100,
+        'assessment_title': exInfo['title'] ?? 'اختبار',
+        'group_id': exInfo['group_id'],
+        'student_full_name': studentNames[sId] ?? 'طالب',
+        'student_email': studentEmails[sId] ?? '',
+        'submission_text': null,
+        'attachment_url': null,
+        'assessment_type': 'exam',
+      });
+    }
+
+    items.sort((a, b) {
+      final aDate = DateTime.tryParse(a['submitted_at']?.toString() ?? '') ?? DateTime(2000);
+      final bDate = DateTime.tryParse(b['submitted_at']?.toString() ?? '') ?? DateTime(2000);
+      return bDate.compareTo(aDate);
+    });
+
+    return items;
+  }
+
   Future<void> _loadGradingQueue() async {
     setState(() {
       _isLoading = true;
@@ -59,24 +328,57 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     });
 
     try {
-      final res = await Supabase.instance.client.rpc(
-        'get_teacher_grading_queue',
-        params: {'p_teacher_id': widget.teacherId},
-      );
+      final client = Supabase.instance.client;
+      final currentUid = client.auth.currentUser?.id;
+      final resolvedTeacherId = await _resolveCanonicalTeacherId();
 
-      final resetsRes = await Supabase.instance.client
-          .from('exam_reset_requests')
-          .select('*, exams(title), students(profiles(full_name))')
-          .eq('status', 'pending');
+      List<Map<String, dynamic>> submissions = [];
+      bool rpcSucceeded = false;
+
+      // 1. Try RPC get_teacher_grading_queue
+      try {
+        final targetId = resolvedTeacherId ?? (widget.teacherId.isNotEmpty ? widget.teacherId : currentUid);
+        if (targetId != null && targetId.isNotEmpty) {
+          final res = await client.rpc(
+            'get_teacher_grading_queue',
+            params: {'p_teacher_id': targetId},
+          );
+          if (res is List) {
+            submissions = res.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+            rpcSucceeded = true;
+          }
+        }
+      } catch (rpcError) {
+        debugPrint('RPC get_teacher_grading_queue failed: $rpcError - falling back to direct query');
+      }
+
+      // 2. Direct client fallback if RPC failed or threw unauthorized
+      if (!rpcSucceeded) {
+        submissions = await _fetchGradingQueueDirect(resolvedTeacherId, currentUid);
+      }
+
+      // 3. Safe reset requests fetch
+      List<Map<String, dynamic>> resets = [];
+      try {
+        final resetsRes = await client
+            .from('exam_reset_requests')
+            .select('*, exams(title), students(profiles(full_name))')
+            .eq('status', 'pending');
+        resets = resetsRes.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } catch (_) {
+        try {
+          final simpleRes = await client
+              .from('exam_reset_requests')
+              .select('*')
+              .eq('status', 'pending');
+          resets = simpleRes.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        } catch (_) {}
+      }
 
       if (mounted) {
         setState(() {
-          _homeworkSubmissions = (res as List<dynamic>)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
-          _resetRequests = (resetsRes as List<dynamic>)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
+          _homeworkSubmissions = submissions;
+          _resetRequests = resets;
           _isLoading = false;
         });
       }

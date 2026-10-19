@@ -11,7 +11,6 @@ import '../../core/notifications/push_notification_service.dart';
 import '../../core/settings/app_settings_screen.dart';
 import '../../design_system/components/editable_avatar.dart';
 import '../../design_system/tokens/colors.dart';
-import '../../design_system/tokens/typography.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
@@ -21,6 +20,7 @@ import '../../features/communication/domain/repositories/i_notification_reposito
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/payments/data/repositories/supabase_payment_repositories.dart';
 import '../../features/payments/domain/models/payment_models.dart';
+import '../../features/payments/presentation/widgets/digital_cash_receipt_dialog.dart';
 import '../../features/study_workspace/data/repositories/supabase_student_learning_repository.dart';
 import '../../features/study_workspace/domain/models/study_workspace_models.dart';
 import '../../features/parent_portal/presentation/screens/absence_excuse_dialog.dart';
@@ -696,8 +696,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
             userEmail: parentUser?.email,
             radius: 23,
             onAvatarChanged: (_) async {
+              await widget.authViewModel.restoreSession();
               if (mounted) {
-                await widget.authViewModel.restoreSession();
                 setState(() {});
               }
             },
@@ -1046,48 +1046,30 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   void _showReceiptDialog(Receipt receipt) {
-    showDialog<void>(
+    final child = _selectedChild;
+    final dateStr = _formatDate(receipt.issuedAt);
+    final groupName = _childGroups.isNotEmpty ? _childGroups.first.name : 'المجموعة الدراسية';
+    final recNum = receipt.receiptNumber.isNotEmpty
+        ? receipt.receiptNumber
+        : 'REC-${receipt.id.length >= 8 ? receipt.id.substring(0, 8).toUpperCase() : receipt.id}';
+
+    DigitalCashReceiptDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          receipt.receiptNumber.isEmpty
-              ? 'إيصال دفع إلكتروني'
-              : receipt.receiptNumber,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.verified_rounded,
-              color: AppColors.success,
-              size: 42,
-            ),
-            const SizedBox(height: 12),
-            _ReceiptDetailLine(
-              label: 'المبلغ المسدد',
-              value: _money(receipt.amountMinor, receipt.currency),
-            ),
-            _ReceiptDetailLine(
-              label: 'تاريخ السداد',
-              value: _formatDate(receipt.issuedAt),
-            ),
-            _ReceiptDetailLine(
-              label: 'رقم الفاتورة',
-              value: _shortId(receipt.invoiceId),
-            ),
-            _ReceiptDetailLine(
-              label: 'رقم المعاملة (المرجع)',
-              value: _shortId(receipt.transactionId),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
+      receiptType: ReceiptType.studentPayment,
+      centerName: 'منظومة بريفيو التعليمية المتطورة',
+      receiptNumber: recNum,
+      dateStr: dateStr,
+      recipientName: child?.fullName ?? 'الطالب',
+      studentCode: child?.studentCode ?? '',
+      groupName: groupName,
+      amount: receipt.amountMinor / 100.0,
+      paymentPurpose: 'سداد رسوم واشتراك معتمد',
+      parentOrTeacherPhone: widget.authViewModel.currentUser?.phoneNumber,
+      paymentMethod: 'إيصال دفع إلكتروني / معتمد',
+      invoiceNumber: receipt.invoiceId.isNotEmpty
+          ? 'INV-${receipt.invoiceId.length >= 8 ? receipt.invoiceId.substring(0, 8).toUpperCase() : receipt.invoiceId}'
+          : null,
+      transactionId: receipt.transactionId.isNotEmpty ? receipt.transactionId : null,
     );
   }
 
@@ -1296,60 +1278,11 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
 
 
-  static String _money(int minor, String? currency) {
-    final amount = minor / 100;
-    final formatted = amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2);
-    final cur = (currency == null || currency == 'EGP') ? 'ج.م' : currency;
-    return '$formatted $cur';
-  }
-
-  static String _shortId(String value) {
-    if (value.length <= 8) return value;
-    return value.substring(0, 8);
-  }
-
   static String _formatDate(DateTime? value) {
     if (value == null) return 'غير محدد';
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
-  }
-
-
-}
-
-
-
-class _ReceiptDetailLine extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ReceiptDetailLine({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTypography.caption(Theme.of(context).hintColor),
-            ),
-          ),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: AppTypography.bodyMedium(
-                Theme.of(context).colorScheme.onSurface,
-              ).copyWith(fontWeight: FontWeight.w800),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

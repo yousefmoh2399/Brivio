@@ -275,6 +275,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     final tabs = [
       HomeTab(
         user: widget.authViewModel.currentUser,
+        teacherId: teacherId,
         isLoading: _isLoading,
         errorMessage: _errorMessage,
         assignedGroupsCount: _assignedGroups.length,

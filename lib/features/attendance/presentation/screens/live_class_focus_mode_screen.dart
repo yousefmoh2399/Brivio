@@ -355,19 +355,19 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               // Left: Giant QR Gate & Real-time Check-ins
-                              Expanded(flex: 5, child: _buildQrGateSection()),
+                              Expanded(flex: 5, child: _buildQrGateSection(isScrollable: false)),
                               const SizedBox(width: 20),
                               // Right: Headcount HUD, Class Phase & Quick Dock
-                              Expanded(flex: 4, child: _buildCockpitControlsSection()),
+                              Expanded(flex: 4, child: _buildCockpitControlsSection(isScrollable: false)),
                             ],
                           );
                         } else {
                           return SingleChildScrollView(
                             child: Column(
                               children: [
-                                _buildQrGateSection(),
+                                _buildQrGateSection(isScrollable: true),
                                 const SizedBox(height: 16),
-                                _buildCockpitControlsSection(),
+                                _buildCockpitControlsSection(isScrollable: true),
                               ],
                             ),
                           );
@@ -585,7 +585,38 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
     );
   }
 
-  Widget _buildQrGateSection() {
+  Widget _buildQrGateSection({bool isScrollable = false}) {
+    final qrCard = Center(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: QrImageView(
+          data: _currentQrToken,
+          version: QrVersions.auto,
+          size: 260,
+          backgroundColor: Colors.white,
+          eyeStyle: const QrEyeStyle(
+            eyeShape: QrEyeShape.square,
+            color: Color(0xFF0F172A),
+          ),
+          dataModuleStyle: const QrDataModuleStyle(
+            dataModuleShape: QrDataModuleShape.square,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+      ),
+    );
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -653,38 +684,7 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
           const SizedBox(height: 16),
 
           // High-Contrast Projected QR Code
-          Expanded(
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: QrImageView(
-                  data: _currentQrToken,
-                  version: QrVersions.auto,
-                  size: 260,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Color(0xFF0F172A),
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          if (isScrollable) qrCard else Expanded(child: qrCard),
 
           const SizedBox(height: 14),
 
@@ -797,12 +797,13 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
     );
   }
 
-  Widget _buildCockpitControlsSection() {
+  Widget _buildCockpitControlsSection({bool isScrollable = false}) {
     final attendancePct = widget.totalStudents > 0
         ? ((_presentCount / widget.totalStudents) * 100).toStringAsFixed(1)
         : (_presentCount > 0 ? '100.0' : '0.0');
 
     return Column(
+      mainAxisSize: isScrollable ? MainAxisSize.min : MainAxisSize.max,
       children: [
         // Top Card: Headcount HUD
         Container(
@@ -923,152 +924,165 @@ class _LiveClassFocusModeScreenState extends State<LiveClassFocusModeScreen>
         const SizedBox(height: 14),
 
         // Quick Classroom Dock
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'أدوات التحكم التفاعلية المباشرة:',
-                  style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      _buildProjectorActionButton(
-                        title: 'فتح السبورة الذكية للشرح التفاعلي 🎨',
-                        subtitle: 'رسم بياني، تصدير صفحات، وتدوين الملاحظات للطلاب',
-                        color: Colors.teal,
-                        icon: Icons.draw_rounded,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => TeacherSessionBoardScreen(
-                                teacherId: widget.teacherId,
-                                groupName: widget.groupName,
-                              ),
-                            ),
-                          );
-                        },
+        Builder(
+          builder: (context) {
+            final actionItems = [
+              _buildProjectorActionButton(
+                title: 'فتح السبورة الذكية للشرح التفاعلي 🎨',
+                subtitle: 'رسم بياني، تصدير صفحات، وتدوين الملاحظات للطلاب',
+                color: Colors.teal,
+                icon: Icons.draw_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TeacherSessionBoardScreen(
+                        teacherId: widget.teacherId,
+                        groupName: widget.groupName,
                       ),
-                      const SizedBox(height: 10),
-                      _buildProjectorActionButton(
-                        title: 'إطلاق كويز الـ 5 دقائق التفاعلي ⚡',
-                        subtitle: 'منافسة حية مع لوحة الشرف وأسرع الطلاب إجابة',
-                        color: Colors.purple,
-                        icon: Icons.bolt_rounded,
-                        onTap: () {
-                          LiveBlitzQuizDialog.show(
-                            context,
-                            groupName: widget.groupName,
-                            subjectName: widget.groupName,
-                            groupId: widget.groupId,
-                            teacherId: widget.teacherId,
-                          );
-                        },
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildProjectorActionButton(
+                title: 'إطلاق كويز الـ 5 دقائق التفاعلي ⚡',
+                subtitle: 'منافسة حية مع لوحة الشرف وأسرع الطلاب إجابة',
+                color: Colors.purple,
+                icon: Icons.bolt_rounded,
+                onTap: () {
+                  LiveBlitzQuizDialog.show(
+                    context,
+                    groupName: widget.groupName,
+                    subjectName: widget.groupName,
+                    groupId: widget.groupId,
+                    teacherId: widget.teacherId,
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildProjectorActionButton(
+                title: 'إذاعة تنبيه فوري للقاعة والمجموعة 📢',
+                subtitle: 'إشعار شاشات هواتف الطلاب الحاضرين في الحال',
+                color: Colors.amber.shade700,
+                icon: Icons.campaign_rounded,
+                onTap: () {
+                  ClassBroadcastDialog.show(
+                    context,
+                    groupName: widget.groupName,
+                    teacherName: widget.teacherName,
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildProjectorActionButton(
+                title: 'إنذار فوري لأولياء أمور الغائبين ($_absentCount طلاب) 🚨',
+                subtitle: 'رسالة واتساب ونظام تنبيهات لولي الأمر بعدم التواجد',
+                color: const Color(0xFFDC2626),
+                icon: Icons.warning_amber_rounded,
+                onTap: () {
+                  if (_absentCount == 0 && widget.absentStudents.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('ممتاز! لا يوجد طلاب غائبين مسجلين لهذه الحصة 👏'),
+                        backgroundColor: Colors.green,
                       ),
-                      const SizedBox(height: 10),
-                      _buildProjectorActionButton(
-                        title: 'إذاعة تنبيه فوري للقاعة والمجموعة 📢',
-                        subtitle: 'إشعار شاشات هواتف الطلاب الحاضرين في الحال',
-                        color: Colors.amber.shade700,
-                        icon: Icons.campaign_rounded,
-                        onTap: () {
-                          ClassBroadcastDialog.show(
-                            context,
-                            groupName: widget.groupName,
-                            teacherName: widget.teacherName,
-                          );
-                        },
+                    );
+                    return;
+                  }
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: const Color(0xFF1E293B),
+                      title: const Text('إرسال إنذار غياب فوري', style: TextStyle(color: Colors.white)),
+                      content: Text(
+                        'سيتم إرسال إشعار فوري لـ $_absentCount أولياء أمور للطلاب الذين لم يمرروا الباركود حتى الآن في ${widget.groupName}.',
+                        style: const TextStyle(color: Colors.white70),
                       ),
-                      const SizedBox(height: 10),
-                      _buildProjectorActionButton(
-                        title: 'إنذار فوري لأولياء أمور الغائبين ($_absentCount طلاب) 🚨',
-                        subtitle: 'رسالة واتساب ونظام تنبيهات لولي الأمر بعدم التواجد',
-                        color: const Color(0xFFDC2626),
-                        icon: Icons.warning_amber_rounded,
-                        onTap: () {
-                          if (_absentCount == 0 && widget.absentStudents.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('ممتاز! لا يوجد طلاب غائبين مسجلين لهذه الحصة 👏'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                            return;
-                          }
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: const Color(0xFF1E293B),
-                              title: const Text('إرسال إنذار غياب فوري', style: TextStyle(color: Colors.white)),
-                              content: Text(
-                                'سيتم إرسال إشعار فوري لـ $_absentCount أولياء أمور للطلاب الذين لم يمرروا الباركود حتى الآن في ${widget.groupName}.',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+                        ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+
+                            try {
+                              final client = Supabase.instance.client;
+                              for (final s in widget.absentStudents) {
+                                await client.from('notifications').insert({
+                                  'title': 'تنبيه غياب فوري: ${widget.groupName}',
+                                  'body': 'نحيطكم علماً بأن الطالب ${s['name']} لم يمرر الباركود في حصة اليوم بقاعة ${widget.roomName}.',
+                                  'type': 'absence_alert',
+                                  'created_at': DateTime.now().toIso8601String(),
+                                });
+
+                                final phone = s['phone'];
+                                if (phone != null && phone.isNotEmpty) {
+                                  await WhatsAppService.sendAbsenceNotice(
+                                    parentPhone: phone,
+                                    studentName: s['name'] ?? 'الطالب',
+                                    subjectName: widget.groupName,
+                                    centerName: 'منظومة بريفيو التعليمية المتطورة',
+                                    sessionDate: DateTime.now().toString().split(' ')[0],
+                                  );
+                                }
+                              }
+                            } catch (_) {}
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('تم إرسال إشعارات الغياب الفورية في النظام بنجاح 🚨'),
+                                  backgroundColor: Color(0xFFDC2626),
                                 ),
-                                FilledButton(
-                                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
-                                  onPressed: () async {
-                                    Navigator.pop(ctx);
+                              );
+                            }
+                          },
+                          child: const Text('إرسال الإنذار الآن'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ];
 
-                                    try {
-                                      final client = Supabase.instance.client;
-                                      for (final s in widget.absentStudents) {
-                                        await client.from('notifications').insert({
-                                          'title': 'تنبيه غياب فوري: ${widget.groupName}',
-                                          'body': 'نحيطكم علماً بأن الطالب ${s['name']} لم يمرر الباركود في حصة اليوم بقاعة ${widget.roomName}.',
-                                          'type': 'absence_alert',
-                                          'created_at': DateTime.now().toIso8601String(),
-                                        });
-
-                                        final phone = s['phone'];
-                                        if (phone != null && phone.isNotEmpty) {
-                                          await WhatsAppService.sendAbsenceNotice(
-                                            parentPhone: phone,
-                                            studentName: s['name'] ?? 'الطالب',
-                                            subjectName: widget.groupName,
-                                            centerName: 'منظومة بريفيو التعليمية المتطورة',
-                                            sessionDate: DateTime.now().toString().split(' ')[0],
-                                          );
-                                        }
-                                      }
-                                    } catch (_) {}
-
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('تم إرسال إشعارات الغياب الفورية في النظام بنجاح 🚨'),
-                                          backgroundColor: Color(0xFFDC2626),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: const Text('إرسال الإنذار الآن'),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+            final dockContainer = Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'أدوات التحكم التفاعلية المباشرة:',
+                    style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                ),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 12),
+                  if (isScrollable)
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: actionItems,
+                    )
+                  else
+                    Expanded(
+                      child: ListView(
+                        children: actionItems,
+                      ),
+                    ),
+                ],
+              ),
+            );
+
+            return isScrollable ? dockContainer : Expanded(child: dockContainer);
+          },
         ),
       ],
     );

@@ -822,18 +822,43 @@ class SupabaseEnrollmentRepository implements IEnrollmentRepository {
     int totalMinor = 0,
     int discountMinor = 0,
     String currency = 'EGP',
+    DateTime? dueAt,
   }) async {
     try {
-      final response = await _wrapper.client.rpc(
-        'enroll_student_in_group',
-        params: {
-          'p_student_id': studentId,
-          'p_group_id': groupId,
-          'p_total_minor': totalMinor,
-          'p_discount_minor': discountMinor,
-          'p_currency': currency,
-        },
-      );
+      dynamic response;
+      try {
+        response = await _wrapper.client.rpc(
+          'enroll_student_in_group',
+          params: {
+            'p_student_id': studentId,
+            'p_group_id': groupId,
+            'p_total_minor': totalMinor,
+            'p_discount_minor': discountMinor,
+            'p_currency': currency,
+            if (dueAt != null) 'p_due_at': dueAt.toIso8601String(),
+          },
+        );
+      } catch (e) {
+        // Fallback for older RPC signature without p_due_at
+        response = await _wrapper.client.rpc(
+          'enroll_student_in_group',
+          params: {
+            'p_student_id': studentId,
+            'p_group_id': groupId,
+            'p_total_minor': totalMinor,
+            'p_discount_minor': discountMinor,
+            'p_currency': currency,
+          },
+        );
+        // If dueAt was provided and an invoice was created, update the invoice's due_at
+        if (dueAt != null && response is Map && response['invoice_id'] != null) {
+          try {
+            await _wrapper.client.from('invoices').update({
+              'due_at': dueAt.toIso8601String(),
+            }).eq('id', response['invoice_id']);
+          } catch (_) {}
+        }
+      }
 
       final jsonMap = Map<String, dynamic>.from(response as Map);
       if (jsonMap['success'] != true) {

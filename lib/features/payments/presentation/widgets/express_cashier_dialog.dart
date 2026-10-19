@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../core/services/whatsapp_service.dart';
 import '../../../academy/domain/models/academy_models.dart';
+import 'digital_cash_receipt_dialog.dart';
 
 class ExpressCashierDialog extends StatefulWidget {
   final List<Student> students;
@@ -180,6 +181,23 @@ class _ExpressCashierDialogState extends State<ExpressCashierDialog> {
           ),
           backgroundColor: Colors.green,
         ),
+      );
+
+      DigitalCashReceiptDialog.show(
+        context: context,
+        receiptType: ReceiptType.studentPayment,
+        centerName: 'منظومة بريفيو التعليمية المتطورة',
+        receiptNumber: receiptNo,
+        dateStr: dateStr,
+        recipientName: _selectedStudent!.fullName,
+        studentCode: _selectedStudent!.studentCode,
+        groupName: _purposeCtrl.text.trim(),
+        amount: amount,
+        paymentPurpose: _purposeCtrl.text.trim(),
+        parentOrTeacherPhone: _parentPhoneCtrl.text.trim(),
+        paymentMethod: _paymentMethod == 'cash'
+            ? 'نقداً بالخزينة (كاش) 💵'
+            : (_paymentMethod == 'vodafone_cash' ? 'فودافون كاش' : 'InstaPay'),
       );
     } catch (e) {
       if (!mounted) return;

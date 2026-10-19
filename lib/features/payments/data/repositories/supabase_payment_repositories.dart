@@ -90,6 +90,37 @@ class SupabaseInvoiceRepository implements IInvoiceRepository {
       );
     }
   }
+
+  @override
+  Future<void> rescheduleDueDate({
+    required String invoiceId,
+    required DateTime newDueAt,
+    String? reason,
+  }) async {
+    try {
+      try {
+        final res = await _wrapper.client.rpc(
+          'reschedule_invoice_due_date',
+          params: {
+            'p_invoice_id': invoiceId,
+            'p_new_due_at': newDueAt.toIso8601String(),
+            'p_reason': reason,
+          },
+        );
+        if (res is Map && res['success'] == true) return;
+      } catch (_) {
+        // Fallback to direct table update if RPC is not present
+        await _wrapper.client.from('invoices').update({
+          'due_at': newDueAt.toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', invoiceId);
+      }
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to reschedule invoice due date: ${e.toString()}',
+      );
+    }
+  }
 }
 
 class SupabasePaymentRepository implements IPaymentRepository {
@@ -204,15 +235,19 @@ class SupabasePaymentRepository implements IPaymentRepository {
       try {
         final invoicesRes = await _wrapper.client
             .from('invoices')
-            .select('amount_minor, status')
+            .select('total_minor, amount_paid_minor, status')
             .eq('student_id', studentId);
         for (final row in invoicesRes) {
           final status = row['status']?.toString().toLowerCase();
-          final amt = (row['amount_minor'] as num?)?.toInt() ?? 0;
+          final total = (row['total_minor'] as num?)?.toInt() ?? 0;
+          final paid = (row['amount_paid_minor'] as num?)?.toInt() ?? 0;
+          final diff = total - paid;
           if (status == 'pending' ||
               status == 'unpaid' ||
-              status == 'overdue') {
-            totalOutstandingMinor += amt;
+              status == 'overdue' ||
+              status == 'issued' ||
+              status == 'partially_paid') {
+            totalOutstandingMinor += (diff > 0 ? diff : total);
             pendingCount++;
           }
         }
@@ -265,14 +300,18 @@ class SupabasePaymentRepository implements IPaymentRepository {
 
     try {
       final invoicesRes =
-          await _wrapper.client.from('invoices').select('amount_minor, status');
+          await _wrapper.client.from('invoices').select('total_minor, amount_paid_minor, status');
       for (final row in invoicesRes) {
         final status = row['status']?.toString().toLowerCase();
-        final amt = (row['amount_minor'] as num?)?.toInt() ?? 0;
+        final total = (row['total_minor'] as num?)?.toInt() ?? 0;
+        final paid = (row['amount_paid_minor'] as num?)?.toInt() ?? 0;
+        final diff = total - paid;
         if (status == 'pending' ||
             status == 'unpaid' ||
-            status == 'overdue') {
-          totalOutstandingMinor += amt;
+            status == 'overdue' ||
+            status == 'issued' ||
+            status == 'partially_paid') {
+          totalOutstandingMinor += (diff > 0 ? diff : total);
         }
       }
     } catch (_) {}
@@ -284,6 +323,112 @@ class SupabasePaymentRepository implements IPaymentRepository {
           totalCollectedMinor + totalOutstandingMinor,
       totalAdjustmentsMinor: 0,
     );
+  }
+
+  @override
+  Future<Map<String, dynamic>> generateMonthlyBillingCycle({
+    DateTime? billingMonth,
+    int dueDays = 7,
+    String? centerId,
+  }) async {
+    try {
+      final targetMonth = billingMonth ?? DateTime.now();
+      final monthStr =
+          '${targetMonth.year}-${targetMonth.month.toString().padLeft(2, '0')}-01';
+
+      try {
+        final res = await _wrapper.client.rpc(
+          'generate_monthly_billing_cycle',
+          params: {
+            'p_billing_month': monthStr,
+            'p_due_days': dueDays,
+            if (centerId != null) 'p_center_id': centerId,
+          },
+        );
+        if (res is Map && res['success'] == true) {
+          return Map<String, dynamic>.from(res);
+        }
+      } catch (_) {
+        // Fallback: Dart-driven monthly invoice generator for active enrollments
+        final enrollments = await _wrapper.client
+            .from('enrollments')
+            .select('id, student_id, group_id, base_price_minor, discount_minor, final_price_minor, groups(name)')
+            .eq('status', 'active');
+
+        int createdCount = 0;
+        int totalMinor = 0;
+        final dueDate = targetMonth.add(Duration(days: dueDays));
+
+        for (final e in (enrollments as List)) {
+          final enrollmentId = e['id'].toString();
+          final studentId = e['student_id'].toString();
+          final groupId = e['group_id'].toString();
+          final base = (e['base_price_minor'] as num?)?.toInt() ?? 0;
+          final disc = (e['discount_minor'] as num?)?.toInt() ?? 0;
+          final finalPrice =
+              (e['final_price_minor'] as num?)?.toInt() ?? (base - disc);
+
+          if (finalPrice <= 0) continue;
+
+          // Check if invoice already issued this month
+          final existing = await _wrapper.client
+              .from('invoices')
+              .select('id')
+              .eq('enrollment_id', enrollmentId)
+              .gte('issued_at', monthStr)
+              .lt(
+                'issued_at',
+                '${targetMonth.month == 12 ? targetMonth.year + 1 : targetMonth.year}-${(targetMonth.month % 12 + 1).toString().padLeft(2, '0')}-01',
+              )
+              .neq('status', 'cancelled')
+              .maybeSingle();
+
+          if (existing != null) continue;
+
+          final invRes = await _wrapper.client.from('invoices').insert({
+            'student_id': studentId,
+            'enrollment_id': enrollmentId,
+            'group_id': groupId,
+            'currency': 'EGP',
+            'subtotal_minor': base > 0 ? base : finalPrice,
+            'discount_minor': disc,
+            'total_minor': finalPrice,
+            'amount_paid_minor': 0,
+            'status': 'issued',
+            'issued_at': monthStr,
+            'due_at': dueDate.toIso8601String(),
+          }).select('id').single();
+
+          final invId = invRes['id'].toString();
+          final groupName =
+              (e['groups'] as Map?)?['name']?.toString() ?? 'مجموعة دراسية';
+
+          await _wrapper.client.from('invoice_items').insert({
+            'invoice_id': invId,
+            'description':
+                'مصروفات شهر ${targetMonth.month}/${targetMonth.year} - $groupName',
+            'quantity': 1,
+            'unit_amount_minor': finalPrice,
+            'total_minor': finalPrice,
+          });
+
+          createdCount++;
+          totalMinor += finalPrice;
+        }
+
+        return {
+          'success': true,
+          'invoices_created': createdCount,
+          'total_amount_minor': totalMinor,
+          'month': '${targetMonth.month}/${targetMonth.year}',
+        };
+      }
+      return {'success': false, 'message': 'Unknown response'};
+    } catch (e) {
+      throw DatabaseFailure(
+        message: 'Failed to generate monthly billing cycle: ${e.toString()}',
+      );
+    }
   }
 }
 

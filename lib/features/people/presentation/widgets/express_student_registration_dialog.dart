@@ -50,6 +50,8 @@ class _ExpressStudentRegistrationDialogState
   final _studentPhoneController = TextEditingController();
   final _parentPhoneController = TextEditingController();
   final _codeController = TextEditingController();
+  final _feeController = TextEditingController(text: '0');
+  DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
 
   String _selectedGrade = 'الصف الثالث الثانوي';
   final Set<String> _selectedGroupIds = {};
@@ -80,6 +82,7 @@ class _ExpressStudentRegistrationDialogState
     _studentPhoneController.dispose();
     _parentPhoneController.dispose();
     _codeController.dispose();
+    _feeController.dispose();
     super.dispose();
   }
 
@@ -132,6 +135,8 @@ class _ExpressStudentRegistrationDialogState
 
       // 2. Enroll student into selected groups
       final selectedNames = <String>[];
+      final feeEgp = int.tryParse(_feeController.text.trim()) ?? 0;
+
       for (final groupId in _selectedGroupIds) {
         final group = widget.availableGroups.firstWhere(
           (g) => g.id == groupId,
@@ -147,12 +152,27 @@ class _ExpressStudentRegistrationDialogState
         selectedNames.add(group.name);
 
         try {
-          await client.from('enrollments').insert({
-            'group_id': groupId,
-            'student_id': studentId,
-            'status': 'active',
+          await client.rpc('enroll_student_in_group', params: {
+            'p_student_id': studentId,
+            'p_group_id': groupId,
+            'p_total_minor': feeEgp * 100,
+            'p_discount_minor': 0,
+            'p_currency': 'EGP',
+            'p_due_at': _dueDate.toIso8601String(),
           });
-        } catch (_) {}
+        } catch (_) {
+          try {
+            await client.from('enrollments').insert({
+              'group_id': groupId,
+              'student_id': studentId,
+              'status': 'active',
+              'base_price_minor': feeEgp * 100,
+              'final_price_minor': feeEgp * 100,
+              'access_status': feeEgp > 0 ? 'pending_payment' : 'active',
+              'payment_status': feeEgp > 0 ? 'pending_payment' : 'exempt',
+            });
+          } catch (_) {}
+        }
       }
 
       final createdStudent = Student(
@@ -430,6 +450,65 @@ class _ExpressStudentRegistrationDialogState
                   );
                 }).toList(),
               ),
+              if (_selectedGroupIds.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _feeController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'المصروفات المطلوبة (ج.م)',
+                          prefixIcon: Icon(Icons.payments_outlined, size: 20),
+                          hintText: '0 = إعفاء / بدون مطالبة',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 4,
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _dueDate,
+                            firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            helpText: 'موعد استحقاق سداد الفاتورة',
+                          );
+                          if (picked != null) {
+                            setState(() => _dueDate = picked);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).dividerColor),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFFF59E0B)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'الاستحقاق: ${_dueDate.year}-${_dueDate.month.toString().padLeft(2, '0')}-${_dueDate.day.toString().padLeft(2, '0')}',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 18),
             ],
 

@@ -4,7 +4,9 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/widgets/portal_components.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../features/helpdesk/data/models/support_ticket.dart';
+import '../../../../features/helpdesk/data/models/ticket_reply.dart';
 import '../../../../features/helpdesk/data/repositories/helpdesk_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 String _statusArabic(String status) {
@@ -442,218 +444,660 @@ class _TicketList extends StatelessWidget {
     Color avatarColor,
     String dateFormatted,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final replyController = TextEditingController();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.8,
-          maxChildSize: 0.95,
-          minChildSize: 0.5,
-          builder: (context, scrollController) {
-            return GlassCard(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              borderColor: isDark
-                  ? AppColors.darkBorder
-                  : AppColors.lightBorder,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-              padding: const EdgeInsets.all(0),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '#${ticket.id.length > 8 ? ticket.id.substring(0, 8) : ticket.id}',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                ticket.subject,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
+        return _TeacherTicketDetailsSheet(
+          ticket: ticket,
+          avatarColor: avatarColor,
+          dateFormatted: dateFormatted,
+          onStatusChange: onStatusChange,
+          accentColor: accentColor,
+        );
+      },
+    );
+  }
+}
+
+class _TeacherTicketDetailsSheet extends StatefulWidget {
+  final SupportTicket ticket;
+  final Color avatarColor;
+  final String dateFormatted;
+  final VoidCallback onStatusChange;
+  final Color accentColor;
+
+  const _TeacherTicketDetailsSheet({
+    required this.ticket,
+    required this.avatarColor,
+    required this.dateFormatted,
+    required this.onStatusChange,
+    required this.accentColor,
+  });
+
+  @override
+  State<_TeacherTicketDetailsSheet> createState() =>
+      _TeacherTicketDetailsSheetState();
+}
+
+class _TeacherTicketDetailsSheetState
+    extends State<_TeacherTicketDetailsSheet> {
+  final TextEditingController _replyController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final HelpdeskRepository _repository = HelpdeskRepository();
+
+  List<TicketReply>? _replies;
+  bool _isLoadingReplies = true;
+  bool _isSending = false;
+  late String _currentStatus;
+  String? _currentUserId;
+
+  static const List<String> _cannedReplies = [
+    'تم الاطلاع وجاري المتابعة ⏳',
+    'تم حل استفسارك بنجاح ✅',
+    'يرجى مراجعتي أثناء موعد الحصة القادمة 🏫',
+    'تم التنسيق مع إدارة السنتر لتنفيذ طلبك 📋',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentStatus = widget.ticket.status;
+    _currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    _loadReplies();
+  }
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadReplies() async {
+    try {
+      final replies = await _repository.getReplies(widget.ticket.id);
+      if (!mounted) return;
+      setState(() {
+        _replies = replies;
+        _isLoadingReplies = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingReplies = false);
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _handleSendReply({String? customText}) async {
+    final text = (customText ?? _replyController.text).trim();
+    if (text.isEmpty || _isSending) return;
+
+    setState(() => _isSending = true);
+
+    try {
+      final reply = await _repository.addReply(widget.ticket.id, text);
+      if (!mounted) return;
+
+      _replyController.clear();
+      setState(() {
+        _replies = [...(_replies ?? []), reply];
+        if (_currentStatus == 'open') {
+          _currentStatus = 'in_progress';
+        }
+        _isSending = false;
+      });
+
+      widget.onStatusChange();
+      _scrollToBottom();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إرسال ردك وإشعار صاحب التذكرة بنجاح! 🚀'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر إرسال الرد: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleStatusChange(String newStatus) async {
+    if (newStatus == _currentStatus) return;
+
+    try {
+      await _repository.updateTicketStatus(widget.ticket.id, newStatus);
+      if (!mounted) return;
+
+      setState(() => _currentStatus = newStatus);
+      widget.onStatusChange();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم تحديث حالة التذكرة إلى (${_statusArabic(newStatus)}) وإشعار الطالب.',
+          ),
+          backgroundColor: AppColors.info,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تحديث الحالة: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'urgent':
+        return Colors.red;
+      case 'high':
+        return Colors.orange;
+      case 'normal':
+        return Colors.blue;
+      case 'low':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final priorityColor = _getPriorityColor(widget.ticket.priority);
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (context, scrollController) {
+          return GlassCard(
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                // Drag handle
+                Container(
+                  width: 44,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 12, bottom: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: avatarColor.withValues(
-                              alpha: 0.15,
-                            ),
-                            child: Icon(Icons.person, color: avatarColor),
-                          ),
-                          title: Text(
-                            'كود الحساب: ${ticket.userId.length > 8 ? ticket.userId.substring(0, 8) : ticket.userId}',
-                          ),
-                          subtitle: Text(
-                            'تاريخ الإرسال: $dateFormatted',
-                          ),
-                          trailing: DropdownButton<String>(
-                            value: ticket.status,
-                            items: ['open', 'in_progress', 'resolved', 'closed']
-                                .map(
-                                  (s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(_statusArabic(s)),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (val) async {
-                              if (val != null) {
-                                final repo = HelpdeskRepository();
-                                await repo.updateTicketStatus(ticket.id, val);
-                                if (context.mounted) Navigator.pop(context);
-                                onStatusChange();
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'تفاصيل المشكلة / الاستفسار',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          ticket.description,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 32),
-                        const Text(
-                          'سجل المتابعة والتحديثات',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
+                ),
+
+                // Sheet Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const CircleAvatar(
-                              radius: 16,
-                              backgroundColor: Colors.grey,
-                              child: Icon(
-                                Icons.support_agent,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: accentColor.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: accentColor.withValues(alpha: 0.2),
+                            Row(
+                              children: [
+                                Text(
+                                  'تذكرة #${widget.ticket.id.length > 8 ? widget.ticket.id.substring(0, 8).toUpperCase() : widget.ticket.id}',
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                child: const Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'إدارة النظام',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: priorityColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: priorityColor.withValues(alpha: 0.4),
                                     ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'تم تسجيل التذكرة بنجاح وجاري المتابعة من قبل الدعم الفني.',
+                                  ),
+                                  child: Text(
+                                    'أولوية ${_priorityArabic(widget.ticket.priority)}',
+                                    style: TextStyle(
+                                      color: priorityColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.ticket.subject,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SafeArea(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: replyController,
-                              decoration: InputDecoration(
-                                hintText: 'اكتب ردك هنا...',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                            ),
+                ),
+                const Divider(height: 1),
+
+                // Scrollable Content
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      // User Info & Status Manager Bar
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.04)
+                              : Colors.black.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
                           ),
-                          const SizedBox(width: 12),
-                          FloatingActionButton(
-                            onPressed: () {
-                              if (replyController.text.isNotEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'تم إرسال ردك إلى فريق الدعم الفني بنجاح!',
-                                    ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: widget.avatarColor.withValues(alpha: 0.15),
+                                  child: Icon(
+                                    Icons.person_rounded,
+                                    color: widget.avatarColor,
+                                    size: 20,
                                   ),
-                                );
-                                replyController.clear();
-                              }
-                            },
-                            mini: true,
-                            backgroundColor: accentColor,
-                            elevation: 0,
-                            child: const Icon(Icons.send, color: Colors.white),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'صاحب التذكرة: ${widget.ticket.userId.length > 8 ? widget.ticket.userId.substring(0, 8) : widget.ticket.userId}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        'تاريخ الإرسال: ${widget.dateFormatted}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? Colors.white60 : Colors.black54,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Divider(height: 1),
+                            const SizedBox(height: 10),
+
+                            // Status Changer Dropdown
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'تغيير حالة التذكرة:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                                DropdownButton<String>(
+                                  value: _currentStatus,
+                                  isDense: true,
+                                  underline: const SizedBox(),
+                                  borderRadius: BorderRadius.circular(12),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'open',
+                                      child: Text('مفتوحة 🔵'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'in_progress',
+                                      child: Text('قيد المتابعة 🟠'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'resolved',
+                                      child: Text('تم الحل 🟢'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'closed',
+                                      child: Text('مغلقة ⚫'),
+                                    ),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) _handleStatusChange(val);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Problem details description card
+                      const Text(
+                        'تفاصيل المشكلة / الاستفسار الأصلي:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.02)
+                              : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                          ),
+                        ),
+                        child: Text(
+                          widget.ticket.description,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                height: 1.5,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Discussion / Replies header
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 16,
+                            color: widget.accentColor,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'سجل المتابعة والردود:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+
+                      // Replies list
+                      if (_isLoadingReplies)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_replies == null || _replies!.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.02)
+                                : Colors.black.withValues(alpha: 0.02),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'لا توجد ردود مسجلة بعد على هذه التذكرة.\nاكتب أول رد الآن لتوجيه ومساعدة الطالب.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ..._replies!.map((r) => _buildReplyBubble(r, isDark)),
+                    ],
+                  ),
+                ),
+
+                // Quick Canned Replies Row
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.02)
+                        : Colors.black.withValues(alpha: 0.02),
+                    border: Border(
+                      top: BorderSide(
+                        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                        width: 0.6,
+                      ),
                     ),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _cannedReplies.map((canned) {
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: ActionChip(
+                            label: Text(
+                              canned,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            onPressed: () {
+                              _replyController.text = canned;
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+
+                // Reply Input Bar
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 8,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 14,
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _replyController,
+                            decoration: InputDecoration(
+                              hintText: 'اكتب ردك أو توجيهك للطالب هنا...',
+                              hintStyle: const TextStyle(fontSize: 12.5),
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : Colors.black.withValues(alpha: 0.03),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide(
+                                  color: isDark
+                                      ? AppColors.darkBorder
+                                      : AppColors.lightBorder,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 12,
+                              ),
+                            ),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          onPressed: _isSending ? null : () => _handleSendReply(),
+                          style: IconButton.styleFrom(
+                            backgroundColor: widget.accentColor,
+                            padding: const EdgeInsets.all(12),
+                          ),
+                          icon: _isSending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildReplyBubble(TicketReply reply, bool isDark) {
+    final isTeacher = reply.userId == _currentUserId;
+    final isCreator = reply.userId == widget.ticket.userId;
+
+    final bubbleBg = isTeacher
+        ? widget.accentColor.withValues(alpha: 0.1)
+        : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9));
+
+    final borderColor = isTeacher
+        ? widget.accentColor.withValues(alpha: 0.3)
+        : (isDark ? Colors.white12 : Colors.black12);
+
+    final senderBadge = isTeacher
+        ? 'أنت (المعلم) 👨‍🏫'
+        : (isCreator ? 'صاحب التذكرة 👤' : 'إدارة السنتر / الدعم 🛡️');
+
+    final badgeColor = isTeacher
+        ? widget.accentColor
+        : (isCreator ? Colors.blue : Colors.purple);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: badgeColor.withValues(alpha: 0.15),
+            child: Icon(
+              isTeacher
+                  ? Icons.school_rounded
+                  : (isCreator ? Icons.person_rounded : Icons.support_agent_rounded),
+              size: 16,
+              color: badgeColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: bubbleBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        senderBadge,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                          color: badgeColor,
+                        ),
+                      ),
+                      Text(
+                        timeago.format(reply.createdAt, locale: 'ar'),
+                        style: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.grey,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    reply.message,
+                    style: const TextStyle(fontSize: 13, height: 1.4),
                   ),
                 ],
               ),
-            );
-          },
-        );
-      },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

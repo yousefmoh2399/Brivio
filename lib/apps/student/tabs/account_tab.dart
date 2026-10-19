@@ -16,6 +16,7 @@ import '../../../features/communication/domain/models/announcement.dart';
 import '../../../features/communication/domain/models/notification.dart';
 import '../../../features/legal/presentation/screens/privacy_and_terms_screen.dart';
 import '../../../features/payments/domain/models/payment_models.dart';
+import '../../../features/payments/presentation/widgets/digital_cash_receipt_dialog.dart';
 import '../screens/student_helpdesk_screen.dart';
 
 String _formatDate(DateTime? dt) =>
@@ -1217,122 +1218,27 @@ class _BillingHubView extends StatelessWidget {
   }
 
   void _showReceiptDialog(BuildContext context, Receipt receipt) {
-    showDialog<void>(
+    final recNum = receipt.receiptNumber.isNotEmpty
+        ? receipt.receiptNumber
+        : 'REC-${receipt.id.length >= 8 ? receipt.id.substring(0, 8).toUpperCase() : receipt.id}';
+    final dateStr = _formatDate(receipt.issuedAt);
+
+    DigitalCashReceiptDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Row(
-          children: [
-            const Icon(
-              Icons.verified_rounded,
-              color: Color(0xFF10B981),
-              size: 22,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                receipt.receiptNumber.isEmpty
-                    ? 'إيصال سداد إلكتروني'
-                    : receipt.receiptNumber,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'المبلغ المسدد بنجاح',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatMoney(receipt.amountMinor, receipt.currency),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF10B981),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _ReceiptDetailLine(
-              label: 'تاريخ وساعة الإصدار',
-              value: _formatDate(receipt.issuedAt),
-            ),
-            _ReceiptDetailLine(
-              label: 'رقم الفاتورة المرجعية',
-              value: _shortId(receipt.invoiceId),
-            ),
-            _ReceiptDetailLine(
-              label: 'رقم المعاملة الإلكترونية',
-              value: _shortId(receipt.transactionId),
-            ),
-            _ReceiptDetailLine(
-              label: 'حالة الاعتماد',
-              value: 'معتمد ومؤكد رسمياً ✓',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إغلاق', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReceiptDetailLine extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ReceiptDetailLine({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11.5,
-                color: Theme.of(context).hintColor,
-              ),
-            ),
-          ),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+      receiptType: ReceiptType.studentPayment,
+      centerName: 'منظومة بريفيو التعليمية المتطورة',
+      receiptNumber: recNum,
+      dateStr: dateStr,
+      recipientName: 'الطالب',
+      studentCode: receipt.studentId.length >= 8 ? receipt.studentId.substring(0, 8).toUpperCase() : receipt.studentId,
+      groupName: 'الاشتراك الدراسي المعتمد',
+      amount: receipt.amountMinor / 100.0,
+      paymentPurpose: 'سداد رسوم واشتراكات دراسية',
+      paymentMethod: 'إيصال دفع إلكتروني / معتمد',
+      invoiceNumber: receipt.invoiceId.isNotEmpty
+          ? 'INV-${receipt.invoiceId.length >= 8 ? receipt.invoiceId.substring(0, 8).toUpperCase() : receipt.invoiceId}'
+          : null,
+      transactionId: receipt.transactionId.isNotEmpty ? receipt.transactionId : null,
     );
   }
 }
@@ -2006,7 +1912,7 @@ class _SettingsAndSupportView extends StatelessWidget {
               subtitle: 'المظهر الداكن/الفاتح، الإشعارات، واللغات',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const AppSettingsScreen(),
+                  builder: (_) => AppSettingsScreen(onSignOut: onSignOut),
                 ),
               ),
             ),

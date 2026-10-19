@@ -26,6 +26,7 @@ import '../../../features/analytics/presentation/widgets/at_risk_students_card.d
 /// 100% responsive fluid scaling across all mobile, tablet, and desktop viewports.
 class HomeTab extends StatelessWidget {
   final UserProfile? user;
+  final String? teacherId;
   final bool isLoading;
   final String? errorMessage;
   final int assignedGroupsCount;
@@ -41,6 +42,7 @@ class HomeTab extends StatelessWidget {
   const HomeTab({
     super.key,
     required this.user,
+    this.teacherId,
     required this.isLoading,
     this.errorMessage,
     required this.assignedGroupsCount,
@@ -245,7 +247,7 @@ class HomeTab extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             _TeacherCommandHub(
-                              teacherId: user?.id ?? '',
+                              teacherId: teacherId ?? user?.id ?? '',
                               teacherName: user?.fullName ?? 'معلمنا الفاضل',
                               onRetry: onRetry,
                             ),

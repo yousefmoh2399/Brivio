@@ -2367,7 +2367,7 @@ class _ParentSettingsAndSystemView extends StatelessWidget {
           subtitle: 'تخصيص المظهر (داكن/فاتح)، لغة التطبيق، وتفضيلات تنبيهات الحضور والدرجات.',
           onTap: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AppSettingsScreen()),
+              MaterialPageRoute(builder: (_) => AppSettingsScreen(authViewModel: authViewModel)),
             );
           },
         ),

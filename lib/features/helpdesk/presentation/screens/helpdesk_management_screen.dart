@@ -756,7 +756,11 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
 
     try {
       await _repository.addReply(widget.ticket.id, text);
+      if (_currentStatus == 'open') {
+        _currentStatus = 'in_progress';
+      }
       await _loadReplies();
+      widget.onStatusChange();
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

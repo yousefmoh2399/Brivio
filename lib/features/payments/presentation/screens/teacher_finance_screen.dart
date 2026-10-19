@@ -10,6 +10,7 @@ import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/widgets/portal_components.dart';
+import '../widgets/digital_cash_receipt_dialog.dart';
 
 class TeacherFinanceScreen extends StatefulWidget {
   final String teacherId;
@@ -710,6 +711,24 @@ class _ReceiptSheet extends StatelessWidget {
     required this.onPrint,
   });
 
+  void _openFullReceipt(BuildContext context, _TeacherReceipt receipt) {
+    DigitalCashReceiptDialog.show(
+      context: context,
+      receiptType: ReceiptType.studentPayment,
+      centerName: 'منظومة بريفيو التعليمية المتطورة',
+      receiptNumber: receipt.receiptNumber,
+      dateStr: _formatDateTime(receipt.issuedAt),
+      recipientName: receipt.studentName.isNotEmpty ? receipt.studentName : student.studentName,
+      studentCode: receipt.studentCode.isNotEmpty ? receipt.studentCode : student.studentCode,
+      groupName: receipt.groupName.isNotEmpty ? receipt.groupName : 'المجموعة الدراسية',
+      amount: receipt.amountMinor / 100.0,
+      paymentPurpose: 'سداد رسوم اشتراك الحصص - ${receipt.subjectName}',
+      paymentMethod: receipt.paymentMethod.isNotEmpty ? receipt.paymentMethod : 'إيصال دفع معتمد',
+      invoiceNumber: receipt.invoiceNumber.isNotEmpty ? receipt.invoiceNumber : null,
+      transactionId: receipt.providerTransactionId.isNotEmpty ? receipt.providerTransactionId : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -745,25 +764,34 @@ class _ReceiptSheet extends StatelessWidget {
                         separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (_, index) {
                           final receipt = receipts[index];
-                          return PortalListCard(
-                            icon: Icons.receipt,
-                            accentColor: AppColors.success,
-                            title: receipt.receiptNumber,
-                            subtitle:
-                                '${_formatDateTime(receipt.issuedAt)} - ${receipt.invoiceNumber} - ${receipt.providerTransactionId}',
-                            trailing: [
-                              Text(
-                                _money(receipt.amountMinor, receipt.currency),
-                                style: AppTypography.titleSmall(
-                                  AppColors.darkTextPrimary,
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => _openFullReceipt(context, receipt),
+                            child: PortalListCard(
+                              icon: Icons.receipt_long_rounded,
+                              accentColor: AppColors.success,
+                              title: receipt.receiptNumber,
+                              subtitle:
+                                  '${_formatDateTime(receipt.issuedAt)} - ${receipt.invoiceNumber} - ${receipt.providerTransactionId}',
+                              trailing: [
+                                Text(
+                                  _money(receipt.amountMinor, receipt.currency),
+                                  style: AppTypography.titleSmall(
+                                    AppColors.darkTextPrimary,
+                                  ),
                                 ),
-                              ),
-                              IconButton.filledTonal(
-                                tooltip: 'طباعة الإيصال',
-                                onPressed: () => onPrint(receipt),
-                                icon: const Icon(Icons.print),
-                              ),
-                            ],
+                                IconButton.filledTonal(
+                                  tooltip: 'معاينة الإيصال الشامل',
+                                  onPressed: () => _openFullReceipt(context, receipt),
+                                  icon: const Icon(Icons.receipt_long_rounded),
+                                ),
+                                IconButton.filledTonal(
+                                  tooltip: 'طباعة الإيصال الفوري',
+                                  onPressed: () => onPrint(receipt),
+                                  icon: const Icon(Icons.print),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       ),

@@ -101,7 +101,7 @@ class AppTheme {
           ),
           textStyle: AppTypography.labelLarge(
             Colors.white,
-          ).copyWith(fontWeight: FontWeight.w700),
+          ).copyWith(fontWeight: FontWeight.w700, inherit: true),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),
@@ -118,7 +118,7 @@ class AppTheme {
           ),
           textStyle: AppTypography.labelLarge(
             AppColors.primary,
-          ).copyWith(fontWeight: FontWeight.w600),
+          ).copyWith(fontWeight: FontWeight.w600, inherit: true),
         ),
       ),
 
@@ -126,7 +126,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
-          textStyle: AppTypography.labelLarge(AppColors.primary),
+          textStyle: AppTypography.labelLarge(AppColors.primary).copyWith(inherit: true),
           minimumSize: Size.zero,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -402,7 +402,7 @@ class AppTheme {
           ),
           textStyle: AppTypography.labelLarge(
             Colors.white,
-          ).copyWith(fontWeight: FontWeight.w700),
+          ).copyWith(fontWeight: FontWeight.w700, inherit: true),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

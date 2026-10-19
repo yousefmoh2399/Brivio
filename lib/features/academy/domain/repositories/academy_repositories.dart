@@ -87,6 +87,7 @@ abstract class IEnrollmentRepository {
     int totalMinor = 0,
     int discountMinor = 0,
     String currency = 'EGP',
+    DateTime? dueAt,
   });
 }
 

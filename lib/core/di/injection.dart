@@ -88,7 +88,7 @@ Future<void> setupDependencyInjection({
     getIt.unregister<AuthViewModel>();
   }
   if (getIt.isRegistered<IAuthRepository>()) {
-    getIt.registerFactory<AuthViewModel>(
+    getIt.registerLazySingleton<AuthViewModel>(
       () => AuthViewModel(
         getIt<IAuthRepository>(),
         pushNotificationService: getIt.isRegistered<PushNotificationService>()

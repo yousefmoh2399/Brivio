@@ -19,6 +19,10 @@ class DigitalCashReceiptDialog extends StatelessWidget {
   final double amount;
   final String paymentPurpose;
   final String? parentOrTeacherPhone;
+  final String paymentMethod;
+  final String? invoiceNumber;
+  final String? transactionId;
+  final String? notes;
 
   // Teacher settlement specific fields
   final int? studentCount;
@@ -43,6 +47,10 @@ class DigitalCashReceiptDialog extends StatelessWidget {
     required this.amount,
     required this.paymentPurpose,
     this.parentOrTeacherPhone,
+    this.paymentMethod = 'نقداً بالخزينة (كاش) 💵',
+    this.invoiceNumber,
+    this.transactionId,
+    this.notes,
     this.studentCount,
     this.sessionPrice,
     this.totalRevenue,
@@ -66,6 +74,10 @@ class DigitalCashReceiptDialog extends StatelessWidget {
     required double amount,
     required String paymentPurpose,
     String? parentOrTeacherPhone,
+    String paymentMethod = 'نقداً بالخزينة (كاش) 💵',
+    String? invoiceNumber,
+    String? transactionId,
+    String? notes,
     int? studentCount,
     double? sessionPrice,
     double? totalRevenue,
@@ -90,6 +102,10 @@ class DigitalCashReceiptDialog extends StatelessWidget {
         amount: amount,
         paymentPurpose: paymentPurpose,
         parentOrTeacherPhone: parentOrTeacherPhone,
+        paymentMethod: paymentMethod,
+        invoiceNumber: invoiceNumber,
+        transactionId: transactionId,
+        notes: notes,
         studentCount: studentCount,
         sessionPrice: sessionPrice,
         totalRevenue: totalRevenue,
@@ -104,7 +120,9 @@ class DigitalCashReceiptDialog extends StatelessWidget {
   }
 
   Future<void> _handlePrint() async {
-    final reportService = getIt<ReportGeneratorService>();
+    final reportService = getIt.isRegistered<ReportGeneratorService>()
+        ? getIt<ReportGeneratorService>()
+        : ReportGeneratorService();
     if (receiptType == ReceiptType.teacherSettlement) {
       await reportService.generateTeacherSettlementReceiptPdf(
         centerName: centerName,
@@ -141,7 +159,9 @@ class DigitalCashReceiptDialog extends StatelessWidget {
   }
 
   Future<void> _handleSharePdf() async {
-    final reportService = getIt<ReportGeneratorService>();
+    final reportService = getIt.isRegistered<ReportGeneratorService>()
+        ? getIt<ReportGeneratorService>()
+        : ReportGeneratorService();
     if (receiptType == ReceiptType.teacherSettlement) {
       await reportService.generateTeacherSettlementReceiptPdf(
         centerName: centerName,
@@ -208,19 +228,22 @@ class DigitalCashReceiptDialog extends StatelessWidget {
 خالص ومسدد بالكامل من خزينة السنتر ✔️
 '''.trim();
     } else {
+      final invText = (invoiceNumber != null && invoiceNumber!.isNotEmpty) ? '\n🧾 رقم الفاتورة: $invoiceNumber' : '';
+      final txText = (transactionId != null && transactionId!.isNotEmpty) ? '\n🔢 رقم المرجع: $transactionId' : '';
       message = '''
-🧾 *إيصال استلام نقدية كاش رسمي*
+🧾 *إيصال سداد رسمي معتمد*
 🏫 سنتر: *$centerName*
 ━━━━━━━━━━━━━━━━━━
 رقم الإيصال: *$receiptNumber*
 التاريخ: $dateStr
-👤 اسم الطالب: *$recipientName* (كود: ${studentCode ?? ''})
-📚 المجموعة: *$groupName*
-📋 البيان: *$paymentPurpose*
-💵 *المبلغ المستلم نقداً: ${amount.toStringAsFixed(1)} ج.م*
-طريقة السداد: نقداً بالخزينة (كاش) 💵
+👤 اسم الطالب: *$recipientName*${studentCode != null && studentCode!.isNotEmpty ? ' (كود: $studentCode)' : ''}
+📚 المجموعة / الاشتراك: *$groupName*
+📋 البيان: *$paymentPurpose*$invText$txText
+💵 *المبلغ المسدد: ${amount.toStringAsFixed(1)} ج.م*
+طريقة السداد: $paymentMethod
 ━━━━━━━━━━━━━━━━━━
-شكرًا لتعاونكم مع إدارة السنتر ✔️
+خالص ومسدد ومعتمد رسمياً ✔️
+شكرًا لتعاونكم مع إدارة السنتر
 '''.trim();
     }
 
@@ -302,13 +325,27 @@ class DigitalCashReceiptDialog extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.amber.shade400,
+                              color: isTeacher
+                                  ? Colors.teal.shade300
+                                  : (paymentMethod.contains('كاش') || paymentMethod.contains('نقداً')
+                                      ? Colors.amber.shade400
+                                      : const Color(0xFF10B981)),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'كاش',
-                              style: const TextStyle(
-                                color: Color(0xFF451A03),
+                              isTeacher
+                                  ? 'تصفية'
+                                  : (paymentMethod.contains('كاش') || paymentMethod.contains('نقداً')
+                                      ? 'كاش'
+                                      : (paymentMethod.contains('فوري')
+                                          ? 'فوري'
+                                          : (paymentMethod.contains('إنستا') || paymentMethod.contains('Insta')
+                                              ? 'InstaPay'
+                                              : 'معتمد'))),
+                              style: TextStyle(
+                                color: (paymentMethod.contains('كاش') || paymentMethod.contains('نقداً'))
+                                    ? const Color(0xFF451A03)
+                                    : Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
@@ -359,7 +396,15 @@ class DigitalCashReceiptDialog extends StatelessWidget {
                           const SizedBox(height: 12),
                           _buildDetailRow('البيان والغرض', paymentPurpose),
                           const SizedBox(height: 12),
-                          _buildDetailRow('طريقة السداد', 'نقداً بالخزينة (كاش) 💵'),
+                          _buildDetailRow('طريقة السداد', paymentMethod),
+                          if (invoiceNumber != null && invoiceNumber!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _buildDetailRow('رقم الفاتورة المرجعية', invoiceNumber!),
+                          ],
+                          if (transactionId != null && transactionId!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _buildDetailRow('رقم المعاملة / المرجع', transactionId!),
+                          ],
 
                           if (isTeacher && studentCount != null) ...[
                             const SizedBox(height: 12),

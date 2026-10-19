@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/report_generator_service.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
+import '../widgets/digital_cash_receipt_dialog.dart';
 
 /// Screen for Reception Cashiers and Supervisors to Reconcile and Close Daily Cash Register Shifts.
 /// Calculates gross receipts, cash payouts, and net drawer balance with banknote counting and PDF export.
@@ -196,6 +197,11 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
           'time': r['issued_at'] != null
               ? DateFormat('hh:mm a').format(DateTime.parse(r['issued_at']))
               : 'اليوم',
+          'date_str': r['issued_at'] != null
+              ? DateFormat('yyyy-MM-dd').format(DateTime.parse(r['issued_at']))
+              : 'اليوم',
+          'receipt_number': recNum,
+          'student_name': studentName,
           'is_credit': true,
         });
       }
@@ -971,6 +977,25 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
 
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  onTap: isCredit
+                      ? () {
+                          final recNum = tx['receipt_number']?.toString() ?? 'REC';
+                          final studentName = tx['student_name']?.toString() ?? 'طالب نقدي';
+                          final dateStr = tx['date_str']?.toString() ?? tx['time']?.toString() ?? 'اليوم';
+                          DigitalCashReceiptDialog.show(
+                            context: context,
+                            receiptType: ReceiptType.studentPayment,
+                            centerName: widget.centerName ?? 'منظومة بريفيو التعليمية المتطورة',
+                            receiptNumber: recNum,
+                            dateStr: dateStr,
+                            recipientName: studentName,
+                            groupName: 'خزينة التحصيل اليومية',
+                            amount: amount,
+                            paymentPurpose: tx['title']?.toString() ?? 'تحصيل نقدي معتمد بالخزينة',
+                            paymentMethod: 'نقداً بالخزينة (كاش) 💵',
+                          );
+                        }
+                      : null,
                   leading: CircleAvatar(
                     backgroundColor: isCredit
                         ? Colors.green.withValues(alpha: 0.15)

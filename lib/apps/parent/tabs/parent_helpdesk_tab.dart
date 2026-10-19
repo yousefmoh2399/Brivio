@@ -1615,10 +1615,12 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
   final TextEditingController _replyController = TextEditingController();
   late Future<List<TicketReply>> _repliesFuture;
   bool _isSending = false;
+  late String _currentStatus;
 
   @override
   void initState() {
     super.initState();
+    _currentStatus = widget.ticket.status;
     _loadReplies();
   }
 
@@ -1644,6 +1646,9 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
       await widget.repository.addReply(widget.ticket.id, message);
       _replyController.clear();
       _loadReplies();
+      if (_currentStatus == 'open') {
+        setState(() => _currentStatus = 'in_progress');
+      }
       widget.onReplyAdded();
     } catch (e) {
       if (mounted) {
@@ -1656,6 +1661,30 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  Future<void> _handleResolveTicket() async {
+    try {
+      await widget.repository.updateTicketStatus(widget.ticket.id, 'resolved');
+      if (!mounted) return;
+      setState(() => _currentStatus = 'resolved');
+      widget.onReplyAdded();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تأكيد حل التذكرة بنجاح! شكراً لتواصلك مع السنتر.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تعذر تحديث حالة التذكرة.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -1673,7 +1702,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
     final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-    final statColor = _statusColor(widget.ticket.status);
+    final statColor = _statusColor(_currentStatus);
     final prioColor = _priorityColor(widget.ticket.priority);
     final ticketShortId = widget.ticket.id.length >= 8
         ? widget.ticket.id.substring(0, 8).toUpperCase()
@@ -1682,6 +1711,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
     // Group Name
     final groupMatch = widget.groups.where((g) => g.id == widget.ticket.groupId).firstOrNull;
     final groupName = groupMatch?.name;
+    final canResolve = _currentStatus != 'resolved' && _currentStatus != 'closed';
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -1728,7 +1758,7 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                           border: Border.all(color: statColor.withValues(alpha: 0.3)),
                         ),
                         child: Text(
-                          _statusArabic(widget.ticket.status),
+                          _statusArabic(_currentStatus),
                           style: TextStyle(
                             color: statColor,
                             fontWeight: FontWeight.bold,
@@ -1736,6 +1766,22 @@ class _TicketDetailsSheetState extends State<_TicketDetailsSheet> {
                           ),
                         ),
                       ),
+                      if (canResolve) ...[
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: _handleResolveTicket,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.check_circle_outline, size: 14, color: AppColors.success),
+                          label: const Text(
+                            'تم الحل ✅',
+                            style: TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(

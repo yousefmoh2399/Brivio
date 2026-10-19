@@ -14,6 +14,7 @@ import '../../design_system/components/glass_card.dart';
 import '../../design_system/components/editable_avatar.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/admin/domain/repositories/i_admin_repository.dart';
+import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/legal/presentation/screens/privacy_and_terms_screen.dart';
 import '../../features/payments/presentation/widgets/thermal_printer_settings_dialog.dart';
 
@@ -33,7 +34,10 @@ enum _SettingsCategory {
 }
 
 class AppSettingsScreen extends StatelessWidget {
-  const AppSettingsScreen({super.key});
+  final AuthViewModel? authViewModel;
+  final VoidCallback? onSignOut;
+
+  const AppSettingsScreen({super.key, this.authViewModel, this.onSignOut});
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +62,10 @@ class AppSettingsScreen extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        body: const AppSettingsPanel(),
+        body: AppSettingsPanel(
+          authViewModel: authViewModel,
+          onSignOut: onSignOut,
+        ),
       );
     }
 
@@ -68,16 +75,22 @@ class AppSettingsScreen extends StatelessWidget {
       icon: Icons.settings_suggest_rounded,
       accentColor: AppColors.primary,
       eyebrow: context.tr('الإعدادات العامة'),
-      child: const Material(
+      child: Material(
         type: MaterialType.transparency,
-        child: AppSettingsPanel(),
+        child: AppSettingsPanel(
+          authViewModel: authViewModel,
+          onSignOut: onSignOut,
+        ),
       ),
     );
   }
 }
 
 class AppSettingsPanel extends StatefulWidget {
-  const AppSettingsPanel({super.key});
+  final AuthViewModel? authViewModel;
+  final VoidCallback? onSignOut;
+
+  const AppSettingsPanel({super.key, this.authViewModel, this.onSignOut});
 
   @override
   State<AppSettingsPanel> createState() => _AppSettingsPanelState();
@@ -717,6 +730,34 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
     );
   }
 
+  Future<void> _performSignOut() async {
+    try {
+      if (widget.onSignOut != null) {
+        widget.onSignOut!();
+        return;
+      }
+      final vm = widget.authViewModel ??
+          (GetIt.instance.isRegistered<AuthViewModel>()
+              ? GetIt.instance<AuthViewModel>()
+              : null);
+      if (vm != null) {
+        await vm.signOut();
+      } else {
+        await Supabase.instance.client.auth.signOut();
+      }
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+      }
+    }
+  }
+
   void _confirmSignOut() {
     showDialog(
       context: context,
@@ -743,10 +784,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
             style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
             onPressed: () async {
               Navigator.pop(ctx);
-              await Supabase.instance.client.auth.signOut();
-              if (mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              }
+              await _performSignOut();
             },
             icon: const Icon(Icons.logout_rounded, size: 18),
             label: Text(context.tr('تسجيل الخروج')),
@@ -794,10 +832,7 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                     'updated_at': DateTime.now().toIso8601String(),
                   }).eq('id', userId);
                 }
-                await client.auth.signOut();
-                if (mounted) {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                }
+                await _performSignOut();
               } catch (e) {
                 if (mounted) {
                   _showSnackBar('خطأ أثناء حذف الحساب: $e', isError: true);
@@ -1740,12 +1775,10 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                         side: BorderSide(
                           color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
                         ),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, inherit: true),
                       ),
                       icon: const Icon(Icons.edit_outlined, size: 16),
-                      label: Text(
-                        context.tr('تعديل البيانات'),
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
+                      label: Text(context.tr('تعديل البيانات')),
                     ),
                     const SizedBox(height: 6),
                     OutlinedButton.icon(
@@ -1756,12 +1789,10 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                         side: BorderSide(
                           color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
                         ),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, inherit: true),
                       ),
                       icon: const Icon(Icons.lock_reset_rounded, size: 16),
-                      label: Text(
-                        context.tr('تغيير كلمة المرور'),
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
+                      label: Text(context.tr('تغيير كلمة المرور')),
                     ),
                   ],
                 )
@@ -1777,12 +1808,10 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           side: BorderSide(
                             color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
                           ),
+                          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, inherit: true),
                         ),
                         icon: const Icon(Icons.edit_outlined, size: 16),
-                        label: Text(
-                          context.tr('تعديل البيانات'),
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-                        ),
+                        label: Text(context.tr('تعديل البيانات')),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1795,12 +1824,10 @@ class _AppSettingsPanelState extends State<AppSettingsPanel> {
                           side: BorderSide(
                             color: isDark ? Colors.white24 : AppColors.primary.withValues(alpha: 0.35),
                           ),
+                          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, inherit: true),
                         ),
                         icon: const Icon(Icons.lock_reset_rounded, size: 16),
-                        label: Text(
-                          context.tr('تغيير كلمة المرور'),
-                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-                        ),
+                        label: Text(context.tr('تغيير كلمة المرور')),
                       ),
                     ),
                   ],
