@@ -420,7 +420,7 @@ class _WorkspaceTabState extends State<WorkspaceTab>
         onTap: () {
           SmartExamGeneratorDialog.show(
             context,
-            subjectName: 'المادة الدراسية',
+            teacherId: widget.teacherId,
           );
         },
       ),

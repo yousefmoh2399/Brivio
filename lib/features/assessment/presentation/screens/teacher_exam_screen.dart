@@ -14,6 +14,7 @@ import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import 'student_submissions_screen.dart';
+import 'smart_exam_generator_dialog.dart';
 
 class TeacherExamScreen extends StatefulWidget {
   final String teacherId;
@@ -311,6 +312,61 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         ],
                       ),
                       const Divider(height: 24),
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.deepOrange.withValues(alpha: 0.12),
+                              Colors.orange.withValues(alpha: 0.06),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.deepOrange.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, color: Colors.deepOrange, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'تريد توليد امتحان متوازن تلقائياً من بنك الأسئلة؟',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                            ),
+                            FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                backgroundColor: Colors.deepOrange.withValues(alpha: 0.2),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                SmartExamGeneratorDialog.show(
+                                  context,
+                                  teacherId: widget.teacherId,
+                                  initialGroupId: group.id,
+                                  initialSubjectId: group.subjectId,
+                                  groupName: group.name,
+                                  onExamGenerated: (_) => _loadGroupsAndExams(),
+                                );
+                              },
+                              child: const Text(
+                                'توليد ذكي ⚡',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepOrange,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       TextFormField(
                         controller: titleCtrl,
                         style: TextStyle(color: textColor),
@@ -1698,9 +1754,68 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: Center(
-                          child: Text(
-                            'لا توجد امتحانات منشورة لهذه المجموعة حتى الآن.',
-                            style: AppTypography.bodyMedium(subtitleColor),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.quiz_outlined,
+                                    size: 40,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'لا توجد امتحانات منشورة لهذه المجموعة حتى الآن',
+                                  style: AppTypography.titleMedium(textColor).copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'يمكنك توليد امتحان ذكي متوازن فوراً أو إنشاء امتحان يدوياً',
+                                  style: AppTypography.bodySmall(subtitleColor),
+                                ),
+                                const SizedBox(height: 16),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    FilledButton.icon(
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: Colors.deepOrange,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      onPressed: () {
+                                        SmartExamGeneratorDialog.show(
+                                          context,
+                                          teacherId: widget.teacherId,
+                                          initialGroupId: _selectedGroup?.id,
+                                          initialSubjectId: _selectedGroup?.subjectId,
+                                          groupName: _selectedGroup?.name,
+                                          onExamGenerated: (_) => _loadGroupsAndExams(),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                                      label: const Text('توليد امتحان ذكي ⚡'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: _showCreateExamDialog,
+                                      icon: const Icon(Icons.add_rounded, size: 18),
+                                      label: const Text('إنشاء يدوي 📝'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       )
@@ -1972,12 +2087,36 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
           Positioned(
             bottom: 16,
             right: 16,
-            child: FloatingActionButton.extended(
-              onPressed: _showCreateExamDialog,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.quiz_rounded),
-              label: const Text('إنشاء امتحان جديد 📝'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'smart_exam_fab',
+                  onPressed: () {
+                    SmartExamGeneratorDialog.show(
+                      context,
+                      teacherId: widget.teacherId,
+                      initialGroupId: _selectedGroup?.id,
+                      initialSubjectId: _selectedGroup?.subjectId,
+                      groupName: _selectedGroup?.name,
+                      onExamGenerated: (_) => _loadGroupsAndExams(),
+                    );
+                  },
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.auto_awesome_rounded),
+                  label: const Text('توليد ذكي ⚡'),
+                ),
+                const SizedBox(width: 10),
+                FloatingActionButton.extended(
+                  heroTag: 'manual_exam_fab',
+                  onPressed: _showCreateExamDialog,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.quiz_rounded),
+                  label: const Text('إنشاء امتحان جديد 📝'),
+                ),
+              ],
             ),
           ),
       ],
