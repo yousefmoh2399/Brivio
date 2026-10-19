@@ -438,24 +438,30 @@ class _GroupsSchedulesReportScreenState
                                             style: AppTypography.caption(textSecondary),
                                           ),
                                         ),
-                                        if (group['capacity'] != null)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: isDark
-                                                  ? Colors.white.withValues(alpha: 0.05)
-                                                  : Colors.black.withValues(alpha: 0.04),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              'السعة: ${group['capacity']} طالب',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w500,
-                                                color: textSecondary,
-                                              ),
-                                            ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? Colors.white.withValues(alpha: 0.05)
+                                                : Colors.black.withValues(alpha: 0.04),
+                                            borderRadius: BorderRadius.circular(6),
                                           ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.people_alt_rounded, size: 11, color: textSecondary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'الطلاب: ${group['enrolled_count'] ?? 0} / ${group['capacity'] ?? 30}',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: textSecondary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],

@@ -214,7 +214,7 @@ class _ReportsDashboardScreenState extends State<ReportsDashboardScreen> {
         category: 'attendance',
         icon: Icons.schedule_rounded,
         accentColor: const Color(0xFF0D9488),
-        count: null,
+        count: _viewModel.groupsCount,
         countUnit: 'مجموعات وجداول نشطة',
         description:
             'استعراض تفاعلي لجميع المجموعات الدراسية، مواعيد الحصص الأسبوعية، والمعلمين المكلفين.',

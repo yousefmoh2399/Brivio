@@ -11,6 +11,7 @@ class ReportsDashboardViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> parentsData = [];
   List<Map<String, dynamic>> homeworkData = [];
   List<Map<String, dynamic>> curriculumData = [];
+  int? groupsCount;
 
   Future<void> loadData() async {
     isLoading = true;
@@ -377,6 +378,15 @@ class ReportsDashboardViewModel extends ChangeNotifier {
       } catch (e) {
         debugPrint('Reports: Failed to load curriculum data: $e');
         curriculumData = [];
+      }
+
+      // 8. Groups & Schedules Count
+      try {
+        final gRes = await client.from('groups').select('id');
+        groupsCount = (gRes as List).length;
+      } catch (e) {
+        debugPrint('Reports: Failed to load groups count: $e');
+        groupsCount = null;
       }
     } finally {
       isLoading = false;
