@@ -13,8 +13,17 @@ import '../../../../design_system/widgets/portal_components.dart';
 
 class TeacherFinanceScreen extends StatefulWidget {
   final String teacherId;
+  final bool? shrinkWrap;
+  final ScrollPhysics? physics;
+  final EdgeInsetsGeometry? padding;
 
-  const TeacherFinanceScreen({super.key, required this.teacherId});
+  const TeacherFinanceScreen({
+    super.key,
+    required this.teacherId,
+    this.shrinkWrap,
+    this.physics,
+    this.padding,
+  });
 
   @override
   State<TeacherFinanceScreen> createState() => _TeacherFinanceScreenState();
@@ -90,22 +99,22 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
     final textSecondary =
         isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
-    return Container(
-      color: Colors.transparent,
-      child: PortalStateView(
-        isLoading: _isLoading,
-        errorMessage: _errorMessage,
-        isEmpty: _groups.isEmpty,
-        emptyTitle: 'لا توجد بيانات مالية حتى الآن',
-        emptySubtitle:
-            'ستظهر الإجماليات والمستحقات المالية فور تسجيل الطلاب في مجموعاتك الدراسية.',
-        emptyIcon: Icons.payments_outlined,
-        onRetry: _load,
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            physics: const AlwaysScrollableScrollPhysics(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isUnbounded = !constraints.hasBoundedHeight;
+        final shouldShrinkWrap = widget.shrinkWrap ?? isUnbounded;
+        final effectivePhysics = widget.physics ??
+            (shouldShrinkWrap
+                ? const NeverScrollableScrollPhysics()
+                : const AlwaysScrollableScrollPhysics());
+        final effectivePadding = widget.padding ??
+            (shouldShrinkWrap ? EdgeInsets.zero : const EdgeInsets.all(16));
+
+        final content = Padding(
+          padding: effectivePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
               PortalMetricGrid(
                 children: [
@@ -136,10 +145,22 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                 ],
               ),
               const SizedBox(height: 18),
-              const PortalSectionTitle(
-                title: 'المجموعات الدراسية',
-                subtitle:
-                    'اضغط على أي مجموعة للاطلاع على كشف حساب الطلاب وتسجيل طلبات الخصم أو الإعفاء.',
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Expanded(
+                    child: PortalSectionTitle(
+                      title: 'المجموعات الدراسية',
+                      subtitle:
+                          'اضغط على أي مجموعة للاطلاع على كشف حساب الطلاب وتسجيل طلبات الخصم أو الإعفاء.',
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'تحديث البيانات المالية',
+                    icon: const Icon(Icons.refresh_rounded),
+                    onPressed: _load,
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               ..._groups.asMap().entries.map((entry) {
@@ -152,46 +173,101 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
                     child: GlassCard(
                       onTap: () => _openGroupRoster(group),
                       padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          const CircleIcon(
-                            icon: Icons.group,
-                            color: AppColors.teacherRole,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
+                      child: LayoutBuilder(
+                        builder: (context, cardConstraints) {
+                          final isCompact = cardConstraints.maxWidth < 460;
+                          if (isCompact) {
+                            return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  group.groupName,
-                                  style: AppTypography.titleMedium(
-                                    textPrimary,
-                                  ),
+                                Row(
+                                  children: [
+                                    const CircleIcon(
+                                      icon: Icons.group,
+                                      color: AppColors.teacherRole,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        group.groupName,
+                                        style: AppTypography.titleMedium(
+                                          textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    StatusChip(
+                                      label: group.unpaidStudents == 0
+                                          ? 'مسدد بالكامل'
+                                          : '${group.unpaidStudents} غير مسدد',
+                                      status: group.unpaidStudents == 0
+                                          ? ChipStatus.success
+                                          : ChipStatus.warning,
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  '${group.subjectName} • ${group.paidStudents}/${group.totalStudents} مسدد • المتبقي: ${_money(group.remainingAmountMinor, group.currency)}',
-                                  style: AppTypography.bodySmall(
-                                    textSecondary,
-                                  ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${group.subjectName} • ${group.paidStudents}/${group.totalStudents} مسدد • المتبقي: ${_money(group.remainingAmountMinor, group.currency)}',
+                                        style: AppTypography.bodySmall(
+                                          textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      size: 18,
+                                      color: textSecondary,
+                                    ),
+                                  ],
                                 ),
                               ],
-                            ),
-                          ),
-                          StatusChip(
-                            label: group.unpaidStudents == 0
-                                ? 'مسدد بالكامل'
-                                : '${group.unpaidStudents} غير مسدد',
-                            status: group.unpaidStudents == 0
-                                ? ChipStatus.success
-                                : ChipStatus.warning,
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.chevron_right,
-                            color: textSecondary,
-                          ),
-                        ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              const CircleIcon(
+                                icon: Icons.group,
+                                color: AppColors.teacherRole,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      group.groupName,
+                                      style: AppTypography.titleMedium(
+                                        textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${group.subjectName} • ${group.paidStudents}/${group.totalStudents} مسدد • المتبقي: ${_money(group.remainingAmountMinor, group.currency)}',
+                                      style: AppTypography.bodySmall(
+                                        textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              StatusChip(
+                                label: group.unpaidStudents == 0
+                                    ? 'مسدد بالكامل'
+                                    : '${group.unpaidStudents} غير مسدد',
+                                status: group.unpaidStudents == 0
+                                    ? ChipStatus.success
+                                    : ChipStatus.warning,
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.chevron_right,
+                                color: textSecondary,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -199,8 +275,36 @@ class _TeacherFinanceScreenState extends State<TeacherFinanceScreen> {
               }),
             ],
           ),
-        ),
-      ),
+        );
+
+        Widget body;
+        if (shouldShrinkWrap) {
+          body = content;
+        } else {
+          body = RefreshIndicator(
+            onRefresh: _load,
+            child: SingleChildScrollView(
+              physics: effectivePhysics,
+              child: content,
+            ),
+          );
+        }
+
+        return Container(
+          color: Colors.transparent,
+          child: PortalStateView(
+            isLoading: _isLoading,
+            errorMessage: _errorMessage,
+            isEmpty: _groups.isEmpty,
+            emptyTitle: 'لا توجد بيانات مالية حتى الآن',
+            emptySubtitle:
+                'ستظهر الإجماليات والمستحقات المالية فور تسجيل الطلاب في مجموعاتك الدراسية.',
+            emptyIcon: Icons.payments_outlined,
+            onRetry: _load,
+            child: body,
+          ),
+        );
+      },
     );
   }
 }

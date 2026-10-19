@@ -692,11 +692,13 @@ class _AccountTabState extends State<AccountTab> {
   // ─── Section 2: Finance ─────────────────────────────────────────────────────
 
   Widget _buildFinanceSection() {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 500),
-      child: widget.financeBuilder?.call(context) ??
-          TeacherFinanceScreen(teacherId: widget.teacherId),
-    );
+    return widget.financeBuilder?.call(context) ??
+        TeacherFinanceScreen(
+          teacherId: widget.teacherId,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+        );
   }
 
   // ─── Section 3: Helpdesk ────────────────────────────────────────────────────
