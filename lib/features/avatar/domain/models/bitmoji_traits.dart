@@ -60,6 +60,7 @@ class BitmojiTraits {
   final String? characterAsset;
   final String pedestalStyle;
   final String? honorBadge;
+  final bool isTransparent;
 
   const BitmojiTraits({
     this.style = 'avataaars',
@@ -88,6 +89,7 @@ class BitmojiTraits {
     this.characterAsset,
     this.pedestalStyle = 'neon_disc',
     this.honorBadge,
+    this.isTransparent = false,
   });
 
   /// Resolves the authentic 3D Pixar / Snapchat Bitmoji character asset path
@@ -162,6 +164,7 @@ class BitmojiTraits {
     String? characterAsset,
     String? pedestalStyle,
     String? honorBadge,
+    bool? isTransparent,
   }) {
     return BitmojiTraits(
       style: style ?? this.style,
@@ -190,6 +193,7 @@ class BitmojiTraits {
       characterAsset: characterAsset ?? this.characterAsset,
       pedestalStyle: pedestalStyle ?? this.pedestalStyle,
       honorBadge: honorBadge ?? this.honorBadge,
+      isTransparent: isTransparent ?? this.isTransparent,
     );
   }
 
@@ -220,6 +224,7 @@ class BitmojiTraits {
     'characterAsset': characterAsset,
     'pedestalStyle': pedestalStyle,
     'honorBadge': honorBadge,
+    'isTransparent': isTransparent,
   };
 
   factory BitmojiTraits.fromJson(Map<String, dynamic> json) => BitmojiTraits(
@@ -249,6 +254,7 @@ class BitmojiTraits {
     characterAsset: json['characterAsset'] as String?,
     pedestalStyle: json['pedestalStyle'] as String? ?? 'neon_disc',
     honorBadge: json['honorBadge'] as String?,
+    isTransparent: json['isTransparent'] as bool? ?? false,
   );
 
   /// Generates the high-resolution, commercial-grade avatar URL or local 3D asset
