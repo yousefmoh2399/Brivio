@@ -563,7 +563,9 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => const GroupsSchedulesReportScreen(),
+              builder: (_) => GroupsSchedulesReportScreen(
+                teacherId: widget.profileId,
+              ),
             ),
           );
         },
@@ -1234,7 +1236,9 @@ class _TeacherAnalyticsScreenState extends State<TeacherAnalyticsScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => const GroupsSchedulesReportScreen(),
+              builder: (_) => GroupsSchedulesReportScreen(
+                teacherId: widget.profileId,
+              ),
             ),
           );
         },

@@ -7,7 +7,9 @@ import '../../../../design_system/tokens/typography.dart';
 import '../viewmodels/groups_schedules_viewmodel.dart';
 
 class GroupsSchedulesReportScreen extends StatefulWidget {
-  const GroupsSchedulesReportScreen({super.key});
+  final String? teacherId;
+
+  const GroupsSchedulesReportScreen({super.key, this.teacherId});
 
   @override
   State<GroupsSchedulesReportScreen> createState() =>
@@ -16,8 +18,11 @@ class GroupsSchedulesReportScreen extends StatefulWidget {
 
 class _GroupsSchedulesReportScreenState
     extends State<GroupsSchedulesReportScreen> {
-  final ReportGeneratorService _reportService = getIt<ReportGeneratorService>();
-  final GroupsSchedulesViewModel _viewModel = GroupsSchedulesViewModel();
+  ReportGeneratorService? get _reportService =>
+      getIt.isRegistered<ReportGeneratorService>()
+          ? getIt<ReportGeneratorService>()
+          : null;
+  late final GroupsSchedulesViewModel _viewModel;
   bool _isGenerating = false;
   String _searchQuery = '';
   String _selectedFilter = 'all'; // 'all', 'active', 'inactive'
@@ -26,6 +31,7 @@ class _GroupsSchedulesReportScreenState
   @override
   void initState() {
     super.initState();
+    _viewModel = GroupsSchedulesViewModel(teacherId: widget.teacherId);
     _viewModel.addListener(_onViewModelChange);
     _viewModel.fetchGroupsData();
   }
@@ -56,9 +62,12 @@ class _GroupsSchedulesReportScreenState
 
     setState(() => _isGenerating = true);
     try {
-      await _reportService.generateGroupsSchedulesReport(
-        groupsData: _viewModel.groupsData,
-      );
+      final service = _reportService;
+      if (service != null) {
+        await service.generateGroupsSchedulesReport(
+          groupsData: _viewModel.groupsData,
+        );
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -187,7 +196,39 @@ class _GroupsSchedulesReportScreenState
                         const SizedBox(height: 16),
 
                         // Groups list
-                        if (_viewModel.groupsData.isEmpty)
+                        if (_viewModel.errorMessage != null && _viewModel.groupsData.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: Colors.red, size: 36),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'تعذر تحميل بيانات المجموعات',
+                                  style: AppTypography.titleSmall(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _viewModel.errorMessage!,
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.caption(textSecondary),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  onPressed: _viewModel.fetchGroupsData,
+                                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                                  label: const Text('إعادة المحاولة'),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (_viewModel.groupsData.isEmpty)
                           _buildEmptyState(
                             isDark,
                             textPrimary,
@@ -208,110 +249,214 @@ class _GroupsSchedulesReportScreenState
                         else
                           ...displayGroups.map((group) {
                             final isActive = group['is_active'] == true;
+                            final sessions = (group['sessions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                            final hasSubject = group['subject'] != null && group['subject'].toString().isNotEmpty;
+                            final hasCode = group['code'] != null && group['code'].toString().isNotEmpty;
+
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: GlassCard(
                                 padding: EdgeInsets.all(isMobile ? 12 : 16),
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    CircleAvatar(
-                                      radius: isMobile ? 18 : 22,
-                                      backgroundColor: isActive
-                                          ? Colors.green.withValues(alpha: 0.15)
-                                          : Colors.grey.withValues(alpha: 0.15),
-                                      child: Icon(
-                                        isActive
-                                            ? Icons.check_circle_rounded
-                                            : Icons.pause_circle_rounded,
-                                        color: isActive
-                                            ? Colors.green
-                                            : Colors.grey,
-                                        size: isMobile ? 18 : 22,
-                                      ),
-                                    ),
-                                    SizedBox(width: isMobile ? 10 : 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            group['group_name'] ?? '',
-                                            style: AppTypography.titleSmall(
-                                                    textPrimary)
-                                                .copyWith(
+                                    // Top Row: Avatar + Group Name + Code & Status
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: isMobile ? 18 : 22,
+                                          backgroundColor: isActive
+                                              ? Colors.green.withValues(alpha: 0.15)
+                                              : Colors.grey.withValues(alpha: 0.15),
+                                          child: Icon(
+                                            isActive
+                                                ? Icons.check_circle_rounded
+                                                : Icons.pause_circle_rounded,
+                                            color: isActive ? Colors.green : Colors.grey,
+                                            size: isMobile ? 18 : 22,
+                                          ),
+                                        ),
+                                        SizedBox(width: isMobile ? 10 : 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      group['group_name'] ?? '',
+                                                      style: AppTypography.titleSmall(textPrimary).copyWith(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: isMobile ? 14 : 15.5,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (hasCode)
+                                                    Container(
+                                                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue.withValues(alpha: 0.1),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        group['code'].toString(),
+                                                        style: const TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.blue,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              if (hasSubject) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  group['subject'].toString(),
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    color: textSecondary,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isActive
+                                                ? Colors.green.withValues(alpha: 0.12)
+                                                : Colors.grey.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            isActive ? 'نشطة' : 'متوقفة',
+                                            style: TextStyle(
+                                              color: isActive ? Colors.green : Colors.grey,
                                               fontWeight: FontWeight.bold,
-                                              fontSize: isMobile ? 13 : 15,
+                                              fontSize: 11,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.schedule_rounded,
-                                                size: 13,
-                                                color: textSecondary,
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 10),
+                                    Divider(
+                                      height: 1,
+                                      thickness: 0.6,
+                                      color: isDark ? Colors.white12 : Colors.black12,
+                                    ),
+                                    const SizedBox(height: 10),
+
+                                    // Schedule Sessions Section
+                                    if (sessions.isNotEmpty)
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: sessions.map((sess) {
+                                          final day = sess['day'] ?? '';
+                                          final start = sess['start'] ?? '';
+                                          final end = sess['end'] ?? '';
+                                          final loc = (sess['location'] ?? '').toString().trim();
+                                          final locSuffix = loc.isNotEmpty ? ' (قاعة: $loc)' : '';
+
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: isDark
+                                                  ? Colors.white.withValues(alpha: 0.05)
+                                                  : const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: isDark ? Colors.white12 : Colors.black12,
+                                                width: 0.7,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  'الموعد: ${group['timing']}',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style:
-                                                      AppTypography.bodySmall(
-                                                          textSecondary),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.access_time_rounded,
+                                                  size: 12,
+                                                  color: Colors.indigo,
                                                 ),
-                                              ),
-                                            ],
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '$day: $start - $end$locSuffix',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: textPrimary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      )
+                                    else
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.schedule_rounded,
+                                            size: 13,
+                                            color: Colors.indigo,
                                           ),
-                                          const SizedBox(height: 2),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.person_outline_rounded,
-                                                size: 13,
-                                                color: textSecondary,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  'المعلم: ${group['teacher']}',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: AppTypography.caption(
-                                                      textSecondary),
-                                                ),
-                                              ),
-                                            ],
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              'الموعد: ${group['timing']}',
+                                              style: AppTypography.bodySmall(textSecondary),
+                                            ),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 9,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isActive
-                                            ? Colors.green.withValues(alpha: 0.12)
-                                            : Colors.grey.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        isActive ? 'نشطة' : 'متوقفة',
-                                        style: TextStyle(
-                                          color: isActive
-                                              ? Colors.green
-                                              : Colors.grey,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 11,
+
+                                    const SizedBox(height: 8),
+
+                                    // Bottom Meta Row: Teacher & Capacity
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.person_outline_rounded,
+                                          size: 13,
+                                          color: textSecondary,
                                         ),
-                                      ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            'المعلم: ${group['teacher']}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTypography.caption(textSecondary),
+                                          ),
+                                        ),
+                                        if (group['capacity'] != null)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: isDark
+                                                  ? Colors.white.withValues(alpha: 0.05)
+                                                  : Colors.black.withValues(alpha: 0.04),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              'السعة: ${group['capacity']} طالب',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                                color: textSecondary,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ],
                                 ),
