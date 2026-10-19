@@ -286,15 +286,16 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
                             // ─── Notification List / Grid ─────────────────────
                             if (vm.isLoading && allNotifs.isEmpty)
-                              const SliverFillRemaining(
-                                hasScrollBody: false,
-                                child: Center(
-                                  child: CircularProgressIndicator(),
+                              const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 48),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
                                 ),
                               )
                             else if (vm.errorMessage != null && allNotifs.isEmpty)
-                              SliverFillRemaining(
-                                hasScrollBody: false,
+                              SliverToBoxAdapter(
                                 child: Center(
                                   child: Padding(
                                     padding: const EdgeInsets.all(24),
@@ -307,29 +308,37 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                 ),
                               )
                             else if (currentList.isEmpty)
-                              SliverFillRemaining(
-                                hasScrollBody: false,
-                                child: Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: _buildEmptyState(
-                                      context: context,
-                                      isDark: isDark,
-                                      isAr: isAr,
-                                      textSecondary: textSecondary,
-                                      hasFilter: _selectedFilter !=
-                                              NotificationCategoryFilter.all ||
-                                          _onlyUnread ||
-                                          _searchQuery.isNotEmpty,
-                                      onResetFilters: () {
-                                        setState(() {
-                                          _selectedFilter =
-                                              NotificationCategoryFilter.all;
-                                          _onlyUnread = false;
-                                          _searchQuery = '';
-                                          _searchController.clear();
-                                        });
-                                      },
+                              SliverPadding(
+                                padding: EdgeInsets.fromLTRB(
+                                  horizontalPadding,
+                                  16,
+                                  horizontalPadding,
+                                  40,
+                                ),
+                                sliver: SliverToBoxAdapter(
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 540),
+                                      child: _buildEmptyState(
+                                        context: context,
+                                        isDark: isDark,
+                                        isAr: isAr,
+                                        textSecondary: textSecondary,
+                                        hasFilter: _selectedFilter !=
+                                                NotificationCategoryFilter.all ||
+                                            _onlyUnread ||
+                                            _searchQuery.isNotEmpty,
+                                        onResetFilters: () {
+                                          setState(() {
+                                            _selectedFilter =
+                                                NotificationCategoryFilter.all;
+                                            _onlyUnread = false;
+                                            _searchQuery = '';
+                                            _searchController.clear();
+                                          });
+                                        },
+                                      ),
                                     ),
                                   ),
                                 ),

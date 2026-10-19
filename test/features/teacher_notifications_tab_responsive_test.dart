@@ -280,5 +280,32 @@ void main() {
 
       expect(find.text('تسليم واجب الفيزياء الحديثة'), findsOneWidget);
     });
+
+    testWidgets('renders Empty State on SM-T509 tablet landscape (2000x1116, 1.8 dpr) with zero RenderFlex overflow', (tester) async {
+      tester.view.physicalSize = const Size(2000, 1116);
+      tester.view.devicePixelRatio = 1.8;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        buildTestWidget(
+          child: TeacherNotificationsTab(
+            notifications: const [],
+            unreadCount: 0,
+            onNotificationTap: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+
+      // Scroll slightly down to bring the empty card into view if needed
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -250));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('لا توجد إشعارات مسجلة حالياً'), findsOneWidget);
+      expect(find.text('ستظهر هنا كافة إشعارات وتسليمات الطلاب وتنبيهات السنتر فور إرسالها.'), findsOneWidget);
+    });
   });
 }

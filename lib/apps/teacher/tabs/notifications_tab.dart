@@ -448,25 +448,32 @@ class _TeacherNotificationsTabState extends State<TeacherNotificationsTab> {
 
                   // ─── 5. Notifications List / Responsive Cards ──────────────
                   if (currentList.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: _TeacherEmptyStateCard(
-                            category: _selectedCategory,
-                            hasSearch: _searchQuery.trim().isNotEmpty,
-                            isDark: isDark,
-                            isAr: isAr,
-                            onResetFilters: () {
-                              setState(() {
-                                _selectedCategory =
-                                    TeacherNotificationCategory.all;
-                                _onlyUnread = false;
-                                _searchQuery = '';
-                                _searchController.clear();
-                              });
-                            },
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        12,
+                        horizontalPadding,
+                        40,
+                      ),
+                      sliver: SliverToBoxAdapter(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 560),
+                            child: _TeacherEmptyStateCard(
+                              category: _selectedCategory,
+                              hasSearch: _searchQuery.trim().isNotEmpty,
+                              isDark: isDark,
+                              isAr: isAr,
+                              onResetFilters: () {
+                                setState(() {
+                                  _selectedCategory =
+                                      TeacherNotificationCategory.all;
+                                  _onlyUnread = false;
+                                  _searchQuery = '';
+                                  _searchController.clear();
+                                });
+                              },
+                            ),
                           ),
                         ),
                       ),
@@ -1770,7 +1777,7 @@ class _TeacherEmptyStateCard extends StatelessWidget {
           };
 
     return GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
       child: Center(
@@ -1778,15 +1785,15 @@ class _TeacherEmptyStateCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 58,
-              height: 58,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: AppColors.teacherRole.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                size: 28,
+                size: 26,
                 color: AppColors.teacherRole,
               ),
             ),
