@@ -359,7 +359,10 @@ class _WorkspaceTabState extends State<WorkspaceTab>
                   widget.gradingScreen ??
                       TeacherGradingScreen(teacherId: widget.teacherId),
                   widget.replayScreen ??
-                      StudyReplayScreen(teacherId: widget.teacherId),
+                      StudyReplayScreen(
+                        teacherId: widget.teacherId,
+                        isEmbedded: true,
+                      ),
                 ],
               ),
             ),

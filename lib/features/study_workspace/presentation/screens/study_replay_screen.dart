@@ -7,8 +7,13 @@ import '../../../../design_system/widgets/portal_components.dart';
 
 class StudyReplayScreen extends StatefulWidget {
   final String? teacherId;
+  final bool isEmbedded;
 
-  const StudyReplayScreen({super.key, this.teacherId});
+  const StudyReplayScreen({
+    super.key,
+    this.teacherId,
+    this.isEmbedded = false,
+  });
 
   @override
   State<StudyReplayScreen> createState() => _StudyReplayScreenState();
@@ -208,24 +213,18 @@ class _StudyReplayScreenState extends State<StudyReplayScreen>
           );
         }
 
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: items[0]),
-                const SizedBox(width: 8),
-                Expanded(child: items[1]),
-              ],
+        return SizedBox(
+          height: 84,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, i) => SizedBox(
+              width: 220,
+              child: items[i],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: items[2]),
-                const SizedBox(width: 8),
-                Expanded(child: items[3]),
-              ],
-            ),
-          ],
+          ),
         );
       },
     );
@@ -239,7 +238,7 @@ class _StudyReplayScreenState extends State<StudyReplayScreen>
     required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
@@ -257,12 +256,12 @@ class _StudyReplayScreenState extends State<StudyReplayScreen>
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -310,6 +309,95 @@ class _StudyReplayScreenState extends State<StudyReplayScreen>
         ? AppColors.adminRole
         : AppColors.teacherRole;
 
+    final mainContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildKpiSection(),
+        const SizedBox(height: 12),
+        Expanded(
+          child: PortalStateView(
+            isLoading: _isLoading,
+            errorMessage: _errorMessage,
+            isEmpty: _sessions.isEmpty,
+            emptyTitle: 'لا توجد جلسات دراسية مسجلة',
+            emptySubtitle:
+                'تظهر بيانات الجلسات بمجرد تفاعل الطلاب مع الدروس والمذكرات الدراسية.',
+            emptyIcon: Icons.video_library_rounded,
+            onRetry: _loadSessions,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 900;
+
+                if (isWide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Left Panel: Sessions List (Width 360)
+                      SizedBox(
+                        width: 360,
+                        child: Column(
+                          children: [
+                            _buildSearchField(),
+                            const SizedBox(height: 10),
+                            Expanded(
+                              child: _buildSessionListView(
+                                isMobile: false,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Right Panel: Interactive Replay & Events Timeline
+                      Expanded(
+                        child: _buildTimelinePanel(),
+                      ),
+                    ],
+                  );
+                }
+
+                // Mobile Tabbed View (Clean and non-nested)
+                return Column(
+                  children: [
+                    TabBar(
+                      controller: _mobileTabController,
+                      tabs: [
+                        Tab(
+                          icon: const Icon(Icons.list_alt_rounded),
+                          text: 'قائمة الجلسات (${_filteredSessions.length})',
+                        ),
+                        Tab(
+                          icon: const Icon(Icons.play_circle_filled_rounded),
+                          text: 'مشغل المسار (${_events.length})',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _mobileTabController,
+                        children: [
+                          _buildMobileSessionTab(),
+                          _buildTimelinePanel(),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: mainContent,
+      );
+    }
+
     return PortalPageShell(
       title: 'تسجيلات الحصص ومسارات المذاكرة',
       subtitle:
@@ -323,97 +411,59 @@ class _StudyReplayScreenState extends State<StudyReplayScreen>
           onPressed: _loadSessions,
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildKpiSection(),
-          const SizedBox(height: 14),
-          Expanded(
-            child: PortalStateView(
-              isLoading: _isLoading,
-              errorMessage: _errorMessage,
-              isEmpty: _sessions.isEmpty,
-              emptyTitle: 'لا توجد جلسات دراسية مسجلة',
-              emptySubtitle:
-                  'تظهر بيانات الجلسات بمجرد تفاعل الطلاب مع الدروس والمذكرات الدراسية.',
-              emptyIcon: Icons.video_library_rounded,
-              onRetry: _loadSessions,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 900;
+      child: mainContent,
+    );
+  }
 
-                  if (isWide) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Panel: Sessions List (Width 360)
-                        SizedBox(
-                          width: 360,
-                          child: Column(
-                            children: [
-                              _buildSearchField(),
-                              const SizedBox(height: 10),
-                              Expanded(
-                                child: _buildSessionListView(
-                                  isMobile: false,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        // Right Panel: Interactive Replay & Events Timeline
-                        Expanded(
-                          child: _buildTimelinePanel(),
-                        ),
-                      ],
-                    );
-                  }
-
-                  // Mobile Tabbed View (Clean and non-nested)
-                  return Column(
-                    children: [
-                      TabBar(
-                        controller: _mobileTabController,
-                        tabs: [
-                          Tab(
-                            icon: const Icon(Icons.list_alt_rounded),
-                            text: 'قائمة الجلسات (${_filteredSessions.length})',
-                          ),
-                          Tab(
-                            icon: const Icon(Icons.play_circle_filled_rounded),
-                            text: 'مشغل المسار (${_events.length})',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: TabBarView(
-                          controller: _mobileTabController,
-                          children: [
-                            Column(
-                              children: [
-                                _buildSearchField(),
-                                const SizedBox(height: 10),
-                                Expanded(
-                                  child: _buildSessionListView(
-                                    isMobile: true,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            _buildTimelinePanel(),
-                          ],
-                        ),
-                      ),
-                    ],
+  Widget _buildMobileSessionTab() {
+    final filtered = _filteredSessions;
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _buildSearchField(),
+          ),
+        ),
+        if (filtered.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 40,
+                    color: Colors.grey.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'لا توجد جلسات مطابقة للبحث.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.only(bottom: 24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final session = filtered[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _buildSessionCard(session, isMobile: true),
                   );
                 },
+                childCount: filtered.length,
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -467,126 +517,130 @@ class _StudyReplayScreenState extends State<StudyReplayScreen>
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final session = filtered[index];
-        final isSelected = _selectedSession?.id == session.id;
+        return _buildSessionCard(session, isMobile: isMobile);
+      },
+    );
+  }
 
-        return InkWell(
-          onTap: () => _loadEvents(
-            session,
-            switchToPlayerOnMobile: isMobile,
-          ),
+  Widget _buildSessionCard(_ReplaySession session, {required bool isMobile}) {
+    final isSelected = _selectedSession?.id == session.id;
+
+    return InkWell(
+      onTap: () => _loadEvents(
+        session,
+        switchToPlayerOnMobile: isMobile,
+      ),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.adminRole.withValues(alpha: 0.1)
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.adminRole.withValues(alpha: 0.1)
-                  : Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
+          border: Border.all(
+            color: isSelected
+                ? AppColors.adminRole
+                : Theme.of(context).dividerColor.withValues(alpha: 0.12),
+            width: isSelected ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.adminRole
-                    : Theme.of(context).dividerColor.withValues(alpha: 0.12),
-                width: isSelected ? 1.5 : 1,
+                    : AppColors.adminRole.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+              child: Icon(
+                Icons.play_arrow_rounded,
+                color: isSelected ? Colors.white : AppColors.adminRole,
+                size: 20,
+              ),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.adminRole
-                        : AppColors.adminRole.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session.studentName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  child: Icon(
-                    Icons.play_arrow_rounded,
-                    color: isSelected ? Colors.white : AppColors.adminRole,
-                    size: 20,
+                  const SizedBox(height: 2),
+                  Text(
+                    session.lessonTitle,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
-                      Text(
-                        session.studentName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${session.durationSeconds} ثانية',
+                          style: const TextStyle(fontSize: 10),
+                        ),
                       ),
-                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${session.pagesRead} صفحات',
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      ),
                       Text(
-                        session.lessonTitle,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest
-                                  .withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${session.durationSeconds} ثانية',
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest
-                                  .withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${session.pagesRead} صفحات',
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ),
-                          Text(
-                            session.startedLabel,
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-                        ],
+                        session.startedLabel,
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -648,259 +702,281 @@ class _StudyReplayScreenState extends State<StudyReplayScreen>
         ? _events.first
         : visibleEvents.last;
 
-    return Column(
-      children: [
-        // ── Player Console ──
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppColors.adminRole.withValues(alpha: 0.25),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Session Meta Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.adminRole.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.video_library_rounded,
-                      color: AppColors.adminRole,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          selected.lessonTitle,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          'الطالب: ${selected.studentName} • ${selected.startedLabel}',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _isPlaying
-                          ? Colors.green.withValues(alpha: 0.12)
-                          : Colors.grey.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _isPlaying ? Icons.play_arrow : Icons.pause,
-                          size: 14,
-                          color: _isPlaying ? Colors.green : Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _isPlaying ? 'قيد التشغيل' : 'متوقف',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _isPlaying ? Colors.green : Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Scrubbing Controls
-              Row(
-                children: [
-                  IconButton.filled(
-                    tooltip: _isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل',
-                    onPressed: _togglePlayback,
-                    icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.adminRole,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      value: _playbackMs.clamp(0, maxMs).toDouble(),
-                      min: 0,
-                      max: maxMs.toDouble(),
-                      activeColor: AppColors.adminRole,
-                      onChanged: _seekPlayback,
-                    ),
-                  ),
-                  Text(
-                    '${_formatMs(_playbackMs)} / ${_formatMs(maxMs)}',
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              // Active Event Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: currentEvent.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: currentEvent.color.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(currentEvent.icon, size: 16, color: currentEvent.color),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'الحدث الحالي: ${currentEvent.eventType.replaceAll('_', ' ')} (${currentEvent.offsetLabel})',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: currentEvent.color,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildPlayerConsole(context, selected, currentEvent, maxMs),
           ),
         ),
-        const SizedBox(height: 12),
-
-        // ── Events Timeline ──
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.only(bottom: 24),
-            itemCount: _events.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final event = _events[index];
-              final reached = event.offsetMs <= _playbackMs;
-
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: reached
-                      ? event.color.withValues(alpha: 0.08)
-                      : Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: reached
-                        ? event.color.withValues(alpha: 0.4)
-                        : Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                    width: reached ? 1.2 : 1,
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      reached ? event.icon : Icons.radio_button_unchecked,
-                      color: reached ? event.color : Colors.grey,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  event.eventType.replaceAll('_', ' '),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: reached ? event.color : null,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: event.color.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  event.offsetLabel,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: event.color,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (event.payload.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _formatPayload(event.payload),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+        SliverPadding(
+          padding: const EdgeInsets.only(bottom: 24),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final event = _events[index];
+                final reached = event.offsetMs <= _playbackMs;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildTimelineEventTile(context, event, reached),
+                );
+              },
+              childCount: _events.length,
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPlayerConsole(
+    BuildContext context,
+    _ReplaySession selected,
+    _ReplayEvent currentEvent,
+    int maxMs,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.adminRole.withValues(alpha: 0.25),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Session Meta Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.adminRole.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.video_library_rounded,
+                  color: AppColors.adminRole,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      selected.lessonTitle,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'الطالب: ${selected.studentName} • ${selected.startedLabel}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _isPlaying
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.grey.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isPlaying ? Icons.play_arrow : Icons.pause,
+                      size: 14,
+                      color: _isPlaying ? Colors.green : Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isPlaying ? 'قيد التشغيل' : 'متوقف',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: _isPlaying ? Colors.green : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Scrubbing Controls
+          Row(
+            children: [
+              IconButton.filled(
+                tooltip: _isPlaying ? 'إيقاف مؤقت' : 'تشغيل التسجيل',
+                onPressed: _togglePlayback,
+                icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.adminRole,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  value: _playbackMs.clamp(0, maxMs).toDouble(),
+                  min: 0,
+                  max: maxMs.toDouble(),
+                  activeColor: AppColors.adminRole,
+                  onChanged: _seekPlayback,
+                ),
+              ),
+              Text(
+                '${_formatMs(_playbackMs)} / ${_formatMs(maxMs)}',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Active Event Banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: currentEvent.color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: currentEvent.color.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(currentEvent.icon, size: 16, color: currentEvent.color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'الحدث الحالي: ${currentEvent.eventType.replaceAll('_', ' ')} (${currentEvent.offsetLabel})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: currentEvent.color,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineEventTile(
+    BuildContext context,
+    _ReplayEvent event,
+    bool reached,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: reached
+            ? event.color.withValues(alpha: 0.08)
+            : Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: reached
+              ? event.color.withValues(alpha: 0.4)
+              : Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: reached ? 1.2 : 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            reached ? event.icon : Icons.radio_button_unchecked,
+            color: reached ? event.color : Colors.grey,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        event.eventType.replaceAll('_', ' '),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: reached ? event.color : null,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: event.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        event.offsetLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: event.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (event.payload.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatPayload(event.payload),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
