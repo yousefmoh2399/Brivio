@@ -1786,6 +1786,17 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
             primary: true,
           ),
       ],
+      headerWidgets: [
+        _buildKpiSection(
+          isDark,
+          totalSemesters,
+          totalUnits,
+          totalLessons,
+          totalResources,
+        ),
+        const SizedBox(height: 12),
+        if (_subjects.isNotEmpty) _buildSubjectAndFilterBar(isDark),
+      ],
       child: PortalStateView(
         isLoading: _isLoading,
         errorMessage: _errorMessage,
@@ -1794,20 +1805,7 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
         emptySubtitle: 'قم بإضافة مادة دراسية أولاً.',
         emptyIcon: Icons.auto_stories,
         onRetry: _loadCurriculum,
-        child: Column(
-          children: [
-            _buildKpiSection(
-              isDark,
-              totalSemesters,
-              totalUnits,
-              totalLessons,
-              totalResources,
-            ),
-            const SizedBox(height: 12),
-            if (_subjects.isNotEmpty) _buildSubjectAndFilterBar(isDark),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _selectedSubject == null
+        child: _selectedSubject == null
                   ? const Center(child: Text('لا توجد مواد دراسية نشطة حالياً.'))
                   : _semesters.isEmpty
                   ? Center(
@@ -1839,9 +1837,6 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                       itemCount: _semesters.length,
                       itemBuilder: (ctx, semIdx) => _buildSemesterCard(context, _semesters[semIdx], isDark),
                     ),
-            ),
-          ],
-        ),
       ),
     );
   }

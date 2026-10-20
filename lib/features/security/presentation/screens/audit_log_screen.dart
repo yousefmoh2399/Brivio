@@ -386,10 +386,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           onPressed: _loadAuditLogs,
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── KPI Summary Strip ──
+      headerWidgets: [
+        // ── KPI Summary Strip ──
           _buildKpiSection(),
           const SizedBox(height: 14),
 
@@ -559,32 +557,26 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-
-          // ── List of Audit Entries ──
-          Expanded(
-            child: PortalStateView(
-              isLoading: _isLoading,
-              errorMessage: _errorMessage,
-              isEmpty: filtered.isEmpty,
-              emptyTitle: 'لا توجد سجلات مطابقة',
-              emptySubtitle: 'جرب تغيير معايير البحث أو التصفية لعرض السجلات.',
-              emptyIcon: Icons.shield_outlined,
-              onRetry: _loadAuditLogs,
-              child: ListView.separated(
-                padding: const EdgeInsets.only(bottom: 24),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  return _buildAuditLogCard(filtered[index]);
-                },
-              ),
-            ),
-          ),
         ],
-      ),
-    );
-  }
+        child: PortalStateView(
+          isLoading: _isLoading,
+          errorMessage: _errorMessage,
+          isEmpty: filtered.isEmpty,
+          emptyTitle: 'لا توجد سجلات مطابقة',
+          emptySubtitle: 'جرب تغيير معايير البحث أو التصفية لعرض السجلات.',
+          emptyIcon: Icons.shield_outlined,
+          onRetry: _loadAuditLogs,
+          child: ListView.separated(
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: filtered.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              return _buildAuditLogCard(filtered[index]);
+            },
+          ),
+        ),
+      );
+    }
 
   Widget _buildCategoryChip({
     required String label,

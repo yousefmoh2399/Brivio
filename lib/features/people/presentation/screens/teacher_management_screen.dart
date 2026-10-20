@@ -1346,23 +1346,21 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           primary: false,
         ),
       ],
-      child: Column(
-        children: [
-          _buildKpiSection(
-            isDark,
-            totalTeachers,
-            activeTeachers,
-            totalAssignedGroups,
-            suspendedTeachers,
-          ),
-          const SizedBox(height: 12),
-          _buildSearchAndFilterBar(isDark),
-          const SizedBox(height: 12),
-          Expanded(
-            child: PortalStateView(
-              isLoading: _isLoading,
-              errorMessage: _errorMessage,
-              isEmpty: filtered.isEmpty,
+      headerWidgets: [
+        _buildKpiSection(
+          isDark,
+          totalTeachers,
+          activeTeachers,
+          totalAssignedGroups,
+          suspendedTeachers,
+        ),
+        const SizedBox(height: 12),
+        _buildSearchAndFilterBar(isDark),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: filtered.isEmpty,
               emptyTitle: _searchController.text.isNotEmpty ||
                       _selectedStatusFilter != 'all' ||
                       _selectedGroupFilter != 'all' ||
@@ -1419,9 +1417,6 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                 },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          );
+        }
+      }

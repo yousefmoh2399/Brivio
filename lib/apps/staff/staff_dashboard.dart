@@ -14,7 +14,7 @@ import '../../design_system/tokens/colors.dart';
 import '../../design_system/widgets/portal_components.dart';
 import '../../features/academy/data/repositories/supabase_academy_repositories.dart';
 import '../../features/academy/domain/models/academy_models.dart';
-import '../../features/academy/presentation/screens/academy_screens.dart';
+import '../../features/auth/domain/models/user_role.dart';
 import '../../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../../features/communication/domain/models/notification.dart';
 import '../../features/communication/domain/repositories/i_notification_repository.dart';
@@ -124,8 +124,15 @@ class _StaffDashboardState extends State<StaffDashboard> {
   SupabaseClientWrapper get _wrapper =>
       SupabaseClientWrapper(Supabase.instance.client);
 
-  bool _has(Permission permission) =>
-      widget.authViewModel.state.hasPermission(permission);
+  bool _has(Permission permission) {
+    final role = widget.authViewModel.userRole;
+    if (role == UserRole.staff ||
+        role == UserRole.admin ||
+        role == UserRole.superAdmin) {
+      return true;
+    }
+    return widget.authViewModel.state.hasPermission(permission);
+  }
 
   Future<void> _loadStaffData() async {
     setState(() {
@@ -143,16 +150,17 @@ class _StaffDashboardState extends State<StaffDashboard> {
       final warnings = <String>[];
 
       final results = await Future.wait<Object>([
-        _has(Permission.studentsView)
-            ? studentRepo.fetchStudents()
-            : Future.value(
-                const PaginatedResult<Student>(
-                  total: 0,
-                  page: 1,
-                  pageSize: 20,
-                  data: [],
-                ),
-              ),
+        _safePageQuery<Student>(
+          'Students',
+          warnings,
+          () => studentRepo.fetchStudents(pageSize: 100),
+          const PaginatedResult<Student>(
+            total: 0,
+            page: 1,
+            pageSize: 100,
+            data: [],
+          ),
+        ),
         _safePageQuery<Parent>(
           'Parents',
           warnings,
@@ -175,9 +183,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
             data: [],
           ),
         ),
-        _has(Permission.groupsView)
-            ? groupRepo.fetchGroups()
-            : Future.value([]),
+        _safeListQuery<GroupEntity>(
+          'Groups',
+          warnings,
+          () => groupRepo.fetchGroups(),
+        ),
         _fetchLeaveQueue(warnings),
         _fetchInvoiceQueue(warnings),
         _fetchAttendanceQueue(warnings),
@@ -374,6 +384,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
     } catch (e) {
       warnings.add('$label: $e');
       return fallback;
+    }
+  }
+
+  Future<List<T>> _safeListQuery<T>(
+    String label,
+    List<String> warnings,
+    Future<List<T>> Function() query,
+  ) async {
+    try {
+      return await query();
+    } catch (e) {
+      warnings.add('$label: $e');
+      return <T>[];
     }
   }
 
@@ -585,9 +608,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       onRefresh: _loadStaffData,
       onSignOut: widget.authViewModel.signOut,
-      body: _selectedIndex <= 5
-          ? _dashboardBody(user)
-          : _selectedPage(),
+      body: switch (_selectedIndex) {
+        0 => _dashboardBody(user),
+        1 => _queuesBody(user),
+        _ => _selectedPage(),
+      },
     );
   }
 
@@ -629,7 +654,52 @@ class _StaffDashboardState extends State<StaffDashboard> {
               _WarningsCard(warnings: _dataWarnings),
             ],
             const SizedBox(height: 16),
-            _selectedPage(),
+            _overviewPage(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _queuesBody(dynamic user) {
+    return RefreshIndicator(
+      onRefresh: _loadStaffData,
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: false,
+        emptyTitle: 'لا توجد طوابير معلقة حالياً',
+        emptySubtitle: 'جميع الطلبات والمهام مكتملة بنجاح.',
+        emptyIcon: Icons.assignment_turned_in,
+        onRetry: _loadStaffData,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            PortalHeader(
+              eyebrow: 'منظومة بريفيو لإدارة السناتر',
+              title: 'طوابير المهام والاستثناءات التشغيلية',
+              subtitle: 'متابعة أذونات الغياب، متأخرات الدفع، واستثناءات الحضور',
+              icon: Icons.assignment_late,
+              accentColor: AppColors.staffRole,
+              leading: EditableAvatar(
+                avatarUrl: user?.avatarUrl,
+                name: user?.fullName ?? 'Staff Member',
+                role: 'staff',
+                userId: user?.id,
+                userEmail: user?.email,
+                radius: 23,
+                onAvatarChanged: (_) => _loadStaffData(),
+              ),
+              trailing: CenterSwitcherWidget(
+                onCenterChanged: _loadStaffData,
+              ),
+            ),
+            if (_dataWarnings.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _WarningsCard(warnings: _dataWarnings),
+            ],
+            const SizedBox(height: 16),
+            _queuesPage(),
           ],
         ),
       ),
@@ -900,122 +970,841 @@ class _StaffDashboardState extends State<StaffDashboard> {
   }
 
   Widget _studentsPage() {
-    if (!_has(Permission.studentsView)) {
-      return const _AccessCard(
-        message: 'يتطلب هذا القسم صلاحية عرض الطلاب (students.view).',
-      );
-    }
-    final filteredStudents = _filteredStudents();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PortalSectionTitle(
-          title: 'دليل شؤون الطلاب',
-          subtitle: '${filteredStudents.length}/${_students.length}',
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 520,
-          child: StudentListWidget(
-            students: filteredStudents,
-            isLoading: _isLoading,
-            onRefresh: _loadStaffData,
-            onSearchChanged: (value) =>
-                setState(() => _studentSearch = value.trim().toLowerCase()),
-            onStudentSelected: _showStudentDetails,
+    final filtered = _filteredStudents();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'شؤون الطلاب وقيد الدارسين 🎓',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'إجمالي الطلاب: ${_students.length} • المعروض: ${filtered.length}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.staffRole,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  ExpressStudentRegistrationDialog.show(
+                    context: context,
+                    availableGroups: _groups,
+                    onRegistered: (_) => _loadStaffData(),
+                  );
+                },
+                icon: const Icon(Icons.person_add_rounded, size: 18),
+                label: const Text('تسجيل طالب جديد', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'تحديث البيانات',
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: _loadStaffData,
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          TextField(
+            decoration: InputDecoration(
+              hintText: 'بحث بكود الطالب، الاسم، رقم الهاتف، أو المرحلة...',
+              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.staffRole),
+              suffixIcon: _studentSearch.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () => setState(() => _studentSearch = ''),
+                    )
+                  : null,
+              filled: true,
+              fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            onChanged: (val) => setState(() => _studentSearch = val.trim().toLowerCase()),
+          ),
+          const SizedBox(height: 14),
+          if (_isLoading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (filtered.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.school_outlined, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+                    const SizedBox(height: 12),
+                    const Text('لا يوجد طلاب مطابقين للبحث', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    const Text('تأكد من اختيار السنتر الصحيح أو قم بتسجيل طالب جديد', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final s = filtered[index];
+                  return _buildStudentCard(s, isDark);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentCard(Student s, bool isDark) {
+    final statusColor = s.status.toLowerCase() == 'active'
+        ? AppColors.success
+        : AppColors.warning;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: isDark ? Colors.white12 : Colors.black12,
         ),
-      ],
+      ),
+      elevation: 0,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: AppColors.staffRole.withValues(alpha: 0.15),
+              child: Text(
+                s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : 'S',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.staffRole,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          s.fullName.isNotEmpty ? s.fullName : s.studentCode,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          s.status.toLowerCase() == 'active' ? 'نشط' : s.status,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        'كود: ${s.studentCode}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+                      ),
+                      if (s.gradeLevel != null && s.gradeLevel!.isNotEmpty)
+                        Text(
+                          '• ${s.gradeLevel}',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      if (s.phoneNumber != null && s.phoneNumber!.isNotEmpty)
+                        Text(
+                          '• ${s.phoneNumber}',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'تحصيل سريع 💵',
+                  icon: const Icon(Icons.point_of_sale_rounded, color: Colors.green),
+                  onPressed: () {
+                    ExpressCashierDialog.show(
+                      context: context,
+                      students: _students,
+                      initialStudent: s,
+                      onSuccess: _loadStaffData,
+                    );
+                  },
+                ),
+                IconButton(
+                  tooltip: 'طباعة كارنيه 🪪',
+                  icon: const Icon(Icons.badge_rounded, color: AppColors.primary),
+                  onPressed: () {
+                    ReportGeneratorService().generateBulkStudentIdCardsPdf(
+                      students: [
+                        {
+                          'id': s.id,
+                          'full_name': s.fullName,
+                          'student_code': s.studentCode,
+                          'grade_level': s.gradeLevel ?? 'المرحلة التعليمية',
+                          'emergency_contact_phone': s.phoneNumber ?? '',
+                        },
+                      ],
+                      centerName: 'منظومة بريفيو التعليمية',
+                      printDirectly: true,
+                    );
+                  },
+                ),
+                if (s.phoneNumber != null && s.phoneNumber!.isNotEmpty)
+                  IconButton(
+                    tooltip: 'واتساب 💬',
+                    icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+                    onPressed: () async {
+                      final uri = Uri.parse('https://wa.me/${s.phoneNumber}');
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
+                IconButton(
+                  tooltip: 'التفاصيل الكاملة',
+                  icon: const Icon(Icons.info_outline_rounded),
+                  onPressed: () => _showStudentDetails(s),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _parentsPage() {
-    if (!_has(Permission.parentsView)) {
-      return const _AccessCard(
-        message: 'يتطلب هذا القسم صلاحية عرض أولياء الأمور (parents.view).',
-      );
-    }
-    final filteredParents = _filteredParents();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PortalSectionTitle(
-          title: 'دليل أولياء الأمور',
-          subtitle: '${filteredParents.length}/${_parents.length}',
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 520,
-          child: ParentListWidget(
-            parents: filteredParents,
-            isLoading: _isLoading,
-            onSearchChanged: (value) =>
-                setState(() => _parentSearch = value.trim().toLowerCase()),
+    final filtered = _filteredParents();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'دليل أولياء الأمور 👨‍👩‍👧‍👦',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'إجمالي أولياء الأمور: ${_parents.length} • المعروض: ${filtered.length}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'تحديث البيانات',
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: _loadStaffData,
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          TextField(
+            decoration: InputDecoration(
+              hintText: 'بحث باسم ولي الأمر، الإيميل، أو رقم الهاتف...',
+              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.secondary),
+              suffixIcon: _parentSearch.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () => setState(() => _parentSearch = ''),
+                    )
+                  : null,
+              filled: true,
+              fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            onChanged: (val) => setState(() => _parentSearch = val.trim().toLowerCase()),
+          ),
+          const SizedBox(height: 14),
+          if (_isLoading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (filtered.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.family_restroom_outlined, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+                    const SizedBox(height: 12),
+                    const Text('لا يوجد أولياء أمور مطابقين للبحث', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final p = filtered[index];
+                  return _buildParentCard(p, isDark);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParentCard(Parent p, bool isDark) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: isDark ? Colors.white12 : Colors.black12,
         ),
-      ],
+      ),
+      elevation: 0,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
+              child: Text(
+                p.fullName.isNotEmpty ? p.fullName[0].toUpperCase() : 'P',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.secondary,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.fullName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      if (p.occupation != null && p.occupation!.isNotEmpty)
+                        Text(
+                          p.occupation!,
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      if (p.phoneNumber != null && p.phoneNumber!.isNotEmpty)
+                        Text(
+                          p.phoneNumber!,
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (p.phoneNumber != null && p.phoneNumber!.isNotEmpty) ...[
+              IconButton(
+                tooltip: 'اتصال هاتف 📞',
+                icon: const Icon(Icons.phone_rounded, color: Colors.blue),
+                onPressed: () async {
+                  final uri = Uri.parse('tel:${p.phoneNumber}');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  }
+                },
+              ),
+              IconButton(
+                tooltip: 'واتساب 💬',
+                icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+                onPressed: () async {
+                  final uri = Uri.parse('https://wa.me/${p.phoneNumber}');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
   Widget _teachersPage() {
-    final filteredTeachers = _filteredTeachers();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PortalSectionTitle(
-          title: 'دليل المعلمين',
-          subtitle: '${filteredTeachers.length}/${_teachers.length}',
-        ),
-        const SizedBox(height: 8),
-        PortalSearchField(
-          controller: _teacherSearchController,
-          label: 'بحث باسم المعلم أو التخصص...',
-          onChanged: (value) =>
-              setState(() => _teacherSearch = value.trim().toLowerCase()),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 520,
-          child: TeacherListWidget(
-            teachers: filteredTeachers,
-            isLoading: _isLoading,
+    final filtered = _filteredTeachers();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'هيئة التدريس والمعلمون 👨‍🏫',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'إجمالي المعلمين: ${_teachers.length} • المعروض: ${filtered.length}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const TeacherSettlementScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.calculate_rounded, size: 18),
+                label: const Text('تصفية مستحقات المعلمين', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'تحديث البيانات',
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: _loadStaffData,
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _teacherSearchController,
+            decoration: InputDecoration(
+              hintText: 'بحث باسم المعلم، التخصص، أو الإيميل...',
+              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.success),
+              suffixIcon: _teacherSearch.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () {
+                        _teacherSearchController.clear();
+                        setState(() => _teacherSearch = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            onChanged: (val) => setState(() => _teacherSearch = val.trim().toLowerCase()),
+          ),
+          const SizedBox(height: 14),
+          if (_isLoading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (filtered.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.co_present_outlined, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+                    const SizedBox(height: 12),
+                    const Text('لا يوجد معلمون مطابقين للبحث', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final t = filtered[index];
+                  return _buildTeacherCard(t, isDark);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeacherCard(Teacher t, bool isDark) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: isDark ? Colors.white12 : Colors.black12,
         ),
-      ],
+      ),
+      elevation: 0,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColors.success.withValues(alpha: 0.15),
+              child: Text(
+                t.fullName.isNotEmpty ? t.fullName[0].toUpperCase() : 'T',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.success,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.fullName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      if (t.specialization != null && t.specialization!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            t.specialization!,
+                            style: const TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      if (t.phoneNumber != null && t.phoneNumber!.isNotEmpty)
+                        Text(
+                          t.phoneNumber!,
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const TeacherSettlementScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.calculate_rounded, size: 16),
+              label: const Text('تصفية مستحقات', style: TextStyle(fontSize: 11)),
+            ),
+            if (t.phoneNumber != null && t.phoneNumber!.isNotEmpty)
+              IconButton(
+                tooltip: 'واتساب 💬',
+                icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+                onPressed: () async {
+                  final uri = Uri.parse('https://wa.me/${t.phoneNumber}');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _groupsPage() {
-    if (!_has(Permission.groupsView)) {
-      return const _AccessCard(
-        message: 'يتطلب هذا القسم صلاحية عرض المجموعات (groups.view).',
-      );
-    }
-    final filteredGroups = _filteredGroups();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PortalSectionTitle(
-          title: 'قائمة المجموعات الدراسية',
-          subtitle: '${filteredGroups.length}/${_groups.length}',
-        ),
-        const SizedBox(height: 8),
-        PortalSearchField(
-          controller: _groupSearchController,
-          label: 'بحث باسم أو كود المجموعة...',
-          onChanged: (value) =>
-              setState(() => _groupSearch = value.trim().toLowerCase()),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 520,
-          child: GroupListWidget(
-            groups: filteredGroups,
-            isLoading: _isLoading,
-            onGroupSelected: _showGroupDetails,
+    final filtered = _filteredGroups();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'المجموعات الدراسية والقاعات 👥',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'إجمالي المجموعات: ${_groups.length} • المعروض: ${filtered.length}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ClassroomCapacityScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.meeting_room_rounded, size: 18),
+                label: const Text('سعة القاعات', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'تحديث البيانات',
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: _loadStaffData,
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _groupSearchController,
+            decoration: InputDecoration(
+              hintText: 'بحث باسم المجموعة أو الكود...',
+              prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+              suffixIcon: _groupSearch.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      onPressed: () {
+                        _groupSearchController.clear();
+                        setState(() => _groupSearch = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            onChanged: (val) => setState(() => _groupSearch = val.trim().toLowerCase()),
+          ),
+          const SizedBox(height: 14),
+          if (_isLoading)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (filtered.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.group_work_outlined, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+                    const SizedBox(height: 12),
+                    const Text('لا توجد مجموعات مطابقة للبحث', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtered.length,
+                itemBuilder: (context, index) {
+                  final g = filtered[index];
+                  return _buildGroupCard(g, isDark);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupCard(GroupEntity g, bool isDark) {
+    final statusColor = g.status.toLowerCase() == 'active'
+        ? AppColors.primary
+        : AppColors.warning;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: isDark ? Colors.white12 : Colors.black12,
         ),
-      ],
+      ),
+      elevation: 0,
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.group_work_rounded, color: AppColors.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          g.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          g.status.toLowerCase() == 'active' ? 'نشطة' : g.status,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      Text(
+                        'كود: ${g.code}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+                      ),
+                      if (g.maxCapacity != null)
+                        Text(
+                          '• السعة القصوى: ${g.maxCapacity}',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                setState(() => _selectedIndex = 6);
+              },
+              icon: const Icon(Icons.fact_check_rounded, size: 16),
+              label: const Text('تسجيل حضور', style: TextStyle(fontSize: 11)),
+            ),
+            IconButton(
+              tooltip: 'التفاصيل',
+              icon: const Icon(Icons.info_outline_rounded),
+              onPressed: () => _showGroupDetails(g),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1090,7 +1879,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           FilledButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _selectedIndex = 5);
+              setState(() => _selectedIndex = 7);
             },
             icon: const Icon(Icons.receipt_long),
             label: Text(context.tr('Finance')),
@@ -1098,7 +1887,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           FilledButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _selectedIndex = 4);
+              setState(() => _selectedIndex = 6);
             },
             icon: const Icon(Icons.fact_check),
             label: Text(context.tr('Attendance')),
@@ -1136,7 +1925,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           FilledButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _selectedIndex = 4);
+              setState(() => _selectedIndex = 6);
             },
             icon: const Icon(Icons.fact_check),
             label: Text(context.tr('Attendance')),
@@ -1318,28 +2107,6 @@ class _QueueList extends StatelessWidget {
       ],
       _StaffQueueType.enrollment => const [],
     };
-  }
-}
-
-class _AccessCard extends StatelessWidget {
-  final String message;
-
-  const _AccessCard({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            const Icon(Icons.lock_outline),
-            const SizedBox(width: 10),
-            Expanded(child: Text(context.l10n.t(message))),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -1730,31 +2497,12 @@ class _StaffFrontDeskHudState extends State<_StaffFrontDeskHud>
                           ),
                           icon: const Icon(Icons.how_to_reg_rounded, size: 16, color: Colors.green),
                           label: const Text('تسجيل حضور يدوي', style: TextStyle(fontSize: 11)),
-                          onPressed: () async {
-                            try {
-                              await Supabase.instance.client.from('attendance').insert({
-                                'student_id': _matchedStudent!.id,
-                                'status': 'present',
-                                'recorded_at': DateTime.now().toIso8601String(),
-                              });
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('تم تسجيل حضور الطالب ${_matchedStudent!.fullName} في قاعدة البيانات بنجاح! ⏱️'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('تعذر تسجيل الحضور: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ReceptionQrGateScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),

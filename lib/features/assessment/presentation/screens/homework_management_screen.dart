@@ -1149,6 +1149,17 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
             primary: true,
           ),
       ],
+      headerWidgets: [
+        _buildKpiSection(
+          isDark,
+          totalCount,
+          activeCount,
+          overdueCount,
+          closedCount,
+        ),
+        const SizedBox(height: 12),
+        if (_groups.isNotEmpty) _buildSearchAndFilterBar(isDark),
+      ],
       child: PortalStateView(
         isLoading: _isLoading,
         errorMessage: _errorMessage,
@@ -1157,20 +1168,7 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
         emptySubtitle: 'قم باختيار أو إنشاء مجموعة دراسية أولاً.',
         emptyIcon: Icons.assignment_rounded,
         onRetry: _loadHomeworks,
-        child: Column(
-          children: [
-            _buildKpiSection(
-              isDark,
-              totalCount,
-              activeCount,
-              overdueCount,
-              closedCount,
-            ),
-            const SizedBox(height: 12),
-            if (_groups.isNotEmpty) _buildSearchAndFilterBar(isDark),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _selectedGroup == null
+        child: _selectedGroup == null
                   ? const Center(child: Text('لا توجد مجموعات دراسية نشطة حالياً.'))
                   : filtered.isEmpty
                       ? Center(
@@ -1226,9 +1224,6 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                             );
                           },
                         ),
-            ),
-          ],
-        ),
       ),
     );
   }

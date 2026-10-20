@@ -212,89 +212,87 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen>
             builder: (context, constraints) {
               final isMobile = constraints.maxWidth < 650;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Responsive KPI Stats Strip
-                  _buildKpiStrip(
-                    isMobile: isMobile,
-                    openCount: openTickets.length,
-                    inProgressCount: inProgressTickets.length,
-                    closedCount: closedTickets.length,
-                    totalCount: allTickets.length,
-                    isDark: isDark,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Tab Bar Container
-                  Container(
-                    margin: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 8 : 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurface : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-                        width: 0.8,
+              return NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _buildKpiStrip(
+                        isMobile: isMobile,
+                        openCount: openTickets.length,
+                        inProgressCount: inProgressTickets.length,
+                        closedCount: closedTickets.length,
+                        totalCount: allTickets.length,
+                        isDark: isDark,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      indicator: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: AppColors.info.withValues(alpha: 0.15),
-                      ),
-                      labelColor: AppColors.info,
-                      unselectedLabelColor: isDark ? Colors.white60 : Colors.black54,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      tabs: [
-                        Tab(text: 'جديدة مفتوحة (${openTickets.length})'),
-                        Tab(text: 'قيد المتابعة (${inProgressTickets.length})'),
-                        Tab(text: 'مغلقة ومحلولة (${closedTickets.length})'),
-                      ],
                     ),
                   ),
-
-                  const SizedBox(height: 8),
-
-                  // Tab Views
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _TicketList(
-                          tickets: openTickets,
-                          onStatusChange: _loadTickets,
-                          emptyMessage: 'لا توجد تذاكر جديدة مفتوحة حالياً 🎉',
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Container(
+                        margin: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 8 : 16,
+                          vertical: 6,
                         ),
-                        _TicketList(
-                          tickets: inProgressTickets,
-                          onStatusChange: _loadTickets,
-                          emptyMessage: 'لا توجد تذاكر قيد المتابعة حالياً',
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkSurface : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                            width: 0.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        _TicketList(
-                          tickets: closedTickets,
-                          onStatusChange: _loadTickets,
-                          emptyMessage: 'لا توجد تذاكر مغلقة أو مؤرشفة',
+                        child: TabBar(
+                          controller: _tabController,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          indicator: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.info.withValues(alpha: 0.15),
+                          ),
+                          labelColor: AppColors.info,
+                          unselectedLabelColor: isDark ? Colors.white60 : Colors.black54,
+                          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          tabs: [
+                            Tab(text: 'جديدة مفتوحة (${openTickets.length})'),
+                            Tab(text: 'قيد المتابعة (${inProgressTickets.length})'),
+                            Tab(text: 'مغلقة ومحلولة (${closedTickets.length})'),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
+                body: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _TicketList(
+                      tickets: openTickets,
+                      onStatusChange: _loadTickets,
+                      emptyMessage: 'لا توجد تذاكر جديدة مفتوحة حالياً 🎉',
+                    ),
+                    _TicketList(
+                      tickets: inProgressTickets,
+                      onStatusChange: _loadTickets,
+                      emptyMessage: 'لا توجد تذاكر قيد المتابعة حالياً',
+                    ),
+                    _TicketList(
+                      tickets: closedTickets,
+                      onStatusChange: _loadTickets,
+                      emptyMessage: 'لا توجد تذاكر مغلقة أو مؤرشفة',
+                    ),
+                  ],
+                ),
               );
             },
           );

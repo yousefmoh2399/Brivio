@@ -1539,6 +1539,17 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
             primary: true,
           ),
       ],
+      headerWidgets: [
+        _buildKpiSection(
+          isDark,
+          totalCount,
+          mcqCount,
+          trueFalseCount,
+          writtenCount,
+        ),
+        const SizedBox(height: 12),
+        if (_subjects.isNotEmpty) _buildSearchAndFilterBar(isDark),
+      ],
       child: PortalStateView(
         isLoading: _isLoading,
         errorMessage: _errorMessage,
@@ -1547,20 +1558,7 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
         emptySubtitle: 'قم باختيار أو إضافة مادة دراسية أولاً.',
         emptyIcon: Icons.help_outline,
         onRetry: _loadQuestions,
-        child: Column(
-          children: [
-            _buildKpiSection(
-              isDark,
-              totalCount,
-              mcqCount,
-              trueFalseCount,
-              writtenCount,
-            ),
-            const SizedBox(height: 12),
-            if (_subjects.isNotEmpty) _buildSearchAndFilterBar(isDark),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _selectedSubject == null
+        child: _selectedSubject == null
                   ? const Center(child: Text('لا توجد مواد دراسية نشطة حالياً.'))
                   : filtered.isEmpty
                       ? Center(
@@ -1597,9 +1595,6 @@ class _QuestionBankScreenState extends State<QuestionBankScreen> {
                           separatorBuilder: (ctx, i) => const SizedBox(height: 10),
                           itemBuilder: (ctx, i) => _buildQuestionCard(context, filtered[i]),
                         ),
-            ),
-          ],
-        ),
       ),
     );
   }

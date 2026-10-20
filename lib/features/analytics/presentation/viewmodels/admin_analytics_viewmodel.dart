@@ -15,7 +15,23 @@ class AdminAnalyticsViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  bool _isDisposed = false;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_isDisposed) {
+      super.notifyListeners();
+    }
+  }
+
   Future<void> loadAnalytics({DateTime? startDate, DateTime? endDate}) async {
+    if (_isDisposed) return;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -25,12 +41,19 @@ class AdminAnalyticsViewModel extends ChangeNotifier {
           startDate ?? DateTime.now().subtract(const Duration(days: 30));
       final end = endDate ?? DateTime.now();
 
-      _analytics = await _adminRepository.getAnalytics(start, end);
+      final res = await _adminRepository.getAnalytics(start, end);
+      if (!_isDisposed) {
+        _analytics = res;
+      }
     } catch (e) {
-      _errorMessage = 'تعذر تحميل بيانات التحليلات: $e';
+      if (!_isDisposed) {
+        _errorMessage = 'تعذر تحميل بيانات التحليلات: $e';
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_isDisposed) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 }

@@ -503,44 +503,38 @@ class _RbacManagementScreenState extends State<RbacManagementScreen> {
             onPressed: _loadRbacData,
           ),
         ],
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildKpiSection(),
-            const SizedBox(height: 14),
-            TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: [
-                Tab(
-                  icon: const Icon(Icons.shield_rounded),
-                  text: 'أدوار النظام (${_roles.length})',
-                ),
-                Tab(
-                  icon: const Icon(Icons.policy_rounded),
-                  text: 'دليل ومصفوفة الصلاحيات (${_permissions.length})',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: PortalStateView(
-                isLoading: _isLoading,
-                errorMessage: _errorMessage,
-                isEmpty: false,
-                emptyTitle: 'لا توجد بيانات أمان',
-                emptySubtitle: 'لم يتم العثور على أي أدوار أو صلاحيات مسجلة.',
-                emptyIcon: Icons.security_rounded,
-                onRetry: _loadRbacData,
-                child: TabBarView(
-                  children: [
-                    _buildRolesTab(),
-                    _buildPermissionsTab(),
-                  ],
-                ),
+        headerWidgets: [
+          _buildKpiSection(),
+          const SizedBox(height: 14),
+          TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [
+              Tab(
+                icon: const Icon(Icons.shield_rounded),
+                text: 'أدوار النظام (${_roles.length})',
               ),
-            ),
-          ],
+              Tab(
+                icon: const Icon(Icons.policy_rounded),
+                text: 'دليل ومصفوفة الصلاحيات (${_permissions.length})',
+              ),
+            ],
+          ),
+        ],
+        child: PortalStateView(
+          isLoading: _isLoading,
+          errorMessage: _errorMessage,
+          isEmpty: false,
+          emptyTitle: 'لا توجد بيانات أمان',
+          emptySubtitle: 'لم يتم العثور على أي أدوار أو صلاحيات مسجلة.',
+          emptyIcon: Icons.security_rounded,
+          onRetry: _loadRbacData,
+          child: TabBarView(
+            children: [
+              _buildRolesTab(),
+              _buildPermissionsTab(),
+            ],
+          ),
         ),
       ),
     );

@@ -1070,17 +1070,15 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
           primary: true,
         ),
       ],
-      child: Column(
-        children: [
-          _buildKpiSection(isDark, totalCount, activeCount, archivedCount, totalGroups),
-          const SizedBox(height: 12),
-          _buildSearchAndFilterBar(isDark),
-          const SizedBox(height: 12),
-          Expanded(
-            child: PortalStateView(
-              isLoading: _isLoading,
-              errorMessage: _errorMessage,
-              isEmpty: filtered.isEmpty,
+      headerWidgets: [
+        _buildKpiSection(isDark, totalCount, activeCount, archivedCount, totalGroups),
+        const SizedBox(height: 12),
+        _buildSearchAndFilterBar(isDark),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: filtered.isEmpty,
               emptyTitle: _searchController.text.isNotEmpty || _selectedStatusFilter != 'all'
                   ? 'لا توجد نتائج تطابق بحثك'
                   : 'لا توجد مواد دراسية مسجلة',
@@ -1131,9 +1129,6 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                 },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          );
+        }
+      }

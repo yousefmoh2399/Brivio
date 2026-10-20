@@ -1171,17 +1171,15 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
           primary: true,
         ),
       ],
-      child: Column(
-        children: [
-          _buildKpiSection(isDark, totalCount, todayCount, roomCount, scheduledGroupCount),
-          const SizedBox(height: 12),
-          _buildSearchAndFilterBar(isDark),
-          const SizedBox(height: 12),
-          Expanded(
-            child: PortalStateView(
-              isLoading: _isLoading,
-              errorMessage: _errorMessage,
-              isEmpty: filtered.isEmpty,
+      headerWidgets: [
+        _buildKpiSection(isDark, totalCount, todayCount, roomCount, scheduledGroupCount),
+        const SizedBox(height: 12),
+        _buildSearchAndFilterBar(isDark),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: filtered.isEmpty,
               emptyTitle: _searchController.text.isNotEmpty || _selectedDayFilter != 'all'
                   ? 'لا توجد حصص تطابق بحثك أو اليوم المحدد'
                   : 'لا توجد مواعيد حصص في الجدول',
@@ -1232,9 +1230,6 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
                 },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          );
+        }
+      }

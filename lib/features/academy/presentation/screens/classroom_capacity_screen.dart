@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../design_system/components/glass_card.dart';
@@ -54,19 +56,34 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
             .whereType<String>()
             .toList();
         if (bIds.isNotEmpty) {
-          res = await client
-              .from('rooms')
-              .select('id, name, code, capacity, status, branch_id')
-              .inFilter('branch_id', bIds)
-              .order('name');
+          try {
+            res = await client
+                .from('rooms')
+                .select('id, name, code, capacity, status, branch_id, seat_allocations')
+                .inFilter('branch_id', bIds)
+                .order('name');
+          } catch (_) {
+            res = await client
+                .from('rooms')
+                .select('id, name, code, capacity, status, branch_id')
+                .inFilter('branch_id', bIds)
+                .order('name');
+          }
         } else {
           res = [];
         }
       } else {
-        res = await client
-            .from('rooms')
-            .select('id, name, code, capacity, status, branch_id')
-            .order('name');
+        try {
+          res = await client
+              .from('rooms')
+              .select('id, name, code, capacity, status, branch_id, seat_allocations')
+              .order('name');
+        } catch (_) {
+          res = await client
+              .from('rooms')
+              .select('id, name, code, capacity, status, branch_id')
+              .order('name');
+        }
       }
 
       // Fetch today's class sessions
@@ -103,6 +120,7 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
         } catch (_) {}
       }
 
+      final prefs = await SharedPreferences.getInstance();
       final List<Map<String, dynamic>> loaded = [];
       for (final item in res) {
         final roomId = item['id'] as String;
@@ -145,6 +163,30 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
           } else {
             timeLabel = 'محاضرة اليوم';
           }
+        }
+
+        // Count seated students from Supabase seat_allocations or local cache
+        int seatedCount = 0;
+        final dbAlloc = item['seat_allocations'];
+        if (dbAlloc is Map) {
+          seatedCount = dbAlloc.length;
+        } else if (dbAlloc is List) {
+          seatedCount = dbAlloc.length;
+        }
+
+        final localAllocStr = prefs.getString('room_seat_allocations_$roomId') ??
+            prefs.getString('room_seat_allocations_$roomName');
+        if (localAllocStr != null && localAllocStr.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(localAllocStr);
+            if (decoded is Map && decoded.length > seatedCount) {
+              seatedCount = decoded.length;
+            }
+          } catch (_) {}
+        }
+
+        if (seatedCount > occupiedCount) {
+          occupiedCount = seatedCount;
         }
 
         loaded.add({
@@ -609,14 +651,17 @@ class _ClassroomCapacityScreenState extends State<ClassroomCapacityScreen> {
                                   runSpacing: 8,
                                   children: [
                                     FilledButton.tonalIcon(
-                                      onPressed: () {
-                                        InteractiveSeatAllocationDialog.show(
+                                      onPressed: () async {
+                                        await InteractiveSeatAllocationDialog.show(
                                           context,
+                                          roomId: hall['id'] as String?,
                                           centerName: widget.centerName,
                                           hallName: hall['name'] as String,
                                           capacity: cap,
                                           currentSession: hall['current_session'] as String?,
+                                          onSaved: _loadHalls,
                                         );
+                                        _loadHalls();
                                       },
                                       icon: const Icon(Icons.event_seat_rounded, size: 16),
                                       label: const Text('تسكين المقاعد والديسكات 🏷️'),

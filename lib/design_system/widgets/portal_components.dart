@@ -775,6 +775,9 @@ class PortalPageShell extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final String? eyebrow;
   final bool showBackButton;
+  final List<Widget>? headerWidgets;
+  final PreferredSizeWidget? pinnedBottom;
+  final bool scrollableHeader;
 
   const PortalPageShell({
     super.key,
@@ -787,6 +790,9 @@ class PortalPageShell extends StatelessWidget {
     this.padding = const EdgeInsets.all(20),
     this.eyebrow,
     this.showBackButton = true,
+    this.headerWidgets,
+    this.pinnedBottom,
+    this.scrollableHeader = true,
   });
 
   @override
@@ -849,43 +855,106 @@ class PortalPageShell extends StatelessWidget {
         ? const EdgeInsets.fromLTRB(12, 10, 12, 14)
         : padding;
 
+    final headerWidget = PortalHeader(
+      eyebrow: effectiveEyebrow,
+      title: title,
+      subtitle: subtitle,
+      icon: icon,
+      accentColor: accentColor,
+      trailing: (canPop || actions.isNotEmpty)
+          ? Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (canPop)
+                  IconButton.filledTonal(
+                    tooltip: 'رجوع',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ...secondaryActions.map(buildAction),
+                ...primaryActions.map(buildAction),
+              ],
+            )
+          : null,
+    );
+
+    if (scrollableHeader) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return SafeArea(
+        child: Padding(
+          padding: effectivePadding,
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    headerWidget,
+                    SizedBox(height: isMobile ? 10 : 16),
+                    if (headerWidgets != null) ...[
+                      ...headerWidgets!,
+                      SizedBox(height: isMobile ? 10 : 16),
+                    ],
+                  ],
+                ),
+              ),
+              if (pinnedBottom != null)
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _PortalPinnedBottomDelegate(
+                    pinnedBottom!,
+                    isDark: isDark,
+                  ),
+                ),
+            ],
+            body: child,
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       child: Padding(
         padding: effectivePadding,
         child: Column(
           children: [
-            PortalHeader(
-              eyebrow: effectiveEyebrow,
-              title: title,
-              subtitle: subtitle,
-              icon: icon,
-              accentColor: accentColor,
-              trailing: (canPop || actions.isNotEmpty)
-                  ? Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      alignment: WrapAlignment.end,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (canPop)
-                          IconButton.filledTonal(
-                            tooltip: 'رجوع',
-                            visualDensity: VisualDensity.compact,
-                            icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                            onPressed: () => Navigator.of(context).maybePop(),
-                          ),
-                        ...secondaryActions.map(buildAction),
-                        ...primaryActions.map(buildAction),
-                      ],
-                    )
-                  : null,
-            ),
+            headerWidget,
             SizedBox(height: isMobile ? 10 : 16),
             Expanded(child: child),
           ],
         ),
       ),
     );
+  }
+}
+
+class _PortalPinnedBottomDelegate extends SliverPersistentHeaderDelegate {
+  final PreferredSizeWidget child;
+  final bool isDark;
+
+  _PortalPinnedBottomDelegate(this.child, {required this.isDark});
+
+  @override
+  double get minExtent => child.preferredSize.height;
+
+  @override
+  double get maxExtent => child.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return ColoredBox(
+      color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PortalPinnedBottomDelegate oldDelegate) {
+    return oldDelegate.child != child || oldDelegate.isDark != isDark;
   }
 }
 

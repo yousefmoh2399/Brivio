@@ -236,84 +236,86 @@ class _DataImportScreenState extends State<DataImportScreen> {
           primary: true,
         ),
       ],
+      headerWidgets: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Responsive KPI summary strip
+                _buildKpiStrip(
+                  isMobile: isMobile,
+                  total: _rows.length,
+                  valid: validCount,
+                  success: successCount,
+                  failed: failedCount,
+                  isDark: isDark,
+                ),
+
+                const SizedBox(height: 12),
+
+                // Control & Action Toolbar Card
+                _buildToolbar(
+                  isMobile: isMobile,
+                  validCount: validCount,
+                  isDark: isDark,
+                ),
+
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 10),
+                  PortalErrorBanner(
+                    message: _errorMessage!,
+                    onRetry: _pickImportFile,
+                  ),
+                ],
+
+                if (_isReading) ...[
+                  const SizedBox(height: 10),
+                  const LinearProgressIndicator(),
+                ],
+
+                // Search & filter row if rows are loaded
+                if (_rows.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildSearchAndFilters(isMobile: isMobile, isDark: isDark),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth < 600;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Responsive KPI summary strip
-              _buildKpiStrip(
-                isMobile: isMobile,
-                total: _rows.length,
-                valid: validCount,
-                success: successCount,
-                failed: failedCount,
-                isDark: isDark,
-              ),
-
-              const SizedBox(height: 12),
-
-              // Control & Action Toolbar Card
-              _buildToolbar(
-                isMobile: isMobile,
-                validCount: validCount,
-                isDark: isDark,
-              ),
-
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 10),
-                PortalErrorBanner(
-                  message: _errorMessage!,
-                  onRetry: _pickImportFile,
-                ),
-              ],
-
-              if (_isReading) ...[
-                const SizedBox(height: 10),
-                const LinearProgressIndicator(),
-              ],
-
-              // Search & filter row if rows are loaded
-              if (_rows.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _buildSearchAndFilters(isMobile: isMobile, isDark: isDark),
-              ],
-
-              const SizedBox(height: 10),
-
-              // Main content preview area (Mobile Card List or Desktop Table)
-              Expanded(
-                child: _rows.isEmpty
-                    ? _ImportEmptyState(
-                        entity: _entity,
-                        onPickFile: _pickImportFile,
-                        onCopyTemplate: _downloadTemplate,
-                      )
-                    : filtered.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.search_off_rounded, size: 48, color: Colors.grey),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'لا توجد صفوف تطابق معايير البحث والفلترة',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white70 : Colors.black54,
-                                  ),
-                                ),
-                              ],
+          return _rows.isEmpty
+              ? _ImportEmptyState(
+                  entity: _entity,
+                  onPickFile: _pickImportFile,
+                  onCopyTemplate: _downloadTemplate,
+                )
+              : filtered.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.search_off_rounded, size: 48, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text(
+                            'لا توجد صفوف تطابق معايير البحث والفلترة',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white70 : Colors.black54,
                             ),
-                          )
-                        : isMobile || constraints.maxWidth < 750
-                            ? _ImportMobileCardList(rows: filtered)
-                            : _ImportPreviewTable(rows: filtered),
-              ),
-            ],
-          );
+                          ),
+                        ],
+                      ),
+                    )
+                  : isMobile || constraints.maxWidth < 750
+                      ? _ImportMobileCardList(rows: filtered)
+                      : _ImportPreviewTable(rows: filtered);
         },
       ),
     );

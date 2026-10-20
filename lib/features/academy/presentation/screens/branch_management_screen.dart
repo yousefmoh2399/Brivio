@@ -977,17 +977,15 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
           primary: true,
         ),
       ],
-      child: Column(
-        children: [
-          _buildKpiSection(isDark, totalCount, activeCount, archivedCount),
-          const SizedBox(height: 12),
-          _buildSearchAndFilterBar(isDark),
-          const SizedBox(height: 12),
-          Expanded(
-            child: PortalStateView(
-              isLoading: _isLoading,
-              errorMessage: _errorMessage,
-              isEmpty: filtered.isEmpty,
+      headerWidgets: [
+        _buildKpiSection(isDark, totalCount, activeCount, archivedCount),
+        const SizedBox(height: 12),
+        _buildSearchAndFilterBar(isDark),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: filtered.isEmpty,
               emptyTitle: 'لا توجد فروع مسجلة',
               emptySubtitle: 'قم بإضافة المقر أو الفرع الأول للسنتر عبر زر (إضافة فرع جديد) بالأعلى.',
               emptyIcon: Icons.domain,
@@ -1034,9 +1032,6 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                 },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          );
+        }
+      }

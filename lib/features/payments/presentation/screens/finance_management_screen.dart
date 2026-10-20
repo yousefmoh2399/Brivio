@@ -1563,123 +1563,220 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
   Widget build(BuildContext context) {
     final pendingAdjustments =
         _adjustmentRequests.where((a) => a.status == 'pending').length;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final canPop = Navigator.of(context).canPop();
+    final surfaceColor = Theme.of(context).scaffoldBackgroundColor;
 
     return DefaultTabController(
       length: 6,
-      child: PortalPageShell(
-        title: 'الإدارة المالية والاشتراكات',
-        subtitle:
-            'إدارة خطط الاشتراكات، الفواتير، التحصيلات، وإيصالات السداد.',
-        icon: Icons.monetization_on_rounded,
-        accentColor: AppColors.adminRole,
-        actions: [
-          PortalAction(
-            icon: Icons.electric_bolt_rounded,
-            label: 'توليد مطالبات الشهر ⚡',
-            onPressed: _showMonthlyBillingCycleDialog,
-            primary: true,
-          ),
-          PortalAction(
-            icon: Icons.point_of_sale_rounded,
-            label: 'جرد وتقفيل الخزينة',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const DailyCashRegisterScreen(),
-                ),
-              );
-            },
-          ),
-          PortalAction(
-            icon: Icons.calculate_rounded,
-            label: 'تصفية أرباح المدرسين',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const TeacherSettlementScreen(),
-                ),
-              );
-            },
-          ),
-          PortalAction(
-            icon: Icons.add_circle_outline_rounded,
-            label: 'إضافة خطة اشتراك',
-            onPressed: _showCreatePlanDialog,
-          ),
-          PortalAction(
-            icon: Icons.picture_as_pdf_rounded,
-            label: 'تصدير PDF',
-            onPressed: _exportFinancialData,
-          ),
-          PortalAction(
-            icon: Icons.refresh_rounded,
-            label: 'تحديث',
-            onPressed: _loadFinanceData,
-          ),
-        ],
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildKpiSection(),
-            const SizedBox(height: 14),
-            TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: [
-                const Tab(
-                  icon: Icon(Icons.analytics_rounded),
-                  text: 'الملخص المالي',
-                ),
-                Tab(
-                  icon: const Icon(Icons.card_membership_rounded),
-                  text: 'خطط الاشتراكات (${_plans.length})',
-                ),
-                const Tab(
-                  icon: Icon(Icons.assignment_ind_rounded),
-                  text: 'تسكين الاشتراكات',
-                ),
-                Tab(
-                  icon: const Icon(Icons.receipt_long_rounded),
-                  text: 'الفواتير (${_invoices.length})',
-                ),
-                Tab(
-                  icon: const Icon(Icons.receipt_rounded),
-                  text: 'إيصالات السداد (${_receipts.length})',
-                ),
-                Tab(
-                  icon: Badge(
-                    isLabelVisible: pendingAdjustments > 0,
-                    label: Text(pendingAdjustments.toString()),
-                    child: const Icon(Icons.percent_rounded),
-                  ),
-                  text: 'طلبات الخصم',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: PortalStateView(
-                isLoading: _isLoading,
-                errorMessage: _errorMessage,
-                isEmpty: false,
-                emptyTitle: 'لا توجد بيانات مالية',
-                emptySubtitle:
-                    'قم بإنشاء خطط اشتراك وتسجيل طلاب للبدء في المعاملات المالية.',
-                emptyIcon: Icons.monetization_on_rounded,
-                onRetry: _loadFinanceData,
-                child: TabBarView(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: isMobile
+              ? const EdgeInsets.fromLTRB(12, 10, 12, 0)
+              : const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildOverviewTab(),
-                    _buildPlansTab(),
-                    _buildAssignTab(),
-                    _buildInvoicesTab(),
-                    _buildReceiptsTab(),
-                    _buildAdjustmentsTab(),
+                    PortalHeader(
+                      eyebrow: 'منظومة بريفيو التعليمية',
+                      title: 'الإدارة المالية والاشتراكات',
+                      subtitle:
+                          'إدارة خطط الاشتراكات، الفواتير، التحصيلات، وإيصالات السداد.',
+                      icon: Icons.monetization_on_rounded,
+                      accentColor: AppColors.adminRole,
+                      trailing: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (canPop)
+                            IconButton.filledTonal(
+                              tooltip: 'رجوع',
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                              onPressed: () => Navigator.of(context).maybePop(),
+                            ),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 10 : 14,
+                                vertical: isMobile ? 6 : 8,
+                              ),
+                              minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: _showMonthlyBillingCycleDialog,
+                            icon: Icon(Icons.electric_bolt_rounded, size: isMobile ? 15 : 18),
+                            label: Text(
+                              isMobile ? 'المطالبات ⚡' : 'توليد مطالبات الشهر ⚡',
+                              style: TextStyle(
+                                fontSize: isMobile ? 11.5 : 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 8 : 12,
+                                vertical: isMobile ? 6 : 8,
+                              ),
+                              minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const DailyCashRegisterScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.point_of_sale_rounded, size: isMobile ? 15 : 18),
+                            label: Text(
+                              isMobile ? 'الخزينة' : 'جرد الخزينة',
+                              style: TextStyle(fontSize: isMobile ? 11.5 : 13),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 8 : 12,
+                                vertical: isMobile ? 6 : 8,
+                              ),
+                              minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const TeacherSettlementScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.calculate_rounded, size: isMobile ? 15 : 18),
+                            label: Text(
+                              isMobile ? 'تصفية' : 'تصفية أرباح المدرسين',
+                              style: TextStyle(fontSize: isMobile ? 11.5 : 13),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 8 : 12,
+                                vertical: isMobile ? 6 : 8,
+                              ),
+                              minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: _showCreatePlanDialog,
+                            icon: Icon(Icons.add_circle_outline_rounded, size: isMobile ? 15 : 18),
+                            label: Text(
+                              isMobile ? 'خطة جديدة' : 'إضافة خطة اشتراك',
+                              style: TextStyle(fontSize: isMobile ? 11.5 : 13),
+                            ),
+                          ),
+                          IconButton.outlined(
+                            tooltip: 'تصدير PDF',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _exportFinancialData,
+                            icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                          ),
+                          IconButton.outlined(
+                            tooltip: 'تحديث',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _loadFinanceData,
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildKpiSection(),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SliverTabBarDelegate(
+                  TabBar(
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    tabs: [
+                      const Tab(
+                        icon: Icon(Icons.analytics_rounded),
+                        text: 'الملخص المالي',
+                      ),
+                      Tab(
+                        icon: const Icon(Icons.card_membership_rounded),
+                        text: 'خطط الاشتراكات (${_plans.length})',
+                      ),
+                      const Tab(
+                        icon: Icon(Icons.assignment_ind_rounded),
+                        text: 'تسكين الاشتراكات',
+                      ),
+                      Tab(
+                        icon: const Icon(Icons.receipt_long_rounded),
+                        text: 'الفواتير (${_invoices.length})',
+                      ),
+                      Tab(
+                        icon: const Icon(Icons.receipt_rounded),
+                        text: 'إيصالات السداد (${_receipts.length})',
+                      ),
+                      Tab(
+                        icon: Badge(
+                          isLabelVisible: pendingAdjustments > 0,
+                          label: Text(pendingAdjustments.toString()),
+                          child: const Icon(Icons.percent_rounded),
+                        ),
+                        text: 'طلبات الخصم',
+                      ),
+                    ],
+                  ),
+                  backgroundColor: surfaceColor,
+                ),
+              ),
+            ],
+            body: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: false,
+              emptyTitle: 'لا توجد بيانات مالية',
+              emptySubtitle:
+                  'قم بإنشاء خطط اشتراك وتسجيل طلاب للبدء في المعاملات المالية.',
+              emptyIcon: Icons.monetization_on_rounded,
+              onRetry: _loadFinanceData,
+              child: TabBarView(
+                children: [
+                  _buildOverviewTab(),
+                  _buildPlansTab(),
+                  _buildAssignTab(),
+                  _buildInvoicesTab(),
+                  _buildReceiptsTab(),
+                  _buildAdjustmentsTab(),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1696,6 +1793,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
     final collectionRate = totalExpected > 0 ? (collected / totalExpected) : 0.0;
 
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2033,6 +2131,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (isDesktop) {
                       return GridView.builder(
                         padding: const EdgeInsets.only(bottom: 24),
+                        physics: const AlwaysScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -2047,6 +2146,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
 
                     return ListView.separated(
                       padding: const EdgeInsets.only(bottom: 24),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: filtered.length,
                       separatorBuilder: (ctx, i) => const SizedBox(height: 10),
                       itemBuilder: (ctx, i) => _buildPlanCard(filtered[i]),
@@ -2166,6 +2266,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 580),
         child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: Container(
             padding: const EdgeInsets.all(20),
@@ -2459,6 +2560,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (isDesktop) {
                       return GridView.builder(
                         padding: const EdgeInsets.only(bottom: 24),
+                        physics: const AlwaysScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -2474,6 +2576,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
 
                     return ListView.separated(
                       padding: const EdgeInsets.only(bottom: 24),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: filtered.length,
                       separatorBuilder: (ctx, i) => const SizedBox(height: 10),
                       itemBuilder: (ctx, i) => _buildInvoiceCard(filtered[i]),
@@ -2809,6 +2912,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (isDesktop) {
                       return GridView.builder(
                         padding: const EdgeInsets.only(bottom: 24),
+                        physics: const AlwaysScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -2823,6 +2927,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
 
                     return ListView.separated(
                       padding: const EdgeInsets.only(bottom: 24),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: filtered.length,
                       separatorBuilder: (ctx, i) => const SizedBox(height: 10),
                       itemBuilder: (ctx, i) => _buildReceiptCard(filtered[i]),
@@ -3094,6 +3199,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     if (isDesktop) {
                       return GridView.builder(
                         padding: const EdgeInsets.only(bottom: 24),
+                        physics: const AlwaysScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -3109,6 +3215,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
 
                     return ListView.separated(
                       padding: const EdgeInsets.only(bottom: 24),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: filtered.length,
                       separatorBuilder: (ctx, i) => const SizedBox(height: 10),
                       itemBuilder: (ctx, i) =>
@@ -3377,4 +3484,34 @@ String _money(int minor, [String currency = 'ج.م']) {
       ? amount.toStringAsFixed(0)
       : amount.toStringAsFixed(2);
   return '$formatted $currency';
+}
+
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  final Color backgroundColor;
+
+  const _SliverTabBarDelegate(this.tabBar, {required this.backgroundColor});
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar ||
+        backgroundColor != oldDelegate.backgroundColor;
+  }
 }

@@ -1276,23 +1276,21 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           primary: true,
         ),
       ],
-      child: Column(
-        children: [
-          _buildKpiSection(
-            isDark,
-            totalCount,
-            receptionCount,
-            adminCount,
-            suspendedCount,
-          ),
-          const SizedBox(height: 12),
-          _buildSearchAndFilterBar(isDark),
-          const SizedBox(height: 12),
-          Expanded(
-            child: PortalStateView(
-              isLoading: _isLoading,
-              errorMessage: _errorMessage,
-              isEmpty: filtered.isEmpty,
+      headerWidgets: [
+        _buildKpiSection(
+          isDark,
+          totalCount,
+          receptionCount,
+          adminCount,
+          suspendedCount,
+        ),
+        const SizedBox(height: 12),
+        _buildSearchAndFilterBar(isDark),
+      ],
+      child: PortalStateView(
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        isEmpty: filtered.isEmpty,
               emptyTitle: _searchController.text.isNotEmpty ||
                       _selectedStatusFilter != 'all' ||
                       _selectedRoleFilter != 'all' ||
@@ -1349,9 +1347,6 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          );
+        }
+      }

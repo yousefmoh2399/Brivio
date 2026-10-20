@@ -1132,81 +1132,149 @@ class _AttendanceOperationsScreenState
   Widget build(BuildContext context) {
     final pendingLeavesCount =
         _leaveRequests.where((l) => l.status.toLowerCase() == 'pending').length;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final canPop = Navigator.of(context).canPop();
+    final surfaceColor = Theme.of(context).scaffoldBackgroundColor;
 
     return DefaultTabController(
       length: 2,
-      child: PortalPageShell(
-        title: 'عمليات وإدارة الحضور',
-        subtitle:
-            'متابعة الحصص الدراسية، تسجيل كشوفات الحضور والغياب، ومراجعة طلبات الإجازة والاستئذان.',
-        icon: Icons.event_note_rounded,
-        accentColor: AppColors.adminRole,
-        actions: [
-          PortalAction(
-            icon: Icons.add_circle_outline_rounded,
-            label: 'إضافة حصة جديدة',
-            onPressed: _showCreateSessionDialog,
-            primary: true,
-          ),
-          PortalAction(
-            icon: Icons.qr_code_scanner_rounded,
-            label: 'بوابة الاستقبال QR',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ReceptionQrGateScreen(),
-                ),
-              );
-            },
-          ),
-          PortalAction(
-            icon: Icons.refresh_rounded,
-            label: 'تحديث',
-            onPressed: _loadData,
-          ),
-        ],
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildKpiSection(),
-            const SizedBox(height: 14),
-            TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: [
-                const Tab(
-                  icon: Icon(Icons.event_note_rounded),
-                  text: 'الحصص ورصد الحضور',
-                ),
-                Tab(
-                  icon: Badge(
-                    isLabelVisible: pendingLeavesCount > 0,
-                    label: Text(pendingLeavesCount.toString()),
-                    child: const Icon(Icons.event_busy_rounded),
-                  ),
-                  text: 'طلبات الاستئذان والإجازات',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: PortalStateView(
-                isLoading: _isLoading,
-                errorMessage: _errorMessage,
-                isEmpty: false,
-                emptyTitle: 'لا توجد بيانات حضور',
-                emptySubtitle: 'قم بإنشاء المجموعات والحصص أولاً.',
-                emptyIcon: Icons.event_note_rounded,
-                onRetry: _loadData,
-                child: TabBarView(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: isMobile
+              ? const EdgeInsets.fromLTRB(12, 10, 12, 0)
+              : const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSessionsTab(),
-                    _buildLeaveRequestsTab(),
+                    PortalHeader(
+                      eyebrow: 'منظومة بريفيو التعليمية',
+                      title: 'عمليات وإدارة الحضور',
+                      subtitle:
+                          'متابعة الحصص الدراسية، تسجيل كشوفات الحضور والغياب، ومراجعة طلبات الإجازة.',
+                      icon: Icons.event_note_rounded,
+                      accentColor: AppColors.adminRole,
+                      trailing: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (canPop)
+                            IconButton.filledTonal(
+                              tooltip: 'رجوع',
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                              onPressed: () => Navigator.of(context).maybePop(),
+                            ),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 10 : 14,
+                                vertical: isMobile ? 6 : 8,
+                              ),
+                              minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: _showCreateSessionDialog,
+                            icon: Icon(Icons.add_circle_outline_rounded, size: isMobile ? 15 : 18),
+                            label: Text(
+                              isMobile ? 'إضافة حصة' : 'إضافة حصة جديدة',
+                              style: TextStyle(
+                                fontSize: isMobile ? 11.5 : 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 9 : 12,
+                                vertical: isMobile ? 6 : 8,
+                              ),
+                              minimumSize: isMobile ? const Size(36, 32) : const Size(48, 38),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ReceptionQrGateScreen(),
+                                ),
+                              );
+                            },
+                            icon: Icon(Icons.qr_code_scanner_rounded, size: isMobile ? 15 : 18),
+                            label: Text(
+                              'بوابة QR',
+                              style: TextStyle(fontSize: isMobile ? 11.5 : 13),
+                            ),
+                          ),
+                          IconButton.outlined(
+                            tooltip: 'تحديث',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _loadData,
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildKpiSection(),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SliverTabBarDelegate(
+                  TabBar(
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    tabs: [
+                      const Tab(
+                        icon: Icon(Icons.event_note_rounded),
+                        text: 'الحصص ورصد الحضور',
+                      ),
+                      Tab(
+                        icon: Badge(
+                          isLabelVisible: pendingLeavesCount > 0,
+                          label: Text(pendingLeavesCount.toString()),
+                          child: const Icon(Icons.event_busy_rounded),
+                        ),
+                        text: 'طلبات الاستئذان والإجازات',
+                      ),
+                    ],
+                  ),
+                  backgroundColor: surfaceColor,
+                ),
+              ),
+            ],
+            body: PortalStateView(
+              isLoading: _isLoading,
+              errorMessage: _errorMessage,
+              isEmpty: false,
+              emptyTitle: 'لا توجد بيانات حضور',
+              emptySubtitle: 'قم بإنشاء المجموعات والحصص أولاً.',
+              emptyIcon: Icons.event_note_rounded,
+              onRetry: _loadData,
+              child: TabBarView(
+                children: [
+                  _buildSessionsTab(),
+                  _buildLeaveRequestsTab(),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1407,6 +1475,7 @@ class _AttendanceOperationsScreenState
                         if (isDesktop) {
                           return GridView.builder(
                             padding: const EdgeInsets.only(bottom: 24),
+                            physics: const AlwaysScrollableScrollPhysics(),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
@@ -1422,6 +1491,7 @@ class _AttendanceOperationsScreenState
 
                         return ListView.separated(
                           padding: const EdgeInsets.only(bottom: 24),
+                          physics: const AlwaysScrollableScrollPhysics(),
                           itemCount: filteredSessions.length,
                           separatorBuilder: (ctx, i) =>
                               const SizedBox(height: 10),
@@ -1741,6 +1811,7 @@ class _AttendanceOperationsScreenState
                     if (isDesktop) {
                       return GridView.builder(
                         padding: const EdgeInsets.only(bottom: 24),
+                        physics: const AlwaysScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -1756,6 +1827,7 @@ class _AttendanceOperationsScreenState
 
                     return ListView.separated(
                       padding: const EdgeInsets.only(bottom: 24),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: filteredLeaves.length,
                       separatorBuilder: (ctx, i) => const SizedBox(height: 10),
                       itemBuilder: (ctx, i) =>
@@ -1973,5 +2045,35 @@ class _StatusChoiceChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  final Color backgroundColor;
+
+  const _SliverTabBarDelegate(this.tabBar, {required this.backgroundColor});
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar ||
+        backgroundColor != oldDelegate.backgroundColor;
   }
 }

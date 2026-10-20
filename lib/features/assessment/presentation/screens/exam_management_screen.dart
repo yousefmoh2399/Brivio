@@ -1229,6 +1229,17 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
             primary: false,
           ),
       ],
+      headerWidgets: [
+        _buildKpiSection(
+          isDark,
+          totalCount,
+          activeCount,
+          closedCount,
+          totalQuestionsLinked,
+        ),
+        const SizedBox(height: 12),
+        if (_groups.isNotEmpty) _buildSearchAndFilterBar(isDark),
+      ],
       child: PortalStateView(
         isLoading: _isLoading,
         errorMessage: _errorMessage,
@@ -1237,20 +1248,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         emptySubtitle: 'قم باختيار أو إنشاء مجموعة دراسية أولاً.',
         emptyIcon: Icons.quiz_rounded,
         onRetry: _loadExams,
-        child: Column(
-          children: [
-            _buildKpiSection(
-              isDark,
-              totalCount,
-              activeCount,
-              closedCount,
-              totalQuestionsLinked,
-            ),
-            const SizedBox(height: 12),
-            if (_groups.isNotEmpty) _buildSearchAndFilterBar(isDark),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _selectedGroup == null
+        child: _selectedGroup == null
                   ? const Center(child: Text('لا توجد مجموعات دراسية نشطة حالياً.'))
                   : filtered.isEmpty
                       ? Center(
@@ -1306,9 +1304,6 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                             );
                           },
                         ),
-            ),
-          ],
-        ),
       ),
     );
   }
