@@ -337,11 +337,7 @@ class DigitalCashReceiptDialog extends StatelessWidget {
                                   ? 'تصفية'
                                   : (paymentMethod.contains('كاش') || paymentMethod.contains('نقداً')
                                       ? 'كاش'
-                                      : (paymentMethod.contains('فوري')
-                                          ? 'فوري'
-                                          : (paymentMethod.contains('إنستا') || paymentMethod.contains('Insta')
-                                              ? 'InstaPay'
-                                              : 'معتمد'))),
+                                      : 'معتمد'),
                               style: TextStyle(
                                 color: (paymentMethod.contains('كاش') || paymentMethod.contains('نقداً'))
                                     ? const Color(0xFF451A03)

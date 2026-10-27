@@ -3354,9 +3354,7 @@ class _QuickCashDepositDialogState extends State<_QuickCashDepositDialog> {
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'cash', child: Text('نقدية (كاش في الدرج) 💵')),
-                  DropdownMenuItem(value: 'vodafone_cash', child: Text('فودافون كاش / إنستاباي 📱')),
-                  DropdownMenuItem(value: 'card', child: Text('فيزا / بطاقة بنكية 💳')),
+                  DropdownMenuItem(value: 'cash', child: Text('نقدية (كاش بالخزينة) 💵')),
                 ],
                 onChanged: (val) => setState(() => _selectedMethod = val ?? 'cash'),
               ),

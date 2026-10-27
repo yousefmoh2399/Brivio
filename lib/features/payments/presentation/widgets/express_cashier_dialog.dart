@@ -55,7 +55,7 @@ class _ExpressCashierDialogState extends State<ExpressCashierDialog> {
   late final TextEditingController _purposeCtrl;
   late final TextEditingController _parentPhoneCtrl;
 
-  String _paymentMethod = 'cash'; // cash, instapay, vodafone_cash
+  final String _paymentMethod = 'cash'; // cash, instapay, vodafone_cash
   bool _isProcessing = false;
 
   final List<double> _quickAmountPresets = [150.0, 250.0, 350.0, 450.0, 600.0];
@@ -195,9 +195,7 @@ class _ExpressCashierDialogState extends State<ExpressCashierDialog> {
         amount: amount,
         paymentPurpose: _purposeCtrl.text.trim(),
         parentOrTeacherPhone: _parentPhoneCtrl.text.trim(),
-        paymentMethod: _paymentMethod == 'cash'
-            ? 'نقداً بالخزينة (كاش) 💵'
-            : (_paymentMethod == 'vodafone_cash' ? 'فودافون كاش' : 'InstaPay'),
+        paymentMethod: 'نقداً بالخزينة (كاش) 💵',
       );
     } catch (e) {
       if (!mounted) return;
@@ -363,15 +361,9 @@ class _ExpressCashierDialogState extends State<ExpressCashierDialog> {
                       const Text('طريقة الدفع:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(width: 10),
                       ChoiceChip(
-                        label: const Text('كاش 💵'),
-                        selected: _paymentMethod == 'cash',
-                        onSelected: (sel) => setState(() => _paymentMethod = 'cash'),
-                      ),
-                      const SizedBox(width: 6),
-                      ChoiceChip(
-                        label: const Text('إنستاباي / محفظة 📱'),
-                        selected: _paymentMethod == 'instapay',
-                        onSelected: (sel) => setState(() => _paymentMethod = 'instapay'),
+                        label: const Text('كاش بالخزينة 💵'),
+                        selected: true,
+                        onSelected: null,
                       ),
                     ],
                   ),

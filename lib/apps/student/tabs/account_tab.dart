@@ -962,7 +962,7 @@ class _BillingHubView extends StatelessWidget {
           mainAxisExtent: 110,
         ),
         itemCount: invoices.length,
-        itemBuilder: (context, i) => _buildInvoiceCard(invoices[i]),
+        itemBuilder: (context, i) => _buildInvoiceCard(context, invoices[i]),
       );
     }
 
@@ -971,89 +971,174 @@ class _BillingHubView extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: invoices.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, i) => _buildInvoiceCard(invoices[i]),
+      itemBuilder: (context, i) => _buildInvoiceCard(context, invoices[i]),
     );
   }
 
-  Widget _buildInvoiceCard(Invoice inv) {
+  Widget _buildInvoiceCard(BuildContext context, Invoice inv) {
     final isPaid = inv.status == 'paid';
     final accentColor =
         isPaid ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
 
     return GlassCard(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.zero,
       color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.receipt_long_rounded,
-              color: accentColor,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: InkWell(
+        onTap: () => _showInvoiceDialog(context, inv),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.receipt_long_rounded,
+                  color: accentColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Flexible(
-                      child: Text(
-                        inv.invoiceNumber,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : Colors.black87,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            inv.invoiceNumber,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                        const SizedBox(width: 6),
+                        PortalStatusChip(status: inv.status),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    PortalStatusChip(status: inv.status),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 2,
+                      children: [
+                        Text(
+                          _formatMoney(inv.totalMinor, inv.currency),
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: accentColor,
+                          ),
+                        ),
+                        Text(
+                          'استحقاق: ${_formatDate(inv.dueAt)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 6,
-                  runSpacing: 2,
-                  children: [
-                    Text(
-                      _formatMoney(inv.totalMinor, inv.currency),
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: accentColor,
-                      ),
-                    ),
-                    Text(
-                      'استحقاق: ${_formatDate(inv.dueAt)}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showInvoiceDialog(BuildContext context, Invoice inv) {
+    final isPaid = inv.status == 'paid';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              isPaid ? Icons.check_circle_rounded : Icons.receipt_long_rounded,
+              color: isPaid ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'فاتورة #${inv.invoiceNumber}',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('المبلغ:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                Text(
+                  _formatMoney(inv.totalMinor, inv.currency),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('الحالة:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                PortalStatusChip(status: inv.status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isPaid
+                    ? Colors.green.withValues(alpha: 0.08)
+                    : Colors.amber.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                isPaid
+                    ? 'هذه الفاتورة مسددة بالكامل في الخزينة ✅.\nيمكنك مراجعة تفاصيل الإيصال المعتمد في تبويب إيصالات السداد.'
+                    : 'طريقة السداد: نقداً بالسنتر (كاش) 💵\n\nيرجى التوجه إلى مكتب الاستقبال والخزينة بالسنتر لسداد الفاتورة نقداً مع إبراز كود الطالب ورقم الفاتورة. سيتم تسجيل السداد فورياً وإصدار إيصال معتمد.',
+                style: const TextStyle(fontSize: 12, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق'),
           ),
+          if (isPaid)
+            FilledButton.icon(
+              icon: const Icon(Icons.receipt_rounded, size: 16),
+              label: const Text('عرض الإيصالات'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                onToggleView(true);
+              },
+            ),
         ],
       ),
     );

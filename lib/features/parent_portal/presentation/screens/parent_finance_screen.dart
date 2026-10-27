@@ -4,6 +4,7 @@ import '../../../../design_system/components/glass_card.dart';
 import '../../../../design_system/tokens/colors.dart';
 import '../../../../design_system/tokens/typography.dart';
 import '../viewmodels/parent_finance_viewmodel.dart';
+import 'parent_financial_ledger_screen.dart';
 
 class ParentFinanceScreen extends StatefulWidget {
   final String? studentName;
@@ -128,20 +129,60 @@ class _ParentFinanceScreenState extends State<ParentFinanceScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: balance > 0
-                  ? () {
-                      _viewModel.payNow();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم تسجيل المعاملة وسداد الرسوم بنجاح ✅'),
-                          backgroundColor: AppColors.success,
-                          behavior: SnackBarBehavior.floating,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.point_of_sale_rounded, color: AppColors.primary),
+                        SizedBox(width: 8),
+                        Text('طريقة السداد: نقداً بالسنتر 💵', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'المبلغ المستحق حالياً: ${balance.toStringAsFixed(0)} ج.م',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.error),
                         ),
-                      );
-                    }
-                  : null,
-              icon: const Icon(Icons.payment_rounded),
-              label: const Text('سداد الرسوم بخزينة السنتر كاش / إلكتروني'),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'يتم سداد المستحقات والمصروفات الدراسية نقداً (كاش) بمكتب الاستقبال والخزينة داخل مقر السنتر التعليمي.\n\nفور السداد، يصدر موظف الاستقبال إيصالاً معتمداً ويتم إرسال إشعار ونسخة رقمية إليكم عبر واتساب وتحديث كشف الحساب.',
+                          style: TextStyle(fontSize: 13, height: 1.5),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('إغلاق'),
+                      ),
+                      FilledButton.icon(
+                        icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                        label: const Text('كشف الحساب والإيصالات'),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ParentFinancialLedgerScreen(
+                                studentName: widget.studentName ?? 'الطالب',
+                                initialTotalRemaining: balance,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+              icon: const Icon(Icons.point_of_sale_rounded),
+              label: const Text('تعليمات السداد نقداً بخزينة السنتر 💵'),
             ),
           ),
         ],

@@ -48,6 +48,8 @@ app.*.map.json
 **/android/local.properties
 **/android/key.properties
 !**/android/key.properties.example
+*.keystore
+*.jks
 
 # Local secrets and machine-specific run helpers
 .env

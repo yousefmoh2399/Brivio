@@ -611,19 +611,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                       items: const [
                         DropdownMenuItem(
                           value: 'cash',
-                          child: Text('نقدي (خزينة السنتر)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'vodafone_cash',
-                          child: Text('محفظة إلكترونية (فودافون كاش)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'instapay',
-                          child: Text('تحويل إنستاباي (InstaPay)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'pos_card',
-                          child: Text('بطاقة بنكية / فيزا (POS)'),
+                          child: Text('نقدي (خزينة السنتر) 💵'),
                         ),
                       ],
                       onChanged: (v) {
