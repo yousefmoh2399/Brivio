@@ -214,15 +214,27 @@ class _StudentTimetableWidgetState extends State<StudentTimetableWidget> {
                             style: AppTypography.caption(textSecondary),
                           ),
                           const SizedBox(height: 4),
-                          Row(
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Icon(Icons.location_on_outlined, size: 14, color: textSecondary),
-                              const SizedBox(width: 4),
-                              Text(session['hall'] ?? '', style: TextStyle(fontSize: 11, color: textSecondary)),
-                              const SizedBox(width: 12),
-                              Icon(Icons.schedule_rounded, size: 14, color: textSecondary),
-                              const SizedBox(width: 4),
-                              Text(session['time'] ?? '', style: TextStyle(fontSize: 11, color: textSecondary)),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.location_on_outlined, size: 14, color: textSecondary),
+                                  const SizedBox(width: 4),
+                                  Text(session['hall'] ?? '', style: TextStyle(fontSize: 11, color: textSecondary)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.schedule_rounded, size: 14, color: textSecondary),
+                                  const SizedBox(width: 4),
+                                  Text(session['time'] ?? '', style: TextStyle(fontSize: 11, color: textSecondary)),
+                                ],
+                              ),
                             ],
                           ),
                         ],

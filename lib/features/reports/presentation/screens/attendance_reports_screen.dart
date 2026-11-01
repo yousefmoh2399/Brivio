@@ -209,6 +209,10 @@ class _AttendanceReportsScreenState extends State<AttendanceReportsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: MediaQuery.sizeOf(context).width < 380,
+          tabAlignment: MediaQuery.sizeOf(context).width < 380
+              ? TabAlignment.start
+              : TabAlignment.fill,
           labelColor: AppColors.primary,
           unselectedLabelColor: textSecondary,
           indicatorColor: AppColors.primary,

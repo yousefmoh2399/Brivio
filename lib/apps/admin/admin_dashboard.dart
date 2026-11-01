@@ -3075,8 +3075,20 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: statusColor)),
-              if (isLive)
+              Expanded(
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11.5,
+                    color: statusColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isLive) ...[
+                const SizedBox(width: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
@@ -3085,6 +3097,7 @@ class _LiveCenterCommandRadarCardState extends State<_LiveCenterCommandRadarCard
                   ),
                   child: Text('بث حي', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: statusColor)),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 2),
@@ -3333,15 +3346,28 @@ class _QuickCashDepositDialogState extends State<_QuickCashDepositDialog> {
 
               DropdownButtonFormField<String>(
                 initialValue: _selectedType,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'نوع المعاملة',
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'student_fee', child: Text('تحصيل اشتراك طالب')),
-                  DropdownMenuItem(value: 'bookstore_sale', child: Text('مبيعات ملازم وكتب')),
-                  DropdownMenuItem(value: 'opening_float', child: Text('رصيد افتتاحي لدرج الخزينة')),
-                  DropdownMenuItem(value: 'misc_income', child: Text('إيراد وتبرع متنوع')),
+                  DropdownMenuItem(
+                    value: 'student_fee',
+                    child: Text('تحصيل اشتراك طالب', overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: 'bookstore_sale',
+                    child: Text('مبيعات ملازم وكتب', overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: 'opening_float',
+                    child: Text('رصيد افتتاحي لدرج الخزينة', overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: 'misc_income',
+                    child: Text('إيراد وتبرع متنوع', overflow: TextOverflow.ellipsis),
+                  ),
                 ],
                 onChanged: (val) => setState(() => _selectedType = val ?? 'student_fee'),
               ),
@@ -3349,12 +3375,16 @@ class _QuickCashDepositDialogState extends State<_QuickCashDepositDialog> {
 
               DropdownButtonFormField<String>(
                 initialValue: _selectedMethod,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'طريقة الدفع',
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'cash', child: Text('نقدية (كاش بالخزينة) 💵')),
+                  DropdownMenuItem(
+                    value: 'cash',
+                    child: Text('نقدية (كاش بالخزينة) 💵', overflow: TextOverflow.ellipsis),
+                  ),
                 ],
                 onChanged: (val) => setState(() => _selectedMethod = val ?? 'cash'),
               ),

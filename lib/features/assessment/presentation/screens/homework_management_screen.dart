@@ -389,14 +389,24 @@ class _HomeworkManagementScreenState extends State<HomeworkManagementScreen> {
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             initialValue: status,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'حالة الواجب',
                               border: OutlineInputBorder(),
                             ),
                             items: const [
-                              DropdownMenuItem(value: 'published', child: Text('منشور ومفتوح')),
-                              DropdownMenuItem(value: 'closed', child: Text('مغلق التسليم')),
-                              DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                              DropdownMenuItem(
+                                value: 'published',
+                                child: Text('منشور ومفتوح', overflow: TextOverflow.ellipsis),
+                              ),
+                              DropdownMenuItem(
+                                value: 'closed',
+                                child: Text('مغلق التسليم', overflow: TextOverflow.ellipsis),
+                              ),
+                              DropdownMenuItem(
+                                value: 'draft',
+                                child: Text('مسودة', overflow: TextOverflow.ellipsis),
+                              ),
                             ],
                             onChanged: (v) {
                               if (v != null) setStateDialog(() => status = v);

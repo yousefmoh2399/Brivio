@@ -476,6 +476,7 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: status.toLowerCase() == 'archived' ? 'archived' : 'active',
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'حالة المادة',
                         prefixIcon: Icon(Icons.toggle_on_outlined, size: 20),
@@ -484,11 +485,11 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
                       items: const [
                         DropdownMenuItem(
                           value: 'active',
-                          child: Text('نشطة ومتاحة (Active) 🟢'),
+                          child: Text('نشطة ومتاحة (Active) 🟢', overflow: TextOverflow.ellipsis),
                         ),
                         DropdownMenuItem(
                           value: 'archived',
-                          child: Text('مؤرشفة (Archived) ⚪'),
+                          child: Text('مؤرشفة (Archived) ⚪', overflow: TextOverflow.ellipsis),
                         ),
                       ],
                       onChanged: (v) {
@@ -975,8 +976,11 @@ class _SubjectManagementScreenState extends State<SubjectManagementScreen> {
           const Divider(height: 10),
 
           // Action Toolbar Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(

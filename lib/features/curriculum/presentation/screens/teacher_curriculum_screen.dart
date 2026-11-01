@@ -565,16 +565,32 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: lessonTypeStr,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'نوع المحتوى',
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'video', child: Text('فيديو مسجل (شرح)')),
-                    DropdownMenuItem(value: 'pdf', child: Text('ملزمة ومذكرة PDF')),
-                    DropdownMenuItem(value: 'text', child: Text('ملاحظات وشرح كتابي')),
-                    DropdownMenuItem(value: 'programming', child: Text('تحدي وتطبيق برمجي')),
-                    DropdownMenuItem(value: 'quiz', child: Text('كويز واختبار تفاعلي')),
+                    DropdownMenuItem(
+                      value: 'video',
+                      child: Text('فيديو مسجل (شرح)', overflow: TextOverflow.ellipsis),
+                    ),
+                    DropdownMenuItem(
+                      value: 'pdf',
+                      child: Text('ملزمة ومذكرة PDF', overflow: TextOverflow.ellipsis),
+                    ),
+                    DropdownMenuItem(
+                      value: 'text',
+                      child: Text('ملاحظات وشرح كتابي', overflow: TextOverflow.ellipsis),
+                    ),
+                    DropdownMenuItem(
+                      value: 'programming',
+                      child: Text('تحدي وتطبيق برمجي', overflow: TextOverflow.ellipsis),
+                    ),
+                    DropdownMenuItem(
+                      value: 'quiz',
+                      child: Text('كويز واختبار تفاعلي', overflow: TextOverflow.ellipsis),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -788,6 +804,7 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: lessonTypeStr,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'نوع المحتوى الرئيسي',
                       border: OutlineInputBorder(),
@@ -795,23 +812,23 @@ class _TeacherCurriculumScreenState extends State<TeacherCurriculumScreen> {
                     items: const [
                       DropdownMenuItem(
                         value: 'video',
-                        child: Text('فيديو مسجل (شرح تفصيلي)'),
+                        child: Text('فيديو مسجل (شرح تفصيلي)', overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem(
                         value: 'pdf',
-                        child: Text('ملزمة ومذكرة PDF'),
+                        child: Text('ملزمة ومذكرة PDF', overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem(
                         value: 'quiz',
-                        child: Text('كويز واختبار تفاعلي'),
+                        child: Text('كويز واختبار تفاعلي', overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem(
                         value: 'programming',
-                        child: Text('تحدي وتطبيق برمجي'),
+                        child: Text('تحدي وتطبيق برمجي', overflow: TextOverflow.ellipsis),
                       ),
                       DropdownMenuItem(
                         value: 'text',
-                        child: Text('ملاحظات وشرح كتابي'),
+                        child: Text('ملاحظات وشرح كتابي', overflow: TextOverflow.ellipsis),
                       ),
                     ],
                     onChanged: (v) {
@@ -1858,6 +1875,7 @@ class _LessonCodeChallengeDialogState
                     width: 180,
                     child: DropdownButtonFormField<String>(
                       initialValue: _difficulty,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'مستوى الصعوبة',
                         border: OutlineInputBorder(),
@@ -1865,15 +1883,15 @@ class _LessonCodeChallengeDialogState
                       items: const [
                         DropdownMenuItem(
                           value: 'easy',
-                          child: Text('سهل'),
+                          child: Text('سهل', overflow: TextOverflow.ellipsis),
                         ),
                         DropdownMenuItem(
                           value: 'medium',
-                          child: Text('متوسط'),
+                          child: Text('متوسط', overflow: TextOverflow.ellipsis),
                         ),
                         DropdownMenuItem(
                           value: 'hard',
-                          child: Text('صعب'),
+                          child: Text('صعب', overflow: TextOverflow.ellipsis),
                         ),
                       ],
                       onChanged: (value) {
@@ -1898,6 +1916,7 @@ class _LessonCodeChallengeDialogState
                     width: 180,
                     child: DropdownButtonFormField<String>(
                       initialValue: _status,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'حالة التحدي',
                         border: OutlineInputBorder(),
@@ -1905,11 +1924,11 @@ class _LessonCodeChallengeDialogState
                       items: const [
                         DropdownMenuItem(
                           value: 'draft',
-                          child: Text('مسودة'),
+                          child: Text('مسودة', overflow: TextOverflow.ellipsis),
                         ),
                         DropdownMenuItem(
                           value: 'published',
-                          child: Text('منشور ومتاح'),
+                          child: Text('منشور ومتاح', overflow: TextOverflow.ellipsis),
                         ),
                       ],
                       onChanged: (value) {
@@ -2112,12 +2131,16 @@ class _GroupPicker extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: DropdownButtonFormField<GroupEntity>(
         initialValue: selectedGroup,
+        isExpanded: true,
         decoration: const InputDecoration(
           labelText: 'المجموعة الدراسية المسندة',
           border: OutlineInputBorder(),
         ),
         items: groups
-            .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
+            .map((g) => DropdownMenuItem(
+                  value: g,
+                  child: Text(g.name, overflow: TextOverflow.ellipsis),
+                ))
             .toList(),
         onChanged: groups.isEmpty ? null : onChanged,
       ),

@@ -253,16 +253,32 @@ class _HelpdeskSupportScreenState extends State<HelpdeskSupportScreen> with Sing
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
                               initialValue: _selectedCategory,
+                              isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'تصنيف المشكلة أو الطلب',
                                 prefixIcon: Icon(Icons.category_outlined),
                               ),
                               items: const [
-                                DropdownMenuItem(value: 'استفسار أكاديمي', child: Text('استفسار أكاديمي أو دراسي')),
-                                DropdownMenuItem(value: 'مشكلة مالية/إيصال', child: Text('مشكلة مالية أو إيصال سداد')),
-                                DropdownMenuItem(value: 'مذكرات وملازم', child: Text('استلام مذكرات وملازم')),
-                                DropdownMenuItem(value: 'عذر غياب', child: Text('إبلاغ عن عذر غياب')),
-                                DropdownMenuItem(value: 'اقتراح أو شكوى', child: Text('اقتراح أو شكوى للإدارة')),
+                                DropdownMenuItem(
+                                  value: 'استفسار أكاديمي',
+                                  child: Text('استفسار أكاديمي أو دراسي', overflow: TextOverflow.ellipsis),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'مشكلة مالية/إيصال',
+                                  child: Text('مشكلة مالية أو إيصال سداد', overflow: TextOverflow.ellipsis),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'مذكرات وملازم',
+                                  child: Text('استلام مذكرات وملازم', overflow: TextOverflow.ellipsis),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'عذر غياب',
+                                  child: Text('إبلاغ عن عذر غياب', overflow: TextOverflow.ellipsis),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'اقتراح أو شكوى',
+                                  child: Text('اقتراح أو شكوى للإدارة', overflow: TextOverflow.ellipsis),
+                                ),
                               ],
                               onChanged: (val) {
                                 if (val != null) setState(() => _selectedCategory = val);

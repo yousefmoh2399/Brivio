@@ -352,7 +352,10 @@ class _ActivityTabState extends State<ActivityTab>
                         ),
                         child: TabBar(
                           controller: _tabCtrl,
-                          isScrollable: false,
+                          isScrollable: isNarrowMobile,
+                          tabAlignment: isNarrowMobile
+                              ? TabAlignment.start
+                              : TabAlignment.fill,
                           dividerColor: Colors.transparent,
                           indicator: BoxDecoration(
                             color: surfaceColor,

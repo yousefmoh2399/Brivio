@@ -831,6 +831,7 @@ class _InteractiveSeatAllocationDialogState extends State<InteractiveSeatAllocat
                 children: [
                   // Group / Batch Selector Dropdown
                   Container(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width > 400 ? 320 : MediaQuery.sizeOf(context).width - 60),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                     decoration: BoxDecoration(
                       color: isDark ? Colors.white10 : Colors.grey.shade100,
@@ -841,11 +842,18 @@ class _InteractiveSeatAllocationDialogState extends State<InteractiveSeatAllocat
                       child: DropdownButton<String?>(
                         value: _selectedGroupId,
                         isDense: true,
+                        isExpanded: true,
                         hint: const Row(
                           children: [
                             Icon(Icons.groups_rounded, size: 16, color: AppColors.primary),
                             SizedBox(width: 6),
-                            Text('دفعة التسكين: جميع طلاب السنتر', style: TextStyle(fontSize: 12)),
+                            Expanded(
+                              child: Text(
+                                'دفعة التسكين: جميع طلاب السنتر',
+                                style: TextStyle(fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                         items: [
@@ -855,7 +863,13 @@ class _InteractiveSeatAllocationDialogState extends State<InteractiveSeatAllocat
                               children: [
                                 Icon(Icons.people_outline, size: 16, color: AppColors.primary),
                                 SizedBox(width: 6),
-                                Text('جميع طلاب السنتر', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                Expanded(
+                                  child: Text(
+                                    'جميع طلاب السنتر',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -866,9 +880,12 @@ class _InteractiveSeatAllocationDialogState extends State<InteractiveSeatAllocat
                                 children: [
                                   const Icon(Icons.school_outlined, size: 16, color: Colors.indigo),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    '${g['name']} ${g['code'] != null ? "(${g['code']})" : ""}',
-                                    style: const TextStyle(fontSize: 12),
+                                  Expanded(
+                                    child: Text(
+                                      '${g['name']} ${g['code'] != null ? "(${g['code']})" : ""}',
+                                      style: const TextStyle(fontSize: 12),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ],
                               ),

@@ -213,6 +213,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: billingType,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'طريقة المحاسبة',
                           prefixIcon: Icon(Icons.payment_rounded),
@@ -220,11 +221,17 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                         items: const [
                           DropdownMenuItem(
                             value: 'installment',
-                            child: Text('أقساط مجدولة (3 أقساط)'),
+                            child: Text(
+                              'أقساط مجدولة (3 أقساط)',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           DropdownMenuItem(
                             value: 'one_time',
-                            child: Text('دفعة واحدة كاملة'),
+                            child: Text(
+                              'دفعة واحدة كاملة',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                         onChanged: (v) {
@@ -397,6 +404,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       initialValue: selectedPlanId,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'اختر خطة الاشتراك',
                         prefixIcon: Icon(Icons.card_membership_rounded),
@@ -407,6 +415,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                               value: p.id,
                               child: Text(
                                 '${p.name} (${_money(p.totalAmountMinor)})',
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           )
@@ -604,6 +613,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: paymentMethod,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'طريقة الدفع',
                         prefixIcon: Icon(Icons.credit_card_rounded),
@@ -611,7 +621,10 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                       items: const [
                         DropdownMenuItem(
                           value: 'cash',
-                          child: Text('نقدي (خزينة السنتر) 💵'),
+                          child: Text(
+                            'نقدي (خزينة السنتر) 💵',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                       onChanged: (v) {
@@ -1164,6 +1177,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int>(
                       initialValue: dueDays,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.timer_outlined),
                         border: OutlineInputBorder(),
@@ -1172,20 +1186,34 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                       items: const [
                         DropdownMenuItem(
                             value: 3,
-                            child: Text('خلال 3 أيام من أول الشهر')),
+                            child: Text(
+                              'خلال 3 أيام من أول الشهر',
+                              overflow: TextOverflow.ellipsis,
+                            )),
                         DropdownMenuItem(
                             value: 7,
-                            child:
-                                Text('خلال أسبوع (7 أيام - الموصى به)')),
+                            child: Text(
+                              'خلال أسبوع (7 أيام - الموصى به)',
+                              overflow: TextOverflow.ellipsis,
+                            )),
                         DropdownMenuItem(
                             value: 10,
-                            child: Text('خلال 10 أيام من أول الشهر')),
+                            child: Text(
+                              'خلال 10 أيام من أول الشهر',
+                              overflow: TextOverflow.ellipsis,
+                            )),
                         DropdownMenuItem(
                             value: 14,
-                            child: Text('خلال أسبوعين (14 يوماً)')),
+                            child: Text(
+                              'خلال أسبوعين (14 يوماً)',
+                              overflow: TextOverflow.ellipsis,
+                            )),
                         DropdownMenuItem(
                             value: 30,
-                            child: Text('حتى نهاية الشهر بالكامل')),
+                            child: Text(
+                              'حتى نهاية الشهر بالكامل',
+                              overflow: TextOverflow.ellipsis,
+                            )),
                       ],
                       onChanged: (v) {
                         if (v != null) setStateDialog(() => dueDays = v);
@@ -1697,9 +1725,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    _buildKpiSection(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                   ],
                 ),
               ),
@@ -1786,6 +1812,8 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildKpiSection(),
+          const SizedBox(height: 16),
           // Collection Progress Card
           Container(
             padding: const EdgeInsets.all(16),
@@ -2304,6 +2332,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                 if (_students.isNotEmpty)
                   DropdownButtonFormField<Student>(
                     initialValue: _selectedStudent,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'الطالب المستهدف',
                       prefixIcon: Icon(Icons.person_search_rounded),
@@ -2335,10 +2364,14 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'عدد الخطط المتاحة: ${_plans.length}',
-                          style: const TextStyle(fontSize: 12),
+                        Expanded(
+                          child: Text(
+                            'عدد الخطط المتاحة: ${_plans.length}',
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         TextButton.icon(
                           onPressed: _showCreatePlanDialog,
                           icon: const Icon(Icons.add, size: 16),
@@ -2406,6 +2439,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
               if (_students.isNotEmpty)
                 DropdownButtonFormField<Student>(
                   initialValue: _selectedStudent,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'عرض فواتير الطالب',
                     prefixIcon: Icon(Icons.person_rounded, color: AppColors.adminRole),
@@ -2821,6 +2855,7 @@ class _FinanceManagementScreenState extends State<FinanceManagementScreen> {
               if (_students.isNotEmpty)
                 DropdownButtonFormField<Student>(
                   initialValue: _selectedStudent,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'عرض إيصالات الطالب',
                     prefixIcon: Icon(Icons.person_rounded, color: AppColors.adminRole),

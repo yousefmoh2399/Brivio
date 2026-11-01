@@ -276,8 +276,10 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
               const SizedBox(height: 14),
 
               // Bottom Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
                 children: [
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
@@ -290,7 +292,6 @@ class _StudentDigitalIdCardState extends State<StudentDigitalIdCard>
                     icon: const Icon(Icons.flip_camera_android_rounded, size: 18),
                     label: Text(_isBack ? 'الوجه الأمامي 🪪' : 'بيانات الحضور والنظام 🔄'),
                   ),
-                  const SizedBox(width: 12),
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white.withValues(alpha: 0.15),

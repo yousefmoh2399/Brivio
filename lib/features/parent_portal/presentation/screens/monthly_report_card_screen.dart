@@ -395,18 +395,23 @@ class _MonthlyReportCardScreenState extends State<MonthlyReportCardScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_month_rounded,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'تقرير شهر:',
-                                style: AppTypography.titleSmall(textPrimary),
-                              ),
-                            ],
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month_rounded,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'تقرير شهر:',
+                                    style: AppTypography.titleSmall(textPrimary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           DropdownButton<String>(
                             value: _selectedMonth,

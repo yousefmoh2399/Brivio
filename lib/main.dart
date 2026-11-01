@@ -26,6 +26,7 @@ import 'design_system/theme/app_theme.dart';
 import 'features/auth/domain/models/user_role.dart';
 import 'features/auth/presentation/screens/auth_gate_screen.dart';
 import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import 'features/splash/presentation/screens/animated_splash_screen.dart';
 
 final GlobalKey<NavigatorState> globalNavigatorKey =
     GlobalKey<NavigatorState>();
@@ -164,6 +165,8 @@ class MainAppSelector extends StatefulWidget {
 
 class _MainAppSelectorState extends State<MainAppSelector> {
   late final AuthViewModel _viewModel;
+  bool _splashFinished =
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
   void initState() {
@@ -172,6 +175,54 @@ class _MainAppSelectorState extends State<MainAppSelector> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _viewModel.restoreSession();
     });
+  }
+
+  Widget _buildStateContent(AuthState state) {
+    switch (state.status) {
+      case AuthStatus.initial:
+      case AuthStatus.loading:
+        if (_viewModel.isRestoringSession) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF06172A),
+            body: SizedBox.shrink(),
+          );
+        }
+        return AuthGateScreen(viewModel: _viewModel);
+      case AuthStatus.authenticated:
+        final role = _viewModel.userRole;
+        if (role != null) {
+          final isFresh = _viewModel.hasFreshlyAuthenticated;
+          if (isFresh) {
+            _viewModel.consumeFreshlyAuthenticated();
+          }
+          return BiometricGate(
+            isFreshLogin: isFresh,
+            onSignOut: () {
+              BiometricGate.resetSessionLock();
+              _viewModel.signOut();
+            },
+            child: _buildRoleDashboard(role),
+          );
+        }
+        return PortalDeniedScreen(
+          currentRole: role,
+          targetPortalName: 'Academy Platform',
+          onSignOut: () {
+            BiometricGate.resetSessionLock();
+            _viewModel.signOut();
+          },
+        );
+      case AuthStatus.restricted:
+        return AccountRestrictedScreen(
+          onSignOut: () {
+            BiometricGate.resetSessionLock();
+            _viewModel.signOut();
+          },
+        );
+      case AuthStatus.unauthenticated:
+      case AuthStatus.error:
+        return AuthGateScreen(viewModel: _viewModel);
+    }
   }
 
   Widget _buildRoleDashboard(UserRole role) {
@@ -206,54 +257,32 @@ class _MainAppSelectorState extends State<MainAppSelector> {
         listenable: _viewModel,
         builder: (context, _) {
           final state = _viewModel.state;
+          final isReady = !_viewModel.isRestoringSession && state.status != AuthStatus.initial;
 
-          switch (state.status) {
-            case AuthStatus.initial:
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            case AuthStatus.loading:
-              if (_viewModel.isRestoringSession) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-              return AuthGateScreen(viewModel: _viewModel);
-            case AuthStatus.authenticated:
-              final role = _viewModel.userRole;
-              if (role != null) {
-                final isFresh = _viewModel.hasFreshlyAuthenticated;
-                if (isFresh) {
-                  _viewModel.consumeFreshlyAuthenticated();
+          Widget content;
+          if (!_splashFinished) {
+            content = AnimatedSplashScreen(
+              key: const ValueKey('animated_splash_screen'),
+              isReadyToTransition: isReady,
+              onFinish: () {
+                if (mounted) {
+                  setState(() => _splashFinished = true);
                 }
-                return BiometricGate(
-                  isFreshLogin: isFresh,
-                  onSignOut: () {
-                    BiometricGate.resetSessionLock();
-                    _viewModel.signOut();
-                  },
-                  child: _buildRoleDashboard(role),
-                );
-              }
-              return PortalDeniedScreen(
-                currentRole: role,
-                targetPortalName: 'Academy Platform',
-                onSignOut: () {
-                  BiometricGate.resetSessionLock();
-                  _viewModel.signOut();
-                },
-              );
-            case AuthStatus.restricted:
-              return AccountRestrictedScreen(
-                onSignOut: () {
-                  BiometricGate.resetSessionLock();
-                  _viewModel.signOut();
-                },
-              );
-            case AuthStatus.unauthenticated:
-            case AuthStatus.error:
-              return AuthGateScreen(viewModel: _viewModel);
+              },
+            );
+          } else {
+            content = KeyedSubtree(
+              key: const ValueKey('main_app_content'),
+              child: _buildStateContent(state),
+            );
           }
+
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: content,
+          );
         },
       ),
     );

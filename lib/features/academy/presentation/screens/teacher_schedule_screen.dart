@@ -209,19 +209,20 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                       const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
                         initialValue: selectedDay,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'يوم الحصة',
                           prefixIcon: Icon(Icons.calendar_today_outlined),
                           border: OutlineInputBorder(),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 6, child: Text('السبت')),
-                          DropdownMenuItem(value: 7, child: Text('الأحد')),
-                          DropdownMenuItem(value: 1, child: Text('الإثنين')),
-                          DropdownMenuItem(value: 2, child: Text('الثلاثاء')),
-                          DropdownMenuItem(value: 3, child: Text('الأربعاء')),
-                          DropdownMenuItem(value: 4, child: Text('الخميس')),
-                          DropdownMenuItem(value: 5, child: Text('الجمعة')),
+                          DropdownMenuItem(value: 6, child: Text('السبت', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(value: 7, child: Text('الأحد', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(value: 1, child: Text('الإثنين', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(value: 2, child: Text('الثلاثاء', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(value: 3, child: Text('الأربعاء', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(value: 4, child: Text('الخميس', overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(value: 5, child: Text('الجمعة', overflow: TextOverflow.ellipsis)),
                         ],
                         onChanged: (value) {
                           if (value != null) {
@@ -520,6 +521,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                           child: DropdownButtonFormField<GroupEntity>(
                             initialValue: _selectedGroup,
+                            isExpanded: true,
                             decoration: InputDecoration(
                               labelText: 'المجموعة الدراسية',
                               prefixIcon: const Icon(Icons.groups_outlined),
@@ -538,6 +540,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                                     value: group,
                                     child: Text(
                                       '${group.name} (${group.code})',
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                       ),

@@ -1076,8 +1076,11 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
           const Divider(height: 10),
 
           // Action Toolbar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(

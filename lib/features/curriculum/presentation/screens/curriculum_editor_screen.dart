@@ -601,15 +601,28 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: lessonTypeStr,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'نوع الدرس والمحتوى',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'video', child: Text('فيديو شرح')),
-                          DropdownMenuItem(value: 'pdf', child: Text('مستند / مذكرة PDF')),
-                          DropdownMenuItem(value: 'quiz', child: Text('اختبار تفاعلي')),
-                          DropdownMenuItem(value: 'text', child: Text('محتوى نصي وملخص')),
+                          DropdownMenuItem(
+                            value: 'video',
+                            child: Text('فيديو شرح', overflow: TextOverflow.ellipsis),
+                          ),
+                          DropdownMenuItem(
+                            value: 'pdf',
+                            child: Text('مستند / مذكرة PDF', overflow: TextOverflow.ellipsis),
+                          ),
+                          DropdownMenuItem(
+                            value: 'quiz',
+                            child: Text('اختبار تفاعلي', overflow: TextOverflow.ellipsis),
+                          ),
+                          DropdownMenuItem(
+                            value: 'text',
+                            child: Text('محتوى نصي وملخص', overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                         onChanged: (v) {
                           if (v != null) setStateDialog(() => lessonTypeStr = v);
@@ -712,15 +725,28 @@ class _CurriculumEditorScreenState extends State<CurriculumEditorScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: lessonTypeStr,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'نوع المحتوى',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'video', child: Text('فيديو شرح')),
-                          DropdownMenuItem(value: 'pdf', child: Text('مستند / مذكرة PDF')),
-                          DropdownMenuItem(value: 'quiz', child: Text('اختبار تفاعلي')),
-                          DropdownMenuItem(value: 'text', child: Text('محتوى نصي وملخص')),
+                          DropdownMenuItem(
+                            value: 'video',
+                            child: Text('فيديو شرح', overflow: TextOverflow.ellipsis),
+                          ),
+                          DropdownMenuItem(
+                            value: 'pdf',
+                            child: Text('مستند / مذكرة PDF', overflow: TextOverflow.ellipsis),
+                          ),
+                          DropdownMenuItem(
+                            value: 'quiz',
+                            child: Text('اختبار تفاعلي', overflow: TextOverflow.ellipsis),
+                          ),
+                          DropdownMenuItem(
+                            value: 'text',
+                            child: Text('محتوى نصي وملخص', overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                         onChanged: (v) {
                           if (v != null) setStateDialog(() => lessonTypeStr = v);

@@ -339,13 +339,17 @@ class _RegisterCenterScreenState extends State<RegisterCenterScreen> {
 
                       DropdownButtonFormField<String>(
                         initialValue: _selectedGovernorate,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: 'المحافظة *',
                           prefixIcon: const Icon(Icons.location_on_outlined),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         items: _governorates
-                            .map((gov) => DropdownMenuItem(value: gov, child: Text(gov)))
+                            .map((gov) => DropdownMenuItem(
+                                  value: gov,
+                                  child: Text(gov, overflow: TextOverflow.ellipsis),
+                                ))
                             .toList(),
                         onChanged: (v) {
                           if (v != null) setState(() => _selectedGovernorate = v);

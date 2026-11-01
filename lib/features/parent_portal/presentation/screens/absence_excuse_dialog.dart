@@ -323,7 +323,12 @@ class _AbsenceExcuseDialogState extends State<AbsenceExcuseDialog> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+                items: _reasons
+                    .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(r, overflow: TextOverflow.ellipsis),
+                        ))
+                    .toList(),
                 onChanged: (val) {
                   if (val != null) setState(() => _selectedReason = val);
                 },

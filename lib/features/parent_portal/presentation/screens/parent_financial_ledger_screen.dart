@@ -445,10 +445,15 @@ class _ParentFinancialLedgerScreenState extends State<ParentFinancialLedgerScree
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'سجل المعاملات والإيصالات (${_ledgerRecords.length})',
-                  style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    'سجل المعاملات والإيصالات (${_ledgerRecords.length})',
+                    style: AppTypography.titleMedium(textPrimary).copyWith(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+                const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: _isExporting ? null : _exportPdf,
                   icon: const Icon(Icons.print_rounded, size: 16),
@@ -541,8 +546,11 @@ class _ParentFinancialLedgerScreenState extends State<ParentFinancialLedgerScree
                           const SizedBox(height: 10),
                           const Divider(height: 1),
                           const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            runSpacing: 6,
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

@@ -455,13 +455,20 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: status,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'الحالة التشغيلية',
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'active', child: Text('نشط (Active)')),
-                        DropdownMenuItem(value: 'archived', child: Text('مؤرشف (Archived)')),
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text('نشط (Active)', overflow: TextOverflow.ellipsis),
+                        ),
+                        DropdownMenuItem(
+                          value: 'archived',
+                          child: Text('مؤرشف (Archived)', overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                       onChanged: (v) {
                         if (v != null) setStateDialog(() => status = v);
@@ -888,10 +895,14 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
           const Divider(height: 10),
 
           // Action Toolbar Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(

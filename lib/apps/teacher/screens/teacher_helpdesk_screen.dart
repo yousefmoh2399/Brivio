@@ -80,11 +80,12 @@ class _TeacherHelpdeskScreenState extends State<TeacherHelpdeskScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: priority,
+                isExpanded: true,
                 items: ['low', 'normal', 'high', 'urgent']
                     .map(
                       (p) => DropdownMenuItem(
                         value: p,
-                        child: Text(_priorityArabic(p)),
+                        child: Text(_priorityArabic(p), overflow: TextOverflow.ellipsis),
                       ),
                     )
                     .toList(),

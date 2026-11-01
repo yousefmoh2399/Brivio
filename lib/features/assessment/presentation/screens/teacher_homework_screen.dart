@@ -340,8 +340,10 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 12,
+                        runSpacing: 8,
                         children: [
                           TextButton(
                             onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -350,7 +352,6 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                               style: TextStyle(color: textColor),
                             ),
                           ),
-                          const SizedBox(width: 12),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
@@ -1015,6 +1016,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                           ),
                           child: DropdownButtonFormField<GroupEntity>(
                             initialValue: _selectedGroup,
+                            isExpanded: true,
                             dropdownColor: isDark
                                 ? AppColors.darkCard
                                 : AppColors.lightCard,
@@ -1029,6 +1031,7 @@ class _TeacherHomeworkScreenState extends State<TeacherHomeworkScreen> {
                                     value: g,
                                     child: Text(
                                       g.name,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(color: textColor),
                                     ),
                                   ),
@@ -1724,20 +1727,21 @@ class _HomeworkSubmissionsDialogContentState
             const SizedBox(height: 12),
 
             // PDF Actions Bar
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 OutlinedButton.icon(
                   onPressed: _exportRosterPdf,
                   icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Colors.indigo),
                   label: const Text('كشف التسليمات الرسمي (PDF)', style: TextStyle(fontSize: 12)),
                 ),
-                const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: _exportPrintableSheetPdf,
                   icon: const Icon(Icons.print_rounded, size: 16, color: Colors.deepPurple),
                   label: const Text('شيت واجب للطباعة (PDF)', style: TextStyle(fontSize: 12)),
                 ),
-                const Spacer(),
                 IconButton(
                   tooltip: 'تحديث البيانات',
                   icon: const Icon(Icons.refresh_rounded),
@@ -1748,31 +1752,52 @@ class _HomeworkSubmissionsDialogContentState
             const Divider(height: 18),
 
             // Search and Filters
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'ابحث باسم الطالب أو الكود...',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onChanged: (val) => setState(() => _searchQuery = val),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 550;
+                final searchWidget = TextField(
+                  decoration: InputDecoration(
+                    hintText: 'ابحث باسم الطالب أو الكود...',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                ),
-                const SizedBox(width: 10),
-                SegmentedButton<String>(
-                  segments: [
-                    ButtonSegment(value: 'all', label: Text('الكل ($totalStudents)', style: const TextStyle(fontSize: 11))),
-                    ButtonSegment(value: 'submitted', label: Text('سلّم ($submittedCount)', style: const TextStyle(fontSize: 11))),
-                    ButtonSegment(value: 'missing', label: Text('لم يسلّم ($missingCount)', style: const TextStyle(fontSize: 11))),
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                );
+
+                final segmentWidget = SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SegmentedButton<String>(
+                    segments: [
+                      ButtonSegment(value: 'all', label: Text('الكل ($totalStudents)', style: const TextStyle(fontSize: 11))),
+                      ButtonSegment(value: 'submitted', label: Text('سلّم ($submittedCount)', style: const TextStyle(fontSize: 11))),
+                      ButtonSegment(value: 'missing', label: Text('لم يسلّم ($missingCount)', style: const TextStyle(fontSize: 11))),
+                    ],
+                    selected: {_filter},
+                    onSelectionChanged: (set) => setState(() => _filter = set.first),
+                  ),
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      searchWidget,
+                      const SizedBox(height: 8),
+                      segmentWidget,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: searchWidget),
+                    const SizedBox(width: 10),
+                    segmentWidget,
                   ],
-                  selected: {_filter},
-                  onSelectionChanged: (set) => setState(() => _filter = set.first),
-                ),
-              ],
+                );
+              },
             ),
             const SizedBox(height: 12),
 

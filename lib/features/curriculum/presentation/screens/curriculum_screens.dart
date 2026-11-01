@@ -209,8 +209,11 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 Text(
                   'نسبة الإنجاز: ${progress?.progressPercentage ?? 0}%',

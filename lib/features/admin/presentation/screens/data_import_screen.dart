@@ -393,6 +393,7 @@ class _DataImportScreenState extends State<DataImportScreen> {
   }) {
     final entityDropdown = DropdownButtonFormField<_ImportEntity>(
       initialValue: _entity,
+      isExpanded: true,
       decoration: InputDecoration(
         labelText: 'نوع البيانات المطلوب استيرادها',
         prefixIcon: const Icon(Icons.category_outlined, size: 20),
@@ -404,7 +405,11 @@ class _DataImportScreenState extends State<DataImportScreen> {
           .map(
             (entity) => DropdownMenuItem(
               value: entity,
-              child: Text(entity.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+              child: Text(
+                entity.label,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           )
           .toList(),

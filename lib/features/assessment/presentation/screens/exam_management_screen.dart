@@ -363,14 +363,24 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       initialValue: status,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'حالة الاختبار',
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'published', child: Text('منشور ومتاح')),
-                        DropdownMenuItem(value: 'closed', child: Text('مغلق')),
-                        DropdownMenuItem(value: 'draft', child: Text('مسودة')),
+                        DropdownMenuItem(
+                          value: 'published',
+                          child: Text('منشور ومتاح', overflow: TextOverflow.ellipsis),
+                        ),
+                        DropdownMenuItem(
+                          value: 'closed',
+                          child: Text('مغلق', overflow: TextOverflow.ellipsis),
+                        ),
+                        DropdownMenuItem(
+                          value: 'draft',
+                          child: Text('مسودة', overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                       onChanged: (v) {
                         if (v != null) setStateDialog(() => status = v);
@@ -1066,8 +1076,11 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
           const Divider(height: 12),
 
           // Action Toolbar Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(

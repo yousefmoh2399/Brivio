@@ -443,8 +443,10 @@ class _AttendanceOperationsScreenState
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () {
@@ -460,7 +462,6 @@ class _AttendanceOperationsScreenState
                                   visualDensity: VisualDensity.compact,
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               OutlinedButton.icon(
                                 onPressed: () {
                                   setStateDialog(() {
@@ -1013,44 +1014,28 @@ class _AttendanceOperationsScreenState
                 .toList(),
           );
         } else if (isTablet) {
-          return Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(child: items[0]),
-                  const SizedBox(width: 8),
-                  Expanded(child: items[1]),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: items[2]),
-                  const SizedBox(width: 8),
-                  Expanded(child: items[3]),
-                ],
-              ),
-            ],
+          return Row(
+            children: items
+                .map((widget) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                        child: widget,
+                      ),
+                    ))
+                .toList(),
           );
         } else {
-          return Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(child: items[0]),
-                  const SizedBox(width: 8),
-                  Expanded(child: items[1]),
-                ],
+          return SizedBox(
+            height: 68,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) => SizedBox(
+                width: 190,
+                child: items[index],
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: items[2]),
-                  const SizedBox(width: 8),
-                  Expanded(child: items[3]),
-                ],
-              ),
-            ],
+            ),
           );
         }
       },
@@ -1064,8 +1049,12 @@ class _AttendanceOperationsScreenState
     required Color color,
     required String subtitle,
   }) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 12,
+        vertical: isMobile ? 8 : 12,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
@@ -1083,14 +1072,14 @@ class _AttendanceOperationsScreenState
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(isMobile ? 7 : 10),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: isMobile ? 18 : 24),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1098,28 +1087,28 @@ class _AttendanceOperationsScreenState
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: isMobile ? 10.5 : 12,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: isMobile ? 15 : 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                if (!isMobile)
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -1228,9 +1217,7 @@ class _AttendanceOperationsScreenState
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    _buildKpiSection(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                   ],
                 ),
               ),
@@ -1301,6 +1288,8 @@ class _AttendanceOperationsScreenState
 
     return Column(
       children: [
+        _buildKpiSection(),
+        const SizedBox(height: 10),
         // Group Selector & Filters Bar
         Container(
           padding: const EdgeInsets.all(12),
@@ -1317,6 +1306,7 @@ class _AttendanceOperationsScreenState
               if (_groups.isNotEmpty)
                 DropdownButtonFormField<GroupEntity>(
                   initialValue: _selectedGroup,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'المجموعة الدراسية المختارة',
                     prefixIcon: Icon(Icons.groups_rounded, color: AppColors.adminRole),
@@ -1327,7 +1317,10 @@ class _AttendanceOperationsScreenState
                       .map(
                         (g) => DropdownMenuItem(
                           value: g,
-                          child: Text('${g.name} (${g.code})'),
+                          child: Text(
+                            '${g.name} (${g.code})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       )
                       .toList(),

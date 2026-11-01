@@ -193,6 +193,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: selectedRole,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'الدور الوظيفي والصلاحيات',
                         border: OutlineInputBorder(),
@@ -200,11 +201,17 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       items: const [
                         DropdownMenuItem(
                           value: 'staff',
-                          child: Text('موظف استقبال / إداري (Staff)'),
+                          child: Text(
+                            'موظف استقبال / إداري (Staff)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         DropdownMenuItem(
                           value: 'admin',
-                          child: Text('مشرف نظام / مدير فرع (Admin)'),
+                          child: Text(
+                            'مشرف نظام / مدير فرع (Admin)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                       onChanged: (v) =>
@@ -235,6 +242,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     if (_branches.isNotEmpty)
                       DropdownButtonFormField<String>(
                         initialValue: selectedBranchId,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'الفرع التابع له',
                           border: OutlineInputBorder(),
@@ -243,7 +251,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                             .map(
                               (b) => DropdownMenuItem(
                                 value: b['id']?.toString(),
-                                child: Text(b['name']?.toString() ?? ''),
+                                child: Text(
+                                  b['name']?.toString() ?? '',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             )
                             .toList()
@@ -405,13 +416,20 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: role,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'الدور الوظيفي',
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'staff', child: Text('موظف استقبال / إداري')),
-                        DropdownMenuItem(value: 'admin', child: Text('مشرف نظام / مدير فرع')),
+                        DropdownMenuItem(
+                          value: 'staff',
+                          child: Text('موظف استقبال / إداري', overflow: TextOverflow.ellipsis),
+                        ),
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Text('مشرف نظام / مدير فرع', overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                       onChanged: (v) => setStateDialog(() => role = v ?? 'staff'),
                     ),
@@ -419,6 +437,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     if (_branches.isNotEmpty)
                       DropdownButtonFormField<String>(
                         initialValue: selectedBranchId,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'الفرع التابع له',
                           border: OutlineInputBorder(),
@@ -427,7 +446,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                             .map(
                               (b) => DropdownMenuItem(
                                 value: b['id']?.toString(),
-                                child: Text(b['name']?.toString() ?? ''),
+                                child: Text(
+                                  b['name']?.toString() ?? '',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             )
                             .toList()
@@ -849,7 +871,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: _selectedBranchFilter,
-                    hint: const Text('جميع الفروع', style: TextStyle(fontSize: 11)),
+                    isDense: true,
+                    hint: const Text('جميع الفروع', style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
                     style: TextStyle(
                       fontSize: 11,
                       color: isDark ? Colors.white : Colors.black87,
@@ -857,12 +880,15 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('جميع الفروع'),
+                        child: Text('جميع الفروع', overflow: TextOverflow.ellipsis),
                       ),
                       ..._branches.map(
                         (b) => DropdownMenuItem<String?>(
                           value: b['id']?.toString(),
-                          child: Text(b['name']?.toString() ?? ''),
+                          child: Text(
+                            b['name']?.toString() ?? '',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ],

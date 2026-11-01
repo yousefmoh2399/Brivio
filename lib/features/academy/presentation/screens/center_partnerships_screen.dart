@@ -401,15 +401,16 @@ class _CenterPartnershipsScreenState extends State<CenterPartnershipsScreen> {
                       Text('رسالة السنتر: "${p.notes}"', style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
                     ],
                     const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         OutlinedButton(
                           onPressed: () => _handleRespond(p.id, 'rejected'),
                           style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                           child: const Text('رفض'),
                         ),
-                        const SizedBox(width: 8),
                         FilledButton.icon(
                           onPressed: () => _handleRespond(p.id, 'approved'),
                           icon: const Icon(Icons.check, size: 16),

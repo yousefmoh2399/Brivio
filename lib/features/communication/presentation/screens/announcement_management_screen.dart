@@ -62,6 +62,7 @@ class _AnnouncementManagementScreenState
                     const SizedBox(height: 12),
                     DropdownButtonFormField<AnnouncementPriority>(
                       initialValue: _priority,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: context.tr('Priority'),
                       ),
@@ -69,7 +70,10 @@ class _AnnouncementManagementScreenState
                           .map(
                             (p) => DropdownMenuItem(
                               value: p,
-                              child: Text(p.name.toUpperCase()),
+                              child: Text(
+                                p.name.toUpperCase(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           )
                           .toList(),

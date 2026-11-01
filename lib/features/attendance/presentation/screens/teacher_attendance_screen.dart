@@ -233,6 +233,7 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                     const SizedBox(height: 6),
                     DropdownButtonFormField<AttendanceStatus>(
                       initialValue: statuses[student.id],
+                      isExpanded: true,
                       decoration: InputDecoration(
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -242,7 +243,10 @@ class _TeacherAttendanceScreenState extends State<TeacherAttendanceScreen> {
                           .map(
                             (status) => DropdownMenuItem(
                               value: status,
-                              child: Text(_attendanceStatusArabic(status)),
+                              child: Text(
+                                _attendanceStatusArabic(status),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           )
                           .toList(),
@@ -1465,12 +1469,16 @@ class _GroupPicker extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: DropdownButtonFormField<GroupEntity>(
         initialValue: selectedGroup,
+        isExpanded: true,
         decoration: const InputDecoration(
           labelText: 'المجموعة الدراسية',
           border: OutlineInputBorder(),
         ),
         items: groups
-            .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
+            .map((g) => DropdownMenuItem(
+                  value: g,
+                  child: Text(g.name, overflow: TextOverflow.ellipsis),
+                ))
             .toList(),
         onChanged: groups.isEmpty ? null : onChanged,
       ),

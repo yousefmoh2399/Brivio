@@ -222,6 +222,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                         const Divider(height: 24),
                         DropdownButtonFormField<QuestionType>(
                           initialValue: selectedType,
+                          isExpanded: true,
                           dropdownColor: isDark
                               ? AppColors.darkCard
                               : AppColors.lightCard,
@@ -234,6 +235,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                               value: QuestionType.multipleChoice,
                               child: Text(
                                 'اختيار من متعدد (MCQ)',
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(color: textColor),
                               ),
                             ),
@@ -241,6 +243,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                               value: QuestionType.trueFalse,
                               child: Text(
                                 'صح أو خطأ',
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(color: textColor),
                               ),
                             ),
@@ -354,6 +357,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                           const SizedBox(height: 14),
                           DropdownButtonFormField<int>(
                             initialValue: correctIdx,
+                            isExpanded: true,
                             dropdownColor: isDark
                                 ? AppColors.darkCard
                                 : AppColors.lightCard,
@@ -366,6 +370,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 value: 0,
                                 child: Text(
                                   'الخيار الأول (أ) هو الصحيح ✔️',
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(color: textColor),
                                 ),
                               ),
@@ -373,6 +378,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 value: 1,
                                 child: Text(
                                   'الخيار الثاني (ب) هو الصحيح ✔️',
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(color: textColor),
                                 ),
                               ),
@@ -380,6 +386,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 value: 2,
                                 child: Text(
                                   'الخيار الثالث (ج) هو الصحيح ✔️',
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(color: textColor),
                                 ),
                               ),
@@ -387,6 +394,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 value: 3,
                                 child: Text(
                                   'الخيار الرابع (د) هو الصحيح ✔️',
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(color: textColor),
                                 ),
                               ),
@@ -401,6 +409,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                           const SizedBox(height: 8),
                           DropdownButtonFormField<int>(
                             initialValue: correctIdx,
+                            isExpanded: true,
                             dropdownColor: isDark
                                 ? AppColors.darkCard
                                 : AppColors.lightCard,
@@ -413,6 +422,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 value: 0,
                                 child: Text(
                                   'صواب (صح) هي الإجابة الصحيحة ✔️',
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(color: textColor),
                                 ),
                               ),
@@ -420,6 +430,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                 value: 1,
                                 child: Text(
                                   'خطأ هي الإجابة الصحيحة ✔️',
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(color: textColor),
                                 ),
                               ),
@@ -812,6 +823,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                             ),
                             child: DropdownButtonFormField<GroupEntity>(
                               initialValue: _selectedGroup,
+                              isExpanded: true,
                               dropdownColor: isDark
                                   ? AppColors.darkCard
                                   : AppColors.lightCard,
@@ -826,6 +838,7 @@ class _TeacherQuestionBankScreenState extends State<TeacherQuestionBankScreen> {
                                       value: g,
                                       child: Text(
                                         '${g.name} (${g.code})',
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(color: textColor),
                                       ),
                                     ),

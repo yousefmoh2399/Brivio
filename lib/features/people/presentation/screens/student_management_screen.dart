@@ -1310,8 +1310,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           const Divider(height: 10),
 
           // Action Toolbar Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               Row(
                 mainAxisSize: MainAxisSize.min,

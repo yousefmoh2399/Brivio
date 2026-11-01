@@ -794,8 +794,10 @@ class _DailyCashRegisterScreenState extends State<DailyCashRegisterScreen> {
           const SizedBox(height: 12),
 
           // Actions row (auto-fill & reset)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               TextButton.icon(
                 icon: const Icon(Icons.flash_on_rounded, size: 14),

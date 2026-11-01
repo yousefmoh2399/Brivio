@@ -26,3 +26,6 @@
 
 # Google Play Core & Deferred Components
 -dontwarn com.google.android.play.core.**
+
+# Lottie Android Native
+-keep class com.airbnb.lottie.** { *; }

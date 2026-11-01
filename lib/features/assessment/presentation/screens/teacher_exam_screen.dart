@@ -495,8 +495,10 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 12,
+                        runSpacing: 8,
                         children: [
                           TextButton(
                             onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
@@ -505,7 +507,6 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                               style: TextStyle(color: textColor),
                             ),
                           ),
-                          const SizedBox(width: 12),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
@@ -1683,6 +1684,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                           ),
                           child: DropdownButtonFormField<GroupEntity>(
                             initialValue: _selectedGroup,
+                            isExpanded: true,
                             dropdownColor: isDark
                                 ? AppColors.darkCard
                                 : AppColors.lightCard,
@@ -1696,6 +1698,7 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                                     value: g,
                                     child: Text(
                                       g.name,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(color: textColor),
                                     ),
                                   ),
@@ -2086,9 +2089,12 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
         if (_selectedGroup != null)
           Positioned(
             bottom: 16,
+            left: 16,
             right: 16,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 10,
+              runSpacing: 10,
               children: [
                 FloatingActionButton.extended(
                   heroTag: 'smart_exam_fab',
@@ -2107,7 +2113,6 @@ class _TeacherExamScreenState extends State<TeacherExamScreen> {
                   icon: const Icon(Icons.auto_awesome_rounded),
                   label: const Text('توليد ذكي ⚡'),
                 ),
-                const SizedBox(width: 10),
                 FloatingActionButton.extended(
                   heroTag: 'manual_exam_fab',
                   onPressed: _showCreateExamDialog,

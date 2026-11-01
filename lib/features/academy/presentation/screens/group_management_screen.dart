@@ -1356,8 +1356,11 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
             const Divider(height: 10),
 
             // Action Toolbar Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              runSpacing: 4,
               children: [
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
@@ -1750,16 +1753,22 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.studentRole),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'تاريخ استحقاق السداد: $dueDateStr',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.studentRole),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'تاريخ استحقاق السداد: $dueDateStr',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 6),
                               const Text('تغيير 📅', style: TextStyle(fontSize: 11, color: AppColors.studentRole)),
                             ],
                           ),

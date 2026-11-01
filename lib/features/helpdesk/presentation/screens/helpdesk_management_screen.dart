@@ -93,11 +93,24 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen>
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: priority,
+                    isExpanded: true,
                     items: const [
-                      DropdownMenuItem(value: 'low', child: Text('منخفضة الأولوية')),
-                      DropdownMenuItem(value: 'normal', child: Text('عادية')),
-                      DropdownMenuItem(value: 'high', child: Text('عالية الأهمية')),
-                      DropdownMenuItem(value: 'urgent', child: Text('عاجلة جداً 🚨')),
+                      DropdownMenuItem(
+                        value: 'low',
+                        child: Text('منخفضة الأولوية', overflow: TextOverflow.ellipsis),
+                      ),
+                      DropdownMenuItem(
+                        value: 'normal',
+                        child: Text('عادية', overflow: TextOverflow.ellipsis),
+                      ),
+                      DropdownMenuItem(
+                        value: 'high',
+                        child: Text('عالية الأهمية', overflow: TextOverflow.ellipsis),
+                      ),
+                      DropdownMenuItem(
+                        value: 'urgent',
+                        child: Text('عاجلة جداً 🚨', overflow: TextOverflow.ellipsis),
+                      ),
                     ],
                     onChanged: (val) {
                       if (val != null) priority = val;
@@ -148,6 +161,7 @@ class _HelpdeskManagementScreenState extends State<HelpdeskManagementScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return PortalPageShell(
+      scrollableHeader: false,
       title: 'الدعم الفني ومكتب المساعدة',
       subtitle: 'متابعة وحل استفسارات ومشاكل الطلاب، المعلمين، وأولياء الأمور بسرعة واحترافية.',
       icon: Icons.support_agent_rounded,

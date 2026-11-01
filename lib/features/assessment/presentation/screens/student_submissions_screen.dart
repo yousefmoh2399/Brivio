@@ -604,8 +604,10 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                       maxLines: 3,
                     ),
                     const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
@@ -614,7 +616,6 @@ class _StudentSubmissionsScreenState extends State<StudentSubmissionsScreen> {
                             style: TextStyle(color: textColor),
                           ),
                         ),
-                        const SizedBox(width: 16),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,

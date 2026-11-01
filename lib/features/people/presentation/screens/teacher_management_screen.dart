@@ -227,6 +227,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     if (_branches.isNotEmpty)
                       DropdownButtonFormField<String>(
                         initialValue: selectedBranchId,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'الفرع التابع له',
                           border: OutlineInputBorder(),
@@ -235,7 +236,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                             .map(
                               (b) => DropdownMenuItem<String>(
                                 value: b.id,
-                                child: Text(b.name),
+                                child: Text(b.name, overflow: TextOverflow.ellipsis),
                               ),
                             )
                             .toList()
@@ -243,7 +244,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                             0,
                             const DropdownMenuItem(
                               value: null,
-                              child: Text('بدون فرع محدد'),
+                              child: Text('بدون فرع محدد', overflow: TextOverflow.ellipsis),
                             ),
                           ),
                         onChanged: (v) =>
@@ -443,6 +444,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     if (_branches.isNotEmpty)
                       DropdownButtonFormField<String>(
                         initialValue: selectedBranchId,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'الفرع التابع له',
                           border: OutlineInputBorder(),
@@ -451,7 +453,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                             .map(
                               (b) => DropdownMenuItem(
                                 value: b.id,
-                                child: Text(b.name),
+                                child: Text(b.name, overflow: TextOverflow.ellipsis),
                               ),
                             )
                             .toList(),

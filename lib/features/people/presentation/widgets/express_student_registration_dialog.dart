@@ -394,12 +394,20 @@ class _ExpressStudentRegistrationDialogState
                   flex: 3,
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedGrade,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'المرحلة الدراسية',
                       prefixIcon: Icon(Icons.school_rounded),
                     ),
                     items: _gradeOptions
-                        .map((g) => DropdownMenuItem(value: g, child: Text(g, style: const TextStyle(fontSize: 13))))
+                        .map((g) => DropdownMenuItem(
+                              value: g,
+                              child: Text(
+                                g,
+                                style: const TextStyle(fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ))
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setState(() => _selectedGrade = v);
@@ -606,10 +614,14 @@ class _ExpressStudentRegistrationDialogState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('المرحلة والمجموعة:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  Text(
-                    '$_selectedGrade • ${_enrolledGroupNames.isNotEmpty ? _enrolledGroupNames.first : "عام"}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  const Text('المرحلة والمجموعة: ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  Expanded(
+                    child: Text(
+                      '$_selectedGrade • ${_enrolledGroupNames.isNotEmpty ? _enrolledGroupNames.first : "عام"}',
+                      textAlign: TextAlign.end,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),

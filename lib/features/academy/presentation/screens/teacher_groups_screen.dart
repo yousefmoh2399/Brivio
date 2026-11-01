@@ -474,6 +474,7 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
                             initialValue: status,
+                            isExpanded: true,
                             decoration: InputDecoration(
                               labelText: 'حالة المجموعة *',
                               prefixIcon: const Icon(
@@ -487,11 +488,11 @@ class _TeacherGroupsScreenState extends State<TeacherGroupsScreen> {
                             items: const [
                               DropdownMenuItem(
                                 value: 'active',
-                                child: Text('نشطة حالياً ✔️'),
+                                child: Text('نشطة حالياً ✔️', overflow: TextOverflow.ellipsis),
                               ),
                               DropdownMenuItem(
                                 value: 'archived',
-                                child: Text('مؤرشفة 📁'),
+                                child: Text('مؤرشفة 📁', overflow: TextOverflow.ellipsis),
                               ),
                             ],
                             onChanged: (value) {

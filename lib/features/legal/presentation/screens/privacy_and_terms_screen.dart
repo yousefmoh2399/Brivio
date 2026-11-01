@@ -76,6 +76,10 @@ class _PrivacyAndTermsScreenState extends State<PrivacyAndTermsScreen>
             ),
             child: TabBar(
               controller: _tabController,
+              isScrollable: MediaQuery.sizeOf(context).width < 450,
+              tabAlignment: MediaQuery.sizeOf(context).width < 450
+                  ? TabAlignment.start
+                  : TabAlignment.fill,
               labelColor: AppColors.primary,
               unselectedLabelColor: textSecondary,
               indicatorColor: AppColors.primary,
